@@ -26,19 +26,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* ============================================================
    ROLE SELECTOR — landing screen
 ============================================================ */
-#roleGate{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--brand);padding:20px;}
-.role-box{background:var(--surface);border-radius:22px;padding:44px 40px;width:100%;max-width:440px;text-align:center;}
-.role-logo{font-family:'DM Serif Display',serif;font-size:32px;color:var(--brand);margin-bottom:6px;}
-.role-logo span{color:var(--accent);}
-.role-tagline{font-size:14px;color:var(--text-muted);margin-bottom:36px;}
-.role-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
-.role-card{border:2px solid var(--border);border-radius:var(--radius);padding:22px 16px;cursor:pointer;transition:all .18s;background:var(--surface);}
-.role-card:hover{border-color:var(--brand-light);background:var(--brand-pale);transform:translateY(-2px);}
-.role-card.admin-card:hover{border-color:#a78bfa;background:#f3e8ff;}
-.role-icon{font-size:32px;margin-bottom:10px;}
-.role-name{font-size:15px;font-weight:600;margin-bottom:4px;}
-.role-desc{font-size:12px;color:var(--text-muted);}
-.role-hint{font-size:12px;color:var(--text-faint);}
 
 /* ============================================================
    SHARED LOGIN MODAL
@@ -71,7 +58,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* ============================================================
    STUDENT INTERFACE
 ============================================================ */
-#studentApp{display:none;}
+#studentApp{display:block;}
 /* NAV */
 .s-nav{background:var(--brand);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;}
 .s-logo{font-family:'DM Serif Display',serif;color:#fff;font-size:22px;letter-spacing:-.5px;cursor:pointer;}
@@ -114,6 +101,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
 .filter-chip{padding:7px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .15s;font-family:'DM Sans',sans-serif;}
 .filter-chip:hover,.filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+.cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
+.cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
+.cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
 .listings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
 /* PINNED SECTION */
 .pinned-strip{margin-bottom:24px;}
@@ -142,10 +132,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .poster-name{font-size:12px;font-weight:500;}
 .poster-time{font-size:11px;color:var(--text-faint);}
 /* MESSAGES */
-.msg-layout{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 58px);}
-.msg-sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
-.msg-sidebar-header{padding:20px 16px 14px;border-bottom:1px solid var(--border);}
+.msg-layout{display:flex;height:calc(100vh - 58px);}
+.msg-sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s ease;overflow:hidden;}
+.msg-sidebar.msg-collapsed{width:0;border-right:none;}
+.msg-sidebar-header{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
 .msg-sidebar-title{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;}
+.msg-toggle-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;margin-top:2px;transition:color .15s;}
+.msg-toggle-btn:hover{color:var(--brand);}
+.msg-reopen-btn{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-muted);font-size:16px;padding:3px 8px;line-height:1;transition:all .15s;flex-shrink:0;}
+.msg-reopen-btn:hover{background:var(--brand-pale);color:var(--brand);border-color:var(--brand-light);}
+.msg-sidebar.msg-collapsed~.chat-area .msg-reopen-btn{display:flex;}
 .search-input{width:100%;padding:8px 14px;border:1px solid var(--border);border-radius:20px;font-size:13px;background:var(--bg);outline:none;font-family:'DM Sans',sans-serif;}
 .convo-list{flex:1;overflow-y:auto;}
 .convo-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;}
@@ -195,7 +191,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 ============================================================ */
 #adminApp{display:none;min-height:100vh;}
 .a-layout{display:flex;min-height:100vh;}
-.a-sidebar{width:240px;background:var(--brand);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;overflow-y:auto;}
+.a-sidebar{width:240px;background:var(--brand);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;overflow-y:auto;transition:width .2s ease;overflow-x:hidden;}
 .a-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.1);}
 .a-logo-text{font-family:'DM Serif Display',serif;color:#fff;font-size:20px;}
 .a-logo-text span{color:var(--accent);}
@@ -212,7 +208,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .a-admin-av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
 .btn-logout-a{width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,0.07);border:none;border-radius:var(--radius-sm);color:rgba(255,255,255,0.55);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
 .btn-logout-a:hover{background:rgba(255,255,255,0.13);color:#fff;}
-.a-main{margin-left:240px;flex:1;min-height:100vh;}
+.a-main{margin-left:240px;flex:1;min-height:100vh;transition:margin-left .2s ease;}
+/* Admin sidebar collapsed (icon-only strip) */
+.a-sidebar.a-collapsed{width:52px;}
+.a-sidebar.a-collapsed .a-logo{justify-content:center;padding:14px 0;}
+.a-sidebar.a-collapsed .a-logo-text,.a-sidebar.a-collapsed .a-logo-sub{display:none;}
+.a-sidebar.a-collapsed .a-sec-label{display:none;}
+.a-sidebar.a-collapsed .n-label{display:none;}
+.a-sidebar.a-collapsed .a-nav-item{justify-content:center;padding:10px 0;position:relative;overflow:visible;}
+.a-sidebar.a-collapsed .n-badge{position:absolute;top:5px;right:5px;width:8px;height:8px;min-width:0;padding:0;font-size:0;border-radius:50%;}
+.a-sidebar.a-collapsed .a-admin-info{display:none;}
+.a-sidebar.a-collapsed .btn-logout-a{display:none;}
+.a-sidebar.a-collapsed .a-sidebar-footer{padding:10px 0;display:flex;justify-content:center;border-top:1px solid rgba(255,255,255,0.1);}
+/* Tooltips — only visible in collapsed mode */
+.a-sidebar.a-collapsed .a-nav-item::after{content:attr(data-tooltip);position:absolute;left:54px;top:50%;transform:translateY(-50%);background:#1a1a2e;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:200;border:1px solid rgba(255,255,255,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.a-sidebar.a-collapsed .a-nav-item:hover::after,.a-sidebar.a-collapsed .a-nav-item:focus::after{opacity:1;}
+/* Admin sidebar toggle button */
+.a-sidebar-toggle{background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:17px;padding:3px 7px;border-radius:4px;transition:all .15s;font-family:'DM Sans',sans-serif;line-height:1;flex-shrink:0;}
+.a-sidebar-toggle:hover{background:rgba(255,255,255,0.1);color:#fff;}
 .a-topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
 .a-topbar-title{font-size:16px;font-weight:600;}
 .a-topbar-right{display:flex;align-items:center;gap:8px;}
@@ -383,31 +396,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .switch-interface{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);font-size:11px;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s;}
 .switch-interface:hover{background:rgba(255,255,255,0.2);color:#fff;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <!-- ============================================================
      ROLE SELECTOR
 ============================================================ -->
-<div id="roleGate">
-  <div class="role-box">
-    <div class="role-logo">Caldwell<span>Nest</span></div>
-    <div class="role-tagline">Caldwell University Student Housing Platform</div>
-    <div class="role-cards">
-      <div class="role-card" onclick="pickRole('student')">
-        <div class="role-icon">&#127968;</div>
-        <div class="role-name">I'm a student</div>
-        <div class="role-desc">Browse listings, post rooms, message students</div>
-      </div>
-      <div class="role-card admin-card" onclick="pickRole('admin')">
-        <div class="role-icon">&#128274;</div>
-        <div class="role-name">Admin access</div>
-        <div class="role-desc">Manage listings, students & platform</div>
-      </div>
-    </div>
-    <div class="role-hint">Only @caldwell.edu emails are accepted for students</div>
-  </div>
-</div>
 
 <!-- ============================================================
      STUDENT APP
@@ -418,7 +413,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
     <div class="nav-links" id="navGuest">
       <button class="nav-btn nav-ghost" onclick="openModal('loginModal')">Log in</button>
       <button class="nav-btn nav-solid" onclick="openModal('signupModal')">Sign up</button>
-      <button class="switch-interface" onclick="pickRole('admin')">Admin &#8599;</button>
+      <button class="switch-interface" onclick="currentRole === 'admin' ? switchBackToAdmin() : pickRole('admin')">Admin &#8599;</button>
     </div>
     <div class="nav-user" id="navUser">
       <button class="nav-ghost nav-btn" onclick="showPage('listings')" style="color:rgba(255,255,255,0.8)">Browse</button>
@@ -434,7 +429,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   <div id="page-home" class="page active">
     <div class="hero">
       <div class="hero-badge">&#127968; Caldwell University Only · .edu verified</div>
-      <h1 id="heroH1">Find your place<br>near <em id="heroEm">Caldwell</em></h1>
+      <h1 id="heroH1">Find your home<br>near <em id="heroEm">Caldwell</em></h1>
       <p id="heroSub">A private housing board for Caldwell students — post a room, find a roommate, message directly. No outsiders.</p>
       <div class="hero-cta">
         <button class="btn-primary" id="heroCta" onclick="openModal('signupModal')">Get started free</button>
@@ -466,10 +461,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
       </div>
       <div class="filters">
         <button class="filter-chip active" onclick="filterListings('all',this)">All</button>
-        <button class="filter-chip" onclick="filterListings('Private Room',this)">Private room</button>
-        <button class="filter-chip" onclick="filterListings('Shared Room',this)">Shared room</button>
-        <button class="filter-chip" onclick="filterListings('Full Apartment',this)">Full apartment</button>
-        <button class="filter-chip" onclick="filterListings('Looking for Room',this)">Looking for room</button>
+        <button class="filter-chip" onclick="filterListings('housing',this)">&#127968; Housing</button>
+        <button class="filter-chip" onclick="filterListings('clothing',this)">&#128085; Clothing</button>
+        <button class="filter-chip" onclick="filterListings('technology',this)">&#128187; Technology</button>
+        <button class="filter-chip" onclick="filterListings('donation',this)">&#127873; Donation</button>
+        <button class="filter-chip" onclick="filterListings('organization_event',this)">&#128227; Events</button>
+        <button class="filter-chip" onclick="filterListings('other',this)">&#127991; Other</button>
       </div>
       <!-- PINNED STRIP -->
       <div class="pinned-strip" id="pinnedStrip" style="display:none">
@@ -484,14 +481,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   <!-- MESSAGES -->
   <div id="page-messages" class="page">
     <div class="msg-layout">
-      <div class="msg-sidebar">
+      <div class="msg-sidebar" id="msgSidebar">
         <div class="msg-sidebar-header">
-          <div class="msg-sidebar-title">Messages</div>
-          <input class="search-input" placeholder="Search conversations..." oninput="filterConvos(this.value)">
+          <div><div class="msg-sidebar-title">Messages</div><input class="search-input" placeholder="Search conversations..." oninput="filterConvos(this.value)"></div>
+          <button class="msg-toggle-btn" id="msgToggleBtn" onclick="toggleMsgSidebar()" title="Hide sidebar">&#8249;</button>
         </div>
         <div class="convo-list" id="convoList"></div>
       </div>
-      <div class="chat-area" id="chatArea"><div class="no-chat"><div style="font-size:48px;opacity:.4">&#128172;</div><div>Select a conversation</div></div></div>
+      <div class="chat-area" id="chatArea" style="flex:1;min-width:0;">
+        <div class="no-chat"><button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250; Conversations</button><div style="font-size:48px;opacity:.4">&#128172;</div><div>Select a conversation</div></div>
+      </div>
     </div>
   </div>
 
@@ -520,38 +519,38 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 <div id="adminApp">
   <div class="a-layout">
     <div class="a-sidebar">
-      <div class="a-logo">
-        <div class="a-logo-text">Caldwell<span>Nest</span></div>
-        <div class="a-logo-sub">Admin Panel</div>
+      <div class="a-logo" style="display:flex;align-items:center;justify-content:space-between;">
+        <div><div class="a-logo-text">Caldwell<span>Nest</span></div><div class="a-logo-sub">Admin Panel</div></div>
+        <button class="a-sidebar-toggle" id="adminSidebarToggle" onclick="toggleAdminSidebar()">&#8249;</button>
       </div>
       <div class="a-nav">
         <div class="a-sec-label">Overview</div>
-        <button class="a-nav-item active" onclick="ago('dashboard',this)"><span class="n-icon">&#9640;</span>Dashboard</button>
+        <button class="a-nav-item active" onclick="ago('dashboard',this)" data-tooltip="Dashboard"><span class="n-icon">&#9640;</span><span class="n-label">Dashboard</span></button>
         <div class="a-sec-label">Listings</div>
-        <button class="a-nav-item" onclick="ago('approvals',this)"><span class="n-icon">&#9745;</span>Approvals <span class="n-badge" id="pendBadge">3</span></button>
-        <button class="a-nav-item" onclick="ago('listings',this)"><span class="n-icon">&#127968;</span>All listings</button>
-        <button class="a-nav-item" onclick="ago('pinned',this)"><span class="n-icon">&#128204;</span>Pinned / Featured</button>
+        <button class="a-nav-item" onclick="ago('approvals',this)" data-tooltip="Approvals"><span class="n-icon">&#9745;</span><span class="n-label">Approvals</span><span class="n-badge" id="pendBadge">3</span></button>
+        <button class="a-nav-item" onclick="ago('listings',this)" data-tooltip="All listings"><span class="n-icon">&#127968;</span><span class="n-label">All listings</span></button>
+        <button class="a-nav-item" onclick="ago('pinned',this)" data-tooltip="Pinned / Featured"><span class="n-icon">&#128204;</span><span class="n-label">Pinned / Featured</span></button>
         <div class="a-sec-label">People</div>
-        <button class="a-nav-item" onclick="ago('students',this)"><span class="n-icon">&#128101;</span>Students</button>
-        <button class="a-nav-item" onclick="ago('messages',this)"><span class="n-icon">&#128172;</span>Messages</button>
-        <button class="a-nav-item" onclick="ago('reports',this)"><span class="n-icon">&#128681;</span>Reports <span class="n-badge red">2</span></button>
+        <button class="a-nav-item" onclick="ago('students',this)" data-tooltip="Students"><span class="n-icon">&#128101;</span><span class="n-label">Students</span></button>
+        <button class="a-nav-item" onclick="ago('messages',this)" data-tooltip="Messages"><span class="n-icon">&#128172;</span><span class="n-label">Messages</span></button>
+        <button class="a-nav-item" onclick="ago('reports',this)" data-tooltip="Reports"><span class="n-icon">&#128681;</span><span class="n-label">Reports</span><span class="n-badge red">2</span></button>
         <div class="a-sec-label">Platform</div>
-        <button class="a-nav-item" onclick="ago('editor',this)"><span class="n-icon">&#127912;</span>Site editor</button>
-        <button class="a-nav-item" onclick="ago('broadcast',this)"><span class="n-icon">&#128226;</span>Broadcast</button>
-        <button class="a-nav-item" onclick="ago('analytics',this)"><span class="n-icon">&#128202;</span>Analytics</button>
-        <button class="a-nav-item" onclick="ago('activity',this)"><span class="n-icon">&#128200;</span>Activity log</button>
-        <button class="a-nav-item" onclick="ago('exports',this)"><span class="n-icon">&#128229;</span>Data export</button>
-        <button class="a-nav-item" onclick="ago('verify',this)"><span class="n-icon">&#9989;</span>Verification <span class="n-badge" id="verBadge">1</span></button>
-        <button class="a-nav-item" onclick="ago('health',this)"><span class="n-icon">&#128268;</span>Platform health</button>
-        <button class="a-nav-item" onclick="ago('asettings',this)"><span class="n-icon">&#9881;</span>Settings</button>
+        <button class="a-nav-item" onclick="ago('editor',this)" data-tooltip="Site editor"><span class="n-icon">&#127912;</span><span class="n-label">Site editor</span></button>
+        <button class="a-nav-item" onclick="ago('broadcast',this)" data-tooltip="Broadcast"><span class="n-icon">&#128226;</span><span class="n-label">Broadcast</span></button>
+        <button class="a-nav-item" onclick="ago('analytics',this)" data-tooltip="Analytics"><span class="n-icon">&#128202;</span><span class="n-label">Analytics</span></button>
+        <button class="a-nav-item" onclick="ago('activity',this)" data-tooltip="Activity log"><span class="n-icon">&#128200;</span><span class="n-label">Activity log</span></button>
+        <button class="a-nav-item" onclick="ago('exports',this)" data-tooltip="Data export"><span class="n-icon">&#128229;</span><span class="n-label">Data export</span></button>
+        <button class="a-nav-item" onclick="ago('verify',this)" data-tooltip="Verification"><span class="n-icon">&#9989;</span><span class="n-label">Verification</span><span class="n-badge" id="verBadge">1</span></button>
+        <button class="a-nav-item" onclick="ago('health',this)" data-tooltip="Platform health"><span class="n-icon">&#128268;</span><span class="n-label">Platform health</span></button>
+        <button class="a-nav-item" onclick="ago('asettings',this)" data-tooltip="Settings"><span class="n-icon">&#9881;</span><span class="n-label">Settings</span></button>
       </div>
       <div class="a-sidebar-footer">
         <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
           <div class="a-admin-av">AD</div>
-          <div><div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:500">Admin</div><div style="color:rgba(255,255,255,0.4);font-size:11px">Super admin</div></div>
+          <div class="a-admin-info"><div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:500">Admin</div><div style="color:rgba(255,255,255,0.4);font-size:11px">Super admin</div></div>
         </div>
         <button class="btn-logout-a" onclick="aLogout()">&#8592; Log out</button>
-        <button class="btn-logout-a" style="margin-top:4px;color:rgba(255,255,255,0.7);" onclick="pickRole('student')">&#128101; Switch to student view</button>
+        <button class="btn-logout-a" style="margin-top:4px;color:rgba(255,255,255,0.7);" onclick="enterStudentPreview()">&#128101; Switch to student view</button>
       </div>
     </div>
     <div class="a-main">
@@ -561,7 +560,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           <span style="font-size:11px;color:var(--text-faint)">Live data</span>
           <button class="btn-sm-a btn-a-neutral" onclick="refreshAdmin()">&#8635; Refresh</button>
           <button class="btn-sm-a btn-a-brand" onclick="toggleAI()">&#129302; NestBot</button>
-          <button class="btn-sm-a btn-a-neutral" onclick="pickRole('student')">&#128065; Student view</button>
+          <button class="btn-sm-a btn-a-neutral" onclick="enterStudentPreview()">&#128065; Student view</button>
         </div>
       </div>
       <div class="a-content">
@@ -662,7 +661,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                 <div class="ced-item"><div class="ced-label">Site name</div><input class="ced-input" id="txtName" value="CaldwellNest" oninput="liveContent()"></div>
                 <div class="ced-item"><div class="ced-label">Highlighted word</div><input class="ced-input" id="txtTag" value="Nest" oninput="liveContent()"></div>
                 <div class="es-title">Hero section</div>
-                <div class="ced-item"><div class="ced-label">Headline line 1</div><input class="ced-input" id="txtH1" value="Find your place" oninput="liveContent()"></div>
+                <div class="ced-item"><div class="ced-label">Headline line 1</div><input class="ced-input" id="txtH1" value="Find your home" oninput="liveContent()"></div>
                 <div class="ced-item"><div class="ced-label">Headline highlight</div><input class="ced-input" id="txtH2" value="Caldwell" oninput="liveContent()"></div>
                 <div class="ced-item"><div class="ced-label">Hero subtext</div><textarea class="form-textarea" id="txtSub" rows="2" oninput="liveContent()" style="font-size:12px;">A private housing board for Caldwell students — post a room, find a roommate, message directly.</textarea></div>
                 <div class="ced-item"><div class="ced-label">CTA button</div><input class="ced-input" id="txtCta" value="Get started free" oninput="liveContent()"></div>
@@ -688,7 +687,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
               <div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">&#128065; Live preview — reflects student board</div>
               <div class="pv-frame" id="pvFrame">
                 <div class="pv-nav" id="pvNav"><div class="pv-logo" id="pvLogo">Caldwell<em>Nest</em></div><div style="display:flex;gap:6px;"><div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 10px;font-size:11px;color:#fff;">Browse</div><div style="background:var(--accent);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--brand);font-weight:600;">Sign up</div></div></div>
-                <div class="pv-hero-d" id="pvHeroDiv"><h1 id="pvH1">Find your place<br>near <em id="pvH2">Caldwell</em></h1><p id="pvSub">A private housing board for Caldwell students.</p><div class="pv-cta-d" id="pvCta">Get started free</div></div>
+                <div class="pv-hero-d" id="pvHeroDiv"><h1 id="pvH1">Find your home<br>near <em id="pvH2">Caldwell</em></h1><p id="pvSub">A private housing board for Caldwell students.</p><div class="pv-cta-d" id="pvCta">Get started free</div></div>
                 <div class="pv-body"><div id="pvBanner" style="display:none;background:var(--accent-pale);border:1px solid #f5c977;border-radius:7px;padding:7px 11px;font-size:11px;color:var(--warning);margin-bottom:10px;"></div>
                 <div class="pv-cards">
                   <div class="pv-card"><div class="pv-card-img">&#127968;</div><div class="pv-card-body"><div class="pv-card-title">Sunny private room</div><div class="pv-card-price">$750<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
@@ -745,7 +744,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           <div class="tcard"><div class="tcard-head"><div class="tcard-title">Top performing listings</div></div>
             <table><thead><tr><th>Listing</th><th>Type</th><th>Rent</th><th>Messages</th><th>Views</th></tr></thead>
             <tbody><tr><td style="font-weight:500">Sunny private room near campus</td><td><span class="pill pill-active" style="font-size:10px">Private Room</span></td><td style="font-weight:600;color:var(--brand)">$750</td><td>8</td><td>34</td></tr>
-            <tr><td style="font-weight:500">Looking for female roommate</td><td><span class="pill pill-active" style="font-size:10px">Looking</span></td><td style="font-weight:600;color:var(--brand)">$600</td><td>4</td><td>21</td></tr>
+            <tr><td style="font-weight:500">Roommate wanted — already have apt</td><td><span class="pill pill-active" style="font-size:10px">Looking</span></td><td style="font-weight:600;color:var(--brand)">$600</td><td>4</td><td>21</td></tr>
             <tr><td style="font-weight:500">Shared room with 3 CU students</td><td><span class="pill pill-active" style="font-size:10px">Shared Room</span></td><td style="font-weight:600;color:var(--brand)">$480</td><td>6</td><td>18</td></tr></tbody>
           </table></div>
         </div>
@@ -891,7 +890,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 <!-- ADMIN LOGIN -->
 <div class="modal-overlay" id="adminLoginModal">
-  <div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Admin access</div><button class="modal-close" onclick="closeModal('adminLoginModal');document.getElementById('roleGate').style.display='flex'">&#215;</button></div>
+  <div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Admin access</div><button class="modal-close" onclick="closeModal('adminLoginModal');document.getElementById('studentApp').style.display='block'">&#215;</button></div>
   <div class="modal-body">
     <div style="display:inline-flex;align-items:center;gap:5px;background:#1a1a2e;color:#a78bfa;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:16px;letter-spacing:.04em;">&#128274; Admin only</div>
     <div class="form-group"><label class="form-label">Admin email</label><input class="form-input" id="aEmail" type="email" value="admin@caldwell.edu"></div>
@@ -904,27 +903,101 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 <!-- POST LISTING -->
 <div class="modal-overlay" id="postModal">
-  <div class="modal"><div class="modal-header"><div class="modal-title">Post a listing</div><button class="modal-close" onclick="closeModal('postModal')">&#215;</button></div>
+  <div class="modal"><div class="modal-header"><div class="modal-title" id="postModalTitle">Post a listing</div><button class="modal-close" onclick="closePostModal()">&#215;</button></div>
   <div class="modal-body">
-    <div class="form-group"><label class="form-label">Listing title</label><input class="form-input" id="pTitle" placeholder="e.g. Cozy room near campus, 5 min walk"></div>
-    <div class="form-row-2">
-      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="pType"><option>Private Room</option><option>Shared Room</option><option>Full Apartment</option><option>Looking for Room</option></select></div>
-      <div class="form-group"><label class="form-label">Monthly rent ($)</label><input class="form-input" id="pRent" placeholder="800" type="number"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Address / Neighborhood</label><input class="form-input" id="pLoc" placeholder="e.g. Caldwell, NJ · 0.3 mi from campus"></div>
-    <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="pDesc" placeholder="Describe the space, what's included, house rules..."></textarea></div>
-    <div class="form-group"><label class="form-label">Tags</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;" id="pTags">
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Utilities included"> Utilities</label>
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Furnished"> Furnished</label>
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Parking"> Parking</label>
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Pet friendly"> Pets OK</label>
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Female only"> Female only</label>
-        <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Quiet"> Quiet</label>
+
+    <!-- STEP 1: Category picker -->
+    <div id="postStep1">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">What are you posting?</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <button class="cat-pick-btn" onclick="selectCategory('housing')"><span class="cat-emoji">&#127968;</span>Housing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('clothing')"><span class="cat-emoji">&#128085;</span>Clothing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('technology')"><span class="cat-emoji">&#128187;</span>Technology</button>
+        <button class="cat-pick-btn" onclick="selectCategory('donation')"><span class="cat-emoji">&#127873;</span>Donation</button>
+        <button class="cat-pick-btn" onclick="selectCategory('organization_event')"><span class="cat-emoji">&#128227;</span>Org / Event</button>
+        <button class="cat-pick-btn" onclick="selectCategory('other')"><span class="cat-emoji">&#127991;</span>Other</button>
       </div>
     </div>
-    <div style="padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);margin-bottom:14px;">&#9888; Your listing will be reviewed by admin before going live.</div>
-    <button class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
+
+    <!-- STEP 2: Form -->
+    <div id="postStep2" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <button onclick="backToCategories()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-muted);font-family:'DM Sans',sans-serif;">&#8592; Back</button>
+        <span id="postCatBadge" class="pill pill-active" style="font-size:12px;"></span>
+      </div>
+
+      <!-- Shared fields -->
+      <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="pTitle" placeholder="Give your listing a clear title"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="pDesc" rows="3" placeholder="Add details, condition, what's included…"></textarea></div>
+
+      <!-- HOUSING fields -->
+      <div id="catFields-housing" style="display:none">
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Room type</label><select class="form-select" id="pH_type"><option value="Private Room">Private Room</option><option value="Shared Room">Shared Room</option><option value="Full Apartment">Full Apartment</option><option value="Looking for Room">Looking for Room</option></select></div>
+          <div class="form-group"><label class="form-label">Monthly rent ($)</label><input class="form-input" id="pH_price" type="number" placeholder="800"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Address / Neighborhood</label><input class="form-input" id="pH_loc" placeholder="e.g. Caldwell, NJ · 0.3 mi from campus"></div>
+        <div class="form-group"><label class="form-label">Tags</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;" id="pTags">
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Utilities included"> Utilities</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Furnished"> Furnished</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Parking"> Parking</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Pet friendly"> Pets OK</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Quiet"> Quiet</label>
+          </div>
+        </div>
+        <div style="padding:10px 14px;background:#fef3c7;border-radius:var(--radius-sm);font-size:12px;color:#92400e;margin-bottom:8px;line-height:1.5;">&#9878; <strong>Fair Housing reminder:</strong> Listings may not express preferences based on race, color, religion, sex, national origin, disability, or familial status. <a href="https://www.hud.gov/program_offices/fair_housing_equal_opp" target="_blank" style="color:#92400e;font-weight:600;">Learn more at HUD.gov</a></div>
+        <div style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">This notice is a starting point — real legal review is recommended before launch.</div>
+      </div>
+
+      <!-- CLOTHING fields -->
+      <div id="catFields-clothing" style="display:none">
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pCL_price" type="number" placeholder="20"></div>
+          <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pCL_cond"><option>New</option><option>Like New</option><option>Used</option></select></div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Size</label><input class="form-input" id="pCL_size" placeholder="e.g. M, L, 10, 32x32"></div>
+          <div class="form-group"><label class="form-label">Brand</label><input class="form-input" id="pCL_brand" placeholder="e.g. Nike, Uniqlo"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Pickup or delivery</label><select class="form-select" id="pCL_delivery"><option value="Pickup only">Pickup only</option><option value="Delivery available">Delivery available</option><option value="Either">Either</option></select></div>
+      </div>
+
+      <!-- TECHNOLOGY fields -->
+      <div id="catFields-technology" style="display:none">
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pTK_price" type="number" placeholder="50"></div>
+          <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pTK_cond"><option>New</option><option>Like New</option><option>Used</option><option>For Parts</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Brand / Model</label><input class="form-input" id="pTK_brand" placeholder="e.g. MacBook Pro 2021, Samsung Galaxy S22"></div>
+      </div>
+
+      <!-- DONATION fields -->
+      <div id="catFields-donation" style="display:none">
+        <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
+        <div class="form-group"><label class="form-label">Pickup info</label><input class="form-input" id="pDN_pickup" placeholder="e.g. Caldwell dorms, contact to arrange"></div>
+      </div>
+
+      <!-- ORG / EVENT fields -->
+      <div id="catFields-organization_event" style="display:none">
+        <div class="form-group"><label class="form-label">Organization name</label><input class="form-input" id="pEV_org" placeholder="e.g. Caldwell Student Government"></div>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="pEV_date" type="date"></div>
+          <div class="form-group"><label class="form-label">Time</label><input class="form-input" id="pEV_time" type="time"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="pEV_loc" placeholder="e.g. Caldwell Main Hall, Room 201"></div>
+        <div class="form-group"><label class="form-label">Contact / Link</label><input class="form-input" id="pEV_contact" placeholder="e.g. email, Instagram, or website link"></div>
+      </div>
+
+      <!-- OTHER fields -->
+      <div id="catFields-other" style="display:none">
+        <div class="form-group"><label class="form-label">Price ($) <span style="color:var(--text-faint);font-weight:400">(optional)</span></label><input class="form-input" id="pOT_price" type="number" placeholder="Leave blank if free or contact for price"></div>
+      </div>
+
+      <div style="padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);margin-bottom:14px;">&#9888; Your listing will be reviewed by admin before going live.</div>
+      <button class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
+    </div>
+
   </div></div>
 </div>
 
@@ -945,6 +1018,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
     </div>
     <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="aeL"></div>
     <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="aeD" rows="3"></textarea></div>
+    <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="aeS" onchange="toggleAeRejReason()"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+    <div class="form-group" id="aeRejGroup" style="display:none"><label class="form-label">Rejection reason</label><textarea class="form-textarea" id="aeRej" rows="2" placeholder="Reason shown to student…"></textarea></div>
     <button class="btn-full btn-brand" onclick="saveAEdit()">Save changes</button>
   </div></div>
 </div>
@@ -992,6 +1067,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 <div class="toast" id="toastEl"></div>
 
 <script>
+// ── Supabase connection ──────────────────────────────────────
+const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;' };
+const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other' };
+let _postCategory = null;
+
+const SUPABASE_URL = 'https://jcbohweepdgqqntherzo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYm9od2VlcGRncXFudGhlcnpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNTkzODEsImV4cCI6MjA5NTczNTM4MX0.8RPbq2yIGib0gVzV2QQrWGkBEWokvdXNi1z9ZWTZcHk';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ============================================================
 // SHARED DATA STORE — single source of truth for both interfaces
 // ============================================================
@@ -1011,20 +1095,20 @@ const DB = {
   ],
   pending:[
     {id:101,title:'Large room in 3BR house — quiet area',type:'Private Room',rent:780,location:'Cedar Grove, NJ · 1.8 mi from campus',desc:'Big room in quiet 3BR house. Two other tenants. Street parking, backyard.',tags:['Parking','Quiet'],poster:{name:'Marcus L.',initials:'ML',email:'mlopes@caldwell.edu',color:AC[2]},submitted:'2h ago',emoji:'&#127968;',pinned:false},
-    {id:102,title:'Need roommate to split 2BR with me',type:'Looking for Room',rent:650,location:'Caldwell, NJ · 0.5 mi from campus',desc:'I have a 2BR apartment. Looking for one roommate. Biology junior, non-smoker.',tags:['Furnished','Female only'],poster:{name:'Camille B.',initials:'CB',email:'cbrown@caldwell.edu',color:AC[5]},submitted:'5h ago',emoji:'&#128101;',pinned:false},
+    {id:102,title:'Need roommate to split 2BR with me',type:'Looking for Room',rent:650,location:'Caldwell, NJ · 0.5 mi from campus',desc:'I have a 2BR apartment. Looking for one roommate. Biology junior, non-smoker.',tags:['Furnished'],poster:{name:'Camille B.',initials:'CB',email:'cbrown@caldwell.edu',color:AC[5]},submitted:'5h ago',emoji:'&#128101;',pinned:false},
     {id:103,title:'Shared room — walking distance CU',type:'Shared Room',rent:425,location:'Bloomfield Ave · 0.8 mi from campus',desc:'Affordable shared room with 2 others. Bunk beds. Utilities split.',tags:['Utilities included','Quiet'],poster:{name:'Raj P.',initials:'RP',email:'rpatel@caldwell.edu',color:AC[0]},submitted:'1d ago',emoji:'&#127970;',pinned:false},
   ],
   listings:[
-    {id:1,title:'Sunny private room near Caldwell campus',type:'Private Room',rent:750,location:'Caldwell, NJ · 0.4 mi from campus',desc:'Quiet neighborhood, great for nursing students. Shared kitchen and bathroom. Street parking available.',tags:['Furnished','Utilities included','Parking'],poster:{name:'Priya M.',initials:'PM',email:'pmehta@caldwell.edu',color:AC[1]},posted:'2h ago',emoji:'&#127968;',status:'approved',pinned:true},
-    {id:2,title:'Looking for female roommate — already have apt',type:'Looking for Room',rent:600,location:'Caldwell, NJ · 0.7 mi from campus',desc:'I have a 2BR apartment and need a roommate. Looking for female Caldwell student. Chill, clean, quiet.',tags:['Female only','Furnished','Quiet'],poster:{name:'Sofia R.',initials:'SR',email:'srodriguez@caldwell.edu',color:AC[0]},posted:'5h ago',emoji:'&#128101;',status:'approved',pinned:true},
-    {id:3,title:'Shared room in house with 3 other CU students',type:'Shared Room',rent:480,location:'Bloomfield Ave · 1.1 mi from campus',desc:'We have 3 Caldwell students already. Looking for one more. Shared room (bunk beds). Bus stop 2 min walk.',tags:['Utilities included','Quiet'],poster:{name:'James T.',initials:'JT',email:'jtorres@caldwell.edu',color:AC[2]},posted:'1d ago',emoji:'&#127970;',status:'approved',pinned:false},
-    {id:4,title:'Full 1BR apartment — commuter friendly',type:'Full Apartment',rent:1100,location:'Caldwell, NJ · 0.2 mi from campus',desc:'Entire 1 bedroom unit. Renovated kitchen, in-unit laundry, private parking.',tags:['Parking','Furnished','Utilities included'],poster:{name:'Derek O.',initials:'DO',email:'dokonkwo@caldwell.edu',color:AC[4]},posted:'2d ago',emoji:'&#127960;',status:'approved',pinned:false},
-    {id:5,title:'Need a room ASAP — commuter student',type:'Looking for Room',rent:700,location:'Anywhere near campus',desc:'Junior nursing student commuting from far. Quiet, clean, studious. Can move in quickly.',tags:['Quiet'],poster:{name:'Lena C.',initials:'LC',email:'lchen@caldwell.edu',color:AC[5]},posted:'3d ago',emoji:'&#128269;',status:'approved',pinned:false},
-    {id:6,title:'Private room in shared house with parking',type:'Private Room',rent:820,location:'Pine St · 0.6 mi from campus',desc:'Large private room. House has 3 students total. Huge backyard, driveway parking.',tags:['Parking','Pet friendly'],poster:{name:'Ana B.',initials:'AB',email:'abautista@caldwell.edu',color:AC[6]},posted:'4d ago',emoji:'&#127969;',status:'rejected',pinned:false},
+    {id:1,title:'Sunny private room near Caldwell campus',category:'housing',type:'Private Room',rent:750,location:'Caldwell, NJ · 0.4 mi from campus',desc:'Quiet neighborhood, great for nursing students. Shared kitchen and bathroom. Street parking available.',tags:['Furnished','Utilities included','Parking'],details:{room_type:'Private Room'},poster:{name:'Priya M.',initials:'PM',email:'pmehta@caldwell.edu',color:AC[1]},posted:'2h ago',emoji:'&#127968;',status:'approved',pinned:true},
+    {id:2,title:'Roommate wanted — already have apt',category:'housing',type:'Looking for Room',rent:600,location:'Caldwell, NJ · 0.7 mi from campus',desc:'I have a 2BR apartment and need a roommate. Biology junior, non-smoker. Chill, clean, quiet.',tags:['Furnished','Quiet'],details:{room_type:'Looking for Room'},poster:{name:'Sofia R.',initials:'SR',email:'srodriguez@caldwell.edu',color:AC[0]},posted:'5h ago',emoji:'&#128101;',status:'approved',pinned:true},
+    {id:3,title:'Shared room in house with 3 other CU students',category:'housing',type:'Shared Room',rent:480,location:'Bloomfield Ave · 1.1 mi from campus',desc:'We have 3 Caldwell students already. Looking for one more. Shared room (bunk beds). Bus stop 2 min walk.',tags:['Utilities included','Quiet'],details:{room_type:'Shared Room'},poster:{name:'James T.',initials:'JT',email:'jtorres@caldwell.edu',color:AC[2]},posted:'1d ago',emoji:'&#127970;',status:'approved',pinned:false},
+    {id:4,title:'Full 1BR apartment — commuter friendly',category:'housing',type:'Full Apartment',rent:1100,location:'Caldwell, NJ · 0.2 mi from campus',desc:'Entire 1 bedroom unit. Renovated kitchen, in-unit laundry, private parking.',tags:['Parking','Furnished','Utilities included'],details:{room_type:'Full Apartment'},poster:{name:'Derek O.',initials:'DO',email:'dokonkwo@caldwell.edu',color:AC[4]},posted:'2d ago',emoji:'&#127960;',status:'approved',pinned:false},
+    {id:5,title:'Need a room ASAP — commuter student',category:'housing',type:'Looking for Room',rent:700,location:'Anywhere near campus',desc:'Junior nursing student commuting from far. Quiet, clean, studious. Can move in quickly.',tags:['Quiet'],details:{room_type:'Looking for Room'},poster:{name:'Lena C.',initials:'LC',email:'lchen@caldwell.edu',color:AC[5]},posted:'3d ago',emoji:'&#128269;',status:'approved',pinned:false},
+    {id:6,title:'Private room in shared house with parking',category:'housing',type:'Private Room',rent:820,location:'Pine St · 0.6 mi from campus',desc:'Large private room. House has 3 students total. Huge backyard, driveway parking.',tags:['Parking','Pet friendly'],details:{room_type:'Private Room'},poster:{name:'Ana B.',initials:'AB',email:'abautista@caldwell.edu',color:AC[6]},posted:'4d ago',emoji:'&#127969;',status:'rejected',pinned:false},
   ],
   convos:[
     {id:1,students:'Lena C. ↔ Priya M.',listing:'Sunny private room',messages:8,lastActive:'2h ago',status:'active'},
-    {id:2,students:'Lena C. ↔ Sofia R.',listing:'Female roommate wanted',messages:4,lastActive:'3h ago',status:'active'},
+    {id:2,students:'Lena C. ↔ Sofia R.',listing:'Roommate wanted',messages:4,lastActive:'3h ago',status:'active'},
     {id:3,students:'James T. ↔ Lena C.',listing:'Shared room house',messages:6,lastActive:'1d ago',status:'active'},
     {id:4,students:'Derek O. ↔ Raj P.',listing:'Full 1BR apt',messages:2,lastActive:'2d ago',status:'flagged'},
   ],
@@ -1038,10 +1122,10 @@ const DB = {
     {type:'pin',text:'Listing pinned: "Sunny private room"',time:'2d ago',color:'#6b21a8'},
     {type:'approve',text:'Listing approved: "Full 1BR apartment"',time:'2d ago',color:'#1a7a45'},
     {type:'reject',text:'Listing rejected: "Private room in shared house"',time:'3d ago',color:'#c0392b'},
-    {type:'pin',text:'Listing pinned: "Looking for female roommate"',time:'3d ago',color:'#6b21a8'},
+    {type:'pin',text:'Listing pinned: "Roommate wanted"',time:'3d ago',color:'#6b21a8'},
   ],
   settings:{requireApproval:true,eduOnly:true,emailAlerts:true,maintenance:false},
-  content:{siteName:'CaldwellNest',tagWord:'Nest',h1:'Find your place',h2:'Caldwell',sub:'A private housing board for Caldwell students — post a room, find a roommate, message directly.',cta:'Get started free',listTitle:'Housing listings',listSub:'Caldwell University students only',banner:'',bannerOn:false}
+  content:{siteName:'CaldwellNest',tagWord:'Nest',h1:'Find your home',h2:'Caldwell',sub:'A private housing board for Caldwell students — post a room, find a roommate, message directly.',cta:'Get started free',listTitle:'Housing listings',listSub:'Caldwell University students only',banner:'',bannerOn:false}
 };
 
 // ============================================================
@@ -1057,15 +1141,13 @@ let aiOpen = false, aiHistory = [];
 let bType = 'announcement';
 
 function pickRole(role) {
-  document.getElementById('roleGate').style.display = 'none';
   if (role === 'admin') {
     openModal('adminLoginModal');
-  } else {
-    document.getElementById('studentApp').style.display = 'block';
-    currentRole = 'student';
-    initStudent();
   }
 }
+
+currentRole = 'student';
+initStudent();
 
 function doAdminLogin() {
   const e = document.getElementById('aEmail').value.trim();
@@ -1088,8 +1170,20 @@ function doAdminLogin() {
 function aLogout() {
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
-  document.getElementById('roleGate').style.display = 'flex';
-  currentRole = null;
+  document.getElementById('studentApp').style.display = 'block';
+  currentRole = 'student';
+}
+
+function enterStudentPreview() {
+  document.getElementById('adminApp').style.display = 'none';
+  document.getElementById('aiFab').style.display = 'none';
+  document.getElementById('studentApp').style.display = 'block';
+}
+
+function switchBackToAdmin() {
+  document.getElementById('studentApp').style.display = 'none';
+  document.getElementById('adminApp').style.display = 'block';
+  document.getElementById('aiFab').style.display = 'flex';
 }
 
 function sLogout() {
@@ -1102,11 +1196,84 @@ function sLogout() {
 // ============================================================
 // STUDENT — INIT & AUTH
 // ============================================================
-function initStudent() {
+// ── Messaging sidebar collapse ──────────────────────────────
+let msgSidebarPinned = true;
+let msgOpenTimer = null;
+let msgCloseTimer = null;
+
+function toggleMsgSidebar() {
+  const sidebar = document.getElementById('msgSidebar');
+  const toggleBtn = document.getElementById('msgToggleBtn');
+  if (!sidebar.classList.contains('msg-collapsed')) {
+    msgSidebarPinned = false;
+    sidebar.classList.add('msg-collapsed');
+    toggleBtn.title = 'Show sidebar';
+    localStorage.setItem('cn_msg_sidebar', 'collapsed');
+  } else {
+    msgSidebarPinned = true;
+    sidebar.classList.remove('msg-collapsed');
+    toggleBtn.title = 'Hide sidebar';
+    localStorage.setItem('cn_msg_sidebar', 'open');
+  }
+}
+
+function reopenMsgSidebar() {
+  msgSidebarPinned = true;
+  const sidebar = document.getElementById('msgSidebar');
+  sidebar.classList.remove('msg-collapsed');
+  localStorage.setItem('cn_msg_sidebar', 'open');
+}
+
+
+// ── Admin sidebar collapse ───────────────────────────────────
+function toggleAdminSidebar() {
+  const sidebar = document.querySelector('.a-sidebar');
+  const main = document.querySelector('.a-main');
+  const btn = document.getElementById('adminSidebarToggle');
+  const isCollapsed = sidebar.classList.toggle('a-collapsed');
+  main.style.marginLeft = isCollapsed ? '52px' : '240px';
+  btn.textContent = isCollapsed ? '›' : '‹';
+  localStorage.setItem('cn_admin_sidebar', isCollapsed ? 'collapsed' : 'open');
+}
+
+async function loadListings() {
+  const { data, error } = await supabaseClient
+    .from('listings')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error || data.length === 0) return;
+  const mapRow = row => ({
+    id: row.id,
+    title: row.title,
+    category: row.category || 'housing',
+    type: (row.details && row.details.room_type) || CATEGORY_LABELS[row.category] || 'Housing',
+    rent: row.price,
+    location: row.location,
+    desc: row.description,
+    tags: row.tags || [],
+    details: row.details || {},
+    poster: { name: row.poster_name, initials: row.poster_initials, email: row.poster_email, color: row.poster_color },
+    posted: new Date(row.created_at).toLocaleDateString(),
+    emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
+    status: row.status,
+    pinned: row.pinned,
+    rejection_reason: row.rejection_reason || null
+  });
+  DB.listings = data.filter(row => row.status !== 'pending').map(mapRow);
+  DB.pending = data.filter(row => row.status === 'pending').map(mapRow);
+}
+
+async function initStudent() {
+  await loadListings();
   applyDBContent();
   renderListings();
   animNum('statListings', 0, DB.listings.filter(l=>l.status==='approved').length, 600);
   animNum('statStudents', 0, DB.students.length + 3, 800);
+  if (localStorage.getItem('cn_msg_sidebar') === 'collapsed') {
+    msgSidebarPinned = false;
+    const sidebar = document.getElementById('msgSidebar');
+    if (sidebar) { sidebar.style.transition = 'none'; sidebar.classList.add('msg-collapsed'); setTimeout(() => sidebar.style.transition = '', 10); }
+  }
 }
 
 function applyDBContent() {
@@ -1212,8 +1379,8 @@ function renderListings() {
   const approved = DB.listings.filter(l => l.status === 'approved');
   const pinned = approved.filter(l => l.pinned);
   const rest = approved.filter(l => !l.pinned);
-  const filtered = (sFilter === 'all' ? rest : rest.filter(l => l.type === sFilter));
-  const pinnedFiltered = (sFilter === 'all' ? pinned : pinned.filter(l => l.type === sFilter));
+  const filtered = (sFilter === 'all' ? rest : rest.filter(l => l.category === sFilter));
+  const pinnedFiltered = (sFilter === 'all' ? pinned : pinned.filter(l => l.category === sFilter));
 
   // Pinned strip
   const strip = document.getElementById('pinnedStrip');
@@ -1225,7 +1392,7 @@ function renderListings() {
   // Regular grid
   const grid = document.getElementById('listingsGrid');
   if (filtered.length === 0) {
-    grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-faint);grid-column:1/-1"><div style="font-size:40px;margin-bottom:12px">&#127968;</div><div>No listings found</div></div>';
+    grid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-faint);grid-column:1/-1"><div style="font-size:40px;margin-bottom:12px">&#128269;</div><div>No listings found</div></div>';
     return;
   }
   grid.innerHTML = filtered.map(l => listingCardHTML(l, false)).join('');
@@ -1288,23 +1455,84 @@ function sContact(id) {
   setTimeout(() => openConvo(exists ? exists.id : sConvos[0].id), 100);
 }
 
-function submitListing() {
+function selectCategory(cat) {
+  _postCategory = cat;
+  document.getElementById('postStep1').style.display = 'none';
+  document.getElementById('postStep2').style.display = '';
+  document.getElementById('postCatBadge').textContent = CATEGORY_EMOJI[cat] + ' ' + CATEGORY_LABELS[cat];
+  document.querySelectorAll('[id^="catFields-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('catFields-' + cat).style.display = '';
+}
+
+function backToCategories() {
+  _postCategory = null;
+  document.getElementById('postStep1').style.display = '';
+  document.getElementById('postStep2').style.display = 'none';
+}
+
+function closePostModal() {
+  closeModal('postModal');
+  setTimeout(() => {
+    _postCategory = null;
+    document.getElementById('postStep1').style.display = '';
+    document.getElementById('postStep2').style.display = 'none';
+  }, 200);
+}
+
+async function submitListing() {
+  const cat = _postCategory;
+  if (!cat) { toast('Please select a category'); return; }
   const title = document.getElementById('pTitle').value.trim();
-  const type = document.getElementById('pType').value;
-  const rent = parseInt(document.getElementById('pRent').value);
-  const loc = document.getElementById('pLoc').value.trim();
   const desc = document.getElementById('pDesc').value.trim();
   if (!title) { toast('Please add a title'); return; }
-  if (!rent || isNaN(rent)) { toast('Please enter rent'); return; }
-  if (!loc) { toast('Please enter location'); return; }
-  const tags = [...document.querySelectorAll('#pTags input:checked')].map(c => c.value);
-  const emojis = { 'Private Room': '&#127968;', 'Shared Room': '&#127970;', 'Full Apartment': '&#127960;', 'Looking for Room': '&#128269;' };
   const u = sUser || { name: 'Demo User', initials: 'DU', email: 'demo@caldwell.edu', color: AC[5] };
-  DB.pending.push({ id: Date.now(), title, type, rent, location: loc, desc: desc || 'No description.', tags, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, submitted: 'Just now', emoji: emojis[type] || '&#127968;', pinned: false });
+  const emoji = CATEGORY_EMOJI[cat];
+
+  let price = null, location = '', details = {}, tags = [];
+
+  if (cat === 'housing') {
+    price = parseInt(document.getElementById('pH_price').value);
+    location = document.getElementById('pH_loc').value.trim();
+    details.room_type = document.getElementById('pH_type').value;
+    tags = [...document.querySelectorAll('#pTags input:checked')].map(c => c.value);
+    if (!price || isNaN(price)) { toast('Please enter monthly rent'); return; }
+    if (!location) { toast('Please enter a location'); return; }
+  } else if (cat === 'clothing') {
+    price = parseInt(document.getElementById('pCL_price').value);
+    details.condition = document.getElementById('pCL_cond').value;
+    details.size = document.getElementById('pCL_size').value.trim();
+    details.brand = document.getElementById('pCL_brand').value.trim();
+    details.delivery = document.getElementById('pCL_delivery').value;
+    if (!price || isNaN(price)) { toast('Please enter a price'); return; }
+  } else if (cat === 'technology') {
+    price = parseInt(document.getElementById('pTK_price').value);
+    details.condition = document.getElementById('pTK_cond').value;
+    details.brand_model = document.getElementById('pTK_brand').value.trim();
+    if (!price || isNaN(price)) { toast('Please enter a price'); return; }
+  } else if (cat === 'donation') {
+    details.condition = document.getElementById('pDN_cond').value;
+    details.pickup_info = document.getElementById('pDN_pickup').value.trim();
+  } else if (cat === 'organization_event') {
+    details.org_name = document.getElementById('pEV_org').value.trim();
+    details.event_date = document.getElementById('pEV_date').value;
+    details.event_time = document.getElementById('pEV_time').value;
+    details.event_contact = document.getElementById('pEV_contact').value.trim();
+    location = document.getElementById('pEV_loc').value.trim();
+  } else if (cat === 'other') {
+    const p = parseInt(document.getElementById('pOT_price').value);
+    if (!isNaN(p)) price = p;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('listings')
+    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, emoji, status: 'pending', pinned: false })
+    .select().single();
+  if (error) { toast('Could not save listing — please try again.'); console.error(error.message); return; }
+
+  const typeLabel = details.room_type || CATEGORY_LABELS[cat];
+  DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, submitted: 'Just now', emoji, pinned: false });
   DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
-  closeModal('postModal');
-  document.getElementById('pTitle').value = ''; document.getElementById('pRent').value = ''; document.getElementById('pLoc').value = ''; document.getElementById('pDesc').value = '';
-  document.querySelectorAll('#pTags input').forEach(c => c.checked = false);
+  closePostModal();
   toast('✓ Listing submitted for admin review!');
   if (currentRole === 'admin') updateAdminBadges();
 }
@@ -1314,7 +1542,7 @@ let sConvos = null;
 function seedConvos() {
   return [
     { id: 1, with: 'Priya M.', initials: 'PM', color: AC[1], listing: 'Sunny private room near campus', unread: 1, messages: [{ from: 'them', text: 'Hi! I saw your message about the room. Are you still looking?', time: '2:14 PM' }, { from: 'me', text: "Yes! I'm a junior nursing student. Is it still available?", time: '2:18 PM' }, { from: 'them', text: 'Yes it is! When would you want to come see it?', time: '2:20 PM' }] },
-    { id: 2, with: 'Sofia R.', initials: 'SR', color: AC[0], listing: 'Looking for female roommate', unread: 1, messages: [{ from: 'them', text: 'Hey, saw your post. I have a 2BR apartment, are you still looking?', time: 'Yesterday' }, { from: 'me', text: 'Hi Sofia! Yes I am. What floor is the apartment on?', time: 'Yesterday' }] },
+    { id: 2, with: 'Sofia R.', initials: 'SR', color: AC[0], listing: 'Roommate wanted', unread: 1, messages: [{ from: 'them', text: 'Hey, saw your post. I have a 2BR apartment, are you still looking?', time: 'Yesterday' }, { from: 'me', text: 'Hi Sofia! Yes I am. What floor is the apartment on?', time: 'Yesterday' }] },
     { id: 3, with: 'James T.', initials: 'JT', color: AC[2], listing: 'Shared room in house', unread: 0, messages: [{ from: 'me', text: 'Is the shared room still open?', time: 'Mon' }, { from: 'them', text: 'Hi! Yes still open. Come by this weekend?', time: 'Mon' }, { from: 'me', text: 'Saturday afternoon works!', time: 'Mon' }] }
   ];
 }
@@ -1339,6 +1567,7 @@ function openConvo(id) {
   const u = sUser || { initials: 'Me', color: AC[5] };
   document.getElementById('chatArea').innerHTML = `
     <div class="chat-header">
+      <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
       <div class="convo-avatar" style="background:${c.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff">${c.initials}</div>
       <div><div class="chat-header-name">${c.with}</div><div class="chat-header-listing">Re: ${c.listing}</div></div>
     </div>
@@ -1388,7 +1617,7 @@ function renderProfile() {
   const myPending = DB.pending.filter(l => l.poster.email === u.email);
   const myDiv = document.getElementById('myListings');
   if (!my.length && !myPending.length) { myDiv.innerHTML = `<div style="font-size:13px;color:var(--text-faint);padding:12px 0">No listings yet. <a href="#" onclick="openModal('postModal');return false;" style="color:var(--brand)">Post one now</a></div>`; return; }
-  myDiv.innerHTML = [...my, ...myPending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))].map(l => `<div class="my-listing-row"><div><div style="font-size:14px;font-weight:500">${l.title}</div><div style="font-size:12px;color:var(--text-faint)">${l.type} · <span class="pill ${l.status==='approved'?'pill-approved':l.status==='pending'?'pill-pending':'pill-rejected'}" style="font-size:10px">${l.status}</span></div></div><div style="font-size:13px;color:var(--brand);font-weight:600">$${l.rent}/mo</div></div>`).join('');
+  myDiv.innerHTML = [...my, ...myPending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))].map(l => `<div class="my-listing-row"><div><div style="font-size:14px;font-weight:500">${l.title}</div><div style="font-size:12px;color:var(--text-faint)">${l.type} · <span class="pill ${l.status==='approved'?'pill-approved':l.status==='pending'?'pill-pending':'pill-rejected'}" style="font-size:10px">${l.status}</span></div>${l.status==='rejected'&&l.rejection_reason?`<div style="font-size:12px;color:var(--danger);margin-top:4px">Reason: ${l.rejection_reason}</div>`:''}</div><div style="font-size:13px;color:var(--brand);font-weight:600">$${l.rent}/mo</div></div>`).join('');
 }
 
 // ============================================================
@@ -1404,6 +1633,16 @@ function initAdmin() {
   renderBcastTemplates();
   buildAnalytics();
   initAI();
+  if (localStorage.getItem('cn_admin_sidebar') === 'collapsed') {
+    const sidebar = document.querySelector('.a-sidebar');
+    const main = document.querySelector('.a-main');
+    const btn = document.getElementById('adminSidebarToggle');
+    sidebar.style.transition = 'none';
+    sidebar.classList.add('a-collapsed');
+    main.style.marginLeft = '52px';
+    if (btn) btn.textContent = '›';
+    setTimeout(() => sidebar.style.transition = '', 10);
+  }
 }
 
 function refreshAdmin() {
@@ -1470,8 +1709,10 @@ function renderAApprovals() {
     </div>`).join('');
 }
 
-function aApprove(id) {
+async function aApprove(id) {
   const l = DB.pending.find(x => x.id === id); if (!l) return;
+  const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
+  if (error) { toast('Could not approve listing — please try again.'); console.error(error.message); return; }
   DB.listings.unshift({ id, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', pinned: false });
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
   DB.log.unshift({ type: 'approve', text: `Listing approved: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
@@ -1480,9 +1721,11 @@ function aApprove(id) {
 }
 
 function aOpenReject(id) { aRejectId = id; document.getElementById('rejReason').value = ''; openModal('rejectModal'); }
-function confirmReject() {
+async function confirmReject() {
   const l = DB.pending.find(x => x.id === aRejectId); if (!l) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
+  const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
+  if (error) { toast('Could not reject listing — please try again.'); console.error(error.message); return; }
   DB.listings.unshift({ id: aRejectId, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags || [], poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'rejected', pinned: false });
   DB.pending.splice(DB.pending.findIndex(x => x.id === aRejectId), 1);
   DB.log.unshift({ type: 'reject', text: `Listing rejected: "${l.title}"`, time: 'Just now', color: '#c0392b' });
@@ -1497,7 +1740,7 @@ function renderAListings() {
     <td><span class="pill pill-active" style="font-size:10px">${l.type}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
     <td>${l.poster.name || l.poster}</td>
-    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : l.status}</span></td>
+    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : l.status}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">&#128221; ${l.rejection_reason}</div>`:''}</td>
     <td><div class="arow">
       <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">&#9998; Edit</button>
       ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : '&#128204; Pin'}</button>` : ''}
@@ -1509,20 +1752,30 @@ function renderAListings() {
 function aft(id, q) { document.querySelectorAll(`#${id} tr`).forEach(r => r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'); }
 function aFilterStatus(v) { document.querySelectorAll('#aListTb tr').forEach(r => r.style.display = (!v || r.textContent.toLowerCase().includes(v)) ? '' : 'none'); }
 
-function aRemoveListing(id) {
+async function aRemoveListing(id) {
   const i = DB.listings.findIndex(x => x.id === id); if (i === -1) return;
+  const { error } = await supabaseClient.from('listings').delete().eq('id', id);
+  if (error) { toast('Could not remove listing — please try again.'); console.error(error.message); return; }
   DB.log.unshift({ type: 'remove', text: `Listing removed: "${DB.listings[i].title}"`, time: 'Just now', color: '#c0392b' });
   DB.listings.splice(i, 1);
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing removed');
 }
 
-function aTogglePin(id) {
+async function aTogglePin(id) {
   const l = DB.listings.find(x => x.id === id); if (!l) return;
   if (!l.pinned && DB.listings.filter(x => x.pinned).length >= 3) { toast('Max 3 pinned. Unpin one first.'); return; }
-  l.pinned = !l.pinned;
+  const newPinned = !l.pinned;
+  const { error } = await supabaseClient.from('listings').update({ pinned: newPinned }).eq('id', id);
+  if (error) { toast('Could not update pin — please try again.'); console.error(error.message); return; }
+  l.pinned = newPinned;
   DB.log.unshift({ type: 'pin', text: `Listing ${l.pinned ? 'pinned' : 'unpinned'}: "${l.title}"`, time: 'Just now', color: '#6b21a8' });
   renderAListings(); renderAPinned(); renderListings(); updateAdminBadges();
   toast(l.pinned ? '&#128204; Listing pinned — visible on student board' : 'Listing unpinned');
+}
+
+function toggleAeRejReason() {
+  const isRejected = document.getElementById('aeS').value === 'rejected';
+  document.getElementById('aeRejGroup').style.display = isRejected ? '' : 'none';
 }
 
 function aOpenEdit(id, src) {
@@ -1533,20 +1786,41 @@ function aOpenEdit(id, src) {
   document.getElementById('aeR').value = l.rent;
   document.getElementById('aeL').value = l.location || '';
   document.getElementById('aeD').value = l.desc || '';
+  document.getElementById('aeS').value = l.status || 'pending';
+  document.getElementById('aeRej').value = l.rejection_reason || '';
+  toggleAeRejReason();
   openModal('aEditModal');
 }
 
-function saveAEdit() {
-  const src = (aEditSrc === 'pending' ? DB.pending : DB.listings).find(x => x.id === aEditId); if (!src) return;
-  src.title = document.getElementById('aeT').value;
-  src.type = document.getElementById('aeY').value;
-  src.rent = parseInt(document.getElementById('aeR').value) || src.rent;
-  src.location = document.getElementById('aeL').value;
-  src.desc = document.getElementById('aeD').value;
-  DB.log.unshift({ type: 'edit', text: `Listing edited: "${src.title}"`, time: 'Just now', color: '#3B5BA5' });
+async function saveAEdit() {
+  const oldSrc = aEditSrc === 'pending' ? DB.pending : DB.listings;
+  const src = oldSrc.find(x => x.id === aEditId); if (!src) return;
+  const newTitle = document.getElementById('aeT').value;
+  const newType = document.getElementById('aeY').value;
+  const newRent = parseInt(document.getElementById('aeR').value) || src.rent;
+  const newLoc = document.getElementById('aeL').value;
+  const newDesc = document.getElementById('aeD').value;
+  const newStatus = document.getElementById('aeS').value;
+  const newRejReason = document.getElementById('aeRej').value || null;
+  const { error } = await supabaseClient.from('listings').update({
+    title: newTitle, type: newType, rent: newRent, location: newLoc,
+    description: newDesc, status: newStatus, rejection_reason: newRejReason
+  }).eq('id', aEditId);
+  if (error) { toast('Could not save — please try again.'); console.error(error.message); return; }
+  src.title = newTitle; src.type = newType; src.rent = newRent;
+  src.location = newLoc; src.desc = newDesc; src.status = newStatus;
+  src.rejection_reason = newRejReason;
+  if (newStatus === 'pending' && aEditSrc !== 'pending') {
+    DB.listings.splice(DB.listings.findIndex(x => x.id === aEditId), 1);
+    DB.pending.push(src);
+  } else if (newStatus !== 'pending' && aEditSrc === 'pending') {
+    DB.pending.splice(DB.pending.findIndex(x => x.id === aEditId), 1);
+    DB.listings.unshift(src);
+  }
+  DB.log.unshift({ type: 'edit', text: `Listing edited: "${newTitle}"`, time: 'Just now', color: '#3B5BA5' });
   closeModal('aEditModal');
-  if (aEditSrc === 'pending') renderAApprovals(); else renderAListings();
-  renderListings(); toast('✓ Listing updated');
+  renderAApprovals(); renderAListings(); renderListings(); updateAdminBadges();
+  toast('✓ Listing updated');
 }
 
 // ADMIN PINNED
@@ -1721,7 +1995,7 @@ function liveContent() {
   const name = document.getElementById('txtName').value || 'CaldwellNest';
   const tag = document.getElementById('txtTag').value || 'Nest';
   document.getElementById('pvLogo').innerHTML = name.includes(tag) ? name.replace(tag, `<em>${tag}</em>`) : name;
-  document.getElementById('pvH1').innerHTML = `${document.getElementById('txtH1').value || 'Find your place'}<br>near <em id="pvH2">${document.getElementById('txtH2').value || 'Caldwell'}</em>`;
+  document.getElementById('pvH1').innerHTML = `${document.getElementById('txtH1').value || 'Find your home'}<br>near <em id="pvH2">${document.getElementById('txtH2').value || 'Caldwell'}</em>`;
   document.getElementById('pvSub').textContent = document.getElementById('txtSub').value;
   document.getElementById('pvCta').textContent = document.getElementById('txtCta').value || 'Get started free';
 }
