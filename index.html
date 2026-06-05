@@ -420,6 +420,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
       <button class="nav-ghost nav-btn" onclick="showPage('messages')" style="color:rgba(255,255,255,0.8)">
         Messages <span id="msgBadge" style="background:var(--accent);color:var(--brand);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px;display:none">2</span>
       </button>
+      <button id="backToAdminBtn" class="switch-interface" onclick="switchBackToAdmin()" style="display:none">Admin &#8599;</button>
       <div class="nav-avatar" id="navAvatar" onclick="showPage('profile')">JD</div>
     </div>
   </nav>
@@ -893,11 +894,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   <div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Admin access</div><button class="modal-close" onclick="closeModal('adminLoginModal');document.getElementById('studentApp').style.display='block'">&#215;</button></div>
   <div class="modal-body">
     <div style="display:inline-flex;align-items:center;gap:5px;background:#1a1a2e;color:#a78bfa;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:16px;letter-spacing:.04em;">&#128274; Admin only</div>
-    <div class="form-group"><label class="form-label">Admin email</label><input class="form-input" id="aEmail" type="email" value="admin@caldwell.edu"></div>
-    <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="aPass" type="password" value="admin123" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+    <div class="form-group"><label class="form-label">Admin email</label><input class="form-input" id="aEmail" type="email" placeholder="your@email.com"></div>
+    <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="aPass" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
     <div class="login-error" id="adminLoginErr"></div>
     <button class="btn-full btn-brand" onclick="doAdminLogin()">Enter dashboard</button>
-    <div style="font-size:12px;color:var(--text-faint);margin-top:10px;text-align:center;">Demo: admin@caldwell.edu / admin123</div>
   </div></div>
 </div>
 
@@ -1149,25 +1149,47 @@ function pickRole(role) {
 currentRole = 'student';
 initStudent();
 
-function doAdminLogin() {
+(async () => {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return;
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
+  if (!profile) return;
+  sUser = { first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || session.user.email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
+  updateSNav();
+})();
+
+async function doAdminLogin() {
   const e = document.getElementById('aEmail').value.trim();
   const p = document.getElementById('aPass').value;
   const err = document.getElementById('adminLoginErr');
-  if (e === 'admin@caldwell.edu' && p === 'admin123') {
-    err.style.display = 'none';
-    closeModal('adminLoginModal');
-    document.getElementById('studentApp').style.display = 'none';
-    document.getElementById('adminApp').style.display = 'block';
-    document.getElementById('aiFab').style.display = 'flex';
-    currentRole = 'admin';
-    initAdmin();
-  } else {
-    err.textContent = 'Wrong credentials. Try again.';
+  err.style.display = 'none';
+  if (!e || !p) { err.textContent = 'Please enter your email and password.'; err.style.display = 'block'; return; }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
+  if (authError) { err.textContent = 'Wrong email or password.'; err.style.display = 'block'; return; }
+
+  const { data: roles, error: rolesError } = await supabaseClient
+    .from('user_roles')
+    .select('role_id')
+    .eq('user_id', authData.user.id);
+
+  if (rolesError || !roles || roles.length === 0) {
+    await supabaseClient.auth.signOut();
+    err.textContent = rolesError ? 'Permission error: ' + rolesError.message : 'This account does not have admin access.';
     err.style.display = 'block';
+    return;
   }
+
+  closeModal('adminLoginModal');
+  document.getElementById('studentApp').style.display = 'none';
+  document.getElementById('adminApp').style.display = 'block';
+  document.getElementById('aiFab').style.display = 'flex';
+  currentRole = 'admin';
+  initAdmin();
 }
 
-function aLogout() {
+async function aLogout() {
+  await supabaseClient.auth.signOut();
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
@@ -1175,18 +1197,23 @@ function aLogout() {
 }
 
 function enterStudentPreview() {
+  sUser = { first: 'CaldwellNest', last: '', name: 'CaldwellNest', email: 'official@caldwellnest.com', initials: 'CN', color: '#7c3aed', isAdminAccount: true };
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
+  updateSNav();
+  showPage('listings');
 }
 
 function switchBackToAdmin() {
+  sUser = null;
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
   document.getElementById('aiFab').style.display = 'flex';
 }
 
 function sLogout() {
+  if (sUser && sUser.isAdminAccount) { switchBackToAdmin(); return; }
   sUser = null;
   updateSNav();
   showPage('home');
@@ -1294,7 +1321,7 @@ function animNum(id, s, e, dur) {
   const t = setInterval(() => { cur = Math.min(cur + step, e); el.textContent = cur; if (cur >= e) clearInterval(t); }, 16);
 }
 
-function doSignup() {
+async function doSignup() {
   const first = document.getElementById('sFirst').value.trim();
   const last = document.getElementById('sLast').value.trim();
   const email = document.getElementById('sEmail').value.trim().toLowerCase();
@@ -1306,27 +1333,42 @@ function doSignup() {
   if (!email.endsWith('@caldwell.edu')) { err.textContent = 'Must use a @caldwell.edu email'; err.style.display = 'block'; return; }
   if (!pass || pass.length < 6) { err.textContent = 'Password must be at least 6 characters'; err.style.display = 'block'; return; }
   err.style.display = 'none';
+
+  const { data: authData, error: authError } = await supabaseClient.auth.signUp({ email, password: pass });
+  if (authError) { err.textContent = authError.message; err.style.display = 'block'; return; }
+
   const initials = (first[0] + last[0]).toUpperCase();
-  sUser = { first, last, name: first + ' ' + last, email, major, year, initials, color: AC[Math.floor(Math.random() * AC.length)] };
-  DB.students.push({ id: Date.now(), name: sUser.name, email, major, year, listings: 0, joined: 'Today', status: 'active' });
-  DB.log.unshift({ type: 'signup', text: `New student: ${sUser.name}`, time: 'Just now', color: '#2d6148' });
+  const color = AC[Math.floor(Math.random() * AC.length)];
+  await supabaseClient.from('profiles').insert({
+    id: authData.user.id, first_name: first, last_name: last,
+    email, major: major || null, year: year || null, initials, color
+  });
+
+  sUser = { first, last, name: first + ' ' + last, email, major, year, initials, color };
   closeModal('signupModal');
   updateSNav();
   toast('Welcome to CaldwellNest, ' + first + '!');
   showPage('listings');
 }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('lEmail').value.trim().toLowerCase();
   const pass = document.getElementById('lPass').value;
   const err = document.getElementById('loginErr');
   if (!email.endsWith('@caldwell.edu')) { err.textContent = 'Must use a @caldwell.edu email'; err.style.display = 'block'; return; }
   if (!pass) { err.textContent = 'Please enter your password'; err.style.display = 'block'; return; }
   err.style.display = 'none';
-  sUser = { first: 'Jane', last: 'Doe', name: 'Jane Doe', email, major: 'Nursing', year: 'Junior', initials: 'JD', color: AC[0] };
+
+  const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+  if (authError) { err.textContent = 'Wrong email or password.'; err.style.display = 'block'; return; }
+
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', authData.user.id).single();
+  if (!profile) { err.textContent = 'Account not found. Please sign up first.'; err.style.display = 'block'; await supabaseClient.auth.signOut(); return; }
+
+  sUser = { first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
   closeModal('loginModal');
   updateSNav();
-  toast('Welcome back!');
+  toast('Welcome back, ' + profile.first_name + '!');
   showPage('listings');
 }
 
@@ -1347,6 +1389,8 @@ function updateSNav() {
   if (u) {
     document.getElementById('navAvatar').textContent = u.initials;
     document.getElementById('navAvatar').style.background = u.color;
+    const backBtn = document.getElementById('backToAdminBtn');
+    if (backBtn) backBtn.style.display = u.isAdminAccount ? 'inline-flex' : 'none';
   }
 }
 
@@ -1848,15 +1892,22 @@ function renderAPinned() {
 }
 
 // ADMIN STUDENTS
-function renderAStudents() {
-  document.getElementById('aStuTb').innerHTML = DB.students.map(s => `<tr>
-    <td style="font-weight:500">${s.name}</td><td style="color:var(--text-muted)">${s.email}</td>
-    <td>${s.major}</td><td>${s.year}</td><td style="text-align:center">${s.listings}</td>
-    <td style="color:var(--text-faint)">${s.joined}</td>
-    <td><span class="pill ${s.status==='active'?'pill-active':'pill-suspended'}">${s.status}</span></td>
+async function renderAStudents() {
+  const { data: students } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (!students) return;
+  document.getElementById('aStuTb').innerHTML = students.map(s => `<tr>
+    <td style="font-weight:500">${s.first_name} ${s.last_name}</td>
+    <td style="color:var(--text-muted)">${s.email || '—'}</td>
+    <td>${s.major || '—'}</td><td>${s.year || '—'}</td>
+    <td style="text-align:center">0</td>
+    <td style="color:var(--text-faint)">${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</td>
+    <td><span class="pill pill-active">active</span></td>
     <td><div class="arow">
-      <button class="btn-sm-a btn-a-neutral" onclick="aViewStu(${s.id})">View</button>
-      ${s.status === 'active' ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend(${s.id})">Suspend</button>` : `<button class="btn-sm-a btn-a-success" onclick="aReinstate(${s.id})">Reinstate</button>`}
+      <button class="btn-sm-a btn-a-neutral" onclick="aViewStu('${s.id}')">View</button>
+      <button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${s.id}')">Suspend</button>
     </div></td>
   </tr>`).join('');
 }

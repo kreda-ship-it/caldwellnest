@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-05-31
+Last updated: 2026-06-05
 
 ---
 
@@ -36,9 +36,9 @@ Last updated: 2026-05-31
 
 ## TIER 1 — Foundation (backend) — MOSTLY DONE, a few pieces left
 - ✅ Backend + database (Supabase) connected
-- ⬜ **Real accounts & secure login** — right now sign-in isn't real auth yet.
-      Use Supabase Auth so students truly log in, sessions persist, passwords are
-      stored safely (hashed). .edu email verification enforced for real.
+- 🔄 **Real accounts & secure login** — admin login and student sign-up now use
+      real Supabase Auth. Student login (doLogin) + session restore on page load
+      still needed to complete this item.
 - ⬜ **Move NestBot AI server-side** — so the AI bot works on the live site
       without exposing an API key in the browser. Needs a small backend function.
 
@@ -135,7 +135,7 @@ Build in stages — do NOT do all at once:
 
 ## Known limitations to remember
 - NestBot AI only works inside Claude's preview until moved server-side (Tier 1)
-- Sign-in isn't real authentication yet (Tier 1: Supabase Auth)
+- Email confirmation is OFF for development — turn it back ON before real launch
 - No automatic backups on Supabase free tier — don't store anything irreplaceable
 - Free Supabase projects pause after ~1 week of inactivity (just un-pause them)
 
@@ -153,3 +153,71 @@ Build in stages — do NOT do all at once:
 ## Notes & parking lot
 *(Drop new ideas here, then sort them into a tier later.)*
 -
+
+---
+
+## ADDED 2026-05-29 (evening) — Multi-admin & granular roles
+
+The auth/account system should be built with these future needs in mind, even
+though we start with just one main admin:
+
+- ✅ **Main / super-admin** = redakalkidan@gmail.com (a Gmail, NOT .edu — admin is
+      a separate path from student sign-up; never blocked by the .edu rule).
+- ⬜ **Multiple admins later** — the main admin will add more admins, each in
+      charge of SPECIFIC features/areas (not all admins get full power).
+- ✅ **Granular permissions / roles** — RBAC structure built: admin_roles and
+      user_roles tables in Supabase. Roles are data, not code. UI for managing
+      roles from the admin portal still needed.
+- ⬜ **Main admin can GRANT authority from inside the admin portal** — a feature
+      where the super-admin promotes a user (either an .edu student OR a non-.edu
+      user) to an admin/role, and assigns what they're allowed to do.
+
+---
+
+## ADDED 2026-05-29 (evening) — Admin "view as student" dual access
+
+- ✅ Admin stays logged in as themselves (same account/session) — this is a VIEW
+      switch, not a logout/login. No need to sign in again to switch sides.
+- ✅ In student view, admin sees a persistent "Back to admin portal" button.
+- ✅ When admin acts in student view (posts a listing, sends a message), they
+      appear as "CaldwellNest" — an official brand identity, not their personal
+      name. Implemented as a special in-memory identity with isAdminAccount flag.
+- ✅ Switching views never accidentally drops admin privileges or locks out of
+      the admin portal.
+- ⬜ "Official" badge on CaldwellNest posts/messages — so students can't confuse
+      the official account with a regular student. Polish item, not yet built.
+
+---
+
+## ADDED 2026-05-29 (evening, session 2) — Auth progress
+
+### ✅ Done (as of 2026-06-05)
+- ✅ Super-admin login working (redakalkidan@gmail.com via Supabase Auth)
+- ✅ Admin "view as student" without a second login — CaldwellNest identity,
+      Back to Admin button always visible, admin session protected
+- ✅ Official "CaldwellNest" identity in student view (isAdminAccount flag,
+      purple CN avatar). Badge on posts is a future polish item.
+- ✅ Student sign-up working (only @caldwell.edu emails, Supabase Auth)
+- ✅ Role-ready RBAC structure confirmed (admin_roles + user_roles tables,
+      roles stored as data in Supabase — not a hardcoded admin flag)
+- ✅ Admin students list reads from Supabase profiles (real signups appear)
+
+### ⬜ Still needed to complete auth
+- ⬜ **Student login (Phase D)** — doLogin() needs to call Supabase Auth and
+      fetch the student's profile. Currently still uses fake hardcoded "Jane Doe".
+- ⬜ **Session restore on page load** — add getSession() so students stay logged
+      in after a browser refresh.
+- ⬜ **Future:** main admin can promote any user to an admin role and assign
+      permissions, from inside the admin portal.
+
+---
+
+## CURRENT BUILD ORDER (updated 2026-06-05)
+1. ✅ Super-admin login
+2. ✅ Admin view-as-student without second login
+3. ✅ Official "CaldwellNest" identity
+4. ✅ Student sign-up (.edu only, real Supabase Auth)
+5. ⬜ **Student login + session restore** ← NEXT
+6. ⬜ Messaging (Stage 1: save & show)
+7. ⬜ Photos (Supabase Storage)
+8. ⬜ Testing pass + polish + About/Contact pages
