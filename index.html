@@ -838,7 +838,30 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
             <div class="tcard-head"><div class="tcard-title">Platform settings</div></div>
             <div style="padding:18px;" id="aTogList"></div>
           </div>
-          <div class="tcard">
+          <div class="tcard" style="margin-top:14px">
+            <div class="tcard-head"><div class="tcard-title">Official account identity</div></div>
+            <div style="padding:18px;">
+              <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">This is how you appear to students when using "Switch to student view." Students see this name and avatar — not your personal admin credentials.</p>
+              <div style="display:flex;flex-direction:column;gap:14px;max-width:320px;">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Display name</label>
+                  <input class="ced-input" id="cnName" placeholder="CaldwellNest" style="width:100%">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Initials (2–3 letters)</label>
+                  <input class="ced-input" id="cnInitials" placeholder="CN" maxlength="3" style="width:80px">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Avatar color</label>
+                  <input type="color" id="cnColor" value="#7c3aed" style="width:48px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
+                </div>
+                <div>
+                  <button class="btn-sm-a btn-brand-a" onclick="saveCNIdentity()">Save identity</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tcard" style="margin-top:14px">
             <div class="tcard-head"><div class="tcard-title">Admin accounts</div></div>
             <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last login</th></tr></thead>
             <tbody><tr><td style="font-weight:500">Admin</td><td>admin@caldwell.edu</td><td><span class="pill pill-active">Super admin</span></td><td>Now</td></tr>
@@ -1133,8 +1156,11 @@ const DB = {
 // ============================================================
 let currentRole = null;
 let sUser = null; // logged-in student
+let adminPreviewMode = false; // true when admin has entered student view
 let sFilter = 'all';
 let sConvoActive = null;
+let sRealtimeChannel = null;
+let sUnreadCount = 0;
 let aEditId = null, aEditSrc = 'listing';
 let aRejectId = null, aSuspendId = null;
 let aiOpen = false, aiHistory = [];
@@ -1150,11 +1176,26 @@ currentRole = 'student';
 initStudent();
 
 (async () => {
+  if (adminPreviewMode) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return;
+
+  // Check if this is an admin account
+  const { data: roles } = await supabaseClient.from('user_roles').select('role_id').eq('user_id', session.user.id);
+  if (roles && roles.length > 0) {
+    // Admin session — restore admin panel directly
+    document.getElementById('studentApp').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'block';
+    document.getElementById('aiFab').style.display = 'flex';
+    currentRole = 'admin';
+    initAdmin();
+    return;
+  }
+
+  // Student session — restore normally
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
   if (!profile) return;
-  sUser = { first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || session.user.email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
+  sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || session.user.email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
   updateSNav();
 })();
 
@@ -1189,6 +1230,7 @@ async function doAdminLogin() {
 }
 
 async function aLogout() {
+  adminPreviewMode = false;
   await supabaseClient.auth.signOut();
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
@@ -1196,8 +1238,11 @@ async function aLogout() {
   currentRole = 'student';
 }
 
-function enterStudentPreview() {
-  sUser = { first: 'CaldwellNest', last: '', name: 'CaldwellNest', email: 'official@caldwellnest.com', initials: 'CN', color: '#7c3aed', isAdminAccount: true };
+async function enterStudentPreview() {
+  adminPreviewMode = true;
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const cn = getCNIdentity();
+  sUser = { id: user?.id, first: cn.name, last: '', name: cn.name, email: 'official@caldwellnest.com', initials: cn.initials, color: cn.color };
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
@@ -1206,14 +1251,18 @@ function enterStudentPreview() {
 }
 
 function switchBackToAdmin() {
+  if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  adminPreviewMode = false;
   sUser = null;
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
   document.getElementById('aiFab').style.display = 'flex';
 }
 
-function sLogout() {
-  if (sUser && sUser.isAdminAccount) { switchBackToAdmin(); return; }
+async function sLogout() {
+  if (adminPreviewMode) { switchBackToAdmin(); return; }
+  if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  await supabaseClient.auth.signOut();
   sUser = null;
   updateSNav();
   showPage('home');
@@ -1279,6 +1328,7 @@ async function loadListings() {
     desc: row.description,
     tags: row.tags || [],
     details: row.details || {},
+    poster_id: row.poster_id,
     poster: { name: row.poster_name, initials: row.poster_initials, email: row.poster_email, color: row.poster_color },
     posted: new Date(row.created_at).toLocaleDateString(),
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
@@ -1344,7 +1394,7 @@ async function doSignup() {
     email, major: major || null, year: year || null, initials, color
   });
 
-  sUser = { first, last, name: first + ' ' + last, email, major, year, initials, color };
+  sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, major, year, initials, color };
   closeModal('signupModal');
   updateSNav();
   toast('Welcome to CaldwellNest, ' + first + '!');
@@ -1365,7 +1415,7 @@ async function doLogin() {
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', authData.user.id).single();
   if (!profile) { err.textContent = 'Account not found. Please sign up first.'; err.style.display = 'block'; await supabaseClient.auth.signOut(); return; }
 
-  sUser = { first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
+  sUser = { id: authData.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
   closeModal('loginModal');
   updateSNav();
   toast('Welcome back, ' + profile.first_name + '!');
@@ -1390,7 +1440,7 @@ function updateSNav() {
     document.getElementById('navAvatar').textContent = u.initials;
     document.getElementById('navAvatar').style.background = u.color;
     const backBtn = document.getElementById('backToAdminBtn');
-    if (backBtn) backBtn.style.display = u.isAdminAccount ? 'inline-flex' : 'none';
+    if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';
   }
 }
 
@@ -1400,7 +1450,7 @@ function updateSNav() {
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
-  if (name === 'messages') { renderConvos(); document.getElementById('msgBadge').style.display = 'none'; }
+  if (name === 'messages') { renderConvos(); sUnreadCount = 0; document.getElementById('msgBadge').style.display = 'none'; }
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
 }
@@ -1487,16 +1537,14 @@ function openDetail(id) {
   openModal('detailModal');
 }
 
-function sContact(id) {
+function sContact(listingId) {
   if (!sUser) { openModal('loginModal'); return; }
-  const l = DB.listings.find(x => x.id === id); if (!l) return;
-  sConvos = sConvos || seedConvos();
-  const exists = sConvos.find(c => c.listing === l.title);
-  if (!exists) {
-    sConvos.unshift({ id: Date.now(), with: l.poster.name, initials: l.poster.initials, color: l.poster.color, listing: l.title, unread: 0, messages: [{ from: 'them', text: `Hi! Thanks for your interest in "${l.title}". Feel free to ask me anything!`, time: 'Just now' }] });
-  }
+  const l = DB.listings.find(x => x.id === listingId) || DB.pending.find(x => x.id === listingId);
+  if (!l) return;
+  if (!l.poster_id) { toast('Messaging not available for this listing yet.'); return; }
+  if (l.poster_id === sUser.id) { toast("That's your own listing!"); return; }
   showPage('messages');
-  setTimeout(() => openConvo(exists ? exists.id : sConvos[0].id), 100);
+  setTimeout(() => openConvo(l.poster_id, { name: l.poster.name, initials: l.poster.initials, color: l.poster.color }, l.id), 100);
 }
 
 function selectCategory(cat) {
@@ -1569,7 +1617,7 @@ async function submitListing() {
 
   const { data, error } = await supabaseClient
     .from('listings')
-    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, emoji, status: 'pending', pinned: false })
+    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, poster_id: u.id || null, emoji, status: 'pending', pinned: false })
     .select().single();
   if (error) { toast('Could not save listing — please try again.'); console.error(error.message); return; }
 
@@ -1582,73 +1630,149 @@ async function submitListing() {
 }
 
 // STUDENT MESSAGES
-let sConvos = null;
-function seedConvos() {
-  return [
-    { id: 1, with: 'Priya M.', initials: 'PM', color: AC[1], listing: 'Sunny private room near campus', unread: 1, messages: [{ from: 'them', text: 'Hi! I saw your message about the room. Are you still looking?', time: '2:14 PM' }, { from: 'me', text: "Yes! I'm a junior nursing student. Is it still available?", time: '2:18 PM' }, { from: 'them', text: 'Yes it is! When would you want to come see it?', time: '2:20 PM' }] },
-    { id: 2, with: 'Sofia R.', initials: 'SR', color: AC[0], listing: 'Roommate wanted', unread: 1, messages: [{ from: 'them', text: 'Hey, saw your post. I have a 2BR apartment, are you still looking?', time: 'Yesterday' }, { from: 'me', text: 'Hi Sofia! Yes I am. What floor is the apartment on?', time: 'Yesterday' }] },
-    { id: 3, with: 'James T.', initials: 'JT', color: AC[2], listing: 'Shared room in house', unread: 0, messages: [{ from: 'me', text: 'Is the shared room still open?', time: 'Mon' }, { from: 'them', text: 'Hi! Yes still open. Come by this weekend?', time: 'Mon' }, { from: 'me', text: 'Saturday afternoon works!', time: 'Mon' }] }
-  ];
-}
+let sConvoCache = {}; // keyed by userId: { name, initials, color }
 
-function renderConvos() {
-  if (!sConvos) sConvos = seedConvos();
-  document.getElementById('convoList').innerHTML = sConvos.map(c => `
-    <div class="convo-item ${sConvoActive === c.id ? 'active-convo' : ''}" onclick="openConvo(${c.id})">
-      <div class="convo-avatar" style="background:${c.color}">${c.initials}</div>
-      <div class="convo-info"><div class="convo-name">${c.with}</div><div class="convo-preview">${c.messages[c.messages.length-1].text}</div></div>
-      <div class="convo-meta"><div class="convo-time">${c.messages[c.messages.length-1].time}</div>${c.unread ? `<div class="convo-badge">${c.unread}</div>` : ''}</div>
-    </div>`).join('');
+async function renderConvos() {
+  if (!sUser) return;
+  const { data: msgs } = await supabaseClient
+    .from('messages')
+    .select('*')
+    .or(`sender_id.eq.${sUser.id},receiver_id.eq.${sUser.id}`)
+    .order('created_at', { ascending: false });
+
+  if (!msgs || msgs.length === 0) {
+    document.getElementById('convoList').innerHTML = '<div style="padding:20px;color:var(--text-faint);font-size:13px;text-align:center">No messages yet.<br>Find a listing and tap Message.</div>';
+    return;
+  }
+
+  const seen = new Set();
+  const latest = [];
+  for (const m of msgs) {
+    if (!seen.has(m.conversation_key)) { seen.add(m.conversation_key); latest.push(m); }
+  }
+
+  const otherIds = latest.map(m => m.sender_id === sUser.id ? m.receiver_id : m.sender_id);
+  const { data: profiles } = await supabaseClient.from('profiles').select('id, first_name, last_name, initials, color').in('id', otherIds);
+  const pMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+
+  for (const [id, p] of Object.entries(pMap)) {
+    sConvoCache[id] = { name: p.first_name + ' ' + p.last_name, initials: p.initials, color: p.color };
+  }
+
+  document.getElementById('convoList').innerHTML = latest.map(m => {
+    const otherId = m.sender_id === sUser.id ? m.receiver_id : m.sender_id;
+    const p = pMap[otherId] || { first_name: 'User', last_name: '', initials: '?', color: '#888' };
+    const isActive = sConvoActive && sConvoActive.userId === otherId;
+    const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `<div class="convo-item ${isActive ? 'active-convo' : ''}" onclick="openConvo('${otherId}')">
+      <div class="convo-avatar" style="background:${p.color}">${p.initials}</div>
+      <div class="convo-info"><div class="convo-name">${p.first_name} ${p.last_name}</div><div class="convo-preview">${m.content}</div></div>
+      <div class="convo-meta"><div class="convo-time">${time}</div></div>
+    </div>`;
+  }).join('');
 }
 
 function filterConvos(q) { document.querySelectorAll('.convo-item').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; }); }
 
-function openConvo(id) {
-  sConvoActive = id;
-  const c = sConvos.find(x => x.id === id); if (!c) return;
-  c.unread = 0;
+async function openConvo(otherUserId, otherInfo, listingId) {
+  const info = otherInfo || sConvoCache[otherUserId];
+  if (!info) return;
+  if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
+  sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
   renderConvos();
-  const u = sUser || { initials: 'Me', color: AC[5] };
+
+  const convKey = [sUser.id, otherUserId].sort().join(':');
+  const { data: msgs } = await supabaseClient
+    .from('messages').select('*')
+    .eq('conversation_key', convKey)
+    .order('created_at', { ascending: true });
+
+  const listingIds = [...new Set((msgs || []).map(m => m.listing_id).filter(Boolean))];
+  let listingTitles = {};
+  if (listingIds.length > 0) {
+    const { data: lRows } = await supabaseClient.from('listings').select('id, title').in('id', listingIds);
+    if (lRows) lRows.forEach(l => { listingTitles[l.id] = l.title; });
+  }
+
+  let prevListingId = null;
+  const parts = [];
+  for (const m of (msgs || [])) {
+    if (m.listing_id !== prevListingId) {
+      const label = m.listing_id ? `About: ${listingTitles[m.listing_id] || 'a listing'}` : 'General conversation';
+      parts.push(`<div class="divider">${label}</div>`);
+      prevListingId = m.listing_id;
+    }
+    const mine = m.sender_id === sUser.id;
+    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="msg-avatar-sm" style="background:${mine ? sUser.color : info.color}">${mine ? sUser.initials : info.initials}</div><div><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}</div><div class="msg-time">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div></div>`);
+  }
+  const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
+
   document.getElementById('chatArea').innerHTML = `
     <div class="chat-header">
       <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
-      <div class="convo-avatar" style="background:${c.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff">${c.initials}</div>
-      <div><div class="chat-header-name">${c.with}</div><div class="chat-header-listing">Re: ${c.listing}</div></div>
+      <div class="convo-avatar" style="background:${info.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff">${info.initials}</div>
+      <div><div class="chat-header-name">${info.name}</div></div>
     </div>
-    <div class="chat-messages" id="chatMsgs">
-      ${c.messages.map(m => `<div class="msg-row ${m.from==='me'?'mine':''}"><div class="msg-avatar-sm" style="background:${m.from==='me'?u.color:c.color}">${m.from==='me'?u.initials:c.initials}</div><div><div class="bubble ${m.from==='me'?'mine':'theirs'}">${m.text}</div><div class="msg-time">${m.time}</div></div></div>`).join('')}
-    </div>
+    <div class="chat-messages" id="chatMsgs">${bubbles}</div>
     <div class="chat-input-area">
-      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sMsg(${id})}"></textarea>
-      <button class="send-btn" onclick="sMsg(${id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sMsg()}"></textarea>
+      <button class="send-btn" onclick="sMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>`;
   scrollChat();
+  if (sConvoActive.userId !== otherUserId) return;
+  sRealtimeChannel = supabaseClient.channel('msgs-' + convKey)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleRealtimeMessage)
+    .subscribe();
 }
 
-function sMsg(cid) {
+async function sMsg() {
   const inp = document.getElementById('msgInput');
-  const text = inp.value.trim(); if (!text) return;
-  const c = sConvos.find(x => x.id === cid); if (!c) return;
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  c.messages.push({ from: 'me', text, time });
+  const text = inp.value.trim();
+  if (!text || !sConvoActive || !sUser) return;
+
+  const { error } = await supabaseClient.from('messages').insert({
+    sender_id: sUser.id,
+    receiver_id: sConvoActive.userId,
+    listing_id: sConvoActive.listingId || null,
+    content: text
+  });
+  if (error) { toast('Could not send — please try again.'); console.error('sMsg error:', error); return; }
+
   inp.value = '';
-  const u = sUser || { initials: 'Me', color: AC[5] };
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
   const div = document.createElement('div'); div.className = 'msg-row mine';
-  div.innerHTML = `<div class="msg-avatar-sm" style="background:${u.color}">${u.initials}</div><div><div class="bubble mine">${text}</div><div class="msg-time">${time}</div></div>`;
-  msgs.appendChild(div); scrollChat(); renderConvos();
-  const replies = ['That sounds great! When are you free?', 'Feel free to come by and see the room this weekend!', 'The utilities are included so no surprises.', 'I\'ll send you the full address, it\'s close to campus.', 'Sounds good! Let me know what works for you.'];
-  setTimeout(() => {
-    const rt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const reply = replies[Math.floor(Math.random() * replies.length)];
-    c.messages.push({ from: 'them', text: reply, time: rt });
-    const d2 = document.createElement('div'); d2.className = 'msg-row';
-    d2.innerHTML = `<div class="msg-avatar-sm" style="background:${c.color}">${c.initials}</div><div><div class="bubble theirs">${reply}</div><div class="msg-time">${rt}</div></div>`;
-    msgs.appendChild(d2); scrollChat(); renderConvos();
-  }, 1000 + Math.random() * 1200);
+  div.innerHTML = `<div class="msg-avatar-sm" style="background:${sUser.color}">${sUser.initials}</div><div><div class="bubble mine">${text}</div><div class="msg-time">${time}</div></div>`;
+  msgs.appendChild(div);
+  scrollChat();
+  renderConvos();
 }
 
 function scrollChat() { setTimeout(() => { const m = document.getElementById('chatMsgs'); if (m) m.scrollTop = m.scrollHeight; }, 50); }
+
+function handleRealtimeMessage(payload) {
+  const msg = payload.new;
+  if (!msg || !sConvoActive || !sUser) return;
+  if (msg.sender_id === sUser.id) return; // already rendered locally on send
+  if (!document.getElementById('page-messages').classList.contains('active')) {
+    sUnreadCount++;
+    const badge = document.getElementById('msgBadge');
+    badge.textContent = sUnreadCount;
+    badge.style.display = 'inline';
+  }
+  const msgs = document.getElementById('chatMsgs');
+  if (!msgs) return;
+  const first = msgs.firstElementChild;
+  if (first && first.textContent.includes('No messages yet')) first.remove();
+  const info = sConvoActive;
+  const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div'); div.className = 'msg-row';
+  div.innerHTML = `<div class="msg-avatar-sm" style="background:${info.color}">${info.initials}</div><div><div class="bubble theirs">${msg.content}</div><div class="msg-time">${time}</div></div>`;
+  msgs.appendChild(div);
+  scrollChat();
+  renderConvos();
+}
 
 function renderProfile() {
   const u = sUser; if (!u) return;
@@ -2144,6 +2268,24 @@ function buildAnalytics() {
 // ============================================================
 // ADMIN — SETTINGS
 // ============================================================
+function getCNIdentity() {
+  return {
+    name: localStorage.getItem('cn_official_name') || 'CaldwellNest',
+    initials: localStorage.getItem('cn_official_initials') || 'CN',
+    color: localStorage.getItem('cn_official_color') || '#7c3aed'
+  };
+}
+
+function saveCNIdentity() {
+  const name = document.getElementById('cnName').value.trim() || 'CaldwellNest';
+  const initials = document.getElementById('cnInitials').value.trim().toUpperCase().slice(0, 3) || 'CN';
+  const color = document.getElementById('cnColor').value;
+  localStorage.setItem('cn_official_name', name);
+  localStorage.setItem('cn_official_initials', initials);
+  localStorage.setItem('cn_official_color', color);
+  toast('Official identity saved');
+}
+
 const SETTINGS = [
   { key:'requireApproval', label:'Require listing approval', desc:'New listings must be reviewed before going live' },
   { key:'eduOnly', label:'Enforce @caldwell.edu only', desc:'Block registrations from non-.edu emails' },
@@ -2159,6 +2301,14 @@ function buildASettings() {
         <div class="tog-thumb" style="left:${DB.settings[s.key]?'21px':'3px'}"></div>
       </div>
     </div>`).join('');
+  // Populate the CN identity form with saved values
+  const cn = getCNIdentity();
+  const nameEl = document.getElementById('cnName');
+  const initEl = document.getElementById('cnInitials');
+  const colorEl = document.getElementById('cnColor');
+  if (nameEl) nameEl.value = cn.name;
+  if (initEl) initEl.value = cn.initials;
+  if (colorEl) colorEl.value = cn.color;
 }
 function togClick(el, key) {
   const on = el.dataset.on === 'true'; el.dataset.on = (!on).toString();

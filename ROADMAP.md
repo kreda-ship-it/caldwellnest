@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ---
 
@@ -57,17 +57,44 @@ The first genuinely new technical piece. Text saves differently from files.
 - ⬜ Decide: which categories need photos (housing/clothing yes; event poster yes)
 - ⬜ Later: image compression so the page stays fast
 
-### ⬜ MESSAGING  (NEW — detailed, build in 3 stages)
+### 🔄 MESSAGING  (core feature — build in stages)
 The core of why CaldwellNest exists (replaces the overflowing group chats).
-Build in stages — do NOT do all at once:
-- ⬜ **Stage 1 — Save & show:** a messages table in Supabase; sending a message
-      saves it; opening a conversation loads it. (Prove the loop, like listings.)
-- ⬜ **Stage 2 — Link conversations:** make sure the right two people see the
-      right thread (sender, receiver, which listing it's about). Trickiest logic.
-- ⬜ **Stage 3 — Feels live:** new messages appear without refresh
-      (Supabase Realtime). Advanced polish — save for last.
-- ⬜ Extras to consider later: unread indicators, blocking/reporting a user,
-      message timestamps, "message about this listing" button on a listing
+
+**Foundation — done ✅**
+- ✅ **Stage 1 — Save & show:** messages table in Supabase; send saves; open loads
+- ✅ **Stage 2 — Linked conversations:** sender/receiver/listing_id, conversation_key,
+      poster_id backfilled. Right people see the right thread.
+- ✅ **Stage 3 — Feels live:** Supabase Realtime subscription per conversation;
+      new messages appear without refresh; dedup so sent messages don't appear twice;
+      channel cleaned up on convo switch / logout
+- ✅ **Unread badge:** Messages nav button shows a count when new messages arrive
+      while you're on another page; clears when you open Messages
+- ✅ **Listing context dividers:** pill-style "about: [listing]" divider inserted
+      when listing_id changes in a thread; "general conversation" divider if context
+      drops to null; listing titles fetched from Supabase
+
+**In progress / next up**
+- ⬜ **Filter messages by listing** — inside a conversation, let either person
+      filter to see only messages about a specific listing (dropdown or chips above
+      the thread showing each listing the convo has touched)
+- ⬜ **Listing chip in the input bar** — small pill in the bottom-left of the input
+      area showing which listing the NEXT message is tagged to; tap to clear or
+      switch listing (so the listing context isn't just inherited from the opener)
+- ⬜ **Typing indicator** — "Jordan is typing…" using Supabase Presence (a separate
+      Realtime channel dedicated to ephemeral state, not stored in the DB)
+- ⬜ **"Active now" / last seen** — show whether the other person is currently
+      online in the chat header (also Supabase Presence)
+
+**Later polish**
+- ⬜ **Reply-to / quote** — tap a bubble to quote it; message stores a reply_to_id
+      (UUID FK to messages); UI shows a quoted excerpt above the bubble
+      (needs a new column in the messages table: reply_to_id uuid nullable)
+- ⬜ **"Official" badge on CaldwellNest messages** — purple ✓ badge so students
+      can't confuse the official account with a regular student
+- ⬜ **Message timestamps** — show date dividers ("Today", "Yesterday", "Jun 4") and
+      per-message timestamps on hover/tap
+- ⬜ **Blocking / reporting** — report a message or block a user; routes to admin queue
+- ⬜ **Push / email notifications** — nudge when a new message arrives while offline
 
 ### ⬜ MOBILE + DESKTOP RESPONSIVE
 - ⬜ Test and fix layout on phones (most students will use phones) and computers
@@ -202,22 +229,29 @@ though we start with just one main admin:
       roles stored as data in Supabase — not a hardcoded admin flag)
 - ✅ Admin students list reads from Supabase profiles (real signups appear)
 
-### ⬜ Still needed to complete auth
-- ⬜ **Student login (Phase D)** — doLogin() needs to call Supabase Auth and
-      fetch the student's profile. Currently still uses fake hardcoded "Jane Doe".
-- ⬜ **Session restore on page load** — add getSession() so students stay logged
-      in after a browser refresh.
+### ✅ Auth now complete (as of 2026-06-06)
+- ✅ **Student login** — doLogin() calls Supabase Auth + fetches real profile
+- ✅ **Session restore on page load** — getSession() + user_roles check routes
+      admin vs student correctly; no "Kal Reda" bleed-through after refresh
+- ✅ **Logout** — sLogout() calls supabaseClient.auth.signOut(); session fully cleared
 - ⬜ **Future:** main admin can promote any user to an admin role and assign
       permissions, from inside the admin portal.
 
 ---
 
-## CURRENT BUILD ORDER (updated 2026-06-05)
+## CURRENT BUILD ORDER (updated 2026-06-06)
 1. ✅ Super-admin login
 2. ✅ Admin view-as-student without second login
-3. ✅ Official "CaldwellNest" identity
+3. ✅ Official "CaldwellNest" identity (editable from admin Settings)
 4. ✅ Student sign-up (.edu only, real Supabase Auth)
-5. ⬜ **Student login + session restore** ← NEXT
-6. ⬜ Messaging (Stage 1: save & show)
-7. ⬜ Photos (Supabase Storage)
-8. ⬜ Testing pass + polish + About/Contact pages
+5. ✅ Student login + session restore (admin vs student routed correctly)
+6. ✅ Messaging foundation (save, load, linked threads, Realtime, unread badge,
+      listing context dividers)
+7. 🔄 **Messaging polish** ← IN PROGRESS
+      - ⬜ Filter by listing
+      - ⬜ Listing chip in input bar
+      - ⬜ Typing indicator (Supabase Presence)
+      - ⬜ Active now / last seen
+      - ⬜ Reply-to / quote
+8. ⬜ Photos (Supabase Storage)
+9. ⬜ Testing pass + polish + About/Contact pages
