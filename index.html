@@ -534,7 +534,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="a-sec-label">People</div>
         <button class="a-nav-item" onclick="ago('students',this)" data-tooltip="Students"><span class="n-icon">&#128101;</span><span class="n-label">Students</span></button>
         <button class="a-nav-item" onclick="ago('messages',this)" data-tooltip="Messages"><span class="n-icon">&#128172;</span><span class="n-label">Messages</span></button>
-        <button class="a-nav-item" onclick="ago('reports',this)" data-tooltip="Reports"><span class="n-icon">&#128681;</span><span class="n-label">Reports</span><span class="n-badge red">2</span></button>
+        <button class="a-nav-item" onclick="ago('reports',this)" data-tooltip="Reports"><span class="n-icon">&#128681;</span><span class="n-label">Reports</span><span class="n-badge red" id="reportsBadge" style="display:none">0</span></button>
+        <button class="a-nav-item" onclick="ago('appeals',this)" data-tooltip="Appeals"><span class="n-icon">&#128140;</span><span class="n-label">Appeals</span><span class="n-badge red" id="appealsBadge" style="display:none">0</span></button>
         <div class="a-sec-label">Platform</div>
         <button class="a-nav-item" onclick="ago('editor',this)" data-tooltip="Site editor"><span class="n-icon">&#127912;</span><span class="n-label">Site editor</span></button>
         <button class="a-nav-item" onclick="ago('broadcast',this)" data-tooltip="Broadcast"><span class="n-icon">&#128226;</span><span class="n-label">Broadcast</span></button>
@@ -573,7 +574,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
             <div class="asc asc-warn"><div class="asc-label">Pending</div><div class="asc-num" id="ds-p">0</div><div class="asc-sub">Awaiting approval</div></div>
             <div class="asc asc-success"><div class="asc-label">Live listings</div><div class="asc-num" id="ds-l">0</div><div class="asc-sub">Active now</div></div>
             <div class="asc asc-pin"><div class="asc-label">Pinned</div><div class="asc-num" id="ds-pins">0</div><div class="asc-sub">Featured</div></div>
-            <div class="asc asc-danger"><div class="asc-label">Reports</div><div class="asc-num">2</div><div class="asc-sub">Unresolved</div></div>
+            <div class="asc asc-danger"><div class="asc-label">Reports</div><div class="asc-num" id="ds-r">0</div><div class="asc-sub">Unresolved</div></div>
             <div class="asc"><div class="asc-label">Messages</div><div class="asc-num">184</div><div class="asc-sub">All time</div></div>
           </div>
           <div class="charts-row">
@@ -607,6 +608,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
             </div>
             <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Rent</th><th>Poster</th><th>Status</th><th>Actions</th></tr></thead><tbody id="aListTb"></tbody></table></div>
           </div>
+          <div id="aRemovedWrap" style="margin-top:16px;display:none">
+            <div class="tcard">
+              <div class="tcard-head">
+                <div class="tcard-title">&#128465; Removed listings</div>
+                <span id="aRemovedCount" style="font-size:12px;color:var(--text-muted);font-weight:500"></span>
+              </div>
+              <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Rent</th><th>Poster</th><th>Removed</th><th>Actions</th></tr></thead><tbody id="aRemovedTb"></tbody></table></div>
+            </div>
+          </div>
         </div>
 
         <!-- PINNED -->
@@ -620,7 +630,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="a-section" id="asec-students">
           <div class="tcard">
             <div class="tcard-head"><div class="tcard-title">Students</div><input class="a-sbar" placeholder="Search..." oninput="aft('aStuTb',this.value)"></div>
-            <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Email</th><th>Major</th><th>Year</th><th>Listings</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead><tbody id="aStuTb"></tbody></table></div>
+            <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Email</th><th>Major</th><th>Year</th><th>Listings</th><th>Joined</th><th>Status</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="aStuTb"></tbody></table></div>
           </div>
         </div>
 
@@ -635,6 +645,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
         <!-- REPORTS -->
         <div class="a-section" id="asec-reports"><div id="aReportsWrap"></div></div>
+
+        <!-- APPEALS -->
+        <div class="a-section" id="asec-appeals"></div>
 
         <!-- SITE EDITOR -->
         <div class="a-section" id="asec-editor">
@@ -875,6 +888,40 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 </div><!-- /adminApp -->
 
 <!-- ============================================================
+     SUSPENDED SCREEN
+============================================================ -->
+<div id="suspendedScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:600;overflow-y:auto;">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;">
+    <div style="max-width:460px;width:100%;">
+      <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--brand);margin-bottom:32px;text-align:center;">Caldwell<span style="color:var(--accent)">Nest</span></div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:28px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:36px;margin-bottom:14px;">&#128274;</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;">Account suspended</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 0;">Your CaldwellNest account has been suspended by an administrator. You cannot access the platform while this is in effect.</p>
+        <div id="suspensionReasonBlock" style="display:none;margin-top:14px;background:var(--danger-pale);border-radius:var(--radius-sm);padding:10px 14px;text-align:left;">
+          <span style="font-size:12px;font-weight:600;color:var(--danger);text-transform:uppercase;letter-spacing:.04em;">Reason</span>
+          <p id="suspensionReasonText" style="font-size:13px;color:var(--danger);margin:4px 0 0;line-height:1.5;"></p>
+        </div>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:24px;">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">Think this is a mistake?</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;">Submit an appeal and we'll review your case. Your account stays suspended until a decision is made.</p>
+        <div id="appealFormWrap">
+          <div class="form-group"><label class="form-label">Your Caldwell email</label><input class="form-input" id="appealEmail" type="email" placeholder="you@caldwell.edu"></div>
+          <div class="form-group"><label class="form-label">Your message <span style="font-weight:400;color:var(--text-faint)">(max 1000 characters)</span></label><textarea class="form-textarea" id="appealMessage" rows="4" maxlength="1000" placeholder="Explain why you believe your account should be reinstated..."></textarea></div>
+          <div class="login-error" id="appealErr"></div>
+          <button class="btn-full btn-brand" onclick="submitAppeal()">Submit appeal</button>
+        </div>
+        <div id="appealSuccess" style="display:none;background:var(--success-pale);color:var(--success);padding:14px;border-radius:var(--radius-sm);font-size:14px;text-align:center;line-height:1.6;">&#10003; Appeal submitted. We'll review it and be in touch.</div>
+      </div>
+      <div style="text-align:center;margin-top:20px;">
+        <button onclick="hideSuspensionScreen()" style="background:none;border:none;font-size:13px;color:var(--text-faint);cursor:pointer;font-family:'DM Sans',sans-serif;">&#8592; Back to home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      SHARED MODALS
 ============================================================ -->
 <!-- SIGNUP -->
@@ -1071,6 +1118,52 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   </div></div>
 </div>
 
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><div class="modal-title">&#9873; Report listing</div><button class="modal-close" onclick="closeModal('reportModal')">&#215;</button></div>
+    <div class="modal-body">
+      <div id="reportFormWrap">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;line-height:1.5;">You're reporting: <strong id="reportListingTitle"></strong></p>
+        <p style="font-size:12px;color:var(--text-faint);margin-bottom:16px;line-height:1.5;">Reports are reviewed by the admin team. Nothing happens automatically — a report is not a punishment.</p>
+        <div class="form-group">
+          <label class="form-label">Reason</label>
+          <select class="form-input" id="reportCategory">
+            <option value="">Choose a reason…</option>
+            <option value="scam_or_fraud">Scam or fraud</option>
+            <option value="not_a_student">Poster doesn't appear to be a student</option>
+            <option value="wrong_price">Price is misleading or wrong</option>
+            <option value="duplicate_listing">Duplicate listing</option>
+            <option value="inappropriate_content">Inappropriate content</option>
+            <option value="suspicious">Suspicious activity</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Details <span style="font-weight:400;color:var(--text-faint)">(optional · max 500 characters)</span></label>
+          <textarea class="form-textarea" id="reportDetails" rows="3" maxlength="500" placeholder="Add any extra context that might help the review…"></textarea>
+        </div>
+        <div class="login-error" id="reportErr"></div>
+        <button class="btn-full btn-brand" onclick="submitReport()">Submit report</button>
+      </div>
+      <div id="reportSuccess" style="display:none;background:var(--success-pale);color:var(--success);padding:14px;border-radius:var(--radius-sm);font-size:14px;text-align:center;line-height:1.6;">&#10003; Report submitted. Our team will review it shortly.</div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT LISTING PREVIEW MODAL -->
+<div class="modal-overlay" id="reportListingPreviewModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">Reported listing</div>
+      <button class="modal-close" onclick="closeModal('reportListingPreviewModal')">&#215;</button>
+    </div>
+    <div class="modal-body" id="reportListingPreviewBody">
+      <p style="color:var(--text-muted);font-size:14px">Loading…</p>
+    </div>
+  </div>
+</div>
+
 <!-- AI CHATBOT -->
 <button class="ai-fab" id="aiFab" style="display:none;" onclick="toggleAI()">&#129302;<div class="ai-fab-badge">AI</div></button>
 <div class="ai-chat" id="aiChat">
@@ -1161,6 +1254,7 @@ let sFilter = 'all';
 let sConvoActive = null;
 let sRealtimeChannel = null;
 let sUnreadCount = 0;
+let adminUUID = null;
 let aEditId = null, aEditSrc = 'listing';
 let aRejectId = null, aSuspendId = null;
 let aiOpen = false, aiHistory = [];
@@ -1195,6 +1289,13 @@ initStudent();
   // Student session — restore normally
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
   if (!profile) return;
+
+  if (profile.status === 'suspended') {
+    await supabaseClient.auth.signOut();
+    showSuspensionScreen(profile.email || session.user.email, profile.id, profile.suspension_reason);
+    return;
+  }
+
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || session.user.email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
   updateSNav();
 })();
@@ -1241,8 +1342,7 @@ async function aLogout() {
 async function enterStudentPreview() {
   adminPreviewMode = true;
   const { data: { user } } = await supabaseClient.auth.getUser();
-  const cn = getCNIdentity();
-  sUser = { id: user?.id, first: cn.name, last: '', name: cn.name, email: 'official@caldwellnest.com', initials: cn.initials, color: cn.color };
+  adminUUID = user?.id || null;
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
@@ -1253,6 +1353,7 @@ async function enterStudentPreview() {
 function switchBackToAdmin() {
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   adminPreviewMode = false;
+  adminUUID = null;
   sUser = null;
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
@@ -1313,6 +1414,10 @@ function toggleAdminSidebar() {
 }
 
 async function loadListings() {
+  const { data: suspendedProfiles } = await supabaseClient
+    .from('profiles').select('id').eq('status', 'suspended');
+  const suspendedIds = new Set((suspendedProfiles || []).map(p => p.id));
+
   const { data, error } = await supabaseClient
     .from('listings')
     .select('*')
@@ -1336,8 +1441,10 @@ async function loadListings() {
     pinned: row.pinned,
     rejection_reason: row.rejection_reason || null
   });
-  DB.listings = data.filter(row => row.status !== 'pending').map(mapRow);
-  DB.pending = data.filter(row => row.status === 'pending').map(mapRow);
+  const visible = data.filter(row => !suspendedIds.has(row.poster_id));
+  DB.listings = visible.filter(row => row.status !== 'pending').map(mapRow);
+  DB.pending = visible.filter(row => row.status === 'pending').map(mapRow);
+  // removed listings stay in DB.listings with status:'removed' — hidden from students, visible to admin
 }
 
 async function initStudent() {
@@ -1415,6 +1522,13 @@ async function doLogin() {
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', authData.user.id).single();
   if (!profile) { err.textContent = 'Account not found. Please sign up first.'; err.style.display = 'block'; await supabaseClient.auth.signOut(); return; }
 
+  if (profile.status === 'suspended') {
+    await supabaseClient.auth.signOut();
+    closeModal('loginModal');
+    showSuspensionScreen(profile.email || email, profile.id, profile.suspension_reason);
+    return;
+  }
+
   sUser = { id: authData.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, email: profile.email || email, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color };
   closeModal('loginModal');
   updateSNav();
@@ -1432,7 +1546,7 @@ function demoLogin() {
 }
 
 function updateSNav() {
-  const u = sUser;
+  const u = getEffectiveUser();
   document.getElementById('navGuest').style.display = u ? 'none' : 'flex';
   const nu = document.getElementById('navUser');
   nu.style.display = u ? 'flex' : 'none';
@@ -1457,7 +1571,7 @@ function showPage(name) {
 
 function guestBrowse() { showPage('listings'); }
 function requireAuth(action) {
-  if (!sUser) { openModal('loginModal'); return false; }
+  if (!getEffectiveUser()) { openModal('loginModal'); return false; }
   if (action === 'postListing') openModal('postModal');
   return true;
 }
@@ -1510,6 +1624,7 @@ function listingCardHTML(l, isPinned) {
     <div class="poster-row">
       <div class="mini-avatar" style="background:${l.poster.color}">${l.poster.initials}</div>
       <div class="poster-info"><div class="poster-name">${l.poster.name}</div><div class="poster-time">${l.posted}</div></div>
+      ${sUser && sUser.id !== l.poster_id ? `<button onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" style="background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;padding:4px 6px;margin-left:auto;line-height:1;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873;</button>` : ''}
     </div>
   </div>`;
 }
@@ -1533,18 +1648,75 @@ function openDetail(id) {
         <div><div style="font-weight:600;font-size:15px">${l.poster.name}</div><div style="font-size:12px;color:var(--text-muted)">Caldwell student · .edu verified</div></div>
       </div>
       <button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">&#128172; Message ${l.poster.name.split(' ')[0]}</button>
+      ${sUser && sUser.id !== l.poster_id ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
     </div>`;
   openModal('detailModal');
 }
 
 function sContact(listingId) {
-  if (!sUser) { openModal('loginModal'); return; }
+  const eu = getEffectiveUser();
+  if (!eu) { openModal('loginModal'); return; }
   const l = DB.listings.find(x => x.id === listingId) || DB.pending.find(x => x.id === listingId);
   if (!l) return;
   if (!l.poster_id) { toast('Messaging not available for this listing yet.'); return; }
-  if (l.poster_id === sUser.id) { toast("That's your own listing!"); return; }
+  if (l.poster_id === eu.id) { toast("That's your own listing!"); return; }
   showPage('messages');
   setTimeout(() => openConvo(l.poster_id, { name: l.poster.name, initials: l.poster.initials, color: l.poster.color }, l.id), 100);
+}
+
+// REPORT A LISTING
+const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+let _reportTarget = null;
+
+function openReportModal(listingId) {
+  const eu = getEffectiveUser();
+  if (!eu) { openModal('loginModal'); return; }
+  const l = DB.listings.find(x => x.id === listingId);
+  if (!l) return;
+  _reportTarget = { id: listingId, title: l.title };
+  document.getElementById('reportListingTitle').textContent = l.title;
+  document.getElementById('reportCategory').value = '';
+  document.getElementById('reportDetails').value = '';
+  const errEl = document.getElementById('reportErr');
+  errEl.style.display = 'none'; errEl.textContent = '';
+  document.getElementById('reportFormWrap').style.display = 'block';
+  document.getElementById('reportSuccess').style.display = 'none';
+  openModal('reportModal');
+}
+
+async function submitReport() {
+  const eu = getEffectiveUser();
+  if (!eu) return;
+  const category = document.getElementById('reportCategory').value;
+  const details = document.getElementById('reportDetails').value.trim();
+  const errEl = document.getElementById('reportErr');
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  if (!category) { showErr('Please select a reason.'); return; }
+
+  const { error } = await supabaseClient.from('reports').insert({
+    listing_id: _reportTarget?.id,
+    listing_title_snapshot: _reportTarget?.title,
+    reporter_id: eu.id,
+    category,
+    details: details || null,
+    status: 'open'
+  });
+
+  if (error) {
+    if (error.code === '23505') {
+      showErr("You've already reported this listing.");
+    } else {
+      showErr('Could not submit — please try again.');
+      console.error(error);
+    }
+    return;
+  }
+
+  document.getElementById('reportFormWrap').style.display = 'none';
+  document.getElementById('reportSuccess').style.display = 'block';
 }
 
 function selectCategory(cat) {
@@ -1577,7 +1749,7 @@ async function submitListing() {
   const title = document.getElementById('pTitle').value.trim();
   const desc = document.getElementById('pDesc').value.trim();
   if (!title) { toast('Please add a title'); return; }
-  const u = sUser || { name: 'Demo User', initials: 'DU', email: 'demo@caldwell.edu', color: AC[5] };
+  const u = getEffectiveUser() || { name: 'Demo User', initials: 'DU', email: 'demo@caldwell.edu', color: AC[5] };
   const emoji = CATEGORY_EMOJI[cat];
 
   let price = null, location = '', details = {}, tags = [];
@@ -1633,11 +1805,12 @@ async function submitListing() {
 let sConvoCache = {}; // keyed by userId: { name, initials, color }
 
 async function renderConvos() {
-  if (!sUser) return;
+  const eu = getEffectiveUser();
+  if (!eu) return;
   const { data: msgs } = await supabaseClient
     .from('messages')
     .select('*')
-    .or(`sender_id.eq.${sUser.id},receiver_id.eq.${sUser.id}`)
+    .or(`sender_id.eq.${eu.id},receiver_id.eq.${eu.id}`)
     .order('created_at', { ascending: false });
 
   if (!msgs || msgs.length === 0) {
@@ -1651,7 +1824,7 @@ async function renderConvos() {
     if (!seen.has(m.conversation_key)) { seen.add(m.conversation_key); latest.push(m); }
   }
 
-  const otherIds = latest.map(m => m.sender_id === sUser.id ? m.receiver_id : m.sender_id);
+  const otherIds = latest.map(m => m.sender_id === eu.id ? m.receiver_id : m.sender_id);
   const { data: profiles } = await supabaseClient.from('profiles').select('id, first_name, last_name, initials, color').in('id', otherIds);
   const pMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
 
@@ -1660,7 +1833,7 @@ async function renderConvos() {
   }
 
   document.getElementById('convoList').innerHTML = latest.map(m => {
-    const otherId = m.sender_id === sUser.id ? m.receiver_id : m.sender_id;
+    const otherId = m.sender_id === eu.id ? m.receiver_id : m.sender_id;
     const p = pMap[otherId] || { first_name: 'User', last_name: '', initials: '?', color: '#888' };
     const isActive = sConvoActive && sConvoActive.userId === otherId;
     const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1682,7 +1855,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
   renderConvos();
 
-  const convKey = [sUser.id, otherUserId].sort().join(':');
+  const eu = getEffectiveUser();
+  const convKey = [eu.id, otherUserId].sort().join(':');
   const { data: msgs } = await supabaseClient
     .from('messages').select('*')
     .eq('conversation_key', convKey)
@@ -1703,8 +1877,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
       parts.push(`<div class="divider">${label}</div>`);
       prevListingId = m.listing_id;
     }
-    const mine = m.sender_id === sUser.id;
-    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="msg-avatar-sm" style="background:${mine ? sUser.color : info.color}">${mine ? sUser.initials : info.initials}</div><div><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}</div><div class="msg-time">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div></div>`);
+    const mine = m.sender_id === eu.id;
+    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="msg-avatar-sm" style="background:${mine ? eu.color : info.color}">${mine ? eu.initials : info.initials}</div><div><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}</div><div class="msg-time">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div></div>`);
   }
   const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
 
@@ -1729,10 +1903,11 @@ async function openConvo(otherUserId, otherInfo, listingId) {
 async function sMsg() {
   const inp = document.getElementById('msgInput');
   const text = inp.value.trim();
-  if (!text || !sConvoActive || !sUser) return;
+  const eu = getEffectiveUser();
+  if (!text || !sConvoActive || !eu) return;
 
   const { error } = await supabaseClient.from('messages').insert({
-    sender_id: sUser.id,
+    sender_id: eu.id,
     receiver_id: sConvoActive.userId,
     listing_id: sConvoActive.listingId || null,
     content: text
@@ -1743,7 +1918,7 @@ async function sMsg() {
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
   const div = document.createElement('div'); div.className = 'msg-row mine';
-  div.innerHTML = `<div class="msg-avatar-sm" style="background:${sUser.color}">${sUser.initials}</div><div><div class="bubble mine">${text}</div><div class="msg-time">${time}</div></div>`;
+  div.innerHTML = `<div class="msg-avatar-sm" style="background:${eu.color}">${eu.initials}</div><div><div class="bubble mine">${text}</div><div class="msg-time">${time}</div></div>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();
@@ -1753,14 +1928,16 @@ function scrollChat() { setTimeout(() => { const m = document.getElementById('ch
 
 function handleRealtimeMessage(payload) {
   const msg = payload.new;
-  if (!msg || !sConvoActive || !sUser) return;
-  if (msg.sender_id === sUser.id) return; // already rendered locally on send
+  const eu = getEffectiveUser();
+  if (!msg || !eu) return;
+  if (msg.sender_id === eu.id) return; // already rendered locally on send
   if (!document.getElementById('page-messages').classList.contains('active')) {
     sUnreadCount++;
     const badge = document.getElementById('msgBadge');
     badge.textContent = sUnreadCount;
     badge.style.display = 'inline';
   }
+  if (!sConvoActive) return; // badge is updated above; nothing to render in thread
   const msgs = document.getElementById('chatMsgs');
   if (!msgs) return;
   const first = msgs.firstElementChild;
@@ -1775,7 +1952,7 @@ function handleRealtimeMessage(payload) {
 }
 
 function renderProfile() {
-  const u = sUser; if (!u) return;
+  const u = getEffectiveUser(); if (!u) return;
   document.getElementById('profileAvatar').textContent = u.initials;
   document.getElementById('profileAvatar').style.background = u.color;
   document.getElementById('profileName').textContent = u.name;
@@ -1792,7 +1969,7 @@ function renderProfile() {
 // ADMIN — INIT
 // ============================================================
 function initAdmin() {
-  updateAdminBadges();
+  updateAllAdminBadges();
   buildAdminBar();
   renderAdminDashLog();
   buildPresets();
@@ -1814,7 +1991,7 @@ function initAdmin() {
 }
 
 function refreshAdmin() {
-  updateAdminBadges();
+  updateAllAdminBadges();
   renderAdminDashLog();
   const active = document.querySelector('.a-section.active');
   if (active) {
@@ -1832,6 +2009,11 @@ function updateAdminBadges() {
   document.getElementById('ds-p').textContent = DB.pending.length;
   document.getElementById('ds-l').textContent = DB.listings.filter(l => l.status === 'approved').length;
   document.getElementById('ds-pins').textContent = DB.listings.filter(l => l.pinned).length;
+}
+
+function updateAllAdminBadges() {
+  updateAdminBadges();
+  Promise.all([updateAppealsBadge(), updateReportsBadge()]);
 }
 
 const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
@@ -1901,7 +2083,7 @@ async function confirmReject() {
 }
 
 // ADMIN ALL LISTINGS
-function allListings() { return [...DB.listings, ...DB.pending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))]; }
+function allListings() { return [...DB.listings.filter(l => l.status !== 'removed'), ...DB.pending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))]; }
 function renderAListings() {
   document.getElementById('aListTb').innerHTML = allListings().map(l => `<tr>
     <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? '&#128204; ' : ''}${l.title}</td>
@@ -1915,18 +2097,43 @@ function renderAListings() {
       ${l.status === 'approved' ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveListing(${l.id})">Remove</button>` : ''}
     </div></td>
   </tr>`).join('');
+
+  const removed = DB.listings.filter(l => l.status === 'removed');
+  const wrap = document.getElementById('aRemovedWrap');
+  wrap.style.display = removed.length ? 'block' : 'none';
+  document.getElementById('aRemovedCount').textContent = removed.length ? `${removed.length} listing${removed.length > 1 ? 's' : ''}` : '';
+  document.getElementById('aRemovedTb').innerHTML = removed.map(l => `<tr>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)">${l.title}</td>
+    <td><span class="pill pill-active" style="font-size:10px">${l.type}</span></td>
+    <td style="font-weight:600;color:var(--text-muted)">$${l.rent}</td>
+    <td>${l.poster?.name || l.poster || '—'}</td>
+    <td style="font-size:12px;color:var(--text-muted)">${l.updated_at ? fmtDate(l.updated_at) : '—'}</td>
+    <td><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button></td>
+  </tr>`).join('');
 }
 
 function aft(id, q) { document.querySelectorAll(`#${id} tr`).forEach(r => r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'); }
 function aFilterStatus(v) { document.querySelectorAll('#aListTb tr').forEach(r => r.style.display = (!v || r.textContent.toLowerCase().includes(v)) ? '' : 'none'); }
 
 async function aRemoveListing(id) {
-  const i = DB.listings.findIndex(x => x.id === id); if (i === -1) return;
-  const { error } = await supabaseClient.from('listings').delete().eq('id', id);
+  const l = DB.listings.find(x => x.id === id);
+  if (!l) return;
+  const { error } = await supabaseClient.from('listings').update({ status: 'removed' }).eq('id', id);
   if (error) { toast('Could not remove listing — please try again.'); console.error(error.message); return; }
-  DB.log.unshift({ type: 'remove', text: `Listing removed: "${DB.listings[i].title}"`, time: 'Just now', color: '#c0392b' });
-  DB.listings.splice(i, 1);
+  l.status = 'removed';
+  l.updated_at = new Date().toISOString();
+  DB.log.unshift({ type: 'remove', text: `Listing removed: "${l.title}"`, time: 'Just now', color: '#c0392b' });
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing removed');
+}
+
+async function aRestoreListing(id) {
+  const l = DB.listings.find(x => x.id === id);
+  if (!l) return;
+  const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
+  if (error) { toast('Could not restore listing — please try again.'); console.error(error.message); return; }
+  l.status = 'approved';
+  DB.log.unshift({ type: 'restore', text: `Listing restored: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
+  renderAListings(); renderListings(); updateAdminBadges(); toast('Listing restored');
 }
 
 async function aTogglePin(id) {
@@ -2022,49 +2229,78 @@ async function renderAStudents() {
     .select('*')
     .order('created_at', { ascending: false });
   if (!students) return;
-  document.getElementById('aStuTb').innerHTML = students.map(s => `<tr>
-    <td style="font-weight:500">${s.first_name} ${s.last_name}</td>
-    <td style="color:var(--text-muted)">${s.email || '—'}</td>
-    <td>${s.major || '—'}</td><td>${s.year || '—'}</td>
-    <td style="text-align:center">0</td>
-    <td style="color:var(--text-faint)">${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</td>
-    <td><span class="pill pill-active">active</span></td>
-    <td><div class="arow">
-      <button class="btn-sm-a btn-a-neutral" onclick="aViewStu('${s.id}')">View</button>
-      <button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${s.id}')">Suspend</button>
-    </div></td>
-  </tr>`).join('');
+  document.getElementById('aStuTb').innerHTML = students.map(s => {
+    const suspended = s.status === 'suspended';
+    const statusPill = `<span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${s.status || 'active'}</span>`;
+    const actionBtn = suspended
+      ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${s.id}')">Reinstate</button>`
+      : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${s.id}')">Suspend</button>`;
+    return `<tr>
+      <td style="font-weight:500">${s.first_name} ${s.last_name}</td>
+      <td style="color:var(--text-muted)">${s.email || '—'}</td>
+      <td>${s.major || '—'}</td><td>${s.year || '—'}</td>
+      <td style="text-align:center">0</td>
+      <td style="color:var(--text-faint)">${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</td>
+      <td>${statusPill}</td>
+      <td style="max-width:180px;color:${suspended ? 'var(--danger)' : 'var(--text-faint)'};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${suspended && s.suspension_reason ? s.suspension_reason : '—'}</td>
+      <td><div class="arow">
+        <button class="btn-sm-a btn-a-neutral" onclick="aViewStu('${s.id}')">View</button>
+        ${actionBtn}
+      </div></td>
+    </tr>`;
+  }).join('');
 }
 
-function aViewStu(id) {
-  const s = DB.students.find(x => x.id === id); if (!s) return;
+async function aViewStu(id) {
+  const { data: s, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
+  if (error || !s) { toast('Could not load student profile.'); return; }
+  const suspended = s.status === 'suspended';
+  const initials = ((s.first_name?.[0] || '') + (s.last_name?.[0] || '')).toUpperCase();
+  const color = s.color || AC[0];
+  const actionBtn = suspended
+    ? `<button class="btn-sm-a btn-a-success" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aReinstate('${s.id}')">Reinstate</button>`
+    : `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend('${s.id}')">Suspend</button>`;
   document.getElementById('aStuBody').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:${AC[id%AC.length]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${s.name.split(' ').map(n=>n[0]).join('')}</div>
-      <div><div style="font-size:17px;font-weight:600">${s.name}</div><div style="font-size:12px;color:var(--text-muted)">${s.email}</div><span class="pill ${s.status==='active'?'pill-active':'pill-suspended'}" style="margin-top:4px;display:inline-flex">${s.status}</span></div>
+      <div style="width:48px;height:48px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${initials}</div>
+      <div><div style="font-size:17px;font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:12px;color:var(--text-muted)">${s.email || '—'}</div><span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}" style="margin-top:4px;display:inline-flex">${s.status || 'active'}</span></div>
     </div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${s.major}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${s.year}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>${s.listings}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.joined}</span></div>
-    <div style="margin-top:14px;display:flex;gap:8px;">
-      ${s.status==='active' ? `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend(${s.id})">Suspend</button>` : `<button class="btn-sm-a btn-a-success" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aReinstate(${s.id})">Reinstate</button>`}
-    </div>`;
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${s.major || '—'}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${s.year || '—'}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>0</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">${actionBtn}</div>`;
   openModal('aStuModal');
 }
 
 function aOpenSuspend(id) { aSuspendId = id; document.getElementById('suspReason').value = ''; openModal('suspendModal'); }
-function confirmSuspend() {
-  const s = DB.students.find(x => x.id === aSuspendId); if (!s) return;
-  s.status = 'suspended';
-  DB.log.unshift({ type: 'suspend', text: `Student suspended: ${s.name}`, time: 'Just now', color: '#c0392b' });
+async function confirmSuspend() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user && aSuspendId === user.id) { toast('You cannot suspend your own admin account.'); return; }
+  const reason = document.getElementById('suspReason').value.trim();
+  const { error } = await supabaseClient.from('profiles').update({ status: 'suspended', suspension_reason: reason || null }).eq('id', aSuspendId);
+  if (error) { toast('Could not suspend — please try again.'); console.error(error.message); return; }
+  if (_pendingReportId) {
+    await supabaseClient.from('reports').update({
+      status: 'actioned', resolved_by: user?.id, resolved_at: new Date().toISOString(),
+      resolution_note: 'Poster suspended by admin'
+    }).eq('id', _pendingReportId);
+    _pendingReportId = null;
+    updateReportsBadge(); renderAReports();
+  }
+  DB.log.unshift({ type: 'suspend', text: 'Student suspended', time: 'Just now', color: '#c0392b' });
   closeModal('suspendModal'); renderAStudents(); toast('Student suspended');
 }
-function aReinstate(id) {
-  const s = DB.students.find(x => x.id === id); if (!s) return;
-  s.status = 'active';
-  DB.log.unshift({ type: 'reinstate', text: `Student reinstated: ${s.name}`, time: 'Just now', color: '#1a7a45' });
-  renderAStudents(); toast('Student reinstated');
+async function aReinstate(profileId, appealId = null) {
+  const updates = [supabaseClient.from('profiles').update({ status: 'active' }).eq('id', profileId)];
+  if (appealId) updates.push(supabaseClient.from('appeals').update({ status: 'resolved_reinstated' }).eq('id', appealId));
+  const results = await Promise.all(updates);
+  const error = results.find(r => r.error)?.error;
+  if (error) { toast('Could not reinstate — please try again.'); console.error(error.message); return; }
+  DB.log.unshift({ type: 'reinstate', text: 'Student reinstated', time: 'Just now', color: '#1a7a45' });
+  await loadListings(); renderListings(); renderAStudents();
+  updateAppealsBadge(); renderAppeals();
+  toast('Student reinstated');
 }
 
 // ADMIN MESSAGES
@@ -2081,16 +2317,164 @@ function renderAMessages() {
 }
 
 // ADMIN REPORTS
-function renderAReports() {
-  document.getElementById('aReportsWrap').innerHTML = `<div class="tcard"><div class="tcard-head"><div class="tcard-title">Flagged reports</div><span style="font-size:12px;color:var(--danger);font-weight:600">${DB.reports.filter(r=>r.status==='open').length} open</span></div>
-  ${DB.reports.map(r => `<div style="padding:15px 18px;border-bottom:1px solid var(--border);">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:10px">
-      <div><div style="font-size:14px;font-weight:600;margin-bottom:2px">${r.type}</div><div style="font-size:12px;color:var(--text-muted)">By ${r.reporter} · Against ${r.against} · ${r.date}</div></div>
-      <span class="pill ${r.status==='open'?'pill-pending':'pill-approved'}">${r.status}</span>
+const REPORT_LABELS = {
+  scam_or_fraud: 'Scam or fraud', not_a_student: 'Not a student',
+  wrong_price: 'Wrong / misleading price', duplicate_listing: 'Duplicate listing',
+  inappropriate_content: 'Inappropriate content', suspicious: 'Suspicious activity', other: 'Other'
+};
+
+async function renderAReports() {
+  const wrap = document.getElementById('aReportsWrap');
+  wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">Loading reports…</p>';
+
+  const { data: reports, error } = await supabaseClient
+    .from('reports')
+    .select('*, reporter:reporter_id(first_name, last_name, email), listing:listing_id(id, title, poster_id, poster_name)')
+    .order('created_at', { ascending: false });
+
+  if (error) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">Could not load reports.</p>'; return; }
+  if (!reports || reports.length === 0) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">No reports yet.</p>'; return; }
+
+  const open = reports.filter(r => r.status === 'open');
+  const resolved = reports.filter(r => r.status !== 'open');
+
+  const card = r => {
+    const isOpen = r.status === 'open';
+    const reporterName = r.reporter ? `${r.reporter.first_name || ''} ${r.reporter.last_name || ''}`.trim() || r.reporter.email : '—';
+    const listingTitle = r.listing?.title || r.listing_title_snapshot || `Listing #${r.listing_id}`;
+    const posterName = r.listing?.poster_name || '—';
+    const posterId = r.listing?.poster_id || null;
+    const listingStillExists = !!r.listing;
+    const statusColor = isOpen ? '#c0392b' : r.status === 'dismissed' ? '#888' : '#1a7a45';
+    const statusLabel = isOpen ? 'Open' : r.status === 'dismissed' ? 'Dismissed' : 'Actioned';
+    const actionTaken = r.status === 'actioned'
+      ? (r.resolution_note || 'Action taken')
+      : 'Dismissed — no action';
+
+    return `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">${REPORT_LABELS[r.category] || r.category}</div>
+          <div style="font-size:12px;color:var(--text-muted)">
+            Listing:
+            ${listingStillExists
+              ? `<button onclick="viewReportedListing(${r.listing_id})" style="background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--brand);padding:0;text-decoration:underline dotted;font-family:'DM Sans',sans-serif;">&#128269; ${listingTitle}</button>`
+              : `<strong>"${listingTitle}"</strong> <span style="color:var(--text-faint)">(listing removed)</span>`}
+            · by ${posterName} · Reported by ${reporterName} · ${fmtDate(r.created_at)}
+          </div>
+        </div>
+        <span style="background:${statusColor}22;color:${statusColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap">${statusLabel}</span>
+      </div>
+      ${r.details ? `<div style="background:var(--bg);padding:9px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px">${r.details}</div>` : ''}
+      ${isOpen ? `<div class="arow">
+        <button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>
+        ${listingStillExists ? `<button class="btn-sm-a btn-a-danger" onclick="hideListingFromReport('${r.id}',${r.listing_id})">Remove listing</button>` : ''}
+        ${posterId ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}')">Suspend poster</button>` : ''}
+      </div>`
+      : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:8px">
+          <div>
+            ${actionTaken ? `<span style="font-size:12px;color:${statusColor};font-weight:500">&#10003; ${actionTaken}</span>` : ''}
+            <span style="font-size:11px;color:var(--text-faint);margin-left:8px">Resolved ${fmtDate(r.resolved_at)}</span>
+          </div>
+          <button class="btn-sm-a btn-a-neutral" onclick="reopenReport('${r.id}')">&#8634; Reopen</button>
+        </div>`}
+    </div>`;
+  };
+
+  wrap.innerHTML = `
+    <div class="tcard" style="margin-bottom:16px">
+      <div class="tcard-head">
+        <div class="tcard-title">Open reports</div>
+        <span style="font-size:12px;color:var(--danger);font-weight:600">${open.length} open</span>
+      </div>
+      ${open.length ? open.map(card).join('') : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No open reports — all clear.</p>'}
     </div>
-    <div style="background:var(--bg);padding:9px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:9px">${r.details}</div>
-    <div class="arow"><button class="btn-sm-a btn-a-neutral" onclick="toast('Marked reviewed')">Mark reviewed</button><button class="btn-sm-a btn-a-danger" onclick="toast('Suspend action initiated')">Suspend user</button><button class="btn-sm-a btn-a-success" onclick="toast('Dismissed')">Dismiss</button></div>
-  </div>`).join('')}</div>`;
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tcard-title">&#128203; Report history</div>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:500">${resolved.length} resolved</span>
+      </div>
+      ${resolved.length
+        ? resolved.map(card).join('')
+        : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No resolved reports yet.</p>'}
+    </div>`;
+}
+
+async function dismissReport(id) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { error } = await supabaseClient.from('reports').update({
+    status: 'dismissed', resolved_by: user?.id, resolved_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) { toast('Could not dismiss — please try again.'); console.error(error); return; }
+  toast('Report dismissed');
+  updateReportsBadge(); renderAReports();
+}
+
+async function hideListingFromReport(reportId, listingId) {
+  const [{ data: { user } }, { data: listing }] = await Promise.all([
+    supabaseClient.auth.getUser(),
+    supabaseClient.from('listings').select('title').eq('id', listingId).single()
+  ]);
+  await supabaseClient.from('reports').update({
+    status: 'actioned',
+    resolved_by: user?.id,
+    resolved_at: new Date().toISOString(),
+    resolution_note: 'Listing removed by admin',
+    listing_title_snapshot: listing?.title || null
+  }).eq('id', reportId);
+  await aRemoveListing(listingId);
+  updateReportsBadge(); renderAReports();
+}
+
+let _pendingReportId = null;
+function suspendFromReport(reportId, posterId) {
+  _pendingReportId = reportId;
+  aOpenSuspend(posterId);
+}
+
+async function updateReportsBadge() {
+  const { count } = await supabaseClient.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
+  const badge = document.getElementById('reportsBadge');
+  const stat = document.getElementById('ds-r');
+  const n = count || 0;
+  if (badge) { badge.textContent = n; badge.style.display = n > 0 ? 'inline-block' : 'none'; }
+  if (stat) stat.textContent = n;
+}
+
+async function viewReportedListing(listingId) {
+  const body = document.getElementById('reportListingPreviewBody');
+  body.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Loading…</p>';
+  openModal('reportListingPreviewModal');
+
+  const { data: l, error } = await supabaseClient.from('listings').select('*').eq('id', listingId).single();
+
+  if (error || !l) {
+    body.innerHTML = '<p style="color:var(--text-muted);font-size:14px">This listing has been removed and is no longer available.</p>';
+    return;
+  }
+
+  body.innerHTML = `
+    <div style="font-size:22px;text-align:center;margin-bottom:12px">${l.emoji || '🏠'}</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${l.title}</div>
+    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">&#128205; ${l.location || '—'}</div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <span class="pill pill-active">$${l.price || l.rent || '—'}/mo</span>
+      <span class="pill pill-active">${l.type || '—'}</span>
+      <span class="pill" style="background:var(--bg)">${l.status}</span>
+    </div>
+    ${l.description ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px">${l.description}</div>` : ''}
+    <div style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text-faint)">
+      Posted by <strong>${l.poster_name || '—'}</strong> · ${fmtDate(l.created_at)}
+    </div>`;
+}
+
+async function reopenReport(id) {
+  const { error } = await supabaseClient.from('reports').update({
+    status: 'open', resolved_by: null, resolved_at: null, resolution_note: null
+  }).eq('id', id);
+  if (error) { toast('Could not reopen — please try again.'); console.error(error); return; }
+  toast('Report reopened');
+  updateReportsBadge(); renderAReports();
 }
 
 // ADMIN ACTIVITY
@@ -2276,13 +2660,29 @@ function getCNIdentity() {
   };
 }
 
-function saveCNIdentity() {
+function getEffectiveUser() {
+  if (adminPreviewMode) {
+    const cn = getCNIdentity();
+    return { id: adminUUID, name: cn.name, first: cn.name, last: '', email: 'official@caldwellnest.com', initials: cn.initials, color: cn.color };
+  }
+  return sUser;
+}
+
+async function saveCNIdentity() {
   const name = document.getElementById('cnName').value.trim() || 'CaldwellNest';
   const initials = document.getElementById('cnInitials').value.trim().toUpperCase().slice(0, 3) || 'CN';
   const color = document.getElementById('cnColor').value;
   localStorage.setItem('cn_official_name', name);
   localStorage.setItem('cn_official_initials', initials);
   localStorage.setItem('cn_official_color', color);
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user) {
+    await supabaseClient.from('profiles').update({ first_name: name, last_name: '', initials, color }).eq('id', user.id);
+    await supabaseClient.from('listings').update({ poster_name: name, poster_initials: initials, poster_color: color }).eq('poster_id', user.id);
+    [DB.listings, DB.pending].forEach(arr => arr.forEach(l => {
+      if (l.poster_id === user.id) { l.poster.name = name; l.poster.initials = initials; l.poster.color = color; }
+    }));
+  }
   toast('Official identity saved');
 }
 
@@ -2521,6 +2921,151 @@ function renderHealth() {
 }
 
 // ============================================================
+// SUSPENSION SCREEN
+// ============================================================
+let _suspendedProfileId = null;
+
+function showSuspensionScreen(email, profileId, reason) {
+  _suspendedProfileId = profileId || null;
+  document.getElementById('studentApp').style.display = 'none';
+  const screen = document.getElementById('suspendedScreen');
+  screen.style.display = 'flex';
+  const emailField = document.getElementById('appealEmail');
+  if (emailField && email) emailField.value = email;
+  const reasonEl = document.getElementById('suspensionReasonBlock');
+  if (reasonEl) {
+    if (reason) {
+      reasonEl.style.display = 'block';
+      document.getElementById('suspensionReasonText').textContent = reason;
+    } else {
+      reasonEl.style.display = 'none';
+    }
+  }
+  // reset form state
+  document.getElementById('appealFormWrap').style.display = 'block';
+  document.getElementById('appealSuccess').style.display = 'none';
+  const appealErr = document.getElementById('appealErr');
+  appealErr.style.display = 'none';
+  appealErr.textContent = '';
+  document.getElementById('appealMessage').value = '';
+}
+
+function hideSuspensionScreen() {
+  document.getElementById('suspendedScreen').style.display = 'none';
+  document.getElementById('studentApp').style.display = '';
+}
+
+async function submitAppeal() {
+  const emailEl = document.getElementById('appealEmail');
+  const msgEl = document.getElementById('appealMessage');
+  const errEl = document.getElementById('appealErr');
+  const email = emailEl.value.trim();
+  const message = msgEl.value.trim();
+
+  const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  if (!email.endsWith('@caldwell.edu')) {
+    showErr('Please use your @caldwell.edu email address.');
+    return;
+  }
+  if (message.length < 20) {
+    showErr('Please write at least 20 characters explaining your situation.');
+    return;
+  }
+  if (!_suspendedProfileId) {
+    showErr('Session error — please log in and out again to reset.');
+    return;
+  }
+
+  const { error } = await supabaseClient.from('appeals').insert({
+    profile_id: _suspendedProfileId,
+    email,
+    message,
+    status: 'open'
+  });
+
+  if (error) {
+    showErr('Could not submit — ' + error.message);
+    console.error(error);
+    return;
+  }
+
+  document.getElementById('appealFormWrap').style.display = 'none';
+  document.getElementById('appealSuccess').style.display = 'block';
+}
+
+// ============================================================
+// ADMIN APPEALS
+// ============================================================
+async function renderAppeals() {
+  const container = document.getElementById('asec-appeals');
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--text-muted);padding:24px">Loading appeals…</p>';
+
+  const { data: appeals, error } = await supabaseClient
+    .from('appeals')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) { container.innerHTML = '<p style="color:var(--text-muted);padding:24px">Could not load appeals.</p>'; return; }
+  if (!appeals || appeals.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted);padding:24px">No appeals yet.</p>';
+    return;
+  }
+
+  const open = appeals.filter(a => a.status === 'open');
+  const resolved = appeals.filter(a => a.status !== 'open');
+
+
+  const card = a => {
+    const isOpen = a.status === 'open';
+    const statusColor = isOpen ? '#c0392b' : '#1a7a45';
+    const statusLabel = isOpen ? 'Open' : (a.status === 'resolved_reinstated' ? 'Reinstated' : 'Upheld');
+    return `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <span style="font-weight:600;font-size:15px">${a.email || '—'}</span>
+          <span style="color:var(--text-muted);font-size:13px;margin-left:10px">${fmtDate(a.created_at)}</span>
+        </div>
+        <span style="background:${statusColor}22;color:${statusColor};border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600">${statusLabel}</span>
+      </div>
+      <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 ${isOpen ? '14px' : '0'}">${a.message || '—'}</p>
+      ${isOpen ? `<div style="display:flex;gap:10px">
+        <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">Reinstate student</button>
+        <button class="btn-sm-a btn-a-danger" onclick="resolveAppeal('${a.id}')">Uphold suspension</button>
+      </div>` : ''}
+    </div>`;
+  };
+
+  container.innerHTML = `
+    <div style="padding:24px">
+      ${open.length > 0 ? `<h3 style="font-size:15px;font-weight:600;margin:0 0 14px">Open (${open.length})</h3>${open.map(card).join('')}` : '<p style="color:var(--text-muted);margin-bottom:24px">No open appeals.</p>'}
+      ${resolved.length > 0 ? `<h3 style="font-size:15px;font-weight:600;margin:24px 0 14px">Resolved (${resolved.length})</h3>${resolved.map(card).join('')}` : ''}
+    </div>`;
+}
+
+async function resolveAppeal(id) {
+  const { error } = await supabaseClient.from('appeals').update({ status: 'resolved_upheld' }).eq('id', id);
+  if (error) { toast('Could not resolve — please try again.'); console.error(error.message); return; }
+  toast('Suspension upheld');
+  updateAppealsBadge();
+  renderAppeals();
+}
+
+async function updateAppealsBadge() {
+  const badge = document.getElementById('appealsBadge');
+  if (!badge) return;
+  const { count } = await supabaseClient.from('appeals').select('id', { count: 'exact', head: true }).eq('status', 'open');
+  if (count && count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ============================================================
 // EXTEND ago() to handle new sections
 // ============================================================
 const _agoMap = {
@@ -2530,6 +3075,7 @@ const _agoMap = {
   exports: () => { renderExports(); },
   verify: renderVerify,
   health: renderHealth,
+  appeals: renderAppeals,
 };
 // Override ago to include new sections
 const _ago_orig = ago;
@@ -2541,7 +3087,7 @@ function ago(s, btn) {
   if (!sec) return;
   sec.classList.add('active');
   if (btn) btn.classList.add('active');
-  const allTitles = { ...ATITLES, exports: 'Data export', verify: 'Student verification', health: 'Platform health' };
+  const allTitles = { ...ATITLES, exports: 'Data export', verify: 'Student verification', health: 'Platform health', appeals: 'Appeals' };
   document.getElementById('aTopTitle').textContent = allTitles[s] || s;
   if (_agoMap[s]) _agoMap[s]();
 }
