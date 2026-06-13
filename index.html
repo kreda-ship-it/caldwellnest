@@ -280,6 +280,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .asc-sub{font-size:11px;color:var(--text-faint);margin-top:3px;}
 .asc-warn .asc-num{color:var(--warning);}.asc-danger .asc-num{color:var(--danger);}
 .asc-success .asc-num{color:var(--success);}.asc-pin .asc-num{color:var(--pin);}
+.asc-click{cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+.asc-click:hover{border-color:var(--brand);box-shadow:0 2px 10px rgba(59,91,165,.08);}
+.asc-view{font-size:10px;color:var(--brand);font-weight:600;letter-spacing:.03em;margin-top:6px;opacity:0;transition:opacity .15s;}
+.asc-click:hover .asc-view{opacity:1;}
+.filter-chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 13px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-muted);font-family:inherit;transition:all .15s;white-space:nowrap;}
+.filter-chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+.filter-chip:hover:not(.active){border-color:var(--brand);color:var(--brand);}
+.school-cell-link{cursor:pointer;color:var(--brand);font-weight:600;text-decoration:none;transition:opacity .15s;}
+.school-cell-link:hover{opacity:.75;text-decoration:underline;}
 
 /* ADMIN TABLE */
 .tcard{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:18px;}
@@ -574,7 +583,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="a-sec-label">Overview</div>
         <button class="a-nav-item active" onclick="ago('dashboard',this)" data-tooltip="Dashboard"><span class="n-icon">&#9640;</span><span class="n-label">Dashboard</span></button>
         <div class="a-sec-label">Listings</div>
-        <button class="a-nav-item" onclick="ago('approvals',this)" data-tooltip="Approvals"><span class="n-icon">&#9745;</span><span class="n-label">Approvals</span><span class="n-badge" id="pendBadge">3</span></button>
+        <button class="a-nav-item" onclick="ago('approvals',this)" data-tooltip="Approvals"><span class="n-icon">&#9745;</span><span class="n-label">Approvals</span><span class="n-badge" id="pendBadge" style="display:none">0</span></button>
         <button class="a-nav-item" onclick="ago('listings',this)" data-tooltip="All listings"><span class="n-icon">&#127968;</span><span class="n-label">All listings</span></button>
         <button class="a-nav-item" onclick="ago('pinned',this)" data-tooltip="Pinned / Featured"><span class="n-icon">&#128204;</span><span class="n-label">Pinned / Featured</span></button>
         <div class="a-sec-label">People</div>
@@ -616,13 +625,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <!-- DASHBOARD -->
         <div class="a-section active" id="asec-dashboard">
           <div class="a-stats">
-            <div class="asc"><div class="asc-label">Students</div><div class="asc-num" id="ds-s">0</div><div class="asc-sub">Registered</div></div>
-            <div class="asc asc-warn"><div class="asc-label">Pending</div><div class="asc-num" id="ds-p">0</div><div class="asc-sub">Awaiting approval</div></div>
-            <div class="asc asc-success"><div class="asc-label">Live listings</div><div class="asc-num" id="ds-l">0</div><div class="asc-sub">Active now</div></div>
-            <div class="asc asc-pin"><div class="asc-label">Pinned</div><div class="asc-num" id="ds-pins">0</div><div class="asc-sub">Featured</div></div>
-            <div class="asc asc-danger"><div class="asc-label">Reports</div><div class="asc-num" id="ds-r">0</div><div class="asc-sub">Unresolved</div></div>
-            <div class="asc"><div class="asc-label">Messages</div><div class="asc-num">184</div><div class="asc-sub">All time</div></div>
+            <div class="asc asc-click" onclick="ago('students',null)"><div class="asc-label">Students</div><div class="asc-num" id="ds-s">—</div><div class="asc-sub">Registered</div><div class="asc-view">View all →</div></div>
+            <div class="asc asc-warn asc-click" onclick="ago('approvals',null)"><div class="asc-label">Pending</div><div class="asc-num" id="ds-p">—</div><div class="asc-sub">Awaiting approval</div><div class="asc-view">Review →</div></div>
+            <div class="asc asc-success asc-click" onclick="ago('listings',null)"><div class="asc-label">Live listings</div><div class="asc-num" id="ds-l">—</div><div class="asc-sub">Active now</div><div class="asc-view">View all →</div></div>
+            <div class="asc asc-pin asc-click" onclick="ago('pinned',null)"><div class="asc-label">Pinned</div><div class="asc-num" id="ds-pins">—</div><div class="asc-sub">Featured</div><div class="asc-view">Manage →</div></div>
+            <div class="asc asc-danger asc-click" onclick="ago('reports',null)"><div class="asc-label">Reports</div><div class="asc-num" id="ds-r">—</div><div class="asc-sub">Unresolved</div><div class="asc-view">Review →</div></div>
+            <div class="asc asc-click" onclick="ago('messages',null)"><div class="asc-label">Messages</div><div class="asc-num" id="ds-m">—</div><div class="asc-sub">All time</div><div class="asc-view">View →</div></div>
           </div>
+          <div id="dashMultiSchool"></div>
           <div class="charts-row">
             <div class="chart-card"><div class="chart-title">Signups — last 7 days</div><div class="bar-chart" id="aBarChart"></div></div>
             <div class="chart-card"><div class="chart-title">Listings by type</div><div style="display:flex;align-items:center;gap:14px;">
@@ -652,6 +662,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                 </select>
               </div>
             </div>
+            <div id="aListSchoolBadge" style="padding:0 0 10px"></div>
             <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Rent</th><th>Poster</th><th>Status</th><th>Actions</th></tr></thead><tbody id="aListTb"></tbody></table></div>
           </div>
           <div id="aRemovedWrap" style="margin-top:16px;display:none">
@@ -798,14 +809,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <!-- ANALYTICS -->
         <div class="a-section" id="asec-analytics">
           <div class="a-stats" style="margin-bottom:20px;">
-            <div class="asc asc-success"><div class="asc-label">Avg rent</div><div class="asc-num">$693</div><div class="asc-sub">All listings</div></div>
-            <div class="asc"><div class="asc-label">This month</div><div class="asc-num">9</div><div class="asc-sub">Listings posted</div></div>
-            <div class="asc asc-pin"><div class="asc-label">Match rate</div><div class="asc-num">74%</div><div class="asc-sub">Got a message</div></div>
-            <div class="asc asc-warn"><div class="asc-label">Avg days listed</div><div class="asc-num">11</div><div class="asc-sub">Before filled</div></div>
+            <div class="asc asc-success"><div class="asc-label">Avg rent</div><div class="asc-num" id="ana-rent">—</div><div class="asc-sub">Live listings</div></div>
+            <div class="asc"><div class="asc-label">This month</div><div class="asc-num" id="ana-month">—</div><div class="asc-sub">Listings posted</div></div>
+            <div class="asc asc-pin"><div class="asc-label">Approval rate</div><div class="asc-num" id="ana-rate">—</div><div class="asc-sub">Of submitted listings</div></div>
+            <div class="asc asc-warn"><div class="asc-label">Students</div><div class="asc-num" id="ana-stu">—</div><div class="asc-sub">Total registered</div></div>
           </div>
           <div class="charts-row">
-            <div class="chart-card"><div class="chart-title">Monthly listings posted vs filled</div><div id="aMonthChart" style="display:flex;align-items:flex-end;gap:12px;height:110px;"></div><div style="display:flex;gap:12px;margin-top:8px;font-size:11px;"><span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--brand-light);display:inline-block"></span>Posted</span><span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);display:inline-block"></span>Filled</span></div></div>
+            <div class="chart-card"><div class="chart-title">Monthly listings posted vs approved</div><div id="aMonthChart" style="display:flex;align-items:flex-end;gap:12px;height:110px;"></div><div style="display:flex;gap:12px;margin-top:8px;font-size:11px;"><span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--brand-light);display:inline-block"></span>Posted</span><span style="display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:var(--accent);display:inline-block"></span>Approved</span></div></div>
             <div class="chart-card"><div class="chart-title">Students by major</div><div id="aMajorChart" style="margin-top:4px;"></div></div>
+          </div>
+          <div class="chart-card" style="margin-bottom:20px">
+            <div class="chart-title">Listings by type <span id="anaTypeClear" style="display:none;font-size:11px;font-weight:500;color:var(--brand);cursor:pointer;margin-left:8px" onclick="_listingTypeFilter='all';document.getElementById('anaTypeClear').style.display='none';renderAListings()">&#10005; clear filter</span></div>
+            <div id="aTypeChart" style="margin-top:8px"></div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:8px">Click a bar to filter the Listings section to that type.</div>
           </div>
           <div class="tcard"><div class="tcard-head"><div class="tcard-title">Top performing listings</div></div>
             <table><thead><tr><th>Listing</th><th>Type</th><th>Rent</th><th>Messages</th><th>Views</th></tr></thead>
@@ -1270,6 +1286,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   </div>
 </div>
 
+<!-- STUDENT NOTIFICATION MODAL (appeal decisions + edits) -->
+<div class="modal-overlay" id="notifModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><div class="modal-title" id="notifModalTitle">Appeal update</div><button class="modal-close" onclick="dismissNotifications()">&#215;</button></div>
+    <div class="modal-body" id="notifModalBody"></div>
+  </div>
+</div>
+
 <!-- REPORT LISTING PREVIEW MODAL -->
 <div class="modal-overlay" id="reportListingPreviewModal">
   <div class="modal" style="max-width:500px">
@@ -1383,6 +1407,10 @@ let _histStack = [];           // navigation stack: [{type:'section',value:'stud
 let _histCurrentProfileId = null;
 let _histGoingBack = false;
 let _histListings = [], _histListingView = 'list';
+let _stuSchoolFilter = 'all', _stuStatusFilter = 'all';
+let _listingSchoolFilter = 'all', _listingTypeFilter = 'all';
+let _reportSchoolFilter = 'all';
+let _approvalSchoolFilter = 'all';
 let aiOpen = false, aiHistory = [];
 let bType = 'announcement';
 
@@ -1418,13 +1446,15 @@ initStudent();
   if (!profile) return;
 
   if (profile.status === 'suspended') {
+    const { data: sh } = await supabaseClient.from('suspension_history').select('id').eq('profile_id', profile.id).eq('action', 'suspended').order('created_at', { ascending: false }).limit(1).maybeSingle();
     await supabaseClient.auth.signOut();
-    showSuspensionScreen(profile.email || session.user.email, profile.id, profile.suspension_reason);
+    showSuspensionScreen(profile.email || session.user.email, profile.id, profile.suspension_reason, sh?.id || null);
     return;
   }
 
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   updateSNav();
+  checkStudentNotifications(session.user.id);
 })();
 
 async function doAdminLogin() {
@@ -1562,6 +1592,7 @@ async function loadListings() {
     desc: row.description,
     tags: row.tags || [],
     details: row.details || {},
+    school: row.school || null,
     poster_id: row.poster_id,
     poster: { name: row.poster_name, initials: row.poster_initials, email: row.poster_email, color: row.poster_color },
     posted: new Date(row.created_at).toLocaleDateString(),
@@ -1833,9 +1864,10 @@ async function doLogin() {
   if (!profile) { err.textContent = 'Account not found. Please sign up first.'; err.style.display = 'block'; await supabaseClient.auth.signOut(); return; }
 
   if (profile.status === 'suspended') {
+    const { data: sh } = await supabaseClient.from('suspension_history').select('id').eq('profile_id', authData.user.id).eq('action', 'suspended').order('created_at', { ascending: false }).limit(1).maybeSingle();
     await supabaseClient.auth.signOut();
     closeModal('loginModal');
-    showSuspensionScreen(profile.email || email, profile.id, profile.suspension_reason);
+    showSuspensionScreen(profile.email || email, profile.id, profile.suspension_reason, sh?.id || null);
     return;
   }
 
@@ -1844,6 +1876,37 @@ async function doLogin() {
   updateSNav();
   toast('Welcome back, ' + profile.first_name + '!');
   showPage('listings');
+  checkStudentNotifications(authData.user.id);
+}
+
+async function checkStudentNotifications(userId) {
+  const { data: notifs } = await supabaseClient
+    .from('notifications')
+    .select('id, message, type, created_at')
+    .eq('profile_id', userId)
+    .eq('read', false)
+    .order('created_at', { ascending: false });
+  if (notifs && notifs.length > 0) showStudentNotifications(notifs);
+}
+
+function showStudentNotifications(notifs) {
+  const title = document.getElementById('notifModalTitle');
+  const body  = document.getElementById('notifModalBody');
+  if (!title || !body) return;
+  title.textContent = notifs.length === 1 ? 'Appeal update' : `${notifs.length} appeal updates`;
+  body.innerHTML = notifs.map(n => `
+    <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;line-height:1.6;color:var(--text)">${n.message}</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:4px">${fmtDate(n.created_at)}</div>
+    </div>`).join('');
+  openModal('notifModal');
+  supabaseClient.from('notifications').update({ read: true }).in('id', notifs.map(n => n.id));
+}
+
+function dismissNotifications() { closeModal('notifModal'); }
+
+function aNotifyStudent(profileId, type, message) {
+  supabaseClient.from('notifications').insert({ profile_id: profileId, type, message, read: false });
 }
 
 function demoLogin() {
@@ -2320,6 +2383,7 @@ function renderProfile() {
 // ============================================================
 function initAdmin() {
   updateAllAdminBadges();
+  buildMultiSchoolStats();
   buildAdminBar();
   renderAdminDashLog();
   buildPresets();
@@ -2342,6 +2406,7 @@ function initAdmin() {
 
 function refreshAdmin() {
   updateAllAdminBadges();
+  buildMultiSchoolStats();
   renderAdminDashLog();
   const active = document.querySelector('.a-section.active');
   if (active) {
@@ -2352,18 +2417,87 @@ function refreshAdmin() {
   toast('✓ Refreshed');
 }
 
-function updateAdminBadges() {
-  document.getElementById('pendBadge').textContent = DB.pending.length;
-  document.getElementById('pendBadge').style.display = DB.pending.length ? 'inline' : 'none';
-  document.getElementById('ds-s').textContent = DB.students.length;
-  document.getElementById('ds-p').textContent = DB.pending.length;
-  document.getElementById('ds-l').textContent = DB.listings.filter(l => l.status === 'approved').length;
-  document.getElementById('ds-pins').textContent = DB.listings.filter(l => l.pinned).length;
+async function updateAdminBadges() {
+  let stuQ   = supabaseClient.from('profiles').select('id', { count: 'exact', head: true });
+  let pendQ  = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+  let liveQ  = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'approved');
+  let pinQ   = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('pinned', true);
+  if (aAdminSchool) {
+    stuQ  = stuQ.eq('school', aAdminSchool);
+    pendQ = pendQ.eq('school', aAdminSchool);
+    liveQ = liveQ.eq('school', aAdminSchool);
+    pinQ  = pinQ.eq('school', aAdminSchool);
+  }
+  const [{ count: stuN }, { count: pendN }, { count: liveN }, { count: pinN }, { count: msgN }] =
+    await Promise.all([stuQ, pendQ, liveQ, pinQ,
+      supabaseClient.from('messages').select('id', { count: 'exact', head: true })]);
+  const pending = pendN || 0;
+  document.getElementById('pendBadge').textContent = pending;
+  document.getElementById('pendBadge').style.display = pending ? 'inline' : 'none';
+  document.getElementById('ds-s').textContent    = stuN  ?? '—';
+  document.getElementById('ds-p').textContent    = pending;
+  document.getElementById('ds-l').textContent    = liveN ?? '—';
+  document.getElementById('ds-pins').textContent = pinN  ?? '—';
+  document.getElementById('ds-m').textContent    = msgN  ?? '—';
 }
 
 function updateAllAdminBadges() {
-  updateAdminBadges();
-  Promise.all([updateAppealsBadge(), updateReportsBadge()]);
+  Promise.all([updateAdminBadges(), updateAppealsBadge(), updateReportsBadge()]);
+}
+
+async function buildMultiSchoolStats() {
+  const el = document.getElementById('dashMultiSchool');
+  if (!el || aAdminSchool) return; // school admins never see this
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-faint);font-size:12px">Loading school stats…</div>';
+  const [
+    { data: stuRows },
+    { data: listRows },
+    { data: repRows },
+    { data: suspRows }
+  ] = await Promise.all([
+    supabaseClient.from('profiles').select('school'),
+    supabaseClient.from('listings').select('school').eq('status', 'approved'),
+    supabaseClient.from('reports').select('listing:listing_id(school)').eq('status', 'open'),
+    supabaseClient.from('suspension_history').select('school').eq('action', 'suspended')
+  ]);
+  // Derive distinct schools from profiles — no separate schools table needed
+  const schoolSlugs = [...new Set((stuRows || []).map(r => r.school).filter(Boolean))].sort();
+  if (!schoolSlugs.length) { el.innerHTML = ''; return; }
+  const schools = schoolSlugs.map(s => ({ slug: s, name: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }));
+  const tally = (rows, key) => {
+    const m = {};
+    (rows || []).forEach(r => { const v = r[key] ?? r?.listing?.[key]; if (v) m[v] = (m[v] || 0) + 1; });
+    return m;
+  };
+  const stuC  = tally(stuRows,  'school');
+  const listC = tally(listRows, 'school');
+  const repC  = tally(repRows,  'school');
+  const suspC = tally(suspRows, 'school');
+  el.innerHTML = `
+    <div class="tcard" style="margin-bottom:18px">
+      <div class="tcard-head">
+        <div class="tcard-title">Schools overview</div>
+        <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${schools.length} school${schools.length !== 1 ? 's' : ''}</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>School</th>
+          <th style="text-align:center">Students</th>
+          <th style="text-align:center">Live listings</th>
+          <th style="text-align:center">Open reports</th>
+          <th style="text-align:center">Total suspensions</th>
+        </tr></thead>
+        <tbody>${schools.map(sc => `
+          <tr>
+            <td style="font-weight:500">${sc.name}</td>
+            <td style="text-align:center"><span class="school-cell-link" onclick="goToStudentsFiltered('${sc.slug}')">${stuC[sc.slug]  || 0}</span></td>
+            <td style="text-align:center"><span class="school-cell-link" onclick="goToListingsFiltered('${sc.slug}')">${listC[sc.slug] || 0}</span></td>
+            <td style="text-align:center"><span class="school-cell-link" onclick="goToReportsFiltered('${sc.slug}')">${repC[sc.slug]  || 0}</span></td>
+            <td style="text-align:center"><span class="school-cell-link" onclick="goToStudentsFiltered('${sc.slug}','suspended')">${suspC[sc.slug] || 0}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
@@ -2389,9 +2523,29 @@ function renderAdminDashLog() { document.getElementById('aDashLog').innerHTML = 
 // ADMIN APPROVALS
 function renderAApprovals() {
   const q = document.getElementById('aApprovalQ');
-  if (!DB.pending.length) { q.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-faint)"><div style="font-size:36px;margin-bottom:10px">&#9745;</div>No pending listings</div>'; return; }
-  q.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--warning);margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:var(--warning);border-radius:50%;display:inline-block"></span>${DB.pending.length} listing${DB.pending.length>1?'s':''} awaiting review</div>` +
-    DB.pending.map(l => `<div class="acard">
+
+  // School filter chips — derived from schools in the pending queue
+  let filterBar = '';
+  if (!aAdminSchool) {
+    const slugs = ['all', ...new Set(DB.pending.map(l => l.school).filter(Boolean)).values()].sort((a,b) => a==='all'?-1:b==='all'?1:a.localeCompare(b));
+    if (slugs.length > 1) {
+      const label = s => s === 'all' ? 'All schools' : s.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      filterBar = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${slugs.map(s=>`<button class="filter-chip${_approvalSchoolFilter===s?' active':''}" onclick="_approvalSchoolFilter='${s}';renderAApprovals()">${label(s)}</button>`).join('')}</div>`;
+    }
+  }
+
+  const src = aAdminSchool
+    ? DB.pending.filter(l => l.school === aAdminSchool)
+    : _approvalSchoolFilter !== 'all' ? DB.pending.filter(l => l.school === _approvalSchoolFilter) : DB.pending;
+
+  if (!src.length) {
+    q.innerHTML = filterBar + '<div style="text-align:center;padding:48px;color:var(--text-faint)"><div style="font-size:36px;margin-bottom:10px">&#9745;</div>No pending listings</div>';
+    return;
+  }
+
+  q.innerHTML = filterBar +
+    `<div style="font-size:13px;font-weight:600;color:var(--warning);margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:var(--warning);border-radius:50%;display:inline-block"></span>${src.length} listing${src.length>1?'s':''} awaiting review</div>` +
+    src.map(l => `<div class="acard">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
         <div><div class="acard-title">${l.title}</div><div class="acard-meta">${l.type} · $${l.rent}/mo · ${l.location} · ${l.submitted}</div></div>
         <span class="pill pill-pending">Pending</span>
@@ -2399,7 +2553,14 @@ function renderAApprovals() {
       <div class="acard-desc">${l.desc}</div>
       <div class="acard-tags">${l.tags.map(t => `<span class="atag">${t}</span>`).join('')}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div style="display:flex;align-items:center;gap:8px;"><div class="mav" style="background:${l.poster.color}">${l.poster.initials}</div><div><div style="font-size:13px;font-weight:500">${l.poster.name}</div><div style="font-size:11px;color:var(--text-faint)">${l.poster.email}</div></div></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="mav" style="background:${l.poster.color}">${l.poster.initials}</div>
+          <div>
+            <div style="font-size:13px;font-weight:500">${l.poster.name}</div>
+            <div style="font-size:11px;color:var(--text-faint)">${l.poster.email}</div>
+            ${l.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;display:inline-block;margin-top:3px">${l.school.replace(/_/g,' ')}</span>` : ''}
+          </div>
+        </div>
         <div class="arow">
           <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'pending')">&#9998; Edit</button>
           <button class="btn-sm-a btn-a-danger" onclick="aOpenReject(${l.id})">&#10005; Reject</button>
@@ -2437,11 +2598,22 @@ async function confirmReject() {
 // ADMIN ALL LISTINGS
 function allListings() { return [...DB.listings.filter(l => l.status !== 'removed'), ...DB.pending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))]; }
 function renderAListings() {
-  document.getElementById('aListTb').innerHTML = allListings().map(l => `<tr>
+  const schoolF = aAdminSchool || (_listingSchoolFilter !== 'all' ? _listingSchoolFilter : null);
+  const typeF = _listingTypeFilter !== 'all' ? _listingTypeFilter : null;
+  const badgeEl = document.getElementById('aListSchoolBadge');
+  if (badgeEl) {
+    const parts = [];
+    if (schoolF) parts.push(`<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128270; ${schoolF.replace(/_/g,' ')} only</span>${_listingSchoolFilter !== 'all' && !aAdminSchool ? `<button class="filter-chip" style="margin-left:6px" onclick="_listingSchoolFilter='all';renderAListings()">&#10005; school</button>` : ''}`);
+    if (typeF) parts.push(`<span style="font-size:12px;background:var(--accent)22;color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500">${typeF}</span><button class="filter-chip" style="margin-left:6px" onclick="_listingTypeFilter='all';renderAListings()">&#10005; type</button>`);
+    badgeEl.innerHTML = parts.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:10px">${parts.join('')}</div>` : '';
+  }
+  let src = schoolF ? allListings().filter(l => l.school === schoolF) : allListings();
+  if (typeF) src = src.filter(l => (l.type || '') === typeF);
+  document.getElementById('aListTb').innerHTML = src.map(l => `<tr>
     <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? '&#128204; ' : ''}${l.title}</td>
     <td><span class="pill pill-active" style="font-size:10px">${l.type}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
-    <td>${l.poster.name || l.poster}</td>
+    <td><div style="font-size:13px">${l.poster.name || l.poster}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${l.school.replace(/_/g,' ')}</div>` : ''}</td>
     <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : l.status}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">&#128221; ${l.rejection_reason}</div>`:''}</td>
     <td><div class="arow">
       <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">&#9998; Edit</button>
@@ -2450,7 +2622,7 @@ function renderAListings() {
     </div></td>
   </tr>`).join('');
 
-  const removed = DB.listings.filter(l => l.status === 'removed');
+  const removed = DB.listings.filter(l => l.status === 'removed' && (!schoolF || l.school === schoolF));
   const wrap = document.getElementById('aRemovedWrap');
   wrap.style.display = removed.length ? 'block' : 'none';
   document.getElementById('aRemovedCount').textContent = removed.length ? `${removed.length} listing${removed.length > 1 ? 's' : ''}` : '';
@@ -2581,20 +2753,34 @@ function renderAPinned() {
 }
 
 // ADMIN STUDENTS
-async function renderAStudents(schoolFilter) {
-  // school filter: super admin sees all (or filters); school admin auto-filtered to their school
+async function renderAStudents() {
   const filterEl = document.getElementById('aStuSchoolFilter');
-  if (aAdminSchool) {
-    filterEl.innerHTML = `<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">${aAdminSchool} only</span>`;
-  } else {
-    filterEl.innerHTML = '';
-  }
 
+  // Build base query, then apply filters
   let query = supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
+
   if (aAdminSchool) {
+    // School-scoped admin: locked to their school
+    filterEl.innerHTML = `<div style="padding-bottom:10px"><span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128274; ${aAdminSchool} only</span></div>`;
     query = query.eq('school', aAdminSchool);
-  } else if (schoolFilter && schoolFilter !== 'all') {
-    query = query.eq('school', schoolFilter);
+    if (_stuStatusFilter !== 'all') query = query.eq('status', _stuStatusFilter);
+  } else {
+    // Super admin: fetch distinct schools for chips + apply selected filters
+    const { data: schoolRows } = await supabaseClient.from('profiles').select('school').not('school', 'is', null);
+    const schoolSlugs = ['all', ...new Set((schoolRows || []).map(r => r.school).filter(Boolean)).values()].sort((a, b) => a === 'all' ? -1 : b === 'all' ? 1 : a.localeCompare(b));
+
+    const label = s => s === 'all' ? 'All schools' : s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const schoolChips = schoolSlugs.map(s => `<button class="filter-chip${_stuSchoolFilter === s ? ' active' : ''}" onclick="setStudentFilter('${s}',null)">${label(s)}</button>`).join('');
+    const statusChips = ['all','active','suspended'].map(s => `<button class="filter-chip${_stuStatusFilter === s ? ' active' : ''}" onclick="setStudentFilter(null,'${s}')">${s === 'all' ? 'All' : s[0].toUpperCase()+s.slice(1)}</button>`).join('');
+
+    filterEl.innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:12px">
+      ${schoolChips}
+      <span style="color:var(--border);font-size:16px;margin:0 2px">|</span>
+      ${statusChips}
+    </div>`;
+
+    if (_stuSchoolFilter !== 'all') query = query.eq('school', _stuSchoolFilter);
+    if (_stuStatusFilter !== 'all') query = query.eq('status', _stuStatusFilter);
   }
 
   const { data: students } = await query;
@@ -2632,6 +2818,32 @@ async function renderAStudents(schoolFilter) {
   }).join('');
 }
 
+function setStudentFilter(school, status) {
+  if (school !== null) _stuSchoolFilter = school;
+  if (status !== null) _stuStatusFilter = status;
+  renderAStudents();
+}
+
+function goToStudentsFiltered(school, status) {
+  _stuSchoolFilter = school || 'all';
+  _stuStatusFilter = status || 'all';
+  const btn = [...document.querySelectorAll('.a-nav-item')].find(b => b.getAttribute('onclick')?.includes("'students'"));
+  ago('students', btn || null);
+}
+
+function goToListingsFiltered(school, type) {
+  if (school !== null && school !== undefined) _listingSchoolFilter = school || 'all';
+  if (type   !== null && type   !== undefined) _listingTypeFilter   = type   || 'all';
+  const btn = [...document.querySelectorAll('.a-nav-item')].find(b => b.getAttribute('onclick')?.includes("'listings'"));
+  ago('listings', btn || null);
+}
+
+function goToReportsFiltered(school) {
+  _reportSchoolFilter = school || 'all';
+  const btn = [...document.querySelectorAll('.a-nav-item')].find(b => b.getAttribute('onclick')?.includes("'reports'"));
+  ago('reports', btn || null);
+}
+
 async function aViewStu(id) {
   const { data: s, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
   if (error || !s) { toast('Could not load student profile.'); return; }
@@ -2665,20 +2877,26 @@ async function confirmSuspend() {
     supabaseClient.from('profiles').select('school').eq('id', aSuspendId).single()
   ]);
   if (error) { toast('Could not suspend — please try again.'); console.error(error.message); return; }
-  await supabaseClient.from('suspension_history').insert({ profile_id: aSuspendId, action: 'suspended', reason: reason || null, actioned_by: user?.id, school: stuProfile?.school || null });
+  await supabaseClient.from('suspension_history').insert({
+    profile_id: aSuspendId, action: 'suspended', reason: reason || null,
+    actioned_by: user?.id, school: stuProfile?.school || null,
+    report_id: _pendingReportId || null, listing_id: _pendingListingId || null
+  });
   if (_pendingReportId) {
     await supabaseClient.from('reports').update({
       status: 'actioned', resolved_by: user?.id, resolved_at: new Date().toISOString(),
       resolution_note: 'Poster suspended by admin'
     }).eq('id', _pendingReportId);
-    _pendingReportId = null;
+    _pendingReportId = null; _pendingListingId = null;
     updateReportsBadge(); renderAReports();
   }
   DB.log.unshift({ type: 'suspend', text: 'Student suspended', time: 'Just now', color: '#c0392b' });
   closeModal('suspendModal'); renderAStudents(); toast('Student suspended');
 }
 async function aReinstate(profileId, appealId = null) {
-  const updates = [supabaseClient.from('profiles').update({ status: 'active' }).eq('id', profileId)];
+  const updates = [
+    supabaseClient.from('profiles').update({ status: 'active', suspension_reason: null }).eq('id', profileId)
+  ];
   if (appealId) updates.push(supabaseClient.from('appeals').update({ status: 'resolved_reinstated' }).eq('id', appealId));
   const results = await Promise.all(updates);
   const error = results.find(r => r.error)?.error;
@@ -2688,6 +2906,11 @@ async function aReinstate(profileId, appealId = null) {
     supabaseClient.from('profiles').select('school').eq('id', profileId).single()
   ]);
   await supabaseClient.from('suspension_history').insert({ profile_id: profileId, action: 'reinstated', actioned_by: user?.id, school: stuProfile?.school || null });
+  if (appealId) {
+    const { error: logErr } = await supabaseClient.from('appeal_audit_log').insert({ appeal_id: appealId, action: 'resolved_reinstated', new_status: 'resolved_reinstated', actioned_by: user?.id });
+    if (logErr) console.error('Audit log error:', logErr.message);
+    aNotifyStudent(profileId, 'appeal_resolved', 'Your appeal has been reviewed. Decision: Reinstated — your account has been restored. Welcome back!');
+  }
   DB.log.unshift({ type: 'reinstate', text: 'Student reinstated', time: 'Just now', color: '#1a7a45' });
   await loadListings(); renderListings(); renderAStudents();
   updateAppealsBadge(); renderAppeals();
@@ -2793,11 +3016,15 @@ function renderStudentHistory(profile, listings, reportsBy, reportsAgainst, susp
   // suspension history tab
   const historyPane = suspHistory.length ? `<div class="susp-timeline" style="padding:20px">${suspHistory.map(e => {
     const isSuspend = e.action === 'suspended';
+    const triggerLine = isSuspend && e.report_id
+      ? `<div style="font-size:12px;color:var(--text-faint);margin-top:3px">Triggered by a report${e.listing_id ? ` on listing #${e.listing_id}` : ''} — <span class="stu-link-a" onclick="openReportDrawer('${e.report_id}')">view report</span></div>`
+      : '';
     return `<div class="susp-entry">
       <div class="susp-dot" style="background:${isSuspend ? 'var(--danger)' : 'var(--success)'}"></div>
       <div>
         <div style="font-size:14px;font-weight:600;color:${isSuspend ? 'var(--danger)' : 'var(--success)'}">${isSuspend ? 'Suspended' : 'Reinstated'}</div>
         ${e.reason ? `<div style="font-size:13px;color:var(--text-muted);margin-top:3px">${e.reason}</div>` : ''}
+        ${triggerLine}
         <div style="font-size:12px;color:var(--text-faint);margin-top:3px">${fmtDate(e.created_at)}</div>
       </div>
     </div>`;
@@ -3035,16 +3262,63 @@ function aBackFromHistory() {
 }
 
 // ADMIN MESSAGES
-function renderAMessages() {
-  document.getElementById('aMsgTb').innerHTML = DB.convos.map(c => `<tr>
-    <td style="font-weight:500">${c.students}</td><td style="color:var(--text-muted)">${c.listing}</td>
-    <td style="text-align:center">${c.messages}</td><td style="color:var(--text-faint)">${c.lastActive}</td>
-    <td><span class="pill ${c.status==='flagged'?'pill-rejected':'pill-active'}">${c.status}</span></td>
-    <td><div class="arow">
-      <button class="btn-sm-a btn-a-neutral" onclick="toast('Message log viewer coming soon')">View log</button>
-      ${c.status === 'flagged' ? `<button class="btn-sm-a btn-a-danger" onclick="toast('Archived')">Archive</button>` : ''}
-    </div></td>
-  </tr>`).join('');
+async function renderAMessages() {
+  const tbody = document.getElementById('aMsgTb');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-faint);font-size:13px">Loading…</td></tr>';
+
+  const { data: msgs, error } = await supabaseClient
+    .from('messages')
+    .select('id, conversation_key, sender_id, receiver_id, listing_id, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) { tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;color:var(--danger);font-size:13px">Could not load messages. ${error.message}</td></tr>`; return; }
+  if (!msgs || msgs.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-faint);font-size:13px">No conversations yet.</td></tr>'; return; }
+
+  // Deduplicate: one row per conversation_key (latest message first), count total per key
+  const convMap = new Map();
+  const msgCount = {};
+  msgs.forEach(m => {
+    msgCount[m.conversation_key] = (msgCount[m.conversation_key] || 0) + 1;
+    if (!convMap.has(m.conversation_key)) convMap.set(m.conversation_key, m);
+  });
+  const convos = [...convMap.values()];
+
+  // Batch-fetch participant names + listing titles
+  const userIds    = [...new Set(convos.flatMap(c => [c.sender_id, c.receiver_id].filter(Boolean)))];
+  const listingIds = [...new Set(convos.map(c => c.listing_id).filter(Boolean))];
+  const [{ data: profiles }, { data: listings }] = await Promise.all([
+    userIds.length    ? supabaseClient.from('profiles').select('id, first_name, last_name, email, school').in('id', userIds) : { data: [] },
+    listingIds.length ? supabaseClient.from('listings').select('id, title').in('id', listingIds)                      : { data: [] }
+  ]);
+
+  const pMap = {};
+  (profiles || []).forEach(p => { pMap[p.id] = p; });
+  const lMap = {};
+  (listings || []).forEach(l => { lMap[l.id] = l; });
+
+  const getName = id => {
+    const p = pMap[id];
+    if (!p) return '—';
+    return ((p.first_name || '') + (p.last_name ? ' ' + p.last_name : '')).trim() || p.email || '—';
+  };
+  const getSchoolBadge = id => {
+    const s = pMap[id]?.school;
+    return s ? `<span style="font-size:9px;background:var(--brand-pale);color:var(--brand);padding:1px 6px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:4px;vertical-align:middle">${s.replace(/_/g,' ')}</span>` : '';
+  };
+
+  tbody.innerHTML = convos.map(c => {
+    const participants = `${getName(c.sender_id)}${getSchoolBadge(c.sender_id)} ↔ ${getName(c.receiver_id)}${getSchoolBadge(c.receiver_id)}`;
+    const listing = c.listing_id ? (lMap[c.listing_id]?.title || `Listing #${c.listing_id}`) : '—';
+    const count   = msgCount[c.conversation_key] || 1;
+    return `<tr>
+      <td style="font-weight:500">${participants}</td>
+      <td style="color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${listing}</td>
+      <td style="text-align:center">${count}</td>
+      <td style="color:var(--text-faint)">${fmtDate(c.created_at)}</td>
+      <td><span class="pill pill-active">active</span></td>
+      <td><button class="btn-sm-a btn-a-neutral" onclick="toast('Full viewer coming soon')">View log</button></td>
+    </tr>`;
+  }).join('');
 }
 
 // ADMIN REPORTS
@@ -3058,13 +3332,22 @@ async function renderAReports() {
   const wrap = document.getElementById('aReportsWrap');
   wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">Loading reports…</p>';
 
-  const { data: reports, error } = await supabaseClient
+  const { data: allReports, error } = await supabaseClient
     .from('reports')
-    .select('*, reporter:reporter_id(first_name, last_name, email), listing:listing_id(id, title, poster_id, poster_name)')
+    .select('*, reporter:reporter_id(first_name, last_name, email), listing:listing_id(id, title, poster_id, poster_name, school), suspension:suspension_history(profile_id)')
     .order('created_at', { ascending: false });
 
   if (error) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">Could not load reports.</p>'; return; }
-  if (!reports || reports.length === 0) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">No reports yet.</p>'; return; }
+  if (!allReports || allReports.length === 0) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">No reports yet.</p>'; return; }
+
+  // Apply school filter
+  const schoolF = aAdminSchool || (_reportSchoolFilter !== 'all' ? _reportSchoolFilter : null);
+  const reports = schoolF ? allReports.filter(r => r.listing?.school === schoolF) : allReports;
+  const filterBadge = schoolF
+    ? `<div style="padding:8px 20px 0;display:flex;align-items:center;gap:8px"><span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128270; ${schoolF.replace(/_/g,' ')} only</span>${_reportSchoolFilter !== 'all' && !aAdminSchool ? `<button class="filter-chip" onclick="_reportSchoolFilter='all';renderAReports()">&#10005; Clear</button>` : ''}</div>`
+    : '';
+
+  if (reports.length === 0) { wrap.innerHTML = filterBadge + '<p style="padding:24px;color:var(--text-muted)">No reports for this school.</p>'; return; }
 
   const open = reports.filter(r => r.status === 'open');
   const resolved = reports.filter(r => r.status !== 'open');
@@ -3100,11 +3383,12 @@ async function renderAReports() {
       ${isOpen ? `<div class="arow">
         <button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>
         ${listingStillExists ? `<button class="btn-sm-a btn-a-danger" onclick="hideListingFromReport('${r.id}',${r.listing_id})">Remove listing</button>` : ''}
-        ${posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}')">Suspend poster</button>` : ''}
+        ${posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}',${r.listing_id || null})">Suspend poster</button>` : ''}
       </div>`
       : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:8px">
           <div>
             ${actionTaken ? `<span style="font-size:12px;color:${statusColor};font-weight:500">&#10003; ${actionTaken}</span>` : ''}
+            ${r.suspension && r.suspension.length > 0 ? `<span style="font-size:12px;color:var(--danger);font-weight:500;margin-left:8px">&#8594; Suspension created &nbsp;<span class="stu-link-a" onclick="aOpenStudentHistory('${r.suspension[0].profile_id}')">view student</span></span>` : ''}
             <span style="font-size:11px;color:var(--text-faint);margin-left:8px">Resolved ${fmtDate(r.resolved_at)}</span>
           </div>
           <button class="btn-sm-a btn-a-neutral" onclick="reopenReport('${r.id}')">&#8634; Reopen</button>
@@ -3112,8 +3396,8 @@ async function renderAReports() {
     </div>`;
   };
 
-  wrap.innerHTML = `
-    <div class="tcard" style="margin-bottom:16px">
+  wrap.innerHTML = filterBadge + `
+    <div class="tcard" style="margin-bottom:16px${filterBadge ? ';margin-top:12px' : ''}">
       <div class="tcard-head">
         <div class="tcard-title">Open reports</div>
         <span style="font-size:12px;color:var(--danger);font-weight:600">${open.length} open</span>
@@ -3157,10 +3441,11 @@ async function hideListingFromReport(reportId, listingId) {
   updateReportsBadge(); renderAReports();
 }
 
-let _pendingReportId = null;
-function suspendFromReport(reportId, posterId) {
+let _pendingReportId = null, _pendingListingId = null;
+function suspendFromReport(reportId, posterId, listingId) {
   if (isProtectedAdmin(posterId)) return;
   _pendingReportId = reportId;
+  _pendingListingId = listingId || null;
   aOpenSuspend(posterId);
 }
 
@@ -3361,23 +3646,92 @@ function sendBcast() {
 // ============================================================
 // ADMIN — ANALYTICS
 // ============================================================
-function buildAnalytics() {
-  const months = ['Oct','Nov','Dec','Jan','Feb','Mar'], posted = [4,6,9,7,11,8], filled = [3,4,7,5,8,6], mx = Math.max(...posted);
-  document.getElementById('aMonthChart').innerHTML = months.map((m, i) => `
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+async function buildAnalytics() {
+  // Set loading placeholders
+  ['ana-rent','ana-month','ana-rate','ana-stu'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
+
+  const now = new Date();
+  const monthStart    = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const sixMonthsAgo  = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+
+  const [listRes, profileRes, countRes] = await Promise.all([
+    supabaseClient.from('listings').select('price, status, details, created_at, school').gte('created_at', sixMonthsAgo),
+    supabaseClient.from('profiles').select('major'),
+    supabaseClient.from('profiles').select('id', { count: 'exact', head: true })
+  ]);
+  const allL    = listRes.data    || [];
+  const profiles = profileRes.data || [];
+  const stuCount = countRes.count;
+
+  // ── Stat cards ──────────────────────────────────────────────────────────
+  const approved = allL.filter(l => l.status === 'approved');
+  const avgRent  = approved.length ? Math.round(approved.reduce((s,l) => s + (l.price||0), 0) / approved.length) : null;
+  const el_rent  = document.getElementById('ana-rent');  if (el_rent)  el_rent.textContent  = avgRent != null ? `$${avgRent}` : '—';
+  const el_month = document.getElementById('ana-month'); if (el_month) el_month.textContent = allL.filter(l => l.created_at >= monthStart).length;
+  const apRate   = allL.length ? Math.round((approved.length / allL.length) * 100) : null;
+  const el_rate  = document.getElementById('ana-rate');  if (el_rate)  el_rate.textContent  = apRate != null ? `${apRate}%` : '—';
+  const el_stu   = document.getElementById('ana-stu');   if (el_stu)   el_stu.textContent   = stuCount ?? '—';
+
+  // ── Monthly chart ────────────────────────────────────────────────────────
+  const monthLabels = [], monthKeys = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthLabels.push(d.toLocaleString('default', { month: 'short' }));
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const postedByM = {}, approvedByM = {};
+  monthKeys.forEach(k => { postedByM[k] = 0; approvedByM[k] = 0; });
+  allL.forEach(l => {
+    const k = l.created_at?.slice(0,7);
+    if (k && postedByM[k] !== undefined) { postedByM[k]++; if (l.status==='approved') approvedByM[k]++; }
+  });
+  const mxM = Math.max(...monthKeys.map(k => postedByM[k]), 1);
+  document.getElementById('aMonthChart').innerHTML = monthLabels.map((m,i) => {
+    const pk = monthKeys[i];
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
       <div style="display:flex;align-items:flex-end;gap:2px;height:90px;">
-        <div style="width:14px;background:var(--brand-light);border-radius:3px 3px 0 0;height:${Math.round((posted[i]/mx)*86)}px" title="${posted[i]}"></div>
-        <div style="width:14px;background:var(--accent);border-radius:3px 3px 0 0;height:${Math.round((filled[i]/mx)*86)}px" title="${filled[i]}"></div>
+        <div style="width:14px;background:var(--brand-light);border-radius:3px 3px 0 0;height:${Math.round((postedByM[pk]/mxM)*86)}px" title="${postedByM[pk]} posted"></div>
+        <div style="width:14px;background:var(--accent);border-radius:3px 3px 0 0;height:${Math.round((approvedByM[pk]/mxM)*86)}px" title="${approvedByM[pk]} approved"></div>
       </div>
       <div style="font-size:10px;color:var(--text-faint)">${m}</div>
-    </div>`).join('');
-  const majors = [{ n:'Nursing', c:18 },{ n:'Health Sci', c:9 },{ n:'Business', c:7 },{ n:'Biology', c:5 },{ n:'CS', c:4 },{ n:'Other', c:4 }];
-  const mmax = Math.max(...majors.map(x => x.c));
-  document.getElementById('aMajorChart').innerHTML = majors.map(m => `
-    <div class="maj-row">
-      <div class="maj-label">${m.n}</div>
-      <div class="maj-bar-outer"><div class="maj-bar-inner" style="width:${Math.round((m.c/mmax)*100)}%"></div></div>
-      <div class="maj-count">${m.c}</div>
+    </div>`;
+  }).join('');
+
+  // ── Students by major ────────────────────────────────────────────────────
+  const majorCount = {};
+  profiles.forEach(p => { if (p.major) majorCount[p.major] = (majorCount[p.major]||0)+1; });
+  const majors = Object.entries(majorCount).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([n,c])=>({n,c}));
+  if (!majors.length) {
+    document.getElementById('aMajorChart').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);font-size:12px">No major data yet</div>';
+  } else {
+    const mmax = Math.max(...majors.map(x=>x.c));
+    document.getElementById('aMajorChart').innerHTML = majors.map(m => `
+      <div class="maj-row">
+        <div class="maj-label">${m.n}</div>
+        <div class="maj-bar-outer"><div class="maj-bar-inner" style="width:${Math.round((m.c/mmax)*100)}%"></div></div>
+        <div class="maj-count">${m.c}</div>
+      </div>`).join('');
+  }
+
+  // ── Listings by type (fetch ALL listings, not just 6-month window) ────────
+  const { data: typeListings } = await supabaseClient.from('listings').select('details, status').neq('status','removed');
+  const typeCount = {};
+  (typeListings || []).forEach(l => {
+    const t = l.details?.room_type || 'Other';
+    typeCount[t] = (typeCount[t]||0)+1;
+  });
+  const types = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
+  const typeEl = document.getElementById('aTypeChart');
+  if (!typeEl) return;
+  if (!types.length) { typeEl.innerHTML = '<div style="padding:16px;color:var(--text-faint);font-size:12px">No listings yet</div>'; return; }
+  const tmx = Math.max(...types.map(t=>t[1]));
+  typeEl.innerHTML = types.map(([name, count]) => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" title="Filter listings to ${name}" onclick="goToListingsFiltered(null,'${name.replace(/'/g,"\\'")}')" >
+      <div style="width:110px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${name}</div>
+      <div style="flex:1;height:22px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round((count/tmx)*100)}%;background:var(--brand-light);border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div style="width:28px;text-align:right;font-size:12px;font-weight:600;color:var(--brand)">${count}</div>
     </div>`).join('');
 }
 
@@ -3655,10 +4009,11 @@ function renderHealth() {
 // ============================================================
 // SUSPENSION SCREEN
 // ============================================================
-let _suspendedProfileId = null;
+let _suspendedProfileId = null, _suspendedHistoryId = null;
 
-function showSuspensionScreen(email, profileId, reason) {
+function showSuspensionScreen(email, profileId, reason, historyId) {
   _suspendedProfileId = profileId || null;
+  _suspendedHistoryId = historyId || null;
   document.getElementById('studentApp').style.display = 'none';
   const screen = document.getElementById('suspendedScreen');
   screen.style.display = 'flex';
@@ -3714,7 +4069,8 @@ async function submitAppeal() {
     profile_id: _suspendedProfileId,
     email,
     message,
-    status: 'open'
+    status: 'open',
+    suspension_history_id: _suspendedHistoryId || null
   });
 
   if (error) {
@@ -3737,52 +4093,175 @@ async function renderAppeals() {
 
   const { data: appeals, error } = await supabaseClient
     .from('appeals')
-    .select('*')
+    .select('*, suspension:suspension_history_id(reason, report_id, listing_id)')
     .order('created_at', { ascending: false });
 
   if (error) { container.innerHTML = '<p style="color:var(--text-muted);padding:24px">Could not load appeals.</p>'; return; }
-  if (!appeals || appeals.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted);padding:24px">No appeals yet.</p>';
-    return;
-  }
+  if (!appeals || appeals.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);padding:24px">No appeals yet.</p>'; return; }
 
-  const open = appeals.filter(a => a.status === 'open');
+  const open     = appeals.filter(a => a.status === 'open');
   const resolved = appeals.filter(a => a.status !== 'open');
 
+  const statusBadge = status => {
+    const map = { open: ['#c0392b','Open'], resolved_reinstated: ['#1a7a45','Reinstated ✓'], resolved_upheld: ['#888','Upheld'] };
+    const [color, label] = map[status] || ['#888', status];
+    return `<span style="background:${color}22;color:${color};border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;white-space:nowrap">${label}</span>`;
+  };
 
   const card = a => {
     const isOpen = a.status === 'open';
-    const statusColor = isOpen ? '#c0392b' : '#1a7a45';
-    const statusLabel = isOpen ? 'Open' : (a.status === 'resolved_reinstated' ? 'Reinstated' : 'Upheld');
-    return `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    return `<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px" id="appeal-card-${a.id}">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div>
           <span class="stu-link-a" onclick="aOpenStudentHistory('${a.profile_id}')" style="font-weight:600;font-size:15px">${a.email || '—'}</span>
           <span style="color:var(--text-muted);font-size:13px;margin-left:10px">${fmtDate(a.created_at)}</span>
         </div>
-        <span style="background:${statusColor}22;color:${statusColor};border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600">${statusLabel}</span>
+        ${statusBadge(a.status)}
       </div>
-      <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 ${isOpen ? '14px' : '0'}">${a.message || '—'}</p>
-      ${isOpen ? `<div style="display:flex;gap:10px">
-        <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">Reinstate student</button>
-        <button class="btn-sm-a btn-a-danger" onclick="resolveAppeal('${a.id}')">Uphold suspension</button>
+      ${a.suspension ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 13px;margin-bottom:12px;font-size:12px;color:var(--text-muted)">
+        <span style="font-weight:600;color:var(--text)">Suspension reason:</span> ${a.suspension.reason || '<em>No reason recorded</em>'}
+        ${a.suspension.report_id ? ` &nbsp;·&nbsp; <span class="stu-link-a" onclick="openReportDrawer('${a.suspension.report_id}')">View triggering report ↗</span>` : ''}
       </div>` : ''}
+      <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 14px">${a.message || '—'}</p>
+      ${isOpen
+        ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+             <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">&#10003; Reinstated — grant appeal</button>
+             <button class="btn-sm-a btn-a-danger"  onclick="openUpholdForm('${a.id}')">Upheld — deny appeal</button>
+           </div>
+           <div id="uphold-form-${a.id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+             <div style="font-size:13px;font-weight:600;margin-bottom:8px">Reason for upholding (shown to student on their suspended screen)</div>
+             <textarea id="uphold-note-${a.id}" class="form-textarea" rows="2" maxlength="500" placeholder="Why the suspension stands (optional but recommended)…" style="margin-bottom:10px"></textarea>
+             <div style="display:flex;gap:8px">
+               <button class="btn-sm-a btn-a-danger" onclick="confirmUphold('${a.id}','${a.profile_id}')">Confirm — uphold suspension</button>
+               <button class="btn-sm-a btn-a-neutral" onclick="document.getElementById('uphold-form-${a.id}').style.display='none'">Cancel</button>
+             </div>
+           </div>`
+        : `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+             <button class="btn-sm-a btn-a-neutral" onclick="openAppealEdit('${a.id}','${a.profile_id}','${a.status}')">&#9998; Edit decision</button>
+           </div>
+           <div id="appeal-edit-${a.id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+             <div style="font-size:13px;font-weight:600;margin-bottom:10px">Change decision</div>
+             <div style="display:flex;gap:8px;margin-bottom:10px">
+               <button class="filter-chip${a.status==='resolved_reinstated'?' active':''}" id="aed-${a.id}-r" onclick="selectAppealEdit('${a.id}','reinstated')">Reinstated &#10003;</button>
+               <button class="filter-chip${a.status==='resolved_upheld'?' active':''}"    id="aed-${a.id}-u" onclick="selectAppealEdit('${a.id}','upheld')">Upheld</button>
+             </div>
+             <textarea id="aed-note-${a.id}" class="form-textarea" rows="2" maxlength="500" placeholder="Reason for changing the decision (required)…" style="margin-bottom:10px"></textarea>
+             <div style="display:flex;gap:8px">
+               <button class="btn-sm-a btn-a-success" onclick="submitAppealEdit('${a.id}','${a.profile_id}')">Confirm edit</button>
+               <button class="btn-sm-a btn-a-neutral" onclick="document.getElementById('appeal-edit-${a.id}').style.display='none'">Cancel</button>
+             </div>
+           </div>`}
+      <button onclick="toggleAppealLog('${a.id}')" style="background:none;border:none;font-size:12px;color:var(--text-muted);cursor:pointer;padding:0;font-family:inherit" id="appeal-log-btn-${a.id}">&#9656; Decision history</button>
+      <div id="appeal-log-${a.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:10px"></div>
     </div>`;
   };
 
-  container.innerHTML = `
-    <div style="padding:24px">
-      ${open.length > 0 ? `<h3 style="font-size:15px;font-weight:600;margin:0 0 14px">Open (${open.length})</h3>${open.map(card).join('')}` : '<p style="color:var(--text-muted);margin-bottom:24px">No open appeals.</p>'}
-      ${resolved.length > 0 ? `<h3 style="font-size:15px;font-weight:600;margin:24px 0 14px">Resolved (${resolved.length})</h3>${resolved.map(card).join('')}` : ''}
-    </div>`;
+  container.innerHTML = `<div style="padding:24px">
+    ${open.length > 0
+      ? `<h3 style="font-size:15px;font-weight:600;margin:0 0 14px">Open (${open.length})</h3>${open.map(card).join('')}`
+      : '<p style="color:var(--text-muted);margin-bottom:24px">No open appeals.</p>'}
+    ${resolved.length > 0
+      ? `<h3 style="font-size:15px;font-weight:600;margin:24px 0 14px">Resolved (${resolved.length})</h3>${resolved.map(card).join('')}`
+      : ''}
+  </div>`;
 }
 
-async function resolveAppeal(id) {
+function openUpholdForm(id) {
+  const el = document.getElementById(`uphold-form-${id}`);
+  if (el) { el.style.display = 'block'; document.getElementById(`uphold-note-${id}`)?.focus(); }
+}
+
+async function confirmUphold(id, profileId) {
+  const note = document.getElementById(`uphold-note-${id}`)?.value.trim() || null;
+  const { data: { user } } = await supabaseClient.auth.getUser();
   const { error } = await supabaseClient.from('appeals').update({ status: 'resolved_upheld' }).eq('id', id);
   if (error) { toast('Could not resolve — please try again.'); console.error(error.message); return; }
+  if (profileId && note) {
+    await supabaseClient.from('profiles').update({ suspension_reason: note }).eq('id', profileId);
+  }
+  const { error: logErr } = await supabaseClient.from('appeal_audit_log').insert({ appeal_id: id, action: 'resolved_upheld', new_status: 'resolved_upheld', actioned_by: user?.id, note });
+  if (logErr) console.error('Audit log error:', logErr.message);
   toast('Suspension upheld');
   updateAppealsBadge();
   renderAppeals();
+}
+
+function openAppealEdit(id, profileId, currentStatus) {
+  const r = document.getElementById(`aed-${id}-r`);
+  const u = document.getElementById(`aed-${id}-u`);
+  if (r) r.classList.toggle('active', currentStatus === 'resolved_reinstated');
+  if (u) u.classList.toggle('active', currentStatus === 'resolved_upheld');
+  document.getElementById(`aed-note-${id}`).value = '';
+  document.getElementById(`appeal-edit-${id}`).style.display = 'block';
+}
+
+function selectAppealEdit(id, choice) {
+  document.getElementById(`aed-${id}-r`).classList.toggle('active', choice === 'reinstated');
+  document.getElementById(`aed-${id}-u`).classList.toggle('active', choice === 'upheld');
+}
+
+async function submitAppealEdit(id, profileId) {
+  const note = document.getElementById(`aed-note-${id}`).value.trim();
+  if (!note) { toast('A reason is required when editing a decision.'); return; }
+  const isReinstated = document.getElementById(`aed-${id}-r`).classList.contains('active');
+  const newStatus = isReinstated ? 'resolved_reinstated' : 'resolved_upheld';
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  const { error } = await supabaseClient.from('appeals').update({ status: newStatus }).eq('id', id);
+  if (error) { toast('Could not update — please try again.'); console.error(error); return; }
+
+  if (profileId) {
+    if (isReinstated) {
+      await supabaseClient.from('profiles').update({ status: 'active', suspension_reason: null }).eq('id', profileId);
+      supabaseClient.from('suspension_history').insert({ profile_id: profileId, action: 'reinstated', reason: `Appeal decision edited: ${note}`, actioned_by: user?.id });
+      aNotifyStudent(profileId, 'appeal_edited', `An admin has updated the decision on your appeal. New decision: Reinstated — your account has been restored. Reason noted: ${note}`);
+    } else {
+      await supabaseClient.from('profiles').update({ status: 'suspended', suspension_reason: note }).eq('id', profileId);
+      supabaseClient.from('suspension_history').insert({ profile_id: profileId, action: 'suspended', reason: `Appeal decision edited (upheld): ${note}`, actioned_by: user?.id });
+    }
+  }
+
+  const { error: logErr } = await supabaseClient.from('appeal_audit_log').insert({ appeal_id: id, action: 'decision_edited', new_status: newStatus, actioned_by: user?.id, note });
+  if (logErr) console.error('Audit log error:', logErr.message);
+  toast(`Decision updated to ${isReinstated ? 'Reinstated' : 'Upheld'}`);
+  renderAppeals();
+}
+
+async function toggleAppealLog(id) {
+  const logEl = document.getElementById(`appeal-log-${id}`);
+  const btn   = document.getElementById(`appeal-log-btn-${id}`);
+  if (logEl.style.display !== 'none') {
+    logEl.style.display = 'none';
+    if (btn) btn.innerHTML = '&#9656; Decision history';
+    return;
+  }
+  logEl.innerHTML = '<div style="font-size:12px;color:var(--text-faint);padding:4px 0">Loading…</div>';
+  logEl.style.display = 'block';
+  if (btn) btn.innerHTML = '&#9662; Decision history';
+
+  const { data: entries } = await supabaseClient
+    .from('appeal_audit_log')
+    .select('action, new_status, note, created_at')
+    .eq('appeal_id', id)
+    .order('created_at', { ascending: true });
+
+  if (!entries || entries.length === 0) {
+    logEl.innerHTML = '<div style="font-size:12px;color:var(--text-faint);padding:4px 0">No decisions logged yet. History is recorded from this point forward — decisions made before the audit log was set up will not appear here.</div>';
+    return;
+  }
+  const actionLabel = a => {
+    if (a === 'resolved_reinstated') return '&#10003; Decided: Reinstated';
+    if (a === 'resolved_upheld')     return 'Decided: Upheld';
+    if (a === 'decision_edited')     return '&#9998; Decision edited';
+    return a;
+  };
+  const statusLabel = s => s === 'resolved_reinstated' ? 'Reinstated' : s === 'resolved_upheld' ? 'Upheld' : (s || '—');
+  logEl.innerHTML = entries.map(e => `
+    <div style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
+      <div style="font-weight:600;color:var(--text)">${actionLabel(e.action)} → ${statusLabel(e.new_status)}</div>
+      ${e.note ? `<div style="color:var(--text-muted)">${e.note}</div>` : ''}
+      <div style="color:var(--text-faint)">${fmtDate(e.created_at)}</div>
+    </div>`).join('');
 }
 
 async function updateAppealsBadge() {

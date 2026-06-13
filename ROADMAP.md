@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-11
+Last updated: 2026-06-12
 
 ---
 
@@ -73,6 +73,8 @@ Last updated: 2026-06-11
 - ✅ Listing context dividers: pill-style "about: [listing]" divider inserted
       when listing_id changes in a thread; "general conversation" divider if
       context drops to null; listing titles fetched from Supabase
+- ✅ Admin messages view — real Supabase query (participants, listing, count,
+      last active). Replaces fake DB.convos entirely.
 
 ### Moderation system
 
@@ -129,6 +131,15 @@ Last updated: 2026-06-11
 - ✅ Admin appeals review page: Reinstate or Deny buttons
 - ✅ Appeals badge on admin sidebar: live count of open appeals
 - ✅ Reinstating from the appeals page marks the appeal as resolved_reinstated
+- ✅ Label clarity: "Reinstated" = appeal granted (account restored);
+      "Upheld" = appeal denied (suspension stands)
+- ✅ Edit decision after the fact — admin can flip a resolved appeal decision
+      with a mandatory reason; both the appeal and the student's account
+      status are updated atomically
+- ✅ Per-appeal audit log — expandable history in each appeal card showing
+      every decision and edit with who, when, and reason
+- ✅ Student notification — student gets an in-app notification (modal on next
+      login) when their appeal is decided or when a decision is edited
 
 ### Student history dashboard ✅
 Full per-student drilldown inside the admin portal. A dedicated full-panel view,
@@ -191,6 +202,18 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 - ✅ `renderAStudents()` school-scoped: if aAdminSchool is set, the Supabase
       query filters to that school only; school badge shown per student row
 - ✅ School badge in admin Students table, student history header card
+- ✅ School filter chips on Students page — super-admin can filter to any school
+      or by status (Active / Suspended); filters stack
+- ✅ School filter on Listings page — derived from school overview click or
+      cleared via badge; school shown per listing under poster name
+- ✅ School filter on Reports page — applied via school overview click
+- ✅ School filter on Approvals page — chips filtered from pending queue
+- ✅ School shown per participant in admin Messages view
+- ✅ School overview table on dashboard — every count is a clickable link
+      (students → Students filtered, listings → Listings filtered,
+       reports → Reports filtered, suspensions → Students filtered + Suspended)
+- ✅ buildMultiSchoolStats() derives school list from profiles.school (no
+      separate schools table needed — works automatically as schools expand)
 
 **RBAC infrastructure**
 - ✅ `role_permissions` table in Supabase — template-based permission system
@@ -209,6 +232,18 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 - 🔒 Stage B: permission-template loading + sidebar item hiding per permissions
 - 🔒 Stage C: super-admin schools dashboard (school cards, assign admins,
       permission template editor)
+
+### Analytics dashboard
+- ✅ Dashboard stat cards (Students, Pending, Live, Pinned, Reports, Messages)
+      are real counts from Supabase — no hardcoded numbers
+- ✅ School overview table on dashboard — real per-school counts
+- ✅ Analytics page: Avg rent, This month, Approval rate, Total students —
+      all real Supabase counts; update when section is opened
+- ✅ Monthly listings chart (posted vs approved) — real data from Supabase,
+      last 6 months
+- ✅ Students by major chart — real data from profiles.major
+- ✅ Listings by type chart — real data; each bar is clickable and filters
+      the All Listings section to that type
 
 ---
 
@@ -255,16 +290,49 @@ UPDATE suspension_history sh
 SET school = p.school
 FROM profiles p
 WHERE sh.profile_id = p.id AND sh.school IS NULL;
--- NOTE: this backfill uses their school TODAY (best approximation).
--- Future inserts from confirmSuspend() and aReinstate() will write the
--- correct school at the time of the action once the JS is also updated.
+
+-- 3. Appeal audit log (one row per decision or edit; never deleted)
+CREATE TABLE IF NOT EXISTS appeal_audit_log (
+  id bigserial PRIMARY KEY,
+  appeal_id uuid REFERENCES appeals(id) ON DELETE CASCADE,
+  action text NOT NULL,      -- 'resolved_reinstated', 'resolved_upheld', 'decision_edited'
+  new_status text,           -- the status after this action
+  actioned_by uuid REFERENCES auth.users(id),
+  note text,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE appeal_audit_log ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON appeal_audit_log TO authenticated;
+CREATE POLICY "Admins view appeal log"
+  ON appeal_audit_log FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
+CREATE POLICY "Admins insert appeal log"
+  ON appeal_audit_log FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
+
+-- 4. Notifications (student sees these on next login after an appeal decision)
+CREATE TABLE IF NOT EXISTS notifications (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  profile_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+  type text NOT NULL,          -- 'appeal_resolved', 'appeal_edited'
+  message text NOT NULL,
+  read boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE ON notifications TO authenticated;
+CREATE POLICY "Own notifications"
+  ON notifications FOR SELECT TO authenticated
+  USING (auth.uid() = profile_id);
+CREATE POLICY "Admin insert notifications"
+  ON notifications FOR INSERT TO authenticated
+  WITH CHECK (true);
+CREATE POLICY "Own mark read"
+  ON notifications FOR UPDATE TO authenticated
+  USING (auth.uid() = profile_id);
 
 NOTIFY pgrst, 'reload schema';
 ```
-
-**After running the SQL:** update `confirmSuspend()` and `aReinstate()` in
-index.html to pass `school: <student's school>` into the suspension_history
-INSERT — so future events capture the school at time of action, not just backfill.
 
 ---
 
@@ -284,9 +352,6 @@ INSERT — so future events capture the school at time of action, not just backf
 ### 🔄 MESSAGING — polish (foundation complete, extras next)
 
 **Next up**
-- ⬜ Admin messages view — replace fake DB.convos with a real query on the
-      `messages` table. This is a DATA FIX not a new feature — the table exists,
-      the query is just wrong.
 - ⬜ Filter messages by listing — inside a conversation, filter to messages
       about a specific listing (dropdown or chips)
 - ⬜ Listing chip in the input bar — small pill showing which listing the next
@@ -351,9 +416,34 @@ INSERT — so future events capture the school at time of action, not just backf
 - ⬜ Free Stuff / giveaways flow
 - ⬜ Events & announcements board for student organizations
 - ⬜ Local business advertising partners (revenue)
-- ⬜ Notifications (email and/or in-app) — Supabase Edge Functions or third-party
 - ⬜ Analytics — real usage data to support the school-funding pitch
 - ⬜ Possible future mobile app
+
+---
+
+## 🔒 DEFERRED / BLOCKED — do not build yet
+
+### Admin access to message content
+**Status: BLOCKED — requires legal + trust groundwork first**
+
+The admin Messages view intentionally shows only conversation *metadata*
+(participants, listing, message count, last active). Full message content
+is NOT accessible to admins by default.
+
+**Why it's blocked:** Reading private student messages requires:
+1. Explicit disclosure in Terms of Service that admin reads are possible
+2. Scoped access — only via a report or active investigation, not free-browse
+3. An audit log of every admin read (who accessed which thread, when, why)
+4. Student-facing notice that their messages may be reviewed
+
+**What needs to happen before building:**
+- Draft and publish Terms of Service + Privacy Policy with message-access disclosure
+- Design scoped access flow (admin must link an active report to unlock a thread)
+- Build the admin-read audit log first
+- Legal review of access policy (especially FERPA-adjacent for student platforms)
+
+**Do not add a "View log" button to the admin Messages page until all of the above
+are in place. The placeholder currently says "Full viewer coming soon" — leave it.**
 
 ---
 
@@ -365,7 +455,7 @@ INSERT — so future events capture the school at time of action, not just backf
 
 ---
 
-## DATA AUDIT (updated 2026-06-11)
+## DATA AUDIT (updated 2026-06-12)
 
 ### What's genuinely real and working ✅
 - Auth: student login, admin login, session restore, logout
@@ -377,15 +467,14 @@ INSERT — so future events capture the school at time of action, not just backf
 - `role_permissions` — permission templates; `is_super_admin()` and
   `get_admin_school()` SECURITY DEFINER functions live in Supabase
 - `reports` — student reports, admin review, soft actions, reopen, reporter_id
-- `appeals` — student appeals, admin reinstate/deny
+- `appeals` — student appeals, admin reinstate/deny, edit decision, audit log
 - `suspension_history` — exists; confirmSuspend + aReinstate write to it;
   `school` column pending SQL run (see Pending SQL section)
 - `schools` metadata table — Caldwell row exists with lat/lng/mascot
+- `appeal_audit_log` — pending SQL run (see Pending SQL section)
+- `notifications` — pending SQL run (see Pending SQL section)
 
 ### Still using fake/in-memory data (needs fixing)
-- **`DB.convos`** → admin Messages view shows fake conversations. Fix:
-  rewrite `renderAMessages()` to query the real `messages` table. No new table
-  needed — just a rewritten query.
 - **`DB.log`** → activity log resets on every refresh. Fix later: create
   `activity_log` table (DATA TIER 3).
 - **`DB.settings`** → `requireApproval` and `eduOnly` toggles reset on refresh.
@@ -394,13 +483,14 @@ INSERT — so future events capture the school at time of action, not just backf
 - **`BCAST_HIST`** → sent broadcasts are lost on refresh. DATA TIER 3.
 - **`DB.content` / site editor** → color + content changes vanish on refresh.
   DATA TIER 4.
-- **Analytics charts + health monitor** → hardcoded fake numbers.
-  ⚠️ NEVER show to school or partners as real data. DATA TIER 5.
+- **Analytics charts + health monitor** → hardcoded fake numbers (analytics
+  page charts are now real; health monitor is still fake).
+  ⚠️ NEVER show health monitor to school or partners as real data. DATA TIER 5.
 
 ### Conversion order
 
 **DATA TIER 1 — Fix broken features with existing Supabase tables**
-- ⬜ Admin Messages view — replace DB.convos with real messages table query
+- ✅ Admin Messages view — replaced DB.convos with real messages table query
 - ✅ Wire `school` into suspension_history INSERT in confirmSuspend() +
       aReinstate() — school fetched at time of event, not derived later
 
@@ -417,7 +507,8 @@ INSERT — so future events capture the school at time of action, not just backf
 - ⬜ `site_config` table — hero text, CTA label, banner, editor color changes
 
 **DATA TIER 5 — Analytics (real data eventually, not urgent)**
-- ⬜ Replace hardcoded charts with real Supabase queries once real data exists
+- ✅ Analytics page stat cards + monthly chart + major chart + listings by type
+      chart — all real Supabase queries now
 - ⬜ Health monitor — real uptime/latency; needs a backend service layer
 
 ### Fine to leave as-is
@@ -484,7 +575,7 @@ profile and editing flow is partially built.
 
 ---
 
-## CURRENT BUILD ORDER (updated 2026-06-11)
+## CURRENT BUILD ORDER (updated 2026-06-12)
 1. ✅ Super-admin login
 2. ✅ Admin view-as-student without second login
 3. ✅ Official "CaldwellNest" identity
@@ -499,14 +590,19 @@ profile and editing flow is partially built.
 9. ✅ Multi-school data foundations — school field on profiles + listings,
       schools metadata table, aAdminSchool scoping, role_permissions + RLS
       infrastructure in Supabase
-10. 🔄 **Pending SQL + data fixes** ← NEXT
-       - ⬜ Run listing_status_history SQL (see Pending SQL section)
-       - ⬜ Run suspension_history.school SQL + backfill
+10. 🔄 **Admin portal polish + real data** ← CURRENT
+       - ✅ Fix admin Messages view (DB.convos → real messages query)
        - ✅ Wire school into suspension_history INSERT in JS
-       - ⬜ Fix admin Messages view (DB.convos → real messages query)
+       - ✅ Real dashboard stat counts (Supabase queries, not DB arrays)
+       - ✅ Clickable school overview → filtered section navigation
+       - ✅ Student section filter chips (school + status)
+       - ✅ School shown on listings, approvals, messages participants
+       - ✅ Analytics charts — real data (monthly, by major, by type)
+       - ✅ Appeals: edit decision + audit log + student notifications
+       - ⬜ Run Pending SQL (listing_status_history, suspension_history.school,
+             appeal_audit_log, notifications) — Kal runs in Supabase SQL Editor
        - ⬜ platform_settings table (security: approval toggle resets on refresh)
 11. ⬜ Messaging polish
-       - ⬜ Admin messages view (real data — also in step 10)
        - ⬜ Filter by listing / listing chip in input bar
        - ⬜ Typing indicator (Supabase Presence)
        - ⬜ Active now / last seen
@@ -527,6 +623,8 @@ profile and editing flow is partially built.
 - Fake analytics numbers on admin dashboard — never show to school/partners as real
 - `requireApproval` and `eduOnly` toggles reset on page refresh — potential
   security gap if a refresh happens mid-session. Fix is DATA TIER 3.
+- `appeal_audit_log` and `notifications` tables require SQL to be run before
+  those features activate (edits and notifications fail silently until then)
 
 ---
 
