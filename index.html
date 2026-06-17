@@ -104,6 +104,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .active-filter-tag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);color:var(--brand);border-radius:20px;padding:3px 8px 3px 11px;font-size:12px;font-weight:500;}
 .active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--brand);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
 .school-badge{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
+/* DEEP FILTER PANEL */
+.df-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+.df-section{border-bottom:1px solid var(--border);}
+.df-section:last-child{border-bottom:none;}
+.df-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:left;transition:background .15s;}
+.df-toggle:hover{background:var(--bg);}
+.df-chevron{font-size:16px;color:var(--text-muted);transition:transform .2s;line-height:1;}
+.df-body{padding:4px 16px 16px;}
+.price-range-wrap{position:relative;height:38px;margin:8px 0 6px;}
+.price-range-wrap input[type="range"]{position:absolute;width:100%;pointer-events:none;-webkit-appearance:none;appearance:none;background:transparent;height:4px;top:50%;transform:translateY(-50%);margin:0;padding:0;}
+.price-range-wrap input[type="range"]::-webkit-slider-thumb{pointer-events:all;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);}
+.price-range-wrap input[type="range"]::-moz-range-thumb{pointer-events:all;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);border:none;}
+.price-range-track{position:absolute;height:4px;top:50%;transform:translateY(-50%);left:0;right:0;background:var(--border);border-radius:2px;pointer-events:none;}
+.price-range-fill{position:absolute;height:4px;background:var(--brand);border-radius:2px;}
+.price-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:2px;font-weight:500;}
+.df-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.df-chips .filter-chip{padding:5px 12px;font-size:12px;}
+.active-filter-tag{animation:tagIn .15s ease;}
+@keyframes tagIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
 .cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
@@ -656,11 +675,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <button class="filter-chip" onclick="setListingCat('organization_event',this)">&#128227; Events</button>
         <button class="filter-chip" onclick="setListingCat('other',this)">&#127991; Other</button>
       </div>
-      <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:16px;">
+      <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
-        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
+        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear filters</button>
         <span id="sResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
       </div>
+      <div id="sDeepFilters"></div>
       <!-- PINNED STRIP -->
       <div class="pinned-strip" id="pinnedStrip" style="display:none">
         <div class="pinned-label">&#128204; Featured listings</div>
@@ -1741,8 +1761,11 @@ const DB = {
 let currentRole = null;
 let sUser = null; // logged-in student
 let adminPreviewMode = false; // true when admin has entered student view
-let _filters = { category: 'all', keyword: '' };
+let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {} };
 let _kwTimer  = null;
+let _dfPriceOpen = true;
+let _dfCatOpen   = true;
+let _pMax        = 2000;
 let sConvoActive = null;
 let sRealtimeChannel  = null;
 let sGlobalMsgChannel = null;
@@ -1995,6 +2018,7 @@ async function initStudent() {
   ]);
   applyDBContent();
   if (applyMaintenance()) return;
+  renderDeepFilters();
   renderListings();
   animNum('statListings', 0, DB.listings.filter(l=>l.status==='approved').length, 600);
   animNum('statStudents', 0, stuCount || 0, 800);
@@ -2496,8 +2520,10 @@ function requireAuth(action) {
 
 function setListingCat(cat, el) {
   _filters.category = cat;
+  _filters.details = {};  // clear category-specific filters on category switch
   document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  renderDeepFilters();
   renderListings();
 }
 function onListingSearch(val) {
@@ -2522,7 +2548,199 @@ function clearListingFilters() {
   document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
   const allChip = document.querySelector('#sCategoryChips .filter-chip');
   if (allChip) allChip.classList.add('active');
+  clearDeepFilters(false);
+  renderDeepFilters();
   renderListings();
+}
+
+function clearDeepFilters(rerender = true) {
+  _filters.minPrice = null; _filters.maxPrice = null; _filters.details = {};
+  if (rerender) { renderDeepFilters(); renderListings(); }
+}
+
+function toggleDFSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : '';
+  if (id === 'dfPrice') _dfPriceOpen = !open;
+  if (id === 'dfCat')   _dfCatOpen   = !open;
+  const btn = el.previousElementSibling;
+  if (btn) btn.querySelector('.df-chevron').textContent = open ? '›' : '▾';
+}
+
+function setDeepFilter(key, val) {
+  if (_filters.details[key] === val) {
+    delete _filters.details[key];
+  } else {
+    _filters.details[key] = val;
+  }
+  renderDeepFilters();
+  renderListings();
+}
+
+function setDeepDate(key, val) {
+  if (val) _filters.details[key] = val;
+  else delete _filters.details[key];
+  renderListings();
+}
+
+function renderDeepFilters() {
+  const panel = document.getElementById('sDeepFilters');
+  if (!panel) return;
+  const cat = _filters.category;
+
+  // Compute price max from listings in current category
+  const catListings = DB.listings.filter(l => l.status === 'approved' && (cat === 'all' || l.category === cat));
+  const prices = catListings.map(l => l.rent || 0).filter(p => p > 0);
+  _pMax = prices.length ? Math.ceil(Math.max(...prices) / 50) * 50 : 2000;
+  _pMax = Math.max(_pMax, 100);
+
+  const curMin = _filters.minPrice || 0;
+  const curMax = _filters.maxPrice !== null ? _filters.maxPrice : _pMax;
+  const fillLeft  = (curMin / _pMax * 100).toFixed(1) + '%';
+  const fillWidth = ((curMax - curMin) / _pMax * 100).toFixed(1) + '%';
+  const minLabel  = curMin === 0     ? 'Min'  : '$' + curMin;
+  const maxLabel  = curMax >= _pMax  ? 'Max'  : '$' + curMax;
+
+  const priceSection = `
+    <div class="df-section">
+      <button class="df-toggle" onclick="toggleDFSection('dfPrice')" aria-expanded="${_dfPriceOpen}">
+        <span>Price range</span><span class="df-chevron">${_dfPriceOpen ? '▾' : '›'}</span>
+      </button>
+      <div id="dfPrice" class="df-body" style="${_dfPriceOpen ? '' : 'display:none'}">
+        <div class="price-labels"><span id="priceMinLabel">${minLabel}</span><span id="priceMaxLabel">${maxLabel}</span></div>
+        <div class="price-range-wrap">
+          <div class="price-range-track"><div class="price-range-fill" id="priceRangeFill" style="left:${fillLeft};width:${fillWidth}"></div></div>
+          <input type="range" id="priceMin" min="0" max="${_pMax}" value="${curMin}" oninput="onPriceRange()" style="z-index:${curMin > _pMax * 0.9 ? 5 : 3}">
+          <input type="range" id="priceMax" min="0" max="${_pMax}" value="${curMax}" oninput="onPriceRange()" style="z-index:4">
+        </div>
+      </div>
+    </div>`;
+
+  const catSection = buildCatFiltersHTML(cat);
+  panel.innerHTML = `<div class="df-panel">${priceSection}${catSection}</div>`;
+}
+
+function onPriceRange() {
+  const minEl = document.getElementById('priceMin');
+  const maxEl = document.getElementById('priceMax');
+  if (!minEl || !maxEl) return;
+  let minV = parseInt(minEl.value);
+  let maxV = parseInt(maxEl.value);
+  if (minV > maxV) { minV = maxV; minEl.value = minV; }
+  const fill = document.getElementById('priceRangeFill');
+  if (fill) {
+    fill.style.left  = (minV / _pMax * 100).toFixed(1) + '%';
+    fill.style.width = ((maxV - minV) / _pMax * 100).toFixed(1) + '%';
+  }
+  const minLbl = document.getElementById('priceMinLabel');
+  const maxLbl = document.getElementById('priceMaxLabel');
+  if (minLbl) minLbl.textContent = minV === 0    ? 'Min' : '$' + minV;
+  if (maxLbl) maxLbl.textContent = maxV >= _pMax ? 'Max' : '$' + maxV;
+  _filters.minPrice = minV === 0    ? null : minV;
+  _filters.maxPrice = maxV >= _pMax ? null : maxV;
+  clearTimeout(_kwTimer);
+  _kwTimer = setTimeout(() => renderListings(), 80);
+}
+
+function buildCatFiltersHTML(cat) {
+  const d = _filters.details;
+  const chip = (key, val, label) => {
+    const active = d[key] === val ? ' active' : '';
+    return `<button class="filter-chip${active}" onclick="setDeepFilter('${key}','${val}')" aria-pressed="${!!active}">${label}</button>`;
+  };
+  let html = '';
+  if (cat === 'housing') {
+    html = `
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Room type</div>
+        <div class="df-chips">
+          ${chip('room_type','Private Room','Private')}
+          ${chip('room_type','Shared Room','Shared')}
+          ${chip('room_type','Full Apartment','Full Apt')}
+          ${chip('room_type','Looking for Room','Looking')}
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Amenities</div>
+          <div class="df-chips">
+            ${chip('furnished','yes','Furnished')}
+            ${chip('petOk','yes','Pets OK')}
+          </div>
+        </div>
+      </div>`;
+  } else if (cat === 'clothing') {
+    html = `
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-chips">
+          ${chip('condition','New','New')}
+          ${chip('condition','Like New','Like New')}
+          ${chip('condition','Used','Used')}
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Size</div>
+        <div class="df-chips">
+          ${chip('size','XS','XS')}${chip('size','S','S')}${chip('size','M','M')}${chip('size','L','L')}${chip('size','XL','XL')}${chip('size','XXL','XXL')}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Pickup / delivery</div>
+        <div class="df-chips">
+          ${chip('delivery','Pickup only','Pickup only')}
+          ${chip('delivery','Delivery available','Delivery')}
+          ${chip('delivery','Either','Either')}
+        </div>
+      </div>`;
+  } else if (cat === 'technology') {
+    html = `
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-chips">
+          ${chip('condition','New','New')}
+          ${chip('condition','Like New','Like New')}
+          ${chip('condition','Used','Used')}
+          ${chip('condition','For Parts','For Parts')}
+        </div>
+      </div>`;
+  } else if (cat === 'donation') {
+    html = `
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-chips">
+          ${chip('condition','Good','Good')}
+          ${chip('condition','Fair','Fair')}
+          ${chip('condition','Worn','Worn')}
+        </div>
+      </div>`;
+  } else if (cat === 'organization_event') {
+    const fromVal = d.eventDateFrom || '';
+    const toVal   = d.eventDateTo   || '';
+    html = `
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Event date</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">
+            From <input type="date" class="form-input" style="width:auto;padding:6px 10px;font-size:13px" value="${fromVal}" oninput="setDeepDate('eventDateFrom',this.value)">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">
+            To <input type="date" class="form-input" style="width:auto;padding:6px 10px;font-size:13px" value="${toVal}" oninput="setDeepDate('eventDateTo',this.value)">
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (!html) return '';
+  return `
+    <div class="df-section">
+      <button class="df-toggle" onclick="toggleDFSection('dfCat')" aria-expanded="${_dfCatOpen}">
+        <span>${CATEGORY_LABELS[cat] || cat} filters</span><span class="df-chevron">${_dfCatOpen ? '▾' : '›'}</span>
+      </button>
+      <div id="dfCat" class="df-body" style="${_dfCatOpen ? '' : 'display:none'}">${html}</div>
+    </div>`;
 }
 
 function renderListings() {
@@ -2534,9 +2752,28 @@ function renderListings() {
   const kwMatch  = l => !_filters.keyword ||
     l.title.toLowerCase().includes(_filters.keyword) ||
     (l.desc || '').toLowerCase().includes(_filters.keyword);
+  const priceMatch = l => {
+    const p = l.rent || 0;
+    if (_filters.minPrice !== null && p < _filters.minPrice) return false;
+    if (_filters.maxPrice !== null && p > _filters.maxPrice) return false;
+    return true;
+  };
+  const detailsMatch = l => {
+    const d = _filters.details;
+    if (d.room_type  && l.details.room_type !== d.room_type)     return false;
+    if (d.furnished  && !l.tags.includes('Furnished'))            return false;
+    if (d.petOk      && !l.tags.includes('Pet friendly'))         return false;
+    if (d.condition  && l.details.condition !== d.condition)      return false;
+    if (d.delivery   && l.details.delivery !== d.delivery)        return false;
+    if (d.size       && !(l.details.size || '').toLowerCase().includes(d.size.toLowerCase())) return false;
+    if (d.eventDateFrom && l.details.event_date && l.details.event_date < d.eventDateFrom) return false;
+    if (d.eventDateTo   && l.details.event_date && l.details.event_date > d.eventDateTo)   return false;
+    return true;
+  };
+  const allMatch = l => catMatch(l) && kwMatch(l) && priceMatch(l) && detailsMatch(l);
 
-  const filtered       = rest.filter(l => catMatch(l) && kwMatch(l));
-  const pinnedFiltered = pinned.filter(l => catMatch(l) && kwMatch(l));
+  const filtered       = rest.filter(allMatch);
+  const pinnedFiltered = pinned.filter(allMatch);
 
   // Active filter bar
   const tagsEl   = document.getElementById('sActiveTags');
@@ -2550,16 +2787,28 @@ function renderListings() {
   if (_filters.keyword) {
     tags.push(`<span class="active-filter-tag">&ldquo;${_filters.keyword}&rdquo; <button onclick="clearListingKeyword()">&#215;</button></span>`);
   }
+  if (_filters.minPrice !== null || _filters.maxPrice !== null) {
+    const lo = _filters.minPrice !== null ? '$' + _filters.minPrice : 'Min';
+    const hi = _filters.maxPrice !== null ? '$' + _filters.maxPrice : 'Max';
+    tags.push(`<span class="active-filter-tag">${lo} – ${hi} <button onclick="_filters.minPrice=null;_filters.maxPrice=null;renderDeepFilters();renderListings()">&#215;</button></span>`);
+  }
+  const d = _filters.details;
+  const detailTagLabels = { room_type:'Room', condition:'Condition', size:'Size', delivery:'Delivery', furnished:'Furnished', petOk:'Pets OK', eventDateFrom:'From', eventDateTo:'To' };
+  Object.entries(d).forEach(([k, v]) => {
+    const label = detailTagLabels[k] || k;
+    const display = (k === 'furnished' || k === 'petOk') ? label : `${label}: ${v}`;
+    tags.push(`<span class="active-filter-tag">${display} <button onclick="delete _filters.details['${k}'];renderDeepFilters();renderListings()">&#215;</button></span>`);
+  });
   if (tagsEl)   tagsEl.innerHTML = tags.join('');
   if (clearBtn) clearBtn.style.display = tags.length ? 'inline' : 'none';
   const total      = approved.length;
   const matchCount = filtered.length + pinnedFiltered.length;
   if (countEl) countEl.textContent = tags.length
-    ? `${matchCount} of ${total} listing${total !== 1 ? 's' : ''}`
+    ? `Showing ${matchCount} of ${total} listing${total !== 1 ? 's' : ''}`
     : (total > 0 ? `${total} listing${total !== 1 ? 's' : ''}` : '');
 
   // Pinned strip — only when no filters active
-  const noFilters = _filters.category === 'all' && !_filters.keyword;
+  const noFilters = _filters.category === 'all' && !_filters.keyword && _filters.minPrice === null && _filters.maxPrice === null && !Object.keys(_filters.details).length;
   const strip = document.getElementById('pinnedStrip');
   if (pinnedFiltered.length && noFilters) {
     strip.style.display = 'block';
@@ -2569,10 +2818,10 @@ function renderListings() {
   // Regular grid
   const grid = document.getElementById('listingsGrid');
   if (filtered.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-faint);grid-column:1/-1">
+    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);grid-column:1/-1">
       <div style="font-size:40px;margin-bottom:12px">${approved.length === 0 ? '&#127968;' : '&#128269;'}</div>
-      <div>${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match your filters.'}</div>
-      ${!noFilters ? `<button onclick="clearListingFilters()" style="margin-top:16px;background:none;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
+      <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
+      ${!noFilters ? `<div style="font-size:13px;margin-bottom:16px">Try widening the price range or clearing a filter.</div><button onclick="clearListingFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
     </div>`;
     return;
   }
