@@ -104,8 +104,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .active-filter-tag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);color:var(--brand);border-radius:20px;padding:3px 8px 3px 11px;font-size:12px;font-weight:500;}
 .active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--brand);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
 .school-badge{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
+.school-dist{font-weight:400;opacity:.75;font-size:9px;margin-left:2px;}
+.scope-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+.scope-label{font-size:11px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;}
 /* DEEP FILTER PANEL */
-.df-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+.df-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;box-shadow:0 2px 8px rgba(26,58,42,0.06);}
 .df-section{border-bottom:1px solid var(--border);}
 .df-section:last-child{border-bottom:none;}
 .df-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:left;transition:background .15s;}
@@ -123,6 +126,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .df-chips .filter-chip{padding:5px 12px;font-size:12px;}
 .active-filter-tag{animation:tagIn .15s ease;}
 @keyframes tagIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+/* MOBILE FILTER DRAWER */
+.mobile-filter-btn{display:none;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:10px;transition:all .15s;}
+.mobile-filter-btn:hover{border-color:var(--brand);color:var(--brand);}
+.mobile-filter-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);display:none;flex-shrink:0;}
+.filter-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:480;opacity:0;transition:opacity .25s;pointer-events:none;}
+.filter-drawer-backdrop.open{opacity:1;pointer-events:all;}
+.filter-drawer{position:fixed;bottom:0;left:0;right:0;max-height:85vh;background:var(--surface);border-radius:18px 18px 0 0;z-index:490;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:0 -4px 32px rgba(0,0,0,.14);}
+.filter-drawer.open{transform:translateY(0);}
+.filter-drawer-grip{padding:12px 0 4px;display:flex;justify-content:center;cursor:grab;flex-shrink:0;}
+.filter-drawer-grip-bar{width:36px;height:4px;background:var(--border);border-radius:2px;}
+.filter-drawer-header{display:flex;align-items:center;justify-content:space-between;padding:4px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border);}
+.filter-drawer-title{font-size:16px;font-weight:600;color:var(--text);}
+.filter-drawer-close{background:none;border:none;cursor:pointer;font-size:22px;color:var(--text-muted);padding:4px;line-height:1;font-family:inherit;}
+.filter-drawer-close:hover{color:var(--text);}
+.filter-drawer-body{overflow-y:auto;flex:1;padding:16px 20px 0;}
+.filter-drawer-footer{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+@media(max-width:640px){
+  #sDeepFilters{display:none;}
+  .mobile-filter-btn{display:flex;}
+}
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
 .cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
@@ -665,7 +688,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div><h1 class="page-title" id="listingsTitle">Housing listings</h1><p style="color:var(--text-muted);font-size:13px;margin-top:4px;" id="listingsSub">Caldwell University students only</p></div>
         <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
-      <input class="form-input" id="listingSearch" placeholder="&#128269; Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:14px;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input class="form-input" id="listingSearch" placeholder="&#128269; Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;flex:1;">
+        <button class="mobile-filter-btn" id="mobileFilterBtn" onclick="openFilterDrawer()" aria-label="Open filters">
+          &#9881; Filters <span class="mobile-filter-dot" id="mobileFilterDot"></span>
+        </button>
+      </div>
+      <div class="scope-row" id="sSchoolScope">
+        <span class="scope-label">Scope:</span>
+        <button class="filter-chip" onclick="setSchoolScope('mine',this)">My School</button>
+        <button class="filter-chip" onclick="setSchoolScope('10mi',this)">Within 10 mi</button>
+        <button class="filter-chip active" onclick="setSchoolScope('25mi',this)">Within 25 mi</button>
+        <button class="filter-chip" onclick="setSchoolScope('all',this)">All Schools</button>
+      </div>
       <div class="filters" id="sCategoryChips">
         <button class="filter-chip active" onclick="setListingCat('all',this)">All</button>
         <button class="filter-chip" onclick="setListingCat('housing',this)">&#127968; Housing</button>
@@ -1296,6 +1331,24 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 </div><!-- /adminApp -->
 
 <!-- ============================================================
+     MOBILE FILTER DRAWER
+============================================================ -->
+<div id="filterDrawerBackdrop" class="filter-drawer-backdrop" onclick="closeFilterDrawer()"></div>
+<div id="filterDrawer" class="filter-drawer" role="dialog" aria-modal="true" aria-label="Filter listings">
+  <div class="filter-drawer-grip" id="filterDrawerGrip">
+    <div class="filter-drawer-grip-bar"></div>
+  </div>
+  <div class="filter-drawer-header">
+    <span class="filter-drawer-title">Filters</span>
+    <button class="filter-drawer-close" onclick="closeFilterDrawer()" aria-label="Close filters">&#215;</button>
+  </div>
+  <div class="filter-drawer-body" id="filterDrawerBody"></div>
+  <div class="filter-drawer-footer">
+    <button id="filterDrawerApply" class="btn-full btn-brand" onclick="closeFilterDrawer()">Show listings</button>
+  </div>
+</div>
+
+<!-- ============================================================
      SUSPENDED SCREEN
 ============================================================ -->
 <div id="suspendedScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:600;overflow-y:auto;">
@@ -1761,7 +1814,7 @@ const DB = {
 let currentRole = null;
 let sUser = null; // logged-in student
 let adminPreviewMode = false; // true when admin has entered student view
-let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {} };
+let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {}, schoolScope: '25mi' };
 let _kwTimer  = null;
 let _dfPriceOpen = true;
 let _dfCatOpen   = true;
@@ -2013,6 +2066,7 @@ async function loadListings() {
 async function initStudent() {
   const [, , { count: stuCount }] = await Promise.all([
     loadListings(),
+    loadSchools(),
     _settingsReady,
     supabaseClient.from('profiles').select('id', { count: 'exact', head: true })
   ]);
@@ -2057,7 +2111,7 @@ let _schoolsList = [];      // cached from schools table; loaded lazily on first
 // SCHOOL PICKER ─────────────────────────────────────────────
 async function loadSchools() {
   if (_schoolsList.length > 0) return;
-  const { data, error } = await supabaseClient.from('schools').select('id, slug, name').order('name');
+  const { data, error } = await supabaseClient.from('schools').select('id, slug, name, lat, lng').order('name');
   if (error) console.error('[loadSchools] failed:', error.message);
   _schoolsList = data || [];
 }
@@ -2543,11 +2597,15 @@ function clearListingKeyword() {
   renderListings();
 }
 function clearListingFilters() {
-  _filters.category = 'all'; _filters.keyword = '';
+  _filters.category = 'all'; _filters.keyword = ''; _filters.schoolScope = '25mi';
   const el = document.getElementById('listingSearch'); if (el) el.value = '';
   document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
   const allChip = document.querySelector('#sCategoryChips .filter-chip');
   if (allChip) allChip.classList.add('active');
+  // Reset scope chips
+  document.querySelectorAll('#sSchoolScope .filter-chip').forEach(c => c.classList.remove('active'));
+  const scopeChips = document.querySelectorAll('#sSchoolScope .filter-chip');
+  if (scopeChips[2]) scopeChips[2].classList.add('active'); // "Within 25 mi" is index 2
   clearDeepFilters(false);
   renderDeepFilters();
   renderListings();
@@ -2556,6 +2614,76 @@ function clearListingFilters() {
 function clearDeepFilters(rerender = true) {
   _filters.minPrice = null; _filters.maxPrice = null; _filters.details = {};
   if (rerender) { renderDeepFilters(); renderListings(); }
+}
+
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 3958.8; // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function schoolsInScope() {
+  const scope = _filters.schoolScope;
+  if (scope === 'all') return null;
+  const eu = getEffectiveUser();
+  const mySlug = eu?.school || null;
+  if (scope === 'mine') return mySlug ? new Set([mySlug]) : null;
+  const radiusMi = scope === '10mi' ? 10 : 25;
+  const mySchool = mySlug ? _schoolsList.find(s => s.slug === mySlug) : null;
+  if (!mySchool?.lat) return null; // no coords for my school → show all
+  const slugs = new Set();
+  if (mySlug) slugs.add(mySlug); // always include my school
+  _schoolsList.forEach(s => {
+    if (s.lat && haversineDistance(mySchool.lat, mySchool.lng, s.lat, s.lng) <= radiusMi) slugs.add(s.slug);
+  });
+  return slugs;
+}
+
+function setSchoolScope(scope, el) {
+  _filters.schoolScope = scope;
+  document.querySelectorAll('#sSchoolScope .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderListings();
+}
+
+let _drawerTouchStartY = 0;
+
+function openFilterDrawer() {
+  renderDeepFilters();
+  const drawer   = document.getElementById('filterDrawer');
+  const backdrop = document.getElementById('filterDrawerBackdrop');
+  if (!drawer) return;
+  backdrop.classList.add('open');
+  drawer.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Swipe-to-close on the grip
+  const grip = document.getElementById('filterDrawerGrip');
+  if (grip && !grip._swipeReady) {
+    grip._swipeReady = true;
+    grip.addEventListener('touchstart', e => { _drawerTouchStartY = e.touches[0].clientY; drawer.style.transition = 'none'; }, { passive: true });
+    grip.addEventListener('touchmove', e => {
+      const dy = Math.max(0, e.touches[0].clientY - _drawerTouchStartY);
+      drawer.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+    grip.addEventListener('touchend', e => {
+      drawer.style.transition = '';
+      drawer.style.transform = '';
+      if (e.changedTouches[0].clientY - _drawerTouchStartY > 80) closeFilterDrawer();
+    });
+  }
+}
+
+function closeFilterDrawer() {
+  const drawer   = document.getElementById('filterDrawer');
+  const backdrop = document.getElementById('filterDrawerBackdrop');
+  if (!drawer) return;
+  drawer.classList.remove('open');
+  backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('mobileFilterBtn')?.focus();
 }
 
 function toggleDFSection(id) {
@@ -2586,7 +2714,10 @@ function setDeepDate(key, val) {
 }
 
 function renderDeepFilters() {
-  const panel = document.getElementById('sDeepFilters');
+  const isMob = window.innerWidth <= 640;
+  const panel = isMob
+    ? document.getElementById('filterDrawerBody')
+    : document.getElementById('sDeepFilters');
   if (!panel) return;
   const cat = _filters.category;
 
@@ -2770,7 +2901,9 @@ function renderListings() {
     if (d.eventDateTo   && l.details.event_date && l.details.event_date > d.eventDateTo)   return false;
     return true;
   };
-  const allMatch = l => catMatch(l) && kwMatch(l) && priceMatch(l) && detailsMatch(l);
+  const _scope = schoolsInScope();
+  const schoolMatch = l => !_scope || !l.school || _scope.has(l.school);
+  const allMatch = l => catMatch(l) && kwMatch(l) && priceMatch(l) && detailsMatch(l) && schoolMatch(l);
 
   const filtered       = rest.filter(allMatch);
   const pinnedFiltered = pinned.filter(allMatch);
@@ -2807,6 +2940,13 @@ function renderListings() {
     ? `Showing ${matchCount} of ${total} listing${total !== 1 ? 's' : ''}`
     : (total > 0 ? `${total} listing${total !== 1 ? 's' : ''}` : '');
 
+  // Drawer apply button count + filter dot
+  const applyBtn = document.getElementById('filterDrawerApply');
+  if (applyBtn) applyBtn.textContent = `Show ${matchCount} listing${matchCount !== 1 ? 's' : ''}`;
+  const hasDeepFilters = _filters.minPrice !== null || _filters.maxPrice !== null || Object.keys(_filters.details).length > 0;
+  const dot = document.getElementById('mobileFilterDot');
+  if (dot) dot.style.display = hasDeepFilters ? 'inline-block' : 'none';
+
   // Pinned strip — only when no filters active
   const noFilters = _filters.category === 'all' && !_filters.keyword && _filters.minPrice === null && _filters.maxPrice === null && !Object.keys(_filters.details).length;
   const strip = document.getElementById('pinnedStrip');
@@ -2830,9 +2970,18 @@ function renderListings() {
 
 function listingCardHTML(l, isPinned) {
   const eu = getEffectiveUser();
-  const schoolBadge = (eu && l.school && l.school !== eu.school)
-    ? `<span class="school-badge">&#127979; ${_schoolsList.find(s => s.slug === l.school)?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1))}</span>`
-    : '';
+  let schoolBadge = '';
+  if (eu && l.school && l.school !== eu.school) {
+    const theirSchool = _schoolsList.find(s => s.slug === l.school);
+    const mySchool    = _schoolsList.find(s => s.slug === eu.school);
+    const name = theirSchool?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1));
+    let distLabel = '';
+    if (mySchool?.lat && theirSchool?.lat) {
+      const mi = haversineDistance(mySchool.lat, mySchool.lng, theirSchool.lat, theirSchool.lng);
+      distLabel = `<span class="school-dist">· ${mi.toFixed(0)} mi</span>`;
+    }
+    schoolBadge = `<span class="school-badge">&#127979; ${name}${distLabel}</span>`;
+  }
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" onclick="openDetail(${l.id})">
     <div class="listing-img">${l.emoji}
       <span class="listing-type-badge">${l.type}</span>
