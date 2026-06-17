@@ -98,9 +98,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .page-title{font-family:'DM Serif Display',serif;font-size:28px;}
 .btn-sm-s{padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .18s;}
 .btn-green{background:var(--brand);color:#fff;}.btn-green:hover{background:var(--brand-mid);}
-.filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .filter-chip{padding:7px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .15s;font-family:'DM Sans',sans-serif;}
 .filter-chip:hover,.filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+.active-filter-tag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);color:var(--brand);border-radius:20px;padding:3px 8px 3px 11px;font-size:12px;font-weight:500;}
+.active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--brand);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
+.school-badge{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
 .cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
@@ -643,14 +646,20 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div><h1 class="page-title" id="listingsTitle">Housing listings</h1><p style="color:var(--text-muted);font-size:13px;margin-top:4px;" id="listingsSub">Caldwell University students only</p></div>
         <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
-      <div class="filters">
-        <button class="filter-chip active" onclick="filterListings('all',this)">All</button>
-        <button class="filter-chip" onclick="filterListings('housing',this)">&#127968; Housing</button>
-        <button class="filter-chip" onclick="filterListings('clothing',this)">&#128085; Clothing</button>
-        <button class="filter-chip" onclick="filterListings('technology',this)">&#128187; Technology</button>
-        <button class="filter-chip" onclick="filterListings('donation',this)">&#127873; Donation</button>
-        <button class="filter-chip" onclick="filterListings('organization_event',this)">&#128227; Events</button>
-        <button class="filter-chip" onclick="filterListings('other',this)">&#127991; Other</button>
+      <input class="form-input" id="listingSearch" placeholder="&#128269; Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:14px;">
+      <div class="filters" id="sCategoryChips">
+        <button class="filter-chip active" onclick="setListingCat('all',this)">All</button>
+        <button class="filter-chip" onclick="setListingCat('housing',this)">&#127968; Housing</button>
+        <button class="filter-chip" onclick="setListingCat('clothing',this)">&#128085; Clothing</button>
+        <button class="filter-chip" onclick="setListingCat('technology',this)">&#128187; Technology</button>
+        <button class="filter-chip" onclick="setListingCat('donation',this)">&#127873; Donation</button>
+        <button class="filter-chip" onclick="setListingCat('organization_event',this)">&#128227; Events</button>
+        <button class="filter-chip" onclick="setListingCat('other',this)">&#127991; Other</button>
+      </div>
+      <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:16px;">
+        <span id="sActiveTags" style="display:contents;"></span>
+        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
+        <span id="sResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
       </div>
       <!-- PINNED STRIP -->
       <div class="pinned-strip" id="pinnedStrip" style="display:none">
@@ -1732,9 +1741,13 @@ const DB = {
 let currentRole = null;
 let sUser = null; // logged-in student
 let adminPreviewMode = false; // true when admin has entered student view
-let sFilter = 'all';
+let _filters = { category: 'all', keyword: '' };
+let _kwTimer  = null;
 let sConvoActive = null;
-let sRealtimeChannel = null;
+let sRealtimeChannel  = null;
+let sGlobalMsgChannel = null;
+let sNotifChannel     = null;
+let sProfileChannel   = null;
 let sUnreadCount = 0;
 let adminUUID = null;
 const SUPER_ADMIN_ID = '7f4e052c-666e-4955-8ced-9da380dbe589';
@@ -1758,6 +1771,7 @@ let _anaRange = '30d', _anaSchool = 'all', _anaNavSource = null;
 let _approvalSchoolFilter = 'all', _approvalCategoryFilter = 'all';
 let _dashLogFilter = 'all';
 let _actPage = 0, _actFilter = 'all';
+let _adminRealtimeChannels = [];
 let aiOpen = false, aiHistory = [];
 let bType = 'announcement';
 
@@ -1810,6 +1824,9 @@ initStudent();
   if (applyMaintenance()) return;
   updateSNav();
   checkStudentNotifications(session.user.id);
+  startGlobalMsgListener(session.user.id);
+  startNotifListener(session.user.id);
+  startProfileListener(session.user.id);
 })();
 
 async function doAdminLogin() {
@@ -1881,7 +1898,10 @@ function switchBackToAdmin() {
 
 async function sLogout() {
   if (adminPreviewMode) { switchBackToAdmin(); return; }
-  if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  if (sRealtimeChannel)  { supabaseClient.removeChannel(sRealtimeChannel);  sRealtimeChannel  = null; }
+  if (sGlobalMsgChannel) { supabaseClient.removeChannel(sGlobalMsgChannel); sGlobalMsgChannel = null; }
+  if (sNotifChannel)     { supabaseClient.removeChannel(sNotifChannel);     sNotifChannel     = null; }
+  if (sProfileChannel)   { supabaseClient.removeChannel(sProfileChannel);   sProfileChannel   = null; }
   await supabaseClient.auth.signOut();
   sUser = null;
   updateSNav();
@@ -2013,7 +2033,8 @@ let _schoolsList = [];      // cached from schools table; loaded lazily on first
 // SCHOOL PICKER ─────────────────────────────────────────────
 async function loadSchools() {
   if (_schoolsList.length > 0) return;
-  const { data } = await supabaseClient.from('schools').select('id, slug, name').order('name');
+  const { data, error } = await supabaseClient.from('schools').select('id, slug, name').order('name');
+  if (error) console.error('[loadSchools] failed:', error.message);
   _schoolsList = data || [];
 }
 
@@ -2038,7 +2059,7 @@ function filterSchools(query) {
 }
 
 function selectSchoolById(id) {
-  const school = _schoolsList.find(s => s.id === id);
+  const school = _schoolsList.find(s => String(s.id) === String(id));
   if (school) selectSchool(school);
 }
 
@@ -2356,12 +2377,17 @@ async function doSignup() {
     id: authData.user.id, first_name: first, last_name: last,
     email, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug
   });
+  logEvent('student_signup', { targetType: 'student', targetId: authData.user.id, targetLabel: first + ' ' + last, school: _selectedSchool.slug });
 
   sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, username, major, year, initials, color, school: _selectedSchool.slug };
   closeModal('signupModal');
   updateSNav();
   toast('Welcome to CaldwellNest, ' + first + '!');
+  await loadListings();
   showPage('listings');
+  startGlobalMsgListener(authData.user.id);
+  startNotifListener(authData.user.id);
+  startProfileListener(authData.user.id);
 }
 
 async function doLogin() {
@@ -2390,8 +2416,12 @@ async function doLogin() {
   updateSNav();
   toast('Welcome back, ' + profile.first_name + '!');
   if (applyMaintenance()) return;
+  await loadListings();
   showPage('listings');
   checkStudentNotifications(authData.user.id);
+  startGlobalMsgListener(authData.user.id);
+  startNotifListener(authData.user.id);
+  startProfileListener(authData.user.id);
 }
 
 async function checkStudentNotifications(userId) {
@@ -2464,23 +2494,74 @@ function requireAuth(action) {
   return true;
 }
 
-function filterListings(type, el) {
-  sFilter = type;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+function setListingCat(cat, el) {
+  _filters.category = cat;
+  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  renderListings();
+}
+function onListingSearch(val) {
+  clearTimeout(_kwTimer);
+  _kwTimer = setTimeout(() => { _filters.keyword = val.trim().toLowerCase(); renderListings(); }, 250);
+}
+function clearListingCat() {
+  _filters.category = 'all';
+  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
+  const allChip = document.querySelector('#sCategoryChips .filter-chip');
+  if (allChip) allChip.classList.add('active');
+  renderListings();
+}
+function clearListingKeyword() {
+  _filters.keyword = '';
+  const el = document.getElementById('listingSearch'); if (el) el.value = '';
+  renderListings();
+}
+function clearListingFilters() {
+  _filters.category = 'all'; _filters.keyword = '';
+  const el = document.getElementById('listingSearch'); if (el) el.value = '';
+  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
+  const allChip = document.querySelector('#sCategoryChips .filter-chip');
+  if (allChip) allChip.classList.add('active');
   renderListings();
 }
 
 function renderListings() {
   const approved = DB.listings.filter(l => l.status === 'approved');
-  const pinned = approved.filter(l => l.pinned);
-  const rest = approved.filter(l => !l.pinned);
-  const filtered = (sFilter === 'all' ? rest : rest.filter(l => l.category === sFilter));
-  const pinnedFiltered = (sFilter === 'all' ? pinned : pinned.filter(l => l.category === sFilter));
+  const pinned   = approved.filter(l => l.pinned);
+  const rest     = approved.filter(l => !l.pinned);
 
-  // Pinned strip
+  const catMatch = l => _filters.category === 'all' || l.category === _filters.category;
+  const kwMatch  = l => !_filters.keyword ||
+    l.title.toLowerCase().includes(_filters.keyword) ||
+    (l.desc || '').toLowerCase().includes(_filters.keyword);
+
+  const filtered       = rest.filter(l => catMatch(l) && kwMatch(l));
+  const pinnedFiltered = pinned.filter(l => catMatch(l) && kwMatch(l));
+
+  // Active filter bar
+  const tagsEl   = document.getElementById('sActiveTags');
+  const clearBtn = document.getElementById('sClearAll');
+  const countEl  = document.getElementById('sResultCount');
+  const tags = [];
+  if (_filters.category !== 'all') {
+    const label = CATEGORY_LABELS[_filters.category] || _filters.category;
+    tags.push(`<span class="active-filter-tag">${label} <button onclick="clearListingCat()">&#215;</button></span>`);
+  }
+  if (_filters.keyword) {
+    tags.push(`<span class="active-filter-tag">&ldquo;${_filters.keyword}&rdquo; <button onclick="clearListingKeyword()">&#215;</button></span>`);
+  }
+  if (tagsEl)   tagsEl.innerHTML = tags.join('');
+  if (clearBtn) clearBtn.style.display = tags.length ? 'inline' : 'none';
+  const total      = approved.length;
+  const matchCount = filtered.length + pinnedFiltered.length;
+  if (countEl) countEl.textContent = tags.length
+    ? `${matchCount} of ${total} listing${total !== 1 ? 's' : ''}`
+    : (total > 0 ? `${total} listing${total !== 1 ? 's' : ''}` : '');
+
+  // Pinned strip — only when no filters active
+  const noFilters = _filters.category === 'all' && !_filters.keyword;
   const strip = document.getElementById('pinnedStrip');
-  if (pinnedFiltered.length && sFilter === 'all') {
+  if (pinnedFiltered.length && noFilters) {
     strip.style.display = 'block';
     document.getElementById('pinnedGrid').innerHTML = pinnedFiltered.map(l => listingCardHTML(l, true)).join('');
   } else { strip.style.display = 'none'; }
@@ -2488,17 +2569,21 @@ function renderListings() {
   // Regular grid
   const grid = document.getElementById('listingsGrid');
   if (filtered.length === 0) {
-    const isFiltered = sFilter !== 'all';
-    const emptyMsg = approved.length === 0
-      ? 'No listings yet — be the first to post one!'
-      : 'No listings match this filter.';
-    grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-faint);grid-column:1/-1"><div style="font-size:40px;margin-bottom:12px">${approved.length === 0 ? '&#127968;' : '&#128269;'}</div><div>${emptyMsg}</div></div>`;
+    grid.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-faint);grid-column:1/-1">
+      <div style="font-size:40px;margin-bottom:12px">${approved.length === 0 ? '&#127968;' : '&#128269;'}</div>
+      <div>${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match your filters.'}</div>
+      ${!noFilters ? `<button onclick="clearListingFilters()" style="margin-top:16px;background:none;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
+    </div>`;
     return;
   }
   grid.innerHTML = filtered.map(l => listingCardHTML(l, false)).join('');
 }
 
 function listingCardHTML(l, isPinned) {
+  const eu = getEffectiveUser();
+  const schoolBadge = (eu && l.school && l.school !== eu.school)
+    ? `<span class="school-badge">&#127979; ${_schoolsList.find(s => s.slug === l.school)?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1))}</span>`
+    : '';
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" onclick="openDetail(${l.id})">
     <div class="listing-img">${l.emoji}
       <span class="listing-type-badge">${l.type}</span>
@@ -2506,6 +2591,7 @@ function listingCardHTML(l, isPinned) {
     </div>
     <div class="listing-body">
       <div class="listing-title">${l.title}</div>
+      ${schoolBadge ? `<div style="margin-bottom:6px;">${schoolBadge}</div>` : ''}
       <div class="listing-location">&#128205; ${l.location}</div>
       <div class="listing-meta">${l.tags.slice(0,3).map(t => `<span class="meta-tag">${t}</span>`).join('')}</div>
       <div class="listing-footer">
@@ -2613,6 +2699,7 @@ async function submitReport() {
     return;
   }
 
+  logEvent('report_submitted', { targetType: 'listing', targetId: _reportTarget?.id, targetLabel: _reportTarget?.title, school: eu.school });
   document.getElementById('reportFormWrap').style.display = 'none';
   document.getElementById('reportSuccess').style.display = 'block';
 }
@@ -2857,6 +2944,78 @@ function handleRealtimeMessage(payload) {
   renderConvos();
 }
 
+function startGlobalMsgListener(userId) {
+  if (sGlobalMsgChannel) { supabaseClient.removeChannel(sGlobalMsgChannel); sGlobalMsgChannel = null; }
+  sGlobalMsgChannel = supabaseClient
+    .channel('global-msgs-' + userId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` }, handleGlobalMessage)
+    .subscribe();
+}
+
+function startNotifListener(userId) {
+  if (sNotifChannel) { supabaseClient.removeChannel(sNotifChannel); sNotifChannel = null; }
+  sNotifChannel = supabaseClient
+    .channel('notifs-' + userId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `profile_id=eq.${userId}` }, handleNotif)
+    .subscribe();
+}
+
+function handleNotif(payload) {
+  if (!payload.new) return;
+  const eu = getEffectiveUser();
+  if (!eu) return;
+  checkStudentNotifications(eu.id);
+}
+
+function startProfileListener(userId) {
+  if (sProfileChannel) { supabaseClient.removeChannel(sProfileChannel); sProfileChannel = null; }
+  sProfileChannel = supabaseClient
+    .channel('profile-status-' + userId)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` }, handleProfileUpdate)
+    .subscribe();
+}
+
+async function handleProfileUpdate(payload) {
+  const profile = payload.new;
+  if (!profile) return;
+  if (profile.status === 'suspended') {
+    const { data: sh } = await supabaseClient
+      .from('suspension_history')
+      .select('id')
+      .eq('profile_id', profile.id)
+      .eq('action', 'suspended')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    showSuspensionScreen(profile.email || sUser?.email, profile.id, profile.suspension_reason, sh?.id || null);
+  } else if (profile.status === 'active') {
+    const screen = document.getElementById('suspendedScreen');
+    if (screen && screen.style.display !== 'none') {
+      hideSuspensionScreen();
+      toast('Your account has been reinstated. Welcome back!');
+    }
+  }
+}
+
+function handleGlobalMessage(payload) {
+  const msg = payload.new;
+  const eu = getEffectiveUser();
+  if (!msg || !eu) return;
+  if (msg.sender_id === eu.id) return;
+  // Skip if this is the active conversation — sRealtimeChannel already handles it
+  if (sConvoActive) {
+    const activeKey = [eu.id, sConvoActive.userId].sort().join(':');
+    if (msg.conversation_key === activeKey) return;
+  }
+  if (!document.getElementById('page-messages').classList.contains('active')) {
+    sUnreadCount++;
+    const badge = document.getElementById('msgBadge');
+    badge.textContent = sUnreadCount;
+    badge.style.display = 'inline';
+  }
+  renderConvos();
+}
+
 function renderListingGrid(listings, isOwn) {
   if (!listings || !listings.length) {
     return `<div style="text-align:center;padding:28px 0;color:var(--text-faint);font-size:13px">
@@ -2967,6 +3126,7 @@ async function initAdmin() {
   renderBcastTemplates();
   buildAnalytics();
   initAI();
+  startAdminRealtimeListeners();
   if (localStorage.getItem('cn_admin_sidebar') === 'collapsed') {
     const sidebar = document.querySelector('.a-sidebar');
     const main = document.querySelector('.a-main');
@@ -2977,6 +3137,56 @@ async function initAdmin() {
     if (btn) btn.textContent = '›';
     setTimeout(() => sidebar.style.transition = '', 10);
   }
+}
+
+function startAdminRealtimeListeners() {
+  _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
+  _adminRealtimeChannels = [];
+
+  const refreshActive = (sectionId, fn) => {
+    const active = document.querySelector('.a-section.active');
+    if (active?.id === sectionId) fn();
+  };
+
+  _adminRealtimeChannels.push(
+    supabaseClient.channel('adm-listings')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'listings' }, () => {
+        updateAdminBadges();
+        renderAdminDashLog();
+        refreshActive('asec-approvals', renderAApprovals);
+      })
+      .subscribe()
+  );
+
+  _adminRealtimeChannels.push(
+    supabaseClient.channel('adm-reports')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, () => {
+        updateReportsBadge();
+        renderAdminDashLog();
+        refreshActive('asec-reports', renderAReports);
+      })
+      .subscribe()
+  );
+
+  _adminRealtimeChannels.push(
+    supabaseClient.channel('adm-appeals')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'appeals' }, () => {
+        updateAppealsBadge();
+        renderAdminDashLog();
+        refreshActive('asec-appeals', renderAppeals);
+      })
+      .subscribe()
+  );
+
+  _adminRealtimeChannels.push(
+    supabaseClient.channel('adm-profiles')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, () => {
+        updateAdminBadges();
+        renderAdminDashLog();
+        refreshActive('asec-students', renderAStudents);
+      })
+      .subscribe()
+  );
 }
 
 function refreshAdmin() {
@@ -3163,6 +3373,10 @@ const ACTION_META = {
   export:               { label: 'Data exported',           color: '#117A65' },
   return_to_pending:    { label: 'Returned to pending',     color: '#d4860a' },
   undo_action:          { label: 'Action undone',           color: '#d4860a' },
+  student_signup:       { label: 'New student signup',      color: '#4a9470' },
+  listing_submitted:    { label: 'Listing submitted',       color: '#d4860a' },
+  report_submitted:     { label: 'Report filed',            color: '#c0392b' },
+  appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
 };
 
 const ACTIVITY_FILTER_GROUPS = {
@@ -3170,6 +3384,7 @@ const ACTIVITY_FILTER_GROUPS = {
   moderation: ['remove_listing','suspend_student','reinstate_student','resolve_report','dismiss_report'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','content_edit','color_edit','setting_change','export'],
+  students:   ['student_signup','listing_submitted','report_submitted','appeal_submitted'],
 };
 
 const fmtActivityTime = d => {
@@ -3270,6 +3485,7 @@ async function renderAdminDashLog() {
     { key: 'approvals',  label: 'Approvals'  },
     { key: 'moderation', label: 'Moderation' },
     { key: 'appeals',    label: 'Appeals'    },
+    { key: 'students',   label: 'Students'   },
     { key: 'system',     label: 'System'     },
   ];
   if (filtersEl) filtersEl.innerHTML = chips.map(c =>
@@ -4862,6 +5078,7 @@ async function renderAActivity() {
     { key: 'approvals',  label: 'Approvals'  },
     { key: 'moderation', label: 'Moderation' },
     { key: 'appeals',    label: 'Appeals'    },
+    { key: 'students',   label: 'Students'   },
     { key: 'system',     label: 'System'     },
   ];
   if (chipsEl) chipsEl.innerHTML = chips.map(c =>
@@ -5750,6 +5967,7 @@ async function submitAppeal() {
     return;
   }
 
+  logEvent('appeal_submitted', { targetType: 'student', targetId: _suspendedProfileId });
   document.getElementById('appealFormWrap').style.display = 'none';
   document.getElementById('appealSuccess').style.display = 'block';
 }
