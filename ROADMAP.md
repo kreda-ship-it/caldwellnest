@@ -3,7 +3,25 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-12
+Last updated: 2026-06-15
+
+---
+
+## BRAND DECISION (locked in)
+
+**Company:** Amahle Digital Creatives — founded by Kalkidan Reda (KR).
+
+**Parent platform:** NESTREL — the multi-school platform. This is the brand
+schools sign onto. NESTREL is what the landing page, pitch deck, and any
+expansion materials are built around.
+
+**Per-school instances:** Each school gets its own branded instance of NESTREL:
+- **CaldwellNest** — Caldwell University. The first and flagship instance.
+- Future schools get their own name (e.g. RutgersNest, TempleNest, etc.)
+
+**Hierarchy:**
+Amahle Digital Creatives BUILT NESTREL.
+NESTREL POWERS CaldwellNest (and every future per-school instance).
 
 ---
 
@@ -102,12 +120,22 @@ Last updated: 2026-06-12
 - ✅ Active/pending/rejected listings stay in the main table;
       removed listings separated and hidden from students automatically
 
-**Listing status history ✅ (JS done — SQL still needs to be run)**
-- ✅ `logStatusChange()` helper — fires-and-forgets an INSERT after every
-      status change: approve, reject, remove, restore, pin, unpin, and edit
-- ✅ Status history is fetched from Supabase and displayed in the listing
-      detail drawer (timeline with old → new status, reason, date)
-- ⬜ SQL still needs to be run in Supabase (see Pending SQL section below)
+**Listing events / audit log ✅**
+- ✅ All listing lifecycle events (submit, approve, reject, remove, restore,
+      pin, unpin, edit) write to `admin_activity_log` — ONE table, no duplication
+- ✅ `logEvent()` helper — student-safe writer; used by `submitListing()` to log
+      the "submitted for review" event (students can't write to admin-only tables
+      otherwise; logEvent() uses relaxed RLS: any authenticated user can log
+      events where they are the actor)
+- ✅ `logAdminAction()` updated with `category` field — all listing events now
+      carry the listing's category for future filtering
+- ✅ `saveAEdit()` captures full before/after snapshot: status, title, price,
+      location, description — not just title and status as before
+- ✅ `listing_status_history` table CANCELLED — never created; replaced by
+      querying `admin_activity_log` directly (eliminates duplicate-write risk)
+- ✅ Listing detail drawer timeline queries `admin_activity_log` by `listing_id`
+      (oldest-first, so timeline reads: Submitted → Approved → Removed etc.)
+- ✅ SQL run 2026-06-15
 
 **Suspensions ✅**
 - ✅ `status` column on profiles (active / suspended)
@@ -120,10 +148,8 @@ Last updated: 2026-06-12
 - ✅ `suspension_history` table in Supabase
 - ✅ `confirmSuspend()` INSERTs into suspension_history (action: 'suspended')
 - ✅ `aReinstate()` INSERTs into suspension_history (action: 'reinstated')
-- ⬜ `school` column on suspension_history — design complete (REFINE ONLY done);
-      SQL not yet run. Needed so school-at-time-of-event is captured as a
-      snapshot, not derived from profiles.school later (which could change
-      if a student transfers). See Pending SQL section.
+- ✅ `school` column on suspension_history — captures school at time of event,
+      not derived from profiles later (survives transfers correctly). SQL run 2026-06-15.
 
 **Appeals ✅**
 - ✅ Appeal form on the suspension screen
@@ -224,7 +250,7 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 **Multi-school student history — designed, not yet built**
 - ✅ REFINE ONLY plan complete: suspension_history.school column design,
       cross-school report scoping rules, RLS policy drafts for school admins
-- ⬜ suspension_history.school column SQL — not yet run (see Pending SQL)
+- ✅ suspension_history.school column SQL — run 2026-06-15
 - ⬜ School label on listing rows, suspension entries, report rows inside the
       student history tabs — display work; deferred to dashboard polish pass
 - 🔒 School-admin RLS enforcement (scoped reports, profiles, suspension_history)
@@ -244,6 +270,18 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 - ✅ Students by major chart — real data from profiles.major
 - ✅ Listings by type chart — real data; each bar is clickable and filters
       the All Listings section to that type
+- ✅ Analytics overhaul — complete rebuild with real Supabase data across all
+      6 listing categories (not just housing); time-range filter (7d / 30d /
+      3mo / All time); vs-prior-period deltas on all stat cards; real
+      top-posted-students widget; fake "Top performing listings" table removed
+- ✅ Platform Health section — honest real-time queries: DB ping + latency,
+      listings posted today, new signups today, pending approvals, open reports,
+      last backup age (from localStorage). No fake numbers.
+- ✅ Analytics widgets clickable — each stat card and category bar navigates to
+      the relevant filtered section; "← Back to Analytics" button appears at
+      the top of the content area when navigating from analytics
+- ✅ Category filter chips on Approvals page — filters pending listings by type
+      (Housing, Clothing, Technology, etc.); auto-opens when a filter is active
 
 ---
 
@@ -257,79 +295,115 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 
 ---
 
-## ⬜ PENDING SQL — run these in Supabase SQL Editor
+## ✅ PENDING SQL — all run
 
-These features are already wired in the JS code. The database side just hasn't
-been created yet. Run in order, then check each item off.
+```
+✅ Listing audit system — listing_id + category on admin_activity_log,
+   trigger, RLS, backfill (2026-06-15)
+✅ suspension_history.school column — backfilled from profiles (2026-06-15)
+✅ appeal_audit_log table — created with RLS (2026-06-15)
+✅ notifications table — created with RLS (2026-06-15)
+```
+
+### LISTINGS AUDIT SYSTEM SQL (run this too — adds listing history to admin_activity_log)
 
 ```sql
--- 1. Listing status history (tracks every approve/reject/pin/remove action)
-CREATE TABLE IF NOT EXISTS listing_status_history (
-  id bigserial PRIMARY KEY,
-  listing_id bigint REFERENCES listings(id) ON DELETE CASCADE,
-  old_status text,
-  new_status text NOT NULL,
-  changed_by uuid REFERENCES auth.users(id),
-  reason text,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE listing_status_history ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON listing_status_history TO authenticated;
-CREATE POLICY "Admins can view status history"
-  ON listing_status_history FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
-CREATE POLICY "Admins can insert status history"
-  ON listing_status_history FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
+-- =============================================
+-- LISTINGS AUDIT SYSTEM
+-- Extends admin_activity_log; never creates listing_status_history.
+-- Run all at once.
+-- =============================================
 
--- 2. School snapshot on suspension_history
---    Records which school the student was at the TIME of each event,
---    so the record stays accurate even if they later transfer.
-ALTER TABLE suspension_history ADD COLUMN IF NOT EXISTS school text;
-UPDATE suspension_history sh
-SET school = p.school
-FROM profiles p
-WHERE sh.profile_id = p.id AND sh.school IS NULL;
+-- Step 1: Add listing_id and category columns to admin_activity_log
+ALTER TABLE admin_activity_log
+  ADD COLUMN IF NOT EXISTS listing_id bigint REFERENCES listings(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS category text;
 
--- 3. Appeal audit log (one row per decision or edit; never deleted)
-CREATE TABLE IF NOT EXISTS appeal_audit_log (
-  id bigserial PRIMARY KEY,
-  appeal_id uuid REFERENCES appeals(id) ON DELETE CASCADE,
-  action text NOT NULL,      -- 'resolved_reinstated', 'resolved_upheld', 'decision_edited'
-  new_status text,           -- the status after this action
-  actioned_by uuid REFERENCES auth.users(id),
-  note text,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE appeal_audit_log ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON appeal_audit_log TO authenticated;
-CREATE POLICY "Admins view appeal log"
-  ON appeal_audit_log FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
-CREATE POLICY "Admins insert appeal log"
-  ON appeal_audit_log FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()));
+CREATE INDEX IF NOT EXISTS idx_aal_listing_id ON admin_activity_log(listing_id);
+CREATE INDEX IF NOT EXISTS idx_aal_category   ON admin_activity_log(category);
 
--- 4. Notifications (student sees these on next login after an appeal decision)
-CREATE TABLE IF NOT EXISTS notifications (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  profile_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
-  type text NOT NULL,          -- 'appeal_resolved', 'appeal_edited'
-  message text NOT NULL,
-  read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT, UPDATE ON notifications TO authenticated;
-CREATE POLICY "Own notifications"
-  ON notifications FOR SELECT TO authenticated
-  USING (auth.uid() = profile_id);
-CREATE POLICY "Admin insert notifications"
-  ON notifications FOR INSERT TO authenticated
-  WITH CHECK (true);
-CREATE POLICY "Own mark read"
-  ON notifications FOR UPDATE TO authenticated
-  USING (auth.uid() = profile_id);
+-- Step 2: Trigger that auto-fills listing_id from target_id
+-- whenever target_type = 'listing'. No JS changes needed for existing events.
+CREATE OR REPLACE FUNCTION fn_sync_listing_id()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.target_type = 'listing' AND NEW.target_id IS NOT NULL THEN
+    BEGIN
+      NEW.listing_id := NEW.target_id::bigint;
+    EXCEPTION WHEN others THEN
+      NULL;
+    END;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_listing_id ON admin_activity_log;
+CREATE TRIGGER trg_sync_listing_id
+  BEFORE INSERT ON admin_activity_log
+  FOR EACH ROW EXECUTE FUNCTION fn_sync_listing_id();
+
+-- Step 3: Update INSERT RLS so authenticated students can log their own events
+DO $$
+BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS "Admins can insert activity log" ON admin_activity_log';
+  EXECUTE 'DROP POLICY IF EXISTS "Admin insert activity log" ON admin_activity_log';
+  EXECUTE 'DROP POLICY IF EXISTS "Admins insert activity" ON admin_activity_log';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+CREATE POLICY "Authenticated users log own events"
+  ON admin_activity_log FOR INSERT TO authenticated
+  WITH CHECK (
+    (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()))
+    OR (auth.uid() = actor_id)
+  );
+
+-- Step 4: School-scoped SELECT policy
+-- Super-admin sees all; school admins see only their school's events
+DO $$
+BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS "Admins can view activity log" ON admin_activity_log';
+  EXECUTE 'DROP POLICY IF EXISTS "Admin view activity log" ON admin_activity_log';
+  EXECUTE 'DROP POLICY IF EXISTS "Admins view activity" ON admin_activity_log';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+CREATE POLICY "Scoped admin activity log view"
+  ON admin_activity_log FOR SELECT TO authenticated
+  USING (
+    is_super_admin()
+    OR (
+      get_admin_school() IS NOT NULL
+      AND school = get_admin_school()
+    )
+  );
+
+-- Step 5: Backfill — create 'listing_submitted' events for existing listings
+-- Idempotent: skips any listing that already has a submitted event.
+-- Skips listings with no poster_id (legacy/demo rows).
+INSERT INTO admin_activity_log
+  (actor_id, actor_school, action_type, target_type, target_id,
+   target_label, school, listing_id, category, after_state, created_at)
+SELECT
+  l.poster_id,
+  l.school,
+  'listing_submitted',
+  'listing',
+  l.id::text,
+  l.title,
+  l.school,
+  l.id,
+  l.category,
+  jsonb_build_object('status', 'pending'),
+  l.created_at
+FROM listings l
+WHERE l.poster_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM admin_activity_log a
+    WHERE a.listing_id = l.id
+      AND a.action_type = 'listing_submitted'
+  );
 
 NOTIFY pgrst, 'reload schema';
 ```
@@ -471,21 +545,18 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 - `suspension_history` — exists; confirmSuspend + aReinstate write to it;
   `school` column pending SQL run (see Pending SQL section)
 - `schools` metadata table — Caldwell row exists with lat/lng/mascot
-- `appeal_audit_log` — pending SQL run (see Pending SQL section)
-- `notifications` — pending SQL run (see Pending SQL section)
+- `appeal_audit_log` — table created, RLS active (SQL run 2026-06-15)
+- `notifications` — table created, RLS active (SQL run 2026-06-15)
 
 ### Still using fake/in-memory data (needs fixing)
 - **`DB.log`** → activity log resets on every refresh. Fix later: create
   `activity_log` table (DATA TIER 3).
-- **`DB.settings`** → `requireApproval` and `eduOnly` toggles reset on refresh.
-  ⚠️ This is a real security risk — if the page refreshes, unapproved listings
-  could slip through or the .edu gate could silently drop. Priority: DATA TIER 3.
+- **`DB.settings`** → ✅ persisted to `platform_settings` table (2026-06-16).
+  `requireApproval` and `maintenance` are now enforced in code. Toggles survive
+  refresh. `emailAlerts` remains a no-op until a backend email service is added.
 - **`BCAST_HIST`** → sent broadcasts are lost on refresh. DATA TIER 3.
 - **`DB.content` / site editor** → color + content changes vanish on refresh.
   DATA TIER 4.
-- **Analytics charts + health monitor** → hardcoded fake numbers (analytics
-  page charts are now real; health monitor is still fake).
-  ⚠️ NEVER show health monitor to school or partners as real data. DATA TIER 5.
 
 ### Conversion order
 
@@ -499,8 +570,8 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 - ✅ `reporter_id` on reports — confirmed exists and in use
 
 **DATA TIER 3 — Admin operations that should persist across refreshes**
-- ⬜ `activity_log` table — admin audit trail
-- ⬜ `platform_settings` table — requireApproval + eduOnly toggles (security risk)
+- ✅ `activity_log` / `admin_activity_log` — admin audit trail (complete)
+- ✅ `platform_settings` table — requireApproval + maintenance enforced (2026-06-16)
 - ⬜ `broadcasts` table — sent broadcasts persist
 
 **DATA TIER 4 — Content / cosmetic**
@@ -509,7 +580,10 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 **DATA TIER 5 — Analytics (real data eventually, not urgent)**
 - ✅ Analytics page stat cards + monthly chart + major chart + listings by type
       chart — all real Supabase queries now
-- ⬜ Health monitor — real uptime/latency; needs a backend service layer
+- ✅ Platform Health section — real Supabase queries (DB ping, today counts,
+      pending + open reports, backup age)
+- ⬜ Deep health metrics (uptime %, error rate, server-side latency) — needs
+      a backend service layer; deferred
 
 ### Fine to leave as-is
 - `localStorage` UI preferences (cn_msg_sidebar, cn_admin_sidebar) — correct to keep local
@@ -599,9 +673,18 @@ profile and editing flow is partially built.
        - ✅ School shown on listings, approvals, messages participants
        - ✅ Analytics charts — real data (monthly, by major, by type)
        - ✅ Appeals: edit decision + audit log + student notifications
-       - ⬜ Run Pending SQL (listing_status_history, suspension_history.school,
-             appeal_audit_log, notifications) — Kal runs in Supabase SQL Editor
-       - ⬜ platform_settings table (security: approval toggle resets on refresh)
+       - ✅ Analytics overhaul: time-range filter (7d/30d/3mo/All), vs-prior-period
+             deltas, real category chart (all 6 types), real top-posted-students
+             widget, Platform Health rebuilt with honest Supabase queries
+       - ✅ Analytics widgets all clickable → filtered section navigation;
+             "← Back to Analytics" back button in content area
+       - ✅ Category filter chips on Approvals page
+       - ✅ "Two Caldwells" data bug fixed — school field normalized to lowercase
+             via SQL UPDATE across profiles, listings, and suspension_history
+       - ✅ Run Pending SQL — all tables and columns live as of 2026-06-15
+             (listing audit system, suspension_history.school, appeal_audit_log,
+             notifications)
+       - ✅ platform_settings table — requireApproval + maintenance enforced, survive refresh
 11. ⬜ Messaging polish
        - ⬜ Filter by listing / listing chip in input bar
        - ⬜ Typing indicator (Supabase Presence)
@@ -620,11 +703,10 @@ profile and editing flow is partially built.
 - Email confirmation is OFF for development — turn it back ON before real launch
 - No automatic backups on Supabase free tier — don't store anything irreplaceable
 - Free Supabase projects pause after ~1 week of inactivity (just un-pause them)
-- Fake analytics numbers on admin dashboard — never show to school/partners as real
 - `requireApproval` and `eduOnly` toggles reset on page refresh — potential
   security gap if a refresh happens mid-session. Fix is DATA TIER 3.
-- `appeal_audit_log` and `notifications` tables require SQL to be run before
-  those features activate (edits and notifications fail silently until then)
+- `appeal_audit_log` and `notifications` tables are live — appeal edit decisions
+  and student notifications are fully active
 
 ---
 
@@ -639,4 +721,13 @@ profile and editing flow is partially built.
 
 ## Notes & parking lot
 *(Drop new ideas here, then sort them into a tier later.)*
--
+
+### Maintenance mode polish (future)
+Basic maintenance toggle works and persists. Future polish ideas:
+- ⬜ Custom maintenance message — let admin write the reason/ETA shown on the page
+      instead of the hardcoded "Scheduled maintenance" text
+- ⬜ Estimated-back timer — admin sets a return time; countdown shown to students
+- ⬜ Admin bypass link — a secret URL parameter (e.g. `?preview=1`) or allow-list
+      so specific people can test the site while maintenance is on
+- ⬜ Maintenance scheduled window — set a start + end time in advance; toggles
+      automatically without admin staying awake to flip it
