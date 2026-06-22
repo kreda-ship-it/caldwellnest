@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-15
+Last updated: 2026-06-22
 
 ---
 
@@ -259,6 +259,50 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 - 🔒 Stage C: super-admin schools dashboard (school cards, assign admins,
       permission template editor)
 
+### Broadcasts ✅
+
+- ✅ `broadcasts` table in Supabase — fully persistent, survives refresh
+- ✅ Broadcast compose: message type chips (announcement / warning / reminder / feature),
+      display-as chips (banner / notification / both), subject, message body,
+      audience selector, schedule datetime, expiry datetime
+- ✅ Save as Draft / Send Now / Schedule — status auto-switches based on
+      whether a schedule date in the future is entered
+- ✅ Edit any broadcast (including already-sent ones) — loads back into the
+      compose form with a note if already delivered
+- ✅ Soft-delete: "Delete" sets status='deleted' and moves to Deleted tab;
+      row is preserved, not removed
+- ✅ Restore from Deleted tab → puts it back as a draft
+- ✅ Delete forever → hard permanent delete, accessible from Deleted tab only
+- ✅ History panel with 5 filter tabs: All (excludes deleted), Sent, Scheduled,
+      Drafts, Deleted
+- ✅ Status badges: Sent (blue), Scheduled (indigo), Draft (grey), Deleted (red)
+- ✅ 19 quick templates across 6 categories: General, Welcome/Onboarding,
+      Seasonal, Platform Updates, Safety, Beta — one-click pre-fill
+- ✅ Student-facing broadcasts: colored dismissible banner cards above the
+      student app; up to 3 shown at once; dismissed IDs saved in localStorage
+- ✅ Broadcast landing pages — Stage 1:
+      - Optional "Add landing page" toggle in compose (hidden by default)
+      - Landing title + markdown textarea with live side-by-side preview
+      - `renderMd()` — inline markdown renderer: headings, bold, italic, links, lists
+      - `sanitizeMd()` — allowlist-based XSS filter: blocks javascript: URLs,
+        strips unsafe tags; only h2/h3/h4/p/strong/em/ul/li/a/br allowed
+      - Student banner: "Read more →" link appears when landing_body exists
+      - Clicking opens a modal with the full rendered landing page
+      - History panel shows a "📖 Landing page" chip on entries that have one
+      - SQL: two nullable columns added: `landing_title text`, `landing_body text`
+- ✅ Broadcast activity log: broadcast_sent, broadcast_drafted, broadcast_scheduled,
+      broadcast_updated, broadcast_deleted, broadcast_restored,
+      broadcast_permanently_deleted — all tracked in admin_activity_log
+- ✅ Panel horizontal scroll — min-width:680px grid + overflow-x:auto wrapper
+      so narrow screens slide instead of clip
+
+**Pending for broadcasts**
+- ⬜ Landing pages Stage 2: formatting toolbar (Bold/Italic/Link/Heading
+      quick-insert buttons above the textarea), inline image via URL input
+- ⬜ Activity log cleanup: remove remaining dead DB.log.unshift() calls, fix
+      export function to query admin_activity_log instead of DB.log, add
+      logAdminAction to dismissReport() and hideListingFromReport()
+
 ### Analytics dashboard
 - ✅ Dashboard stat cards (Students, Pending, Live, Pinned, Reports, Messages)
       are real counts from Supabase — no hardcoded numbers
@@ -410,6 +454,56 @@ NOTIFY pgrst, 'reload schema';
 
 ---
 
+## PRE-BETA MUST-DO — polish before real students join
+
+*These block the beta launch. Do them before opening signups to real Caldwell students.*
+
+### ⬜ EMAIL VERIFICATION + WELCOME EMAIL
+- ⬜ Turn Supabase Auth email confirmation back ON — it was disabled during
+      development. This is a single toggle: Authentication → Settings →
+      "Enable email confirmations". Do this before any real signups.
+- ⬜ Student receives a confirmation email with a link they must click before
+      the account is fully active — until confirmed, status is "pending verification"
+- ⬜ Until verified: account exists but can't post listings or message
+- ⬜ Send a "Welcome to CaldwellNest" email on successful signup — reflects
+      per-school branding ("your slice of Nestrel")
+- ⬜ Re-send option on the verification screen if they didn't get the email
+- ⬜ Auto-reject / expire unverified accounts after X days (decide the policy)
+- ⬜ Email templates for: welcome, verify email, password reset — all Nestrel-branded
+
+### ⬜ REMOVE THE DEMO STUDENT ACCOUNT
+- ⬜ Delete the "Jamie Cruz" / demo student path that bypasses real signup
+- ⬜ Remove the demo login button from the login screen
+- ⬜ Remove `demoLogin()` function and its call sites
+- ⬜ Remove all demo-account conditional fallbacks (e.g. NestBot's "Demo User"
+      fallback text, any `isDemoUser` checks)
+- *Note: this was useful during development. It's a security and data-quality
+  risk in beta — any real student can click it and access the app unverified.*
+
+### ⬜ UI POLISH PASS — "human, not AI" feel
+*The interface should feel warm, deliberate, and made-by-a-person.*
+
+- ⬜ Microcopy review — every label, button, error message, empty state.
+      Sound like a friend, not a system. No "No data found."
+- ⬜ Empty states — when there are no listings / messages / reports, show
+      something warm and specific, not a blank panel
+- ⬜ Loading states — every spinner and "saving…" moment. Branded and brief.
+- ⬜ Toast notifications — wording, timing, tone. Functional now; could feel
+      more human
+- ⬜ Transitions and motion — small tasteful animations where things appear or
+      change. Nothing flashy; just signs of life
+- ⬜ Typography pass — confirm hierarchy is consistent across all pages
+- ⬜ Spacing / breathing room — generous and calm, not cramped
+- ⬜ Mobile-first check — every screen actually tested on a phone
+- ⬜ Tone-of-voice consistency — warm / professional / founder-led throughout;
+      no drift into corporate or generic
+- ⬜ Real photos / illustrations where they help (placeholders are obvious now)
+- ⬜ Accessibility — alt text on images, semantic HTML, keyboard nav, contrast
+
+*Principle: every detail should look like a person made a choice about it.*
+
+---
+
 ## TIER 2 — Photos, Messaging & core features (the big build-out)
 
 ### ⬜ PHOTOS / IMAGE UPLOADS
@@ -441,6 +535,55 @@ NOTIFY pgrst, 'reload schema';
       timestamps on hover/tap
 - ⬜ Blocking / reporting — report a message or block a user
 - ⬜ Push / email notifications
+
+### NOTIFICATIONS — plan locked in, build staged
+
+**What's already done:**
+- ✅ `notifications` table in Supabase — created with RLS (2026-06-15)
+- ✅ In-app appeal notifications: student gets a modal on next login when their
+      appeal decision is made or edited. Writes to the notifications table.
+- ✅ Design principle: notifications table captures events FOR a specific user;
+      admin_activity_log is an audit trail FOR admins. They are different tables
+      with different purposes — do not merge them.
+
+**The four types of notifications (build in this order):**
+
+1. **⬜ IN-APP NOTIFICATIONS (bell icon + feed)** — highest impact, least infrastructure
+   - Bell icon with unread count in student nav
+   - Dropdown / feed: "Your listing was approved", "Jordan messaged you about
+     [listing]", "Your appeal was [decided]", "Welcome to CaldwellNest", etc.
+   - Persists across sessions; markable as read
+   - Each notification: user_id, event_type, related_id, read/unread, created_at, school
+   - Role-scoped: school admins only see their school; super-admin not spammed
+   - *Target: later in beta or early post-beta*
+
+2. **⬜ EMAIL NOTIFICATIONS** — critical events only, not spammy
+   - Suspension, appeal decision, account verification, password reset, security events
+   - User settings to opt in/out by category (safety events are NOT opt-out-able)
+   - Welcome email + verify email overlap with PRE-BETA MUST-DO above
+   - *Target: after in-app notifications*
+
+3. **🔒 PUSH NOTIFICATIONS** — browser/mobile push for real-time alerts even
+   when not on the site. Much heavier infrastructure (push service, permissions,
+   mobile app or PWA). Defer to v2+.
+
+4. **🔒 FULL ACTIVITY FEED** — dedicated page showing everything on a student's
+   account. In-app notifications (#1) cover most of the value. Defer.
+
+**Build order when the time comes:**
+1. Capture every relevant event into notifications table (data foundation first)
+2. In-app bell + dropdown UI
+3. Settings page: notification preferences per category
+4. Critical-event emails (suspension, appeals, account changes)
+5. Welcome + verification emails (overlaps pre-beta items)
+6. Later: dedicated student activity feed page
+7. Much later: push notifications
+
+**Design decisions to keep:**
+- Notification events captured in the table from the start — even if no UI shows
+  them yet. Then the UI can display history going back.
+- Student activity feed (full history) is a future extension of the bell, not
+  a separate thing to build now.
 
 ### ⬜ MOBILE + DESKTOP RESPONSIVE
 - ⬜ Test and fix layout on phones (most students will use phones)
@@ -529,7 +672,7 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 
 ---
 
-## DATA AUDIT (updated 2026-06-12)
+## DATA AUDIT (updated 2026-06-22)
 
 ### What's genuinely real and working ✅
 - Auth: student login, admin login, session restore, logout
@@ -549,12 +692,15 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 - `notifications` — table created, RLS active (SQL run 2026-06-15)
 
 ### Still using fake/in-memory data (needs fixing)
-- **`DB.log`** → activity log resets on every refresh. Fix later: create
-  `activity_log` table (DATA TIER 3).
+- **`DB.log`** → activity log resets on every refresh. Some dead `DB.log.unshift()`
+  calls still in the code (broadcasts cleanup pending). Fix: remove dead calls,
+  wire export to query `admin_activity_log` (DATA TIER 3 cleanup).
 - **`DB.settings`** → ✅ persisted to `platform_settings` table (2026-06-16).
   `requireApproval` and `maintenance` are now enforced in code. Toggles survive
   refresh. `emailAlerts` remains a no-op until a backend email service is added.
-- **`BCAST_HIST`** → sent broadcasts are lost on refresh. DATA TIER 3.
+- **`BCAST_HIST`** → ✅ replaced by `broadcasts` table in Supabase (2026-06-22).
+  Broadcasts persist through refresh; edit, soft-delete, restore, and scheduled
+  sending all work.
 - **`DB.content` / site editor** → color + content changes vanish on refresh.
   DATA TIER 4.
 
@@ -572,7 +718,8 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 **DATA TIER 3 — Admin operations that should persist across refreshes**
 - ✅ `activity_log` / `admin_activity_log` — admin audit trail (complete)
 - ✅ `platform_settings` table — requireApproval + maintenance enforced (2026-06-16)
-- ⬜ `broadcasts` table — sent broadcasts persist
+- ✅ `broadcasts` table — sent broadcasts persist; soft-delete, restore,
+      landing pages, student banner display (2026-06-22)
 
 **DATA TIER 4 — Content / cosmetic**
 - ⬜ `site_config` table — hero text, CTA label, banner, editor color changes
@@ -649,7 +796,7 @@ profile and editing flow is partially built.
 
 ---
 
-## CURRENT BUILD ORDER (updated 2026-06-12)
+## CURRENT BUILD ORDER (updated 2026-06-22)
 1. ✅ Super-admin login
 2. ✅ Admin view-as-student without second login
 3. ✅ Official "CaldwellNest" identity
@@ -664,7 +811,7 @@ profile and editing flow is partially built.
 9. ✅ Multi-school data foundations — school field on profiles + listings,
       schools metadata table, aAdminSchool scoping, role_permissions + RLS
       infrastructure in Supabase
-10. 🔄 **Admin portal polish + real data** ← CURRENT
+10. ✅ **Admin portal polish + real data** — complete
        - ✅ Fix admin Messages view (DB.convos → real messages query)
        - ✅ Wire school into suspension_history INSERT in JS
        - ✅ Real dashboard stat counts (Supabase queries, not DB arrays)
@@ -680,20 +827,33 @@ profile and editing flow is partially built.
              "← Back to Analytics" back button in content area
        - ✅ Category filter chips on Approvals page
        - ✅ "Two Caldwells" data bug fixed — school field normalized to lowercase
-             via SQL UPDATE across profiles, listings, and suspension_history
        - ✅ Run Pending SQL — all tables and columns live as of 2026-06-15
-             (listing audit system, suspension_history.school, appeal_audit_log,
-             notifications)
        - ✅ platform_settings table — requireApproval + maintenance enforced, survive refresh
-11. ⬜ Messaging polish
+11. ✅ **Broadcasts** — complete (2026-06-22)
+       - ✅ Supabase-backed: persist through refresh, edit, soft-delete, restore
+       - ✅ Student banner: colored dismissible cards, dismiss saved in localStorage
+       - ✅ Landing pages Stage 1: markdown editor + live preview + student modal
+       - ✅ Soft-delete → Deleted tab → Restore / Delete forever
+       - ✅ 19 templates, 5 history filter tabs, full activity log coverage
+       - ⬜ Landing pages Stage 2: formatting toolbar + inline image support
+       - ⬜ Activity log cleanup: remove dead DB.log.unshift() calls, fix export
+             to query admin_activity_log, add logAdminAction to dismissReport()
+             and hideListingFromReport()
+12. 🔄 **Pre-beta must-do** ← NEXT
+       - ⬜ Turn Supabase email confirmation ON
+       - ⬜ Build email verification + welcome email flow
+       - ⬜ Remove demo student account (Jamie Cruz / demoLogin())
+       - ⬜ UI polish pass — microcopy, empty states, loading states, mobile check
+13. ⬜ Messaging polish
        - ⬜ Filter by listing / listing chip in input bar
        - ⬜ Typing indicator (Supabase Presence)
        - ⬜ Active now / last seen
        - ⬜ Reply-to / quote
-12. ⬜ Forgot password — needs hosted URL first
-13. ⬜ Photos (Supabase Storage) — listing photos + profile pictures
-14. ⬜ Testing pass + polish + About/Contact pages
-15. 🔒 Multi-school enforcement — school-admin RLS, Stage B + C admin panel
+14. ⬜ Forgot password — needs hosted URL first
+15. ⬜ Photos (Supabase Storage) — listing photos + profile pictures
+16. ⬜ In-app notifications (bell icon + feed) — see NOTIFICATIONS section
+17. ⬜ Testing pass + polish + About/Contact pages
+18. 🔒 Multi-school enforcement — school-admin RLS, Stage B + C admin panel
        (build when a second school or school admin actually exists)
 
 ---
@@ -703,8 +863,9 @@ profile and editing flow is partially built.
 - Email confirmation is OFF for development — turn it back ON before real launch
 - No automatic backups on Supabase free tier — don't store anything irreplaceable
 - Free Supabase projects pause after ~1 week of inactivity (just un-pause them)
-- `requireApproval` and `eduOnly` toggles reset on page refresh — potential
-  security gap if a refresh happens mid-session. Fix is DATA TIER 3.
+- `requireApproval` and `maintenance` now persist via `platform_settings` table ✅.
+  `eduOnly` still resets on refresh — potential security gap. Fix: add it to
+  platform_settings (DATA TIER 3 cleanup).
 - `appeal_audit_log` and `notifications` tables are live — appeal edit decisions
   and student notifications are fully active
 

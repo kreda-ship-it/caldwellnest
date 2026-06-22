@@ -547,6 +547,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
     </div>
   </nav>
   <div id="sBanner"></div>
+  <div id="sBcastBanner"></div>
 
   <!-- HOME -->
   <div id="page-home" class="page active">
@@ -1067,11 +1068,17 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
         <!-- BROADCAST -->
         <div class="a-section" id="asec-broadcast">
-          <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;">
+          <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;min-width:680px;">
+            <!-- Compose -->
             <div class="tcard" style="margin-bottom:0">
-              <div class="tcard-head"><div class="tcard-title">New broadcast message</div></div>
+              <div class="tcard-head">
+                <div class="tcard-title" id="bFormTitle">New broadcast</div>
+                <button id="bCancelEditBtn" class="btn-sm-a btn-a-neutral" onclick="resetBcastForm()" style="display:none">&#10005; Cancel edit</button>
+              </div>
               <div style="padding:18px;">
-                <div class="form-group"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Message type</label>
+                <div class="form-group">
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Message type</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bTypeRow">
                     <div class="msg-type-btn active-type" onclick="selBType(this,'announcement')">&#128226; Announcement</div>
                     <div class="msg-type-btn" onclick="selBType(this,'warning')">&#9888; Warning</div>
@@ -1079,20 +1086,72 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                     <div class="msg-type-btn" onclick="selBType(this,'feature')">&#127381; Feature</div>
                   </div>
                 </div>
+                <div class="form-group">
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Display as</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bDisplayRow">
+                    <div class="msg-type-btn" onclick="setBDisplayType(this,'banner')">&#128204; Banner</div>
+                    <div class="msg-type-btn" onclick="setBDisplayType(this,'notification')">&#128276; Notification</div>
+                    <div class="msg-type-btn active-type" onclick="setBDisplayType(this,'both')">Both</div>
+                  </div>
+                </div>
                 <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="bSubject" placeholder="e.g. New listings this week!"></div>
                 <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="bBody" rows="4" placeholder="Write your message to students..."></textarea></div>
+                <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+                  <button type="button" id="bLandingToggle" onclick="toggleBLanding()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;">&#128214; Add landing page <span style="float:right;opacity:.5">optional</span></button>
+                  <div id="bLandingSection" style="display:none;margin-top:12px;">
+                    <div class="form-group"><label class="form-label">Landing page title <span style="font-weight:400;color:var(--text-faint)">(optional — defaults to subject)</span></label><input class="form-input" id="bLandingTitle" placeholder="e.g. Everything you need to know about housing this semester"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                      <div>
+                        <label class="form-label">Content <span style="font-weight:400;color:var(--text-faint)">(markdown)</span></label>
+                        <div style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">Use # Heading, **bold**, *italic*, [link](url), - list item</div>
+                        <textarea class="form-textarea" id="bLandingBody" rows="10" placeholder="# Welcome back&#10;**Important housing info** for this semester..." oninput="previewBLanding()"></textarea>
+                      </div>
+                      <div>
+                        <label class="form-label">Preview</label>
+                        <div id="bLandingPreview" style="min-height:200px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;line-height:1.7;overflow-y:auto;max-height:260px;color:var(--text);"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div class="form-group"><label class="form-label">Send to</label>
                   <select class="form-select" id="bAudience">
                     <option>All students</option><option>Nursing majors only</option><option>Students without listings</option><option>New students (this week)</option>
                   </select>
                 </div>
-                <button style="width:100%;padding:11px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="sendBcast()">&#9993; Send broadcast</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                  <div>
+                    <label class="form-label">Schedule for <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label>
+                    <input class="form-input" type="datetime-local" id="bScheduleAt" oninput="_bUpdateBtn()" style="margin-bottom:0">
+                  </div>
+                  <div>
+                    <label class="form-label">Expires on <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label>
+                    <input class="form-input" type="datetime-local" id="bExpiresAt" style="margin-bottom:0">
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;">
+                  <button class="btn-sm-a btn-a-neutral" style="padding:11px;font-size:14px;border-radius:var(--radius-sm);" onclick="submitBcast('draft')">Save Draft</button>
+                  <button id="bSendBtn" style="padding:11px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="submitBcast('send')">&#9993; Send Now</button>
+                </div>
               </div>
             </div>
+            <!-- Right column -->
             <div>
-              <div class="tcard" style="margin-bottom:14px"><div class="tcard-head"><div class="tcard-title">History</div></div><div id="bHistory" style="padding:0 0 4px;"></div></div>
+              <div class="tcard" style="margin-bottom:14px">
+                <div class="tcard-head">
+                  <div class="tcard-title">History</div>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;" id="bHistTabs">
+                    <button class="filter-chip active" onclick="setBHistFilter('all',this)">All</button>
+                    <button class="filter-chip" onclick="setBHistFilter('sent',this)">Sent</button>
+                    <button class="filter-chip" onclick="setBHistFilter('scheduled',this)">Scheduled</button>
+                    <button class="filter-chip" onclick="setBHistFilter('draft',this)">Drafts</button>
+                    <button class="filter-chip" onclick="setBHistFilter('deleted',this)">Deleted</button>
+                  </div>
+                </div>
+                <div id="bHistory" style="padding:0 0 4px;max-height:440px;overflow-y:auto;"></div>
+              </div>
               <div class="tcard"><div class="tcard-head"><div class="tcard-title">Quick templates</div></div><div style="padding:12px;display:flex;flex-direction:column;gap:8px;" id="bTemplates"></div></div>
             </div>
+          </div>
           </div>
         </div>
 
@@ -1764,6 +1823,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   </div>
 </div>
 
+<div class="modal-overlay" id="bcastLandingModal">
+  <div class="modal" style="max-width:640px;width:100%">
+    <div class="modal-header">
+      <div class="modal-title" id="bcastLandingTitle">Broadcast</div>
+      <button class="modal-close" onclick="closeModal('bcastLandingModal')">&#215;</button>
+    </div>
+    <div id="bcastLandingBody" style="padding:8px 24px 28px;font-size:14px;line-height:1.8;max-height:72vh;overflow-y:auto;color:var(--text);"></div>
+  </div>
+</div>
+
 <!-- AI CHATBOT -->
 <button class="ai-fab" id="aiFab" style="display:none;" onclick="toggleAI()">&#129302;<div class="ai-fab-badge">AI</div></button>
 <div class="ai-chat" id="aiChat">
@@ -1819,6 +1888,10 @@ let _kwTimer  = null;
 let _dfPriceOpen = true;
 let _dfCatOpen   = true;
 let _pMax        = 2000;
+let _schoolsList = [];
+let _selectedSchool = null;
+let _usernameTimer = null;
+let _emailTimer = null;
 let sConvoActive = null;
 let sRealtimeChannel  = null;
 let sGlobalMsgChannel = null;
@@ -1849,7 +1922,12 @@ let _dashLogFilter = 'all';
 let _actPage = 0, _actFilter = 'all';
 let _adminRealtimeChannels = [];
 let aiOpen = false, aiHistory = [];
-let bType = 'announcement';
+let bType        = 'announcement';
+let _bDisplayType = 'both';
+let _bEditId      = null;
+let _bPrevStatus  = null;
+let _bHistFilter  = 'all';
+let _bcastCache   = {};
 
 function pickRole(role) {
   if (role === 'admin') {
@@ -1903,6 +1981,7 @@ initStudent();
   startGlobalMsgListener(session.user.id);
   startNotifListener(session.user.id);
   startProfileListener(session.user.id);
+  loadStudentBroadcasts();
 })();
 
 async function doAdminLogin() {
@@ -2103,10 +2182,6 @@ function animNum(id, s, e, dur) {
 
 const RESERVED_USERNAMES = new Set(['admin','caldwellnest','nestbot','support','official','mod','moderator','help','staff']);
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,19}$/;
-let _usernameTimer = null;
-let _emailTimer = null;
-let _selectedSchool = null; // { id, slug, name } — picked in signup school combobox
-let _schoolsList = [];      // cached from schools table; loaded lazily on first dropdown open
 
 // SCHOOL PICKER ─────────────────────────────────────────────
 async function loadSchools() {
@@ -2466,6 +2541,7 @@ async function doSignup() {
   startGlobalMsgListener(authData.user.id);
   startNotifListener(authData.user.id);
   startProfileListener(authData.user.id);
+  loadStudentBroadcasts();
 }
 
 async function doLogin() {
@@ -2500,6 +2576,59 @@ async function doLogin() {
   startGlobalMsgListener(authData.user.id);
   startNotifListener(authData.user.id);
   startProfileListener(authData.user.id);
+  loadStudentBroadcasts();
+}
+
+async function loadStudentBroadcasts() {
+  const el = document.getElementById('sBcastBanner');
+  if (!el) return;
+  const eu = getEffectiveUser();
+  if (!eu) { el.innerHTML = ''; return; }
+  const now = new Date().toISOString();
+  const { data: rows } = await supabaseClient
+    .from('broadcasts')
+    .select('id, subject, body, type, display_type, school, landing_title, landing_body')
+    .in('status', ['sent', 'scheduled'])
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (!rows || rows.length === 0) { el.innerHTML = ''; return; }
+  const mySchool = eu.school || null;
+  let dismissed = [];
+  try { dismissed = JSON.parse(localStorage.getItem('cn_dismissed_bcast') || '[]'); } catch {}
+  const toShow = rows
+    .filter(b => !b.school || b.school === mySchool)
+    .filter(b => !dismissed.includes(b.id))
+    .filter(b => b.display_type === 'banner' || b.display_type === 'both')
+    .slice(0, 3);
+  if (toShow.length === 0) { el.innerHTML = ''; return; }
+  toShow.forEach(b => { _bcastCache[b.id] = b; });
+  const colors = {
+    warning:      { bg: '#fff3cd', color: '#856404' },
+    reminder:     { bg: '#fff8e6', color: '#d4860a' },
+    feature:      { bg: '#e8f5e9', color: '#1a7a45' },
+    announcement: { bg: 'var(--brand-pale)', color: 'var(--brand)' },
+  };
+  el.innerHTML = toShow.map(b => {
+    const c = colors[b.type] || colors.announcement;
+    const readMore = b.landing_body
+      ? ` <button onclick="openBcastLanding(_bcastCache['${b.id}'])" style="background:none;border:none;font-size:12px;cursor:pointer;color:inherit;font-weight:700;padding:0;text-decoration:underline;text-underline-offset:2px;font-family:'DM Sans',sans-serif;">Read more &#8594;</button>`
+      : '';
+    return `<div id="bcast-${b.id}" style="padding:10px 44px 10px 16px;background:${c.bg};color:${c.color};font-size:13px;line-height:1.5;position:relative;border-bottom:1px solid rgba(0,0,0,0.07);">
+      <strong>${b.subject}</strong>&ensp;${b.body}${readMore}
+      <button onclick="dismissBcast('${b.id}')" title="Dismiss" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;opacity:.5;color:inherit;line-height:1;padding:0;">&#215;</button>
+    </div>`;
+  }).join('');
+}
+
+function dismissBcast(id) {
+  let dismissed = [];
+  try { dismissed = JSON.parse(localStorage.getItem('cn_dismissed_bcast') || '[]'); } catch {}
+  if (!dismissed.includes(id)) dismissed.push(id);
+  localStorage.setItem('cn_dismissed_bcast', JSON.stringify(dismissed));
+  const el = document.getElementById('bcast-' + id);
+  if (el) el.remove();
 }
 
 async function checkStudentNotifications(userId) {
@@ -3765,6 +3894,12 @@ const ACTION_META = {
   appeal_reinstated:    { label: 'Appeal: reinstated',      color: '#1a7a45' },
   edit_appeal_decision: { label: 'Appeal decision edited',  color: '#d4860a' },
   broadcast_sent:       { label: 'Broadcast sent',          color: '#3B5BA5' },
+  broadcast_drafted:    { label: 'Broadcast drafted',       color: '#888888' },
+  broadcast_scheduled:  { label: 'Broadcast scheduled',     color: '#3B5BA5' },
+  broadcast_updated:    { label: 'Broadcast updated',       color: '#d4860a' },
+  broadcast_deleted:              { label: 'Broadcast deleted',              color: '#c0392b' },
+  broadcast_restored:             { label: 'Broadcast restored',             color: '#1a7a45' },
+  broadcast_permanently_deleted:  { label: 'Broadcast permanently deleted',  color: '#8b0000' },
   content_edit:         { label: 'Site content updated',    color: '#3B5BA5' },
   color_edit:           { label: 'Colors updated',          color: '#3B5BA5' },
   setting_change:       { label: 'Setting changed',         color: '#3B5BA5' },
@@ -3781,7 +3916,7 @@ const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing'],
   moderation: ['remove_listing','suspend_student','reinstate_student','resolve_report','dismiss_report'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
-  system:     ['broadcast_sent','content_edit','color_edit','setting_change','export'],
+  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
   students:   ['student_signup','listing_submitted','report_submitted','appeal_submitted'],
 };
 
@@ -3819,7 +3954,7 @@ function activityItem(e) {
 async function logAdminAction(actionType, opts = {}) {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
-  supabaseClient.from('admin_activity_log').insert({
+  const { error } = await supabaseClient.from('admin_activity_log').insert({
     actor_id:            user.id,
     actor_school:        aAdminSchool,
     action_type:         actionType,
@@ -3836,12 +3971,13 @@ async function logAdminAction(actionType, opts = {}) {
     after_state:         opts.after                                  ?? null,
     metadata:            opts.meta                                   ?? null,
   });
+  if (error) console.error('[logAdminAction] insert failed:', error.message, { actionType });
 }
 
 async function logEvent(actionType, opts = {}) {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
-  supabaseClient.from('admin_activity_log').insert({
+  const { error } = await supabaseClient.from('admin_activity_log').insert({
     actor_id:     user.id,
     actor_school: opts.school  || null,
     action_type:  actionType,
@@ -3854,6 +3990,7 @@ async function logEvent(actionType, opts = {}) {
     after_state:  opts.after       || null,
     reason:       opts.reason      || null,
   });
+  if (error) console.error('[logEvent] insert failed:', error.message, { actionType });
 }
 
 async function fetchActivityLog({ limit = 20, offset = 0, actionType = null, actionTypes = null, actorId = null,
@@ -5665,39 +5802,321 @@ function applyLayout() {
 // ============================================================
 // ADMIN — BROADCAST
 // ============================================================
-const BCAST_HIST = []; // starts empty — populated as real broadcasts are sent
 const BCAST_TEMPLATES = [
-  { icon:'&#127968;', label:'New listings available', body:'Hey! New housing listings are available this week on CaldwellNest. Log in to browse and connect.' },
-  { icon:'&#9989;', label:'Verify your .edu email', body:'Reminder: please verify your @caldwell.edu email to keep your account active.' },
-  { icon:'&#9888;', label:'Community guidelines', body:'A reminder to keep all messages and listings respectful. Violations will result in account review.' },
-  { icon:'&#127881;', label:'Welcome new students', body:"Welcome to CaldwellNest! Browse listings, post rooms, and message other students. Good luck finding your place!" },
+  // — General
+  { icon:'&#127968;', label:'New listings available',     body:'Hey! New housing listings are available this week on CaldwellNest. Log in to browse and connect.' },
+  { icon:'&#9989;',   label:'Verify your .edu email',     body:'Reminder: please verify your @caldwell.edu email to keep your account active.' },
+  { icon:'&#9888;',   label:'Community guidelines',       body:'A reminder to keep all messages and listings respectful. Violations will result in account review.' },
+  { icon:'&#127881;', label:'Welcome new students',       body:"Welcome to CaldwellNest! Browse listings, post rooms, and message other students. Good luck finding your place!" },
+  // — Welcome / Onboarding
+  { icon:'&#128588;', label:"You're in!",                 body:"You just joined CaldwellNest — the one place built for Caldwell students to find housing, connect with classmates, and post what you've got. Take a look around, and reach out if you need anything." },
+  { icon:'&#128203;', label:'Complete your profile',      body:"Quick tip: adding your major and year to your profile helps other students know who they're connecting with. Takes 30 seconds — tap your avatar to get started." },
+  // — Seasonal
+  { icon:'&#128218;', label:'Welcome back — new semester',body:'New semester, fresh start! Housing listings are live for [semester]. Browse now before the good ones go fast.' },
+  { icon:'&#127937;', label:'End of semester',            body:"Wrapping up [semester]? If you're moving out or passing on a room, post it on CaldwellNest — someone needs exactly what you've got." },
+  { icon:'&#9749;',   label:'Finals week',                body:"Finals week is here — hang in there. CaldwellNest will be right here when it's over. Good luck from the whole team. 🤞" },
+  { icon:'&#9728;',   label:'Summer break',               body:"Heading home for the summer? CaldwellNest is still here if you're looking for sublets, storage swaps, or anything else. See you in [fall semester]!" },
+  { icon:'&#127939;', label:'Fall housing rush',          body:'Fall housing rush is on! New listings are coming in fast — check CaldwellNest before you commit anywhere else. [Number] listings live right now.' },
+  // — Platform Updates
+  { icon:'&#10024;',  label:'New feature',                body:'We just added [feature] to CaldwellNest. [One sentence on what it does.] Give it a try and let us know what you think.' },
+  { icon:'&#128295;', label:'Improvement',                body:"We made [improvement] based on your feedback. Small change, big difference — thanks for telling us what wasn't working." },
+  // — Safety
+  { icon:'&#129309;', label:'Meeting up safely',          body:'Quick reminder: when meeting someone from CaldwellNest in person, choose a public spot on campus first. Everyone here is a verified student — and this just keeps things comfortable for both sides.' },
+  { icon:'&#128681;', label:'Spotting scams',             body:"If a listing asks for payment before you've seen the place, or anything feels off — trust that instinct. Report it in-app and we'll look into it. You're looking out for the whole community." },
+  // — Beta
+  { icon:'&#129514;', label:'Thanks for being in beta',   body:"You're one of the first students on CaldwellNest — and honestly, that means a lot. You're helping shape what this becomes. If something bugs you or something's missing, tell us. We read every message." },
+  { icon:'&#128172;', label:'Feedback ask',               body:"We've been building fast and we want to hear from you. What's one thing you wish CaldwellNest did? Reply to this or message us directly — we're listening." },
+  // — School Break
+  { icon:'&#127958;', label:'School on break',            body:"Caldwell is out for [break name]! CaldwellNest is still here if you need it. We'll be back in full swing on [return date] — enjoy the break." },
+  { icon:'&#128276;', label:'Slower responses during break', body:"Heads up: our team is on break from [date] to [date]. We'll still be watching for anything urgent, but responses may be slower. Thanks for your patience — see you on the other side!" },
 ];
 
-function renderBcastHistory() {
-  document.getElementById('bHistory').innerHTML = BCAST_HIST.length
-    ? BCAST_HIST.map(b => `
-        <div style="padding:12px 18px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;"><div style="font-size:13px;font-weight:600">${b.subject}</div><span class="pill pill-active" style="font-size:10px">${b.type}</span></div>
-          <div style="font-size:12px;color:var(--text-muted)">${b.audience} · ${b.sent}</div>
-        </div>`).join('')
-    : '<div style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">No broadcasts sent yet.</div>';
+// ---- Markdown renderer (safe subset) ----
+function renderMd(text) {
+  if (!text) return '';
+  let h = text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  h = h.replace(/^#### (.+)$/gm,'<h4>$1</h4>');
+  h = h.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm,'<h2>$1</h2>');
+  h = h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  h = h.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  h = h.replace(/((?:^- .+\n?)+)/gm, m => '<ul>' + m.replace(/^- (.+)$/gm,'<li>$1</li>') + '</ul>');
+  h = h.replace(/\n\n+/g,'</p><p>');
+  h = '<p>' + h + '</p>';
+  h = h.replace(/<p>(<(?:h[234]|ul)>)/g,'$1').replace(/(<\/(?:h[234]|ul)>)<\/p>/g,'$1');
+  h = h.replace(/<p><\/p>/g,'');
+  return sanitizeMd(h);
 }
+
+function sanitizeMd(html) {
+  const allowed = /^(h2|h3|h4|p|strong|em|ul|li|br|a)$/i;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  (function clean(node) {
+    Array.from(node.childNodes).forEach(n => {
+      if (n.nodeType === 3) return;
+      if (n.nodeType !== 1) { n.remove(); return; }
+      const tag = n.tagName.toLowerCase();
+      if (!allowed.test(tag)) { n.replaceWith(...Array.from(n.childNodes)); clean(node); return; }
+      if (tag === 'a') {
+        const href = n.getAttribute('href') || '';
+        Array.from(n.attributes).forEach(a => n.removeAttribute(a.name));
+        if (!/^javascript:/i.test(href.trim())) {
+          n.setAttribute('href', href);
+          n.setAttribute('target','_blank');
+          n.setAttribute('rel','noopener');
+        }
+      } else {
+        Array.from(n.attributes).forEach(a => n.removeAttribute(a.name));
+      }
+      clean(n);
+    });
+  })(tmp);
+  return tmp.innerHTML;
+}
+
+function _setBLandingOpen(open) {
+  const sec = document.getElementById('bLandingSection');
+  const btn = document.getElementById('bLandingToggle');
+  if (!sec || !btn) return;
+  sec.style.display = open ? '' : 'none';
+  btn.innerHTML = open
+    ? '&#128214; Landing page added <span style="float:right;color:var(--brand)">&#10003; on</span>'
+    : '&#128214; Add landing page <span style="float:right;opacity:.5">optional</span>';
+}
+
+function toggleBLanding() {
+  _setBLandingOpen(document.getElementById('bLandingSection').style.display === 'none');
+}
+
+function previewBLanding() {
+  const text = document.getElementById('bLandingBody')?.value || '';
+  const prev = document.getElementById('bLandingPreview');
+  if (prev) prev.innerHTML = renderMd(text) || '<span style="color:var(--text-faint);font-size:12px">Preview appears here…</span>';
+}
+
+function openBcastLanding(b) {
+  if (!b) return;
+  document.getElementById('bcastLandingTitle').textContent = b.landing_title || b.subject || 'Broadcast';
+  document.getElementById('bcastLandingBody').innerHTML = renderMd(b.landing_body || '');
+  openModal('bcastLandingModal');
+}
+
+async function renderBcastHistory() {
+  const el = document.getElementById('bHistory');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-faint);font-size:13px">Loading…</div>';
+  let q = supabaseClient.from('broadcasts').select('*').order('created_at', { ascending: false }).limit(50);
+  if (_bHistFilter === 'deleted') {
+    q = q.eq('status', 'deleted');
+  } else if (_bHistFilter !== 'all') {
+    q = q.eq('status', _bHistFilter);
+  } else {
+    q = q.neq('status', 'deleted');
+  }
+  const { data: rows, error } = await q;
+  if (error) { el.innerHTML = '<div style="padding:16px;color:var(--danger);font-size:13px">Could not load broadcasts.</div>'; return; }
+  if (!rows || rows.length === 0) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">No broadcasts yet.</div>';
+    return;
+  }
+  const statusBadge = s => {
+    if (s === 'sent')      return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--brand-pale);color:var(--brand)">Sent</span>`;
+    if (s === 'scheduled') return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#e8f0fe;color:#3B5BA5">Scheduled</span>`;
+    if (s === 'deleted')   return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#fde8e8;color:#c0392b">Deleted</span>`;
+    return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666">Draft</span>`;
+  };
+  const typeBadge    = t => `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--border);color:var(--text-muted)">${t}</span>`;
+  const landingChip  = b => b.landing_body ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f7ff;color:#3B5BA5">&#128214; Landing page</span>` : '';
+  el.innerHTML = rows.map(b => {
+    const subEsc = (b.subject || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const schedLine  = b.scheduled_at ? `<div style="font-size:11px;color:var(--text-faint);margin-top:2px">Goes live: ${fmtDate(b.scheduled_at)}</div>` : '';
+    const expiryLine = b.expires_at   ? `<div style="font-size:11px;color:var(--text-faint)">Expires: ${fmtDate(b.expires_at)}</div>` : '';
+    return `
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;">
+        ${statusBadge(b.status)}${typeBadge(b.type)}${landingChip(b)}
+        <span style="margin-left:auto;font-size:11px;color:var(--text-faint)">${fmtDate(b.created_at)}</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:3px">${b.subject}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${b.body}</div>
+      ${schedLine}${expiryLine}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:11px;color:var(--text-faint)">${b.audience || 'All students'}</span>
+        <div style="display:flex;gap:6px;">
+          ${b.status === 'deleted'
+            ? `<button class="btn-sm-a btn-a-neutral" onclick="bRestoreBcast('${b.id}')">Restore</button>
+               <button class="btn-sm-a btn-a-danger" onclick="bPermDeleteBcast('${b.id}','${subEsc}')">Delete forever</button>`
+            : `<button class="btn-sm-a btn-a-neutral" onclick="bEditBcast('${b.id}')">Edit</button>
+               <button class="btn-sm-a btn-a-danger" onclick="bDeleteBcast('${b.id}','${subEsc}')">Delete</button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderBcastTemplates() {
   document.getElementById('bTemplates').innerHTML = BCAST_TEMPLATES.map(t => `
     <button class="tmpl-btn" onclick="applyBTemplate('${t.label.replace(/'/g,"\\'")}','${t.body.replace(/'/g,"\\'")}')"><div style="font-weight:600;margin-bottom:2px">${t.icon} ${t.label}</div><div style="font-size:11px;color:var(--text-faint);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${t.body.substring(0,55)}...</div></button>`).join('');
 }
-function selBType(el, type) { bType = type; document.querySelectorAll('.msg-type-btn').forEach(b => b.classList.remove('active-type')); el.classList.add('active-type'); }
-function applyBTemplate(subject, body) { document.getElementById('bSubject').value = subject; document.getElementById('bBody').value = body; toast('Template applied'); }
-function sendBcast() {
-  const sub = document.getElementById('bSubject').value.trim();
+
+function selBType(el, type) {
+  bType = type;
+  document.querySelectorAll('#bTypeRow .msg-type-btn').forEach(b => b.classList.remove('active-type'));
+  el.classList.add('active-type');
+}
+
+function setBDisplayType(el, type) {
+  _bDisplayType = type;
+  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach(b => b.classList.remove('active-type'));
+  el.classList.add('active-type');
+}
+
+function setBHistFilter(tab, el) {
+  _bHistFilter = tab;
+  document.querySelectorAll('#bHistTabs .filter-chip').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderBcastHistory();
+}
+
+function _bUpdateBtn() {
+  const btn = document.getElementById('bSendBtn');
+  if (!btn) return;
+  const val = document.getElementById('bScheduleAt')?.value;
+  const future = val && new Date(val) > new Date();
+  if (_bEditId) btn.textContent = '✓ Update';
+  else if (future) btn.textContent = '⏱ Schedule';
+  else btn.innerHTML = '&#9993; Send Now';
+}
+
+function applyBTemplate(subject, body) {
+  document.getElementById('bSubject').value = subject;
+  document.getElementById('bBody').value = body;
+  toast('Template applied');
+}
+
+function resetBcastForm() {
+  _bEditId = null; _bPrevStatus = null;
+  document.getElementById('bSubject').value = '';
+  document.getElementById('bBody').value = '';
+  document.getElementById('bScheduleAt').value = '';
+  document.getElementById('bExpiresAt').value = '';
+  document.getElementById('bAudience').selectedIndex = 0;
+  bType = 'announcement';
+  document.querySelectorAll('#bTypeRow .msg-type-btn').forEach((b, i) => b.classList.toggle('active-type', i === 0));
+  _bDisplayType = 'both';
+  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach((b, i) => b.classList.toggle('active-type', i === 2));
+  document.getElementById('bCancelEditBtn').style.display = 'none';
+  document.getElementById('bFormTitle').textContent = 'New broadcast';
+  _bUpdateBtn();
+  document.getElementById('bLandingTitle').value = '';
+  document.getElementById('bLandingBody').value = '';
+  document.getElementById('bLandingPreview').innerHTML = '';
+  _setBLandingOpen(false);
+}
+
+async function bEditBcast(id) {
+  const { data: b, error } = await supabaseClient.from('broadcasts').select('*').eq('id', id).single();
+  if (error || !b) { toast('Could not load broadcast'); return; }
+  _bEditId = id; _bPrevStatus = b.status;
+  document.getElementById('bSubject').value = b.subject || '';
+  document.getElementById('bBody').value = b.body || '';
+  document.getElementById('bAudience').value = b.audience || 'All students';
+  document.getElementById('bScheduleAt').value = b.scheduled_at ? b.scheduled_at.slice(0, 16) : '';
+  document.getElementById('bExpiresAt').value  = b.expires_at   ? b.expires_at.slice(0, 16)   : '';
+  bType = b.type || 'announcement';
+  document.querySelectorAll('#bTypeRow .msg-type-btn').forEach(btn =>
+    btn.classList.toggle('active-type', btn.getAttribute('onclick')?.includes(`'${bType}'`)));
+  _bDisplayType = b.display_type || 'both';
+  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach(btn =>
+    btn.classList.toggle('active-type', btn.getAttribute('onclick')?.includes(`'${_bDisplayType}'`)));
+  document.getElementById('bCancelEditBtn').style.display = '';
+  document.getElementById('bFormTitle').textContent = 'Edit broadcast';
+  _bUpdateBtn();
+  document.getElementById('bLandingTitle').value = b.landing_title || '';
+  document.getElementById('bLandingBody').value  = b.landing_body  || '';
+  _setBLandingOpen(!!b.landing_body);
+  if (b.landing_body) previewBLanding();
+  document.getElementById('bFormTitle').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (b.status === 'sent') toast('Note: this broadcast was already delivered to students');
+}
+
+async function bDeleteBcast(id, subject) {
+  if (!confirm(`Delete “${subject}”?\n\nIt will move to Deleted history and can be restored.`)) return;
+  const { error } = await supabaseClient.from('broadcasts').update({ status: 'deleted' }).eq('id', id);
+  if (error) { toast('Could not delete — please try again.'); console.error(error); return; }
+  logAdminAction('broadcast_deleted', { targetType: 'broadcast', targetId: id, targetLabel: subject });
+  toast('Broadcast deleted');
+  if (_bEditId === id) resetBcastForm();
+  renderBcastHistory();
+}
+
+async function bRestoreBcast(id) {
+  const { error } = await supabaseClient.from('broadcasts').update({ status: 'draft' }).eq('id', id);
+  if (error) { toast('Could not restore — please try again.'); console.error(error); return; }
+  logAdminAction('broadcast_restored', { targetType: 'broadcast', targetId: id });
+  toast('Restored as draft');
+  renderBcastHistory();
+}
+
+async function bPermDeleteBcast(id, subject) {
+  if (!confirm(`Permanently delete “${subject}”?\n\nThis cannot be undone.`)) return;
+  const { error } = await supabaseClient.from('broadcasts').delete().eq('id', id);
+  if (error) { toast('Could not delete permanently — please try again.'); console.error(error); return; }
+  logAdminAction('broadcast_permanently_deleted', { targetType: 'broadcast', targetId: id, targetLabel: subject });
+  toast('Permanently deleted');
+  renderBcastHistory();
+}
+
+async function submitBcast(mode) {
+  const sub  = document.getElementById('bSubject').value.trim();
   const body = document.getElementById('bBody').value.trim();
   if (!sub || !body) { toast('Please fill in subject and message'); return; }
-  const audience = document.getElementById('bAudience').value;
-  BCAST_HIST.unshift({ subject: sub, type: bType, audience, sent: 'Just now', opens: 0 });
-  DB.log.unshift({ type: 'broadcast', text: `Broadcast sent: "${sub}"`, time: 'Just now', color: '#3B5BA5' });
-  logAdminAction('broadcast_sent', { targetType: 'system', targetLabel: sub, meta: { subject: sub, audience, type: bType } });
-  document.getElementById('bSubject').value = ''; document.getElementById('bBody').value = '';
-  renderBcastHistory(); toast('✓ Broadcast sent!');
+  const audience   = document.getElementById('bAudience').value;
+  const schedVal   = document.getElementById('bScheduleAt').value;
+  const expiresVal = document.getElementById('bExpiresAt').value;
+  let status = 'sent', scheduledAt = null;
+  if (mode === 'draft') {
+    status = 'draft';
+  } else if (schedVal && new Date(schedVal) > new Date()) {
+    status = 'scheduled';
+    scheduledAt = new Date(schedVal).toISOString();
+  }
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) { toast('Not logged in'); return; }
+  const row = {
+    actor_id:      user.id,
+    school:        aAdminSchool,
+    subject:       sub,
+    body,
+    type:          bType,
+    display_type:  _bDisplayType,
+    audience,
+    status,
+    scheduled_at:  scheduledAt,
+    expires_at:    expiresVal ? new Date(expiresVal).toISOString() : null,
+    landing_title: document.getElementById('bLandingTitle').value.trim() || null,
+    landing_body:  document.getElementById('bLandingBody').value.trim()  || null,
+  };
+  if (_bEditId) {
+    const { error } = await supabaseClient.from('broadcasts').update(row).eq('id', _bEditId);
+    if (error) { toast('Could not update — please try again.'); console.error(error); return; }
+    const logType = status === 'draft' ? 'broadcast_drafted' : status === 'scheduled' ? 'broadcast_scheduled' : 'broadcast_updated';
+    logAdminAction(logType, { targetType: 'broadcast', targetId: _bEditId, targetLabel: sub, meta: { status, prev_status: _bPrevStatus } });
+    const note = _bPrevStatus === 'sent' ? ' — already delivered to students' : '';
+    toast(status === 'draft' ? 'Draft saved' : `Broadcast updated${note}`);
+  } else {
+    const { error } = await supabaseClient.from('broadcasts').insert(row);
+    if (error) { toast('Could not send — please try again.'); console.error(error); return; }
+    const logType = status === 'draft' ? 'broadcast_drafted' : status === 'scheduled' ? 'broadcast_scheduled' : 'broadcast_sent';
+    logAdminAction(logType, { targetType: 'broadcast', targetLabel: sub, meta: { status, audience, type: bType } });
+    const labels = { sent: '✓ Broadcast sent!', draft: 'Draft saved', scheduled: '✓ Broadcast scheduled!' };
+    toast(labels[status]);
+  }
+  resetBcastForm();
+  renderBcastHistory();
 }
 
 // ============================================================
