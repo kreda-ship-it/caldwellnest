@@ -149,15 +149,47 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
 .cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
-.listings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
+/* Pinterest-style masonry via CSS multi-column: cards keep natural heights, next card slots up — no row gaps. */
+.listings-grid{column-count:3;column-gap:18px;}
+@media(max-width:1100px){.listings-grid{column-count:2;}}
+@media(max-width:680px){.listings-grid{column-count:1;}}
 /* PINNED SECTION */
 .pinned-strip{margin-bottom:24px;}
 .pinned-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--pin);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
-.pinned-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.pinned-grid{column-count:3;column-gap:14px;}
+@media(max-width:1100px){.pinned-grid{column-count:2;}}
+@media(max-width:680px){.pinned-grid{column-count:1;}}
 /* LISTING CARD */
-.listing-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all .2s;}
+.listing-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:18px;transition:transform .2s,box-shadow .2s,border-color .2s;}
 .listing-card:hover{transform:translateY(-3px);border-color:var(--brand-light);box-shadow:0 8px 24px rgba(26,58,42,0.1);}
+.listing-card:focus-visible{outline:2px solid var(--brand-light);outline-offset:2px;}
 .listing-card.pinned-card{border:2px solid rgba(107,33,168,0.3);box-shadow:0 0 0 3px rgba(107,33,168,0.06);}
+/* Redesigned card — Instagram structure: poster header on top, photo-led hero, info below */
+.poster-head{display:flex;align-items:center;gap:9px;padding:11px 13px;}
+.poster-head-name{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+.poster-head-sub{margin-top:1px;font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc-report{margin-left:auto;align-self:flex-start;background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;line-height:1;padding:2px 4px;flex-shrink:0;font-family:inherit;}
+.lc-report:hover{color:var(--danger);}
+.verified-tick{color:var(--accent);font-size:12px;font-weight:700;flex-shrink:0;}
+.verified-label{font-size:12px;color:var(--brand-mid);font-weight:600;}
+.trust-official{font-size:10px;font-weight:700;color:#fff;background:var(--pin);padding:1px 7px;border-radius:10px;letter-spacing:.02em;}
+.lc-photo{position:relative;line-height:0;background:#eee;}
+.lc-photo-img{width:100%;height:auto;display:block;max-height:420px;min-height:140px;object-fit:cover;}
+.lc-count{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;line-height:1.4;}
+.lc-noimg{position:relative;padding:18px 18px 18px;}
+.lc-noimg-cat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:8px;}
+.lc-noimg-title{font-family:'DM Serif Display',serif;font-size:27px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.lc-body{padding:13px 14px 15px;}
+.lc-meta{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:5px;}
+.lc-title{font-size:16px;font-weight:600;line-height:1.3;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.lc-loc{color:var(--text-muted);font-size:13px;margin-bottom:11px;display:flex;align-items:center;gap:4px;}
+.lc-desc{font-size:13px;line-height:1.45;color:var(--text-muted);margin-bottom:11px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.lc-desc-tall{-webkit-line-clamp:4;line-clamp:4;}
+.lc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.lc-price{font-family:'DM Serif Display',serif;font-size:20px;color:var(--brand);line-height:1;}
+.lc-price span{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text-muted);font-weight:400;}
+.lc-soft{font-family:'DM Serif Display',serif;font-size:18px;}
+@media(max-width:640px){.lc-photo-img{max-height:72vh;}}
 img{image-orientation:from-image;}
 .listing-img{height:155px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;overflow:hidden;}
 .listing-type-badge{position:absolute;top:12px;left:12px;background:var(--brand);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.03em;}
@@ -508,9 +540,18 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* DETAIL LISTING MODAL */
 .detail-img{height:200px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:72px;border-radius:var(--radius) var(--radius) 0 0;}
+.detail-top{padding:14px 16px;}
+.detail-poster{display:flex;align-items:center;gap:13px;}
+.detail-poster-name{display:flex;align-items:center;gap:6px;font-weight:600;font-size:16px;line-height:1.2;}
+.detail-poster-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.detail-poster-since{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+.detail-noimg{padding:30px 26px 34px;}
+.detail-noimg-cat{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:12px;}
+.detail-noimg-title{font-family:'DM Serif Display',serif;font-size:33px;line-height:1.12;}
 .detail-body{padding:24px;}
 .detail-title{font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:6px;}
-.detail-price{font-family:'DM Serif Display',serif;font-size:32px;color:var(--brand);}
+.detail-price{font-family:'DM Serif Display',serif;font-size:32px;color:var(--brand);line-height:1;}
+.detail-price span{font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text-muted);font-weight:400;}
 .detail-tags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
 .detail-tag{background:var(--bg);color:var(--text-muted);font-size:13px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);}
 .poster-card-d{background:var(--bg);border-radius:var(--radius-sm);padding:14px;display:flex;align-items:center;gap:14px;margin-bottom:18px;}
@@ -1873,6 +1914,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 // ── Supabase connection ──────────────────────────────────────
 const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;' };
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other' };
+// Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
+// All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
+const CATEGORY_COLORS = {
+  housing:            { bg:'#E7F0EA', text:'#1F4435' }, // sage — ties to the brand green
+  clothing:           { bg:'#F6E9EC', text:'#7A3B4A' }, // dusty rose
+  technology:         { bg:'#E8EEF5', text:'#2C476A' }, // slate blue
+  donation:           { bg:'#F7EFE1', text:'#6B5128' }, // warm sand
+  organization_event: { bg:'#EFEAF6', text:'#473A6B' }, // muted lavender
+  other:              { bg:'#EEEEEA', text:'#45453E' }  // warm greige
+};
 let _postCategory = null;
 
 const SUPABASE_URL = 'https://jcbohweepdgqqntherzo.supabase.co';
@@ -2129,6 +2180,37 @@ function toggleAdminSidebar() {
   localStorage.setItem('cn_admin_sidebar', isCollapsed ? 'collapsed' : 'open');
 }
 
+// Marker email that identifies a listing posted via the official CaldwellNest identity.
+const OFFICIAL_POSTER_EMAIL = 'official@caldwellnest.com';
+
+// Builds the canonical in-memory poster object for a listing.
+// - `prof` is the live profile row (or undefined for official posts / deleted profiles).
+// - Public `name` defaults to first-name only (privacy); `fullName`/`email` are kept for admin surfaces only.
+function posterFromRow(row, prof) {
+  const isOfficial = row.poster_email === OFFICIAL_POSTER_EMAIL;
+  if (prof && !isOfficial) {
+    return {
+      name: prof.display_name || prof.first_name || 'Student',
+      fullName: row.poster_name,
+      initials: prof.initials, color: prof.color,
+      email: row.poster_email,
+      avatar_url: prof.avatar_url || null,
+      verified: true, official: false,
+      year: prof.year || null, major: prof.major || null,
+      memberSince: prof.created_at || null
+    };
+  }
+  // Official post, or a poster whose profile no longer exists → use the listing's stored snapshot.
+  return {
+    name: row.poster_name, fullName: row.poster_name,
+    initials: row.poster_initials, color: row.poster_color,
+    email: row.poster_email,
+    avatar_url: null,
+    verified: false, official: isOfficial,
+    year: null, major: null, memberSince: null
+  };
+}
+
 async function loadListings() {
   const { data: suspendedProfiles } = await supabaseClient
     .from('profiles').select('id').eq('status', 'suspended');
@@ -2139,6 +2221,22 @@ async function loadListings() {
     .select('*')
     .order('created_at', { ascending: false });
   if (error || data.length === 0) return;
+
+  // Live-join poster profiles so avatar + name + trust info are a single source of truth
+  // (update your picture → next load every card reflects it). Official CaldwellNest posts
+  // are detected by their marker email and SKIP the join, so the real admin behind the
+  // official identity is never exposed.
+  const realPosterIds = [...new Set(data
+    .filter(r => r.poster_id && r.poster_email !== OFFICIAL_POSTER_EMAIL)
+    .map(r => r.poster_id))];
+  const profMap = {};
+  if (realPosterIds.length) {
+    const { data: profs } = await supabaseClient.from('profiles')
+      .select('id, display_name, first_name, last_name, initials, color, avatar_url, year, major, created_at')
+      .in('id', realPosterIds);
+    (profs || []).forEach(p => { profMap[p.id] = p; });
+  }
+
   const mapRow = row => ({
     id: row.id,
     title: row.title,
@@ -2151,7 +2249,7 @@ async function loadListings() {
     details: row.details || {},
     school: row.school ? row.school.toLowerCase() : null,
     poster_id: row.poster_id,
-    poster: { name: row.poster_name, initials: row.poster_initials, email: row.poster_email, color: row.poster_color },
+    poster: posterFromRow(row, profMap[row.poster_id]),
     posted: new Date(row.created_at).toLocaleDateString(),
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
     status: row.status,
@@ -2513,10 +2611,23 @@ async function saveProfile() {
   if (error) { showErr('Could not save — ' + error.message); return; }
 
   const newDisplayName = displayName || null;
-  const posterName = newDisplayName || u.name;
-  if (posterName !== (u.display_name || u.name)) {
-    await supabaseClient.rpc('update_own_poster_name', { new_name: posterName });
-    [...DB.listings, ...DB.pending].forEach(l => { if (l.poster_id === u.id) l.poster.name = posterName; });
+  // Snapshot name kept on the listing row (used by admin surfaces + as a fallback) = preferred name or real name.
+  const snapshotName = newDisplayName || u.name;
+  // Public name shown to students = preferred name, else FIRST name only (privacy default — never bare last name).
+  const publicName = newDisplayName || u.first || u.name;
+  const nameChanged = snapshotName !== (u.display_name || u.name);
+  if (nameChanged) {
+    await supabaseClient.rpc('update_own_poster_name', { new_name: snapshotName });
+  }
+  // Immediately reflect the new preferred name + avatar on this user's own listings already in memory.
+  if (nameChanged || avatarUrl !== undefined) {
+    [...DB.listings, ...DB.pending].forEach(l => {
+      if (l.poster_id === u.id && !l.poster.official) {
+        l.poster.name = publicName;
+        l.poster.fullName = snapshotName;
+        if (avatarUrl !== undefined) l.poster.avatar_url = avatarUrl;
+      }
+    });
     renderListings();
   }
 
@@ -3134,7 +3245,7 @@ function renderListings() {
   // Regular grid
   const grid = document.getElementById('listingsGrid');
   if (filtered.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);grid-column:1/-1">
+    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
       <div style="font-size:40px;margin-bottom:12px">${approved.length === 0 ? '&#127968;' : '&#128269;'}</div>
       <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
       ${!noFilters ? `<div style="font-size:13px;margin-bottom:16px">Try widening the price range or clearing a filter.</div><button onclick="clearListingFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
@@ -3144,70 +3255,165 @@ function renderListings() {
   grid.innerHTML = filtered.map(l => listingCardHTML(l, false)).join('');
 }
 
-function listingCardHTML(l, isPinned) {
+// Escapes a string for safe use inside an HTML attribute (e.g. alt="").
+function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+// Cross-school badge (school name + distance) — '' when the listing is from the viewer's own school.
+function schoolBadgeHTML(l) {
   const eu = getEffectiveUser();
-  let schoolBadge = '';
-  if (eu && l.school && l.school !== eu.school) {
-    const theirSchool = _schoolsList.find(s => s.slug === l.school);
-    const mySchool    = _schoolsList.find(s => s.slug === eu.school);
-    const name = theirSchool?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1));
-    let distLabel = '';
-    if (mySchool?.lat && theirSchool?.lat) {
-      const mi = haversineDistance(mySchool.lat, mySchool.lng, theirSchool.lat, theirSchool.lng);
-      distLabel = `<span class="school-dist">· ${mi.toFixed(0)} mi</span>`;
-    }
-    schoolBadge = `<span class="school-badge">&#127979; ${name}${distLabel}</span>`;
+  if (!(eu && l.school && l.school !== eu.school)) return '';
+  const theirSchool = _schoolsList.find(s => s.slug === l.school);
+  const mySchool    = _schoolsList.find(s => s.slug === eu.school);
+  const name = theirSchool?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1));
+  let distLabel = '';
+  if (mySchool?.lat && theirSchool?.lat) {
+    const mi = haversineDistance(mySchool.lat, mySchool.lng, theirSchool.lat, theirSchool.lng);
+    distLabel = `<span class="school-dist">· ${mi.toFixed(0)} mi</span>`;
   }
-  const _photoCount = l.photo_urls?.length || 0;
-  const _cardImg = _photoCount
-    ? `<img src="${l.photo_urls[0]}" style="width:100%;height:155px;object-fit:cover;display:block;" loading="lazy" alt="">`
-    : l.emoji;
-  return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" onclick="openDetail(${l.id})">
-    <div class="listing-img" style="${_photoCount ? 'padding:0;font-size:0;background:#e8e8e8;' : ''}">${_cardImg}
-      <span class="listing-type-badge">${l.type}</span>
-      ${_photoCount > 1 ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:3px;">&#128247; ${_photoCount}</span>` : ''}
-      ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
+  return `<span class="school-badge">&#127979; ${name}${distLabel}</span>`;
+}
+
+// A small avatar (live profile picture, else initials-on-color). Never a generic "missing user" icon.
+function avatarHTML(p, size) {
+  const fs = Math.round(size * 0.4);
+  return p.avatar_url
+    ? `<img src="${p.avatar_url}" alt="${escAttr(p.name)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${p.color || '#888'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${p.initials || '?'}</div>`;
+}
+
+// The small trust marker shown after a poster's name.
+function trustBadgeHTML(p) {
+  if (p.official) return `<span class="trust-official" title="Official CaldwellNest account">Official</span>`;
+  if (p.verified) return `<span class="verified-tick" title="Verified Caldwell student" aria-label="Verified Caldwell student">&#10003;</span>`;
+  return '';
+}
+
+// Plain muted school text under a poster's name (name, plus distance only when cross-school).
+function posterSchoolLine(l) {
+  if (!l.school) return '';
+  const eu = getEffectiveUser();
+  const theirs = _schoolsList.find(s => s.slug === l.school);
+  const name = theirs?.name || (l.school.charAt(0).toUpperCase() + l.school.slice(1));
+  let dist = '';
+  if (eu && l.school !== eu.school) {
+    const mine = _schoolsList.find(s => s.slug === eu.school);
+    if (mine?.lat && theirs?.lat) {
+      const mi = haversineDistance(mine.lat, mine.lng, theirs.lat, theirs.lng);
+      dist = ` · ${mi.toFixed(0)} mi`;
+    }
+  }
+  return name + dist;
+}
+
+// Instagram-style poster header that sits on TOP of each card. Compact, supporting — never the hero.
+function posterHeaderHTML(l) {
+  const p = l.poster;
+  const clickable = !p.official && l.poster_id;
+  const schoolLine = posterSchoolLine(l);
+  return `<div class="poster-head"${clickable ? ` onclick="event.stopPropagation();viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
+    ${avatarHTML(p, 32)}
+    <div style="min-width:0">
+      <div class="poster-head-name">${p.name}${trustBadgeHTML(p)}</div>
+      ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
     </div>
-    <div class="listing-body">
-      <div class="listing-title">${l.title}</div>
-      ${schoolBadge ? `<div style="margin-bottom:6px;">${schoolBadge}</div>` : ''}
-      <div class="listing-location">&#128205; ${l.location}</div>
-      <div class="listing-meta">${l.tags.slice(0,3).map(t => `<span class="meta-tag">${t}</span>`).join('')}</div>
-      <div class="listing-footer">
-        <div class="listing-price">${l.type === 'Looking for Room' ? 'Up to ' : ''}$${l.rent}<span>/mo</span></div>
-        <button class="btn-contact" onclick="event.stopPropagation();sContact(${l.id})">Message</button>
+    ${sUser && sUser.id !== l.poster_id && !p.official ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
+  </div>`;
+}
+
+// Price line — category aware (Free for donations, Event for org posts, /mo only for housing).
+function priceLabel(l) {
+  if (l.category === 'organization_event') return `<span class="lc-soft">Event</span>`;
+  if (l.category === 'donation') return `<span class="lc-soft">Free</span>`;
+  if (l.rent == null || l.rent === '' || isNaN(l.rent)) return `<span class="lc-soft">Contact</span>`;
+  const per = l.category === 'housing' ? '<span>/mo</span>' : '';
+  const prefix = l.type === 'Looking for Room' ? 'Up to ' : '';
+  return `${prefix}$${l.rent}${per}`;
+}
+
+function listingCardHTML(l, isPinned) {
+  const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
+  const catLabel = CATEGORY_LABELS[l.category] || 'Listing';
+  const photoCount = l.photo_urls?.length || 0;
+  const messageBtn = !l.poster.official
+    ? `<button class="btn-contact" onclick="event.stopPropagation();sContact(${l.id})">Message</button>` : '';
+
+  // HERO: a natural-ratio photo, or (no photo) a colored typographic panel where the title IS the design.
+  const hero = photoCount
+    ? `<div class="lc-photo" style="background:${cat.bg}">
+         <img src="${l.photo_urls[0]}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
+         ${photoCount > 1 ? `<span class="lc-count">&#128247; ${photoCount}</span>` : ''}
+         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
+       </div>`
+    : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
+         <div class="lc-noimg-cat">${catLabel}</div>
+         <div class="lc-noimg-title">${l.title}</div>
+         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
+       </div>`;
+
+  return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" tabindex="0" role="button" aria-label="${escAttr(l.title)}"
+      onclick="openDetail(${l.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetail(${l.id})}">
+    ${posterHeaderHTML(l)}
+    ${hero}
+    <div class="lc-body">
+      <div class="lc-meta">${photoCount ? `${catLabel} · ` : ''}${l.posted}</div>
+      ${photoCount ? `<div class="lc-title">${l.title}</div>` : ''}
+      ${l.location ? `<div class="lc-loc">&#128205; ${l.location}</div>` : ''}
+      ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${l.desc}</div>` : ''}
+      <div class="lc-foot">
+        <div class="lc-price"${!photoCount ? ` style="color:${cat.text}"` : ''}>${priceLabel(l)}</div>
+        ${messageBtn}
       </div>
     </div>
-    <div class="poster-row">
-      <div class="mini-avatar" style="background:${l.poster.color}">${l.poster.initials}</div>
-      <div class="poster-info"><div class="poster-name">${l.poster_id ? `<span class="stu-link" onclick="event.stopPropagation();viewStudentProfile('${l.poster_id}')">${l.poster.name}</span>` : l.poster.name}</div><div class="poster-time">${l.posted}</div></div>
-      ${sUser && sUser.id !== l.poster_id ? `<button onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" style="background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;padding:4px 6px;margin-left:auto;line-height:1;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873;</button>` : ''}
+  </div>`;
+}
+
+// Rich poster section for the detail view (larger avatar, trust badge, year/major/school, member-since).
+function detailPosterHTML(l) {
+  const p = l.poster;
+  const clickable = !p.official && l.poster_id;
+  const bits = [p.year, p.major].filter(Boolean);
+  const school = schoolBadgeHTML(l);
+  const trust = p.official
+    ? `<span class="trust-official">Official</span>`
+    : (p.verified ? `<span class="verified-tick" title="Verified Caldwell student">&#10003;</span><span class="verified-label">Verified student</span>` : '');
+  const since = p.memberSince
+    ? `On CaldwellNest since ${new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+    : (p.official ? 'Official account' : '');
+  return `<div class="detail-poster"${clickable ? ` onclick="viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
+    ${avatarHTML(p, 46)}
+    <div style="min-width:0">
+      <div class="detail-poster-name">${p.name}${trust}</div>
+      ${bits.length || school ? `<div class="detail-poster-sub">${bits.join(' · ')}${bits.length && school ? ' · ' : ''}${school}</div>` : ''}
+      ${since ? `<div class="detail-poster-since">${since}</div>` : ''}
     </div>
   </div>`;
 }
 
 function openDetail(id) {
   const l = DB.listings.find(x => x.id === id) || DB.pending.find(x => x.id === id); if (!l) return;
-  const _detailImg = l.photo_urls?.length
-    ? `<div style="${l.photo_urls.length > 1 ? 'padding-bottom:4px;' : ''}">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius) var(--radius) 0 0', mainId: 'detailGalMain' })}</div>`
-    : `<div class="detail-img">${l.emoji}</div>`;
+  const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
+  const hero = l.photo_urls?.length
+    ? photoGalleryHtml(l.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'detailGalMain', alt: l.title })
+    : `<div class="detail-noimg" style="background:${cat.bg};color:${cat.text}">
+         <div class="detail-noimg-cat">${CATEGORY_LABELS[l.category] || 'Listing'}</div>
+         <div class="detail-noimg-title">${l.title}</div>
+       </div>`;
+  const messageBtn = !l.poster.official
+    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">&#128172; Message ${l.poster.name}</button>` : '';
   document.getElementById('detailContent').innerHTML = `
-    ${_detailImg}
+    <div class="detail-top">${detailPosterHTML(l)}</div>
+    ${hero}
     <div class="detail-body">
-      <div class="detail-title">${l.title}</div>
-      <div style="color:var(--text-muted);font-size:14px;margin-bottom:12px">&#128205; ${l.location}</div>
-      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
-        <div class="detail-price">$${l.rent}<sub style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</sub></div>
+      ${l.photo_urls?.length ? `<div class="detail-title">${l.title}</div>` : ''}
+      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px">&#128205; ${l.location}</div>` : ''}
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="detail-price">${priceLabel(l)}</div>
         <span class="pill pill-active">${l.type}</span>
         ${l.pinned ? '<span class="pill pill-pinned">&#128204; Featured</span>' : ''}
       </div>
-      <div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}</div>
+      ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}</div>` : ''}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${l.desc}</div>
-      <div class="poster-card-d">
-        <div class="mini-avatar" style="width:44px;height:44px;font-size:16px;background:${l.poster.color};cursor:${l.poster_id?'pointer':'default'}" ${l.poster_id?`onclick="viewStudentProfile('${l.poster_id}')"`:''}>${l.poster.initials}</div>
-        <div><div style="font-weight:600;font-size:15px">${l.poster_id ? `<span class="stu-link" onclick="viewStudentProfile('${l.poster_id}')">${l.poster.name}</span>` : l.poster.name}</div><div style="font-size:12px;color:var(--text-muted)">Caldwell student · .edu verified</div></div>
-      </div>
-      <button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">&#128172; Message ${l.poster.name.split(' ')[0]}</button>
+      ${messageBtn}
       ${sUser && sUser.id !== l.poster_id ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
     </div>`;
   openModal('detailModal');
@@ -3413,10 +3619,14 @@ async function deleteListingPhotos(photoUrls) {
 // be unique per gallery on the page so multiple galleries don't collide.
 function photoGalleryHtml(urls, opts = {}) {
   if (!urls || !urls.length) return '';
-  const h = opts.height || 220;
   const radius = opts.radius || '0';
   const mainId = opts.mainId || 'galMain';
-  const main = `<img id="${mainId}" src="${urls[0]}" style="width:100%;height:${h}px;object-fit:cover;display:block;border-radius:${radius};" loading="lazy" alt="">`;
+  const alt = escAttr(opts.alt || '');
+  // `natural` shows the image at its true aspect ratio (capped), instead of a fixed-height crop box.
+  const sizeStyle = opts.natural
+    ? `width:100%;height:auto;max-height:${opts.maxHeight || '60vh'};object-fit:cover;`
+    : `width:100%;height:${opts.height || 220}px;object-fit:cover;`;
+  const main = `<img id="${mainId}" src="${urls[0]}" style="${sizeStyle}display:block;border-radius:${radius};" loading="lazy" alt="${alt}">`;
   if (urls.length === 1) return main;
   const thumbs = `<div style="display:flex;gap:6px;padding:8px 12px;overflow-x:auto;">` +
     urls.map((u, i) => `<img src="${u}" onclick="document.getElementById('${mainId}').src=this.src;[...this.parentNode.children].forEach(t=>t.style.borderColor='transparent');this.style.borderColor='var(--brand)'" style="width:54px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;border:2px solid ${i === 0 ? 'var(--brand)' : 'transparent'};" loading="lazy" alt="">`).join('') +
@@ -3562,11 +3772,20 @@ async function submitListing() {
   logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
 
   const typeLabel = details.room_type || CATEGORY_LABELS[cat];
+  // Canonical poster object for the just-posted listing (matches posterFromRow's shape).
+  const isOfficialPost = u.email === OFFICIAL_POSTER_EMAIL;
+  const newPoster = {
+    name: isOfficialPost ? u.name : (u.display_name || u.first || u.name),
+    fullName: u.name, initials: u.initials, color: u.color, email: u.email,
+    avatar_url: isOfficialPost ? null : (u.avatar_url || null),
+    verified: !isOfficialPost, official: isOfficialPost,
+    year: u.year || null, major: u.major || null, memberSince: u.created_at || null
+  };
   if (initialStatus === 'pending') {
-    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
+    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
   } else {
-    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, posted: 'Just now', emoji, status: 'approved', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
+    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', emoji, status: 'approved', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing posted (auto-approved): "${title}"`, time: 'Just now', color: '#1a7a45' });
     renderListings();
   }
@@ -4436,7 +4655,7 @@ function renderAApprovals() {
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="mav" style="background:${l.poster.color}">${l.poster.initials}</div>
           <div>
-            <div style="font-size:13px;font-weight:500">${l.poster.name}</div>
+            <div style="font-size:13px;font-weight:500">${l.poster.fullName || l.poster.name}</div>
             <div style="font-size:11px;color:var(--text-faint)">${l.poster.email}</div>
             ${l.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;display:inline-block;margin-top:3px">${l.school.replace(/_/g,' ')}</span>` : ''}
           </div>
