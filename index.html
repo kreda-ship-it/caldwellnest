@@ -158,7 +158,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .listing-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all .2s;}
 .listing-card:hover{transform:translateY(-3px);border-color:var(--brand-light);box-shadow:0 8px 24px rgba(26,58,42,0.1);}
 .listing-card.pinned-card{border:2px solid rgba(107,33,168,0.3);box-shadow:0 0 0 3px rgba(107,33,168,0.06);}
-.listing-img{height:155px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;}
+img{image-orientation:from-image;}
+.listing-img{height:155px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;overflow:hidden;}
 .listing-type-badge{position:absolute;top:12px;left:12px;background:var(--brand);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.03em;}
 .pin-badge{position:absolute;top:12px;right:12px;background:var(--pin);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
 .listing-body{padding:16px;}
@@ -1568,6 +1569,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 <div class="modal-overlay" id="editProfileModal">
   <div class="modal"><div class="modal-header"><div class="modal-title">Edit profile</div><button class="modal-close" onclick="closeModal('editProfileModal')">&#215;</button></div>
   <div class="modal-body">
+    <div class="form-group" style="display:flex;align-items:center;gap:14px">
+      <div id="epAvatarPreview" style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0"></div>
+      <div>
+        <input type="file" id="epAvatarInput" accept="image/jpeg,image/png,image/webp,image/*" style="display:none" onchange="pickAvatar(this)">
+        <button type="button" class="btn-sm-a" style="border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif" onclick="document.getElementById('epAvatarInput').click()">Change photo</button>
+        <button type="button" id="epAvatarRemoveBtn" style="border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;margin-left:8px;font-family:'DM Sans',sans-serif;display:none" onclick="removeAvatar()">Remove</button>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:5px">JPEG · PNG · WebP · max 10 MB</div>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">Display name <span style="font-weight:400;color:var(--text-faint)">(optional — shown instead of your real name)</span></label><input class="form-input" id="epDisplayName" placeholder="e.g. Kal"></div>
     <div class="form-group">
       <label class="form-label">Username</label>
@@ -1698,8 +1708,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="form-group"><label class="form-label">Price ($) <span style="color:var(--text-faint);font-weight:400">(optional)</span></label><input class="form-input" id="pOT_price" type="number" placeholder="Leave blank if free or contact for price"></div>
       </div>
 
+      <div class="form-group">
+        <label class="form-label">Photo <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label>
+        <label for="pPhotoInput" id="pPhotoDropzone" style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;cursor:pointer;color:var(--text-muted);font-size:13px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+          &#128247; Tap to choose or drag here<br><span style="font-size:11px;color:var(--text-faint)">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
+        </label>
+        <input type="file" id="pPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickListingPhoto(this)">
+        <div id="pPhotoPreview" style="margin-top:10px;"></div>
+      </div>
       <div style="padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);margin-bottom:14px;">&#9888; Your listing will be reviewed by admin before going live.</div>
-      <button class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
+      <button id="pSubmitBtn" class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
     </div>
 
   </div></div>
@@ -1927,7 +1945,11 @@ let _bDisplayType = 'both';
 let _bEditId      = null;
 let _bPrevStatus  = null;
 let _bHistFilter  = 'all';
-let _bcastCache   = {};
+let _bcastCache        = {};
+let _pendingPhotoFiles = [];
+const MAX_LISTING_PHOTOS = 6;
+let _pendingAvatarFile = null;  // a newly picked avatar awaiting save
+let _avatarRemoved = false;     // true if the user cleared their avatar this session
 
 function pickRole(role) {
   if (role === 'admin') {
@@ -1974,7 +1996,7 @@ initStudent();
     return;
   }
 
-  sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
+  sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
   checkStudentNotifications(session.user.id);
@@ -2134,7 +2156,8 @@ async function loadListings() {
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
     status: row.status,
     pinned: row.pinned,
-    rejection_reason: row.rejection_reason || null
+    rejection_reason: row.rejection_reason || null,
+    photo_urls: row.photo_urls || []
   });
   const visible = data.filter(row => !suspendedIds.has(row.poster_id));
   DB.listings = visible.filter(row => row.status !== 'pending').map(mapRow);
@@ -2143,7 +2166,7 @@ async function loadListings() {
 }
 
 async function initStudent() {
-  const [, , { count: stuCount }] = await Promise.all([
+  const [, , , { count: stuCount }] = await Promise.all([
     loadListings(),
     loadSchools(),
     _settingsReady,
@@ -2377,8 +2400,8 @@ async function viewStudentProfile(profileId) {
   openModal('pubProfileModal');
 
   const [{ data: p }, { data: listings }] = await Promise.all([
-    supabaseClient.from('profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, created_at').eq('id', profileId).single(),
-    supabaseClient.from('listings').select('id, title, price, category, details, emoji, status').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
+    supabaseClient.from('profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
+    supabaseClient.from('listings').select('id, title, price, category, details, emoji, status, photo_urls').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
   ]);
 
   if (!p) { body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">This profile no longer exists.</div>'; return; }
@@ -2388,13 +2411,14 @@ async function viewStudentProfile(profileId) {
   const normalised = (listings || []).map(l => ({
     id: l.id, title: l.title, rent: l.price,
     emoji: l.emoji || CATEGORY_EMOJI[l.category] || '🏠',
-    status: l.status
+    status: l.status,
+    photo_urls: l.photo_urls || []
   }));
   const listingsHtml = `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>${renderListingGrid(normalised, false)}`;
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-      <div style="width:60px;height:60px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:#fff;flex-shrink:0">${p.initials}</div>
+      <div style="width:60px;height:60px;border-radius:50%;background:${p.color};background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:#fff;flex-shrink:0">${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">` : p.initials}</div>
       <div>
         <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2">${displayName}</div>
         ${p.username ? `<div style="font-size:13px;color:var(--brand);font-weight:500;margin-top:2px">@${p.username}</div>` : ''}
@@ -2420,6 +2444,10 @@ function openEditProfile() {
   document.getElementById('epMajor').value = u.major || '';
   document.getElementById('epYear').value = u.year || '';
   document.getElementById('epUsernameStatus').textContent = '';
+  _pendingAvatarFile = null;
+  _avatarRemoved = false;
+  paintAvatarEl(document.getElementById('epAvatarPreview'), u.avatar_url, u.initials, u.color);
+  document.getElementById('epAvatarRemoveBtn').style.display = u.avatar_url ? 'inline' : 'none';
   const err = document.getElementById('editProfileErr');
   err.textContent = ''; err.style.display = 'none';
   openModal('editProfileModal');
@@ -2462,11 +2490,26 @@ async function saveProfile() {
     if (data === false) { showErr('That username is already taken.'); return; }
   }
 
-  const { error } = await supabaseClient.from('profiles').update({
+  // Handle the avatar: upload a newly picked one, or clear it if removed.
+  // avatarUrl stays undefined when nothing changed, so we don't overwrite the existing value.
+  let avatarUrl;
+  if (_pendingAvatarFile) {
+    try {
+      const blob = await resizeImage(_pendingAvatarFile);
+      avatarUrl = await uploadAvatar(blob, u.id);
+    } catch (e) { console.error('[avatar upload]', e); showErr('Could not upload photo — please try again.'); return; }
+  } else if (_avatarRemoved) {
+    avatarUrl = null;
+    supabaseClient.storage.from('listing-photos').remove([`${u.id}/avatar.jpg`]); // remove stored file (best-effort)
+  }
+
+  const updates = {
     display_name: displayName || null, username: username || null,
     bio: bio || null, pronouns: pronouns || null,
     major: major || null, year: year || null
-  }).eq('id', u.id);
+  };
+  if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
+  const { error } = await supabaseClient.from('profiles').update(updates).eq('id', u.id);
   if (error) { showErr('Could not save — ' + error.message); return; }
 
   const newDisplayName = displayName || null;
@@ -2478,8 +2521,10 @@ async function saveProfile() {
   }
 
   Object.assign(sUser, { display_name: newDisplayName, username: username || null, bio: bio || null, pronouns: pronouns || null, major: major || null, year: year || null });
+  if (avatarUrl !== undefined) sUser.avatar_url = avatarUrl;
   closeModal('editProfileModal');
   renderProfile();
+  updateSNav();
   toast('Profile updated ✓');
 }
 
@@ -2565,7 +2610,7 @@ async function doLogin() {
     return;
   }
 
-  sUser = { id: authData.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
+  sUser = { id: authData.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   closeModal('loginModal');
   updateSNav();
   toast('Welcome back, ' + profile.first_name + '!');
@@ -2676,8 +2721,10 @@ function updateSNav() {
   const nu = document.getElementById('navUser');
   nu.style.display = u ? 'flex' : 'none';
   if (u) {
-    document.getElementById('navAvatar').textContent = u.initials;
-    document.getElementById('navAvatar').style.background = u.color;
+    const navAv = document.getElementById('navAvatar');
+    navAv.style.background = u.color;
+    navAv.style.backgroundSize = 'cover'; navAv.style.backgroundPosition = 'center';
+    paintAvatarEl(navAv, u.avatar_url, u.initials, u.color);
     const backBtn = document.getElementById('backToAdminBtn');
     if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';
   }
@@ -3111,9 +3158,14 @@ function listingCardHTML(l, isPinned) {
     }
     schoolBadge = `<span class="school-badge">&#127979; ${name}${distLabel}</span>`;
   }
+  const _photoCount = l.photo_urls?.length || 0;
+  const _cardImg = _photoCount
+    ? `<img src="${l.photo_urls[0]}" style="width:100%;height:155px;object-fit:cover;display:block;" loading="lazy" alt="">`
+    : l.emoji;
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" onclick="openDetail(${l.id})">
-    <div class="listing-img">${l.emoji}
+    <div class="listing-img" style="${_photoCount ? 'padding:0;font-size:0;background:#e8e8e8;' : ''}">${_cardImg}
       <span class="listing-type-badge">${l.type}</span>
+      ${_photoCount > 1 ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:3px;">&#128247; ${_photoCount}</span>` : ''}
       ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
     </div>
     <div class="listing-body">
@@ -3136,8 +3188,11 @@ function listingCardHTML(l, isPinned) {
 
 function openDetail(id) {
   const l = DB.listings.find(x => x.id === id) || DB.pending.find(x => x.id === id); if (!l) return;
+  const _detailImg = l.photo_urls?.length
+    ? `<div style="${l.photo_urls.length > 1 ? 'padding-bottom:4px;' : ''}">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius) var(--radius) 0 0', mainId: 'detailGalMain' })}</div>`
+    : `<div class="detail-img">${l.emoji}</div>`;
   document.getElementById('detailContent').innerHTML = `
-    <div class="detail-img">${l.emoji}</div>
+    ${_detailImg}
     <div class="detail-body">
       <div class="detail-title">${l.title}</div>
       <div style="color:var(--text-muted);font-size:14px;margin-bottom:12px">&#128205; ${l.location}</div>
@@ -3248,11 +3303,173 @@ function backToCategories() {
 
 function closePostModal() {
   closeModal('postModal');
+  _pendingPhotoFiles = [];
+  const inp = document.getElementById('pPhotoInput');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('pPhotoPreview');
+  if (prev) prev.innerHTML = '';
   setTimeout(() => {
     _postCategory = null;
     document.getElementById('postStep1').style.display = '';
     document.getElementById('postStep2').style.display = 'none';
   }, 200);
+}
+
+// ---- Photo upload helpers ----
+function pickListingPhoto(input) {
+  const files = [...input.files];
+  input.value = ''; // reset so the same file can be re-picked after removal
+  if (!files.length) return;
+  for (const file of files) {
+    if (_pendingPhotoFiles.length >= MAX_LISTING_PHOTOS) {
+      toast(`You can add up to ${MAX_LISTING_PHOTOS} photos.`);
+      break;
+    }
+    const isHEIC = file.type === 'image/heic' || file.type === 'image/heif'
+      || /\.(heic|heif)$/i.test(file.name);
+    if (isHEIC) { toast(`"${file.name}" is HEIC — not supported yet, skipped.`); continue; }
+    if (!file.type.startsWith('image/')) { toast(`"${file.name}" isn't an image — skipped.`); continue; }
+    if (file.size > 10 * 1024 * 1024) { toast(`"${file.name}" is over 10 MB — skipped.`); continue; }
+    _pendingPhotoFiles.push(file);
+  }
+  renderPhotoPreviews();
+}
+
+function renderPhotoPreviews() {
+  const prev = document.getElementById('pPhotoPreview');
+  if (!prev) return;
+  if (!_pendingPhotoFiles.length) { prev.innerHTML = ''; return; }
+  prev.innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:8px;">` +
+    _pendingPhotoFiles.map((file, i) => {
+      const objUrl = URL.createObjectURL(file);
+      return `<div style="position:relative;display:inline-block;">
+        <img src="${objUrl}" style="width:84px;height:64px;object-fit:cover;border-radius:6px;display:block;">
+        ${i === 0 ? '<span style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;">Cover</span>' : ''}
+        <button type="button" onclick="removeListingPhoto(${i})" style="position:absolute;top:-7px;right:-7px;background:#fff;border:1px solid var(--border);border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.15);">&#215;</button>
+      </div>`;
+    }).join('') +
+    `</div>
+    <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">${_pendingPhotoFiles.length} of ${MAX_LISTING_PHOTOS} photos · first photo is the cover · compressed before upload</div>`;
+}
+
+function removeListingPhoto(i) {
+  _pendingPhotoFiles.splice(i, 1);
+  renderPhotoPreviews();
+}
+
+function clearListingPhoto() {
+  _pendingPhotoFiles = [];
+  const inp = document.getElementById('pPhotoInput');
+  if (inp) inp.value = '';
+  const prev = document.getElementById('pPhotoPreview');
+  if (prev) prev.innerHTML = '';
+}
+
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const MAX = 1600;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Resize failed')), 'image/jpeg', 0.85);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadListingPhoto(blob, posterId) {
+  const path = `${posterId || 'guest'}/${crypto.randomUUID()}.jpg`;
+  const { error } = await supabaseClient.storage
+    .from('listing-photos')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  const { data } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function deleteListingPhotos(photoUrls) {
+  if (!photoUrls || !photoUrls.length) return;
+  const paths = photoUrls.map(url => {
+    const m = url.split('/listing-photos/');
+    return m.length === 2 ? m[1] : null;
+  }).filter(Boolean);
+  if (paths.length) await supabaseClient.storage.from('listing-photos').remove(paths);
+}
+
+// Renders a photo gallery: one main image + (if more than one) a strip of
+// clickable thumbnails. Tapping a thumbnail swaps the main image. mainId must
+// be unique per gallery on the page so multiple galleries don't collide.
+function photoGalleryHtml(urls, opts = {}) {
+  if (!urls || !urls.length) return '';
+  const h = opts.height || 220;
+  const radius = opts.radius || '0';
+  const mainId = opts.mainId || 'galMain';
+  const main = `<img id="${mainId}" src="${urls[0]}" style="width:100%;height:${h}px;object-fit:cover;display:block;border-radius:${radius};" loading="lazy" alt="">`;
+  if (urls.length === 1) return main;
+  const thumbs = `<div style="display:flex;gap:6px;padding:8px 12px;overflow-x:auto;">` +
+    urls.map((u, i) => `<img src="${u}" onclick="document.getElementById('${mainId}').src=this.src;[...this.parentNode.children].forEach(t=>t.style.borderColor='transparent');this.style.borderColor='var(--brand)'" style="width:54px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;border:2px solid ${i === 0 ? 'var(--brand)' : 'transparent'};" loading="lazy" alt="">`).join('') +
+    `</div>`;
+  return main + thumbs;
+}
+
+// ---- Avatar (profile picture) helpers ----
+// Paints an existing circular element: shows the image if a url is given,
+// otherwise falls back to initials on the colour background.
+function paintAvatarEl(el, url, initials, color) {
+  if (!el) return;
+  if (url) {
+    el.textContent = '';
+    el.style.backgroundImage = `url('${url}')`;
+  } else {
+    el.style.backgroundImage = '';
+    el.style.background = color || el.style.background;
+    el.textContent = initials || '?';
+  }
+}
+
+async function uploadAvatar(blob, userId) {
+  const path = `${userId}/avatar.jpg`; // first folder must be the user id to pass the storage policy
+  const { error } = await supabaseClient.storage
+    .from('listing-photos')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+  if (error) throw error;
+  const { data } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`; // ?v= busts the browser cache so a replaced photo shows immediately
+}
+
+function pickAvatar(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const isHEIC = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
+  if (isHEIC) { toast('HEIC photos aren\'t supported yet — please choose a JPEG or PNG.'); return; }
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file (JPEG, PNG, or WebP).'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('That photo is over 10 MB — please choose a smaller one.'); return; }
+  _pendingAvatarFile = file;
+  _avatarRemoved = false;
+  const prev = document.getElementById('epAvatarPreview');
+  paintAvatarEl(prev, URL.createObjectURL(file), null, null);
+  document.getElementById('epAvatarRemoveBtn').style.display = 'inline';
+}
+
+function removeAvatar() {
+  _pendingAvatarFile = null;
+  _avatarRemoved = true;
+  const u = getEffectiveUser();
+  paintAvatarEl(document.getElementById('epAvatarPreview'), null, u?.initials, u?.color);
+  document.getElementById('epAvatarRemoveBtn').style.display = 'none';
 }
 
 async function submitListing() {
@@ -3299,20 +3516,57 @@ async function submitListing() {
     if (!isNaN(p)) price = p;
   }
 
+  // Soft photo nudge: for categories where a photo really helps, gently warn if there's none.
+  // The student can still proceed — it's encouragement, not a hard block.
+  const PHOTO_NUDGE_CATS = ['housing', 'clothing', 'technology', 'organization_event'];
+  if (!_pendingPhotoFiles.length && PHOTO_NUDGE_CATS.includes(cat)) {
+    if (!confirm('Listings with a photo get far more interest from other students.\n\nPost without a photo?')) return;
+  }
+
   const initialStatus = DB.settings.requireApproval ? 'pending' : 'approved';
+  const submitBtn = document.getElementById('pSubmitBtn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving…'; }
+
+  // Upload photos first so the URLs can be included in the insert (avoids a separate update call).
+  // All-or-nothing: if any photo in the batch fails, clean up the ones already uploaded and
+  // save the listing without photos, so we never end up with a half-uploaded gallery.
+  let photoUrls = [];
+  if (_pendingPhotoFiles.length) {
+    try {
+      for (let i = 0; i < _pendingPhotoFiles.length; i++) {
+        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${_pendingPhotoFiles.length}…`;
+        const blob = await resizeImage(_pendingPhotoFiles[i]);
+        const url  = await uploadListingPhoto(blob, u.id);
+        photoUrls.push(url);
+      }
+    } catch (err) {
+      console.error('[photo upload]', err);
+      if (photoUrls.length) deleteListingPhotos(photoUrls); // remove any already uploaded this batch
+      photoUrls = [];
+      toast('Photos could not be uploaded — listing will be saved without them.');
+    }
+    if (submitBtn) submitBtn.textContent = 'Saving…';
+  }
+
   const { data, error } = await supabaseClient
     .from('listings')
-    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.display_name || u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, poster_id: u.id || null, emoji, status: initialStatus, pinned: false, school: u.school || 'caldwell' })
+    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.display_name || u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, poster_id: u.id || null, emoji, status: initialStatus, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls })
     .select().single();
-  if (error) { toast('Could not save listing — please try again.'); console.error(error.message); return; }
-  logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status: initialStatus } });
+  if (error) {
+    toast('Could not save listing — please try again.');
+    console.error(error.message);
+    if (photoUrls.length) deleteListingPhotos(photoUrls); // remove orphaned uploads
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for review'; }
+    return;
+  }
+  logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
 
   const typeLabel = details.room_type || CATEGORY_LABELS[cat];
   if (initialStatus === 'pending') {
-    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell' });
+    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
   } else {
-    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, posted: 'Just now', emoji, status: 'approved', pinned: false, school: u.school || 'caldwell' });
+    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: { name: u.name, initials: u.initials, email: u.email, color: u.color }, posted: 'Just now', emoji, status: 'approved', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing posted (auto-approved): "${title}"`, time: 'Just now', color: '#1a7a45' });
     renderListings();
   }
@@ -3552,8 +3806,11 @@ function renderListingGrid(listings, isOwn) {
   const badge = { approved: ['#e8f5e9','#1a7a45','Active'], pinned: ['#e8f5e9','#1a7a45','Pinned'], pending: ['#fff8e1','#b87a00','Pending'], rejected: ['#fde8e8','#c0392b','Rejected'], removed: ['#f0f0f0','#888','Removed'] };
   return `<div class="listing-grid">${listings.map(l => {
     const [bg, col, label] = badge[l.status] || badge.pending;
+    const _gridThumb = l.photo_urls?.[0]
+      ? `<img src="${l.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="">`
+      : `<div class="lg-emoji">${l.emoji || '🏠'}</div>`;
     return `<div class="lg-cell" onclick="openDetail(${l.id})">
-      <div class="lg-emoji">${l.emoji || '🏠'}</div>
+      ${_gridThumb}
       <div class="lg-cap"><div class="lg-cap-title">${l.title}</div><div class="lg-cap-rent">$${l.rent}/mo</div></div>
       ${isOwn ? `<div class="lg-badge" style="background:${bg};color:${col}">${label}</div>` : ''}
     </div>`;
@@ -3563,8 +3820,10 @@ function renderListingGrid(listings, isOwn) {
 function renderProfile() {
   const u = getEffectiveUser(); if (!u) return;
 
-  document.getElementById('profileAvatar').textContent = u.initials;
-  document.getElementById('profileAvatar').style.background = u.color;
+  const profAv = document.getElementById('profileAvatar');
+  profAv.style.background = u.color;
+  profAv.style.backgroundSize = 'cover'; profAv.style.backgroundPosition = 'center';
+  paintAvatarEl(profAv, u.avatar_url, u.initials, u.color);
   document.getElementById('profileName').textContent = u.display_name || u.name;
   document.getElementById('profileEmail').textContent = u.email;
 
@@ -3881,8 +4140,9 @@ function alItem(a) { return `<div class="al-item"><div class="al-dot" style="bac
 const ACTION_META = {
   approve_listing:      { label: 'Listing approved',        color: '#1a7a45' },
   reject_listing:       { label: 'Listing rejected',        color: '#c0392b' },
-  remove_listing:       { label: 'Listing removed',         color: '#c0392b' },
-  restore_listing:      { label: 'Listing restored',        color: '#1a7a45' },
+  remove_listing:            { label: 'Listing removed',              color: '#c0392b' },
+  restore_listing:           { label: 'Listing restored',             color: '#1a7a45' },
+  listing_permanently_deleted: { label: 'Listing permanently deleted', color: '#8b0000' },
   pin_listing:          { label: 'Listing pinned',          color: '#6b21a8' },
   unpin_listing:        { label: 'Listing unpinned',        color: '#6b21a8' },
   edit_listing:         { label: 'Listing edited',          color: '#3B5BA5' },
@@ -3914,7 +4174,7 @@ const ACTION_META = {
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing'],
-  moderation: ['remove_listing','suspend_student','reinstate_student','resolve_report','dismiss_report'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
   students:   ['student_signup','listing_submitted','report_submitted','appeal_submitted'],
@@ -4165,6 +4425,7 @@ function renderAApprovals() {
   q.innerHTML =
     `<div style="font-size:13px;font-weight:600;color:var(--warning);margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:var(--warning);border-radius:50%;display:inline-block"></span>${src.length} listing${src.length>1?'s':''} awaiting review</div>` +
     src.map(l => `<div class="acard">
+      ${l.photo_urls?.length ? `<div style="margin-bottom:10px">${photoGalleryHtml(l.photo_urls, { height: 180, radius: '6px', mainId: 'aq' + l.id })}</div>` : ''}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
         <div><div class="acard-title">${l.title}</div><div class="acard-meta">${l.type} · $${l.rent}/mo · ${l.location} · ${l.submitted}</div></div>
         <span class="pill pill-pending">Pending</span>
@@ -4193,7 +4454,7 @@ async function aApprove(id) {
   const l = DB.pending.find(x => x.id === id); if (!l) return;
   const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
   if (error) { toast('Could not approve listing — please try again.'); console.error(error.message); return; }
-  DB.listings.unshift({ id, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', pinned: false });
+  DB.listings.unshift({ id, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
   DB.log.unshift({ type: 'approve', text: `Listing approved: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'pending' }, after: { status: 'approved' } });
@@ -4221,7 +4482,7 @@ async function confirmReject() {
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
   const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
   if (error) { toast('Could not reject listing — please try again.'); console.error(error.message); return; }
-  DB.listings.unshift({ id: aRejectId, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags || [], poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'rejected', pinned: false });
+  DB.listings.unshift({ id: aRejectId, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags || [], poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'rejected', pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === aRejectId), 1);
   DB.log.unshift({ type: 'reject', text: `Listing rejected: "${l.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('reject_listing', { targetType: 'listing', targetId: aRejectId, targetLabel: l.title, school: l.school, category: l.category, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
@@ -4327,7 +4588,7 @@ function renderAListings() {
     <td style="font-weight:600;color:var(--text-muted)">$${l.rent}</td>
     <td>${l.poster?.name || l.poster || '—'}</td>
     <td style="font-size:12px;color:var(--text-muted)">${l.updated_at ? fmtDate(l.updated_at) : '—'}</td>
-    <td><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button></td>
+    <td style="display:flex;gap:6px;align-items:center;"><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button></td>
   </tr>`).join('');
 }
 
@@ -4355,6 +4616,18 @@ async function aRestoreListing(id) {
   DB.log.unshift({ type: 'restore', text: `Listing restored: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('restore_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'removed' }, after: { status: 'approved' } });
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing restored');
+}
+
+async function aHardDeleteListing(id) {
+  const l = DB.listings.find(x => x.id === id);
+  if (!l) return;
+  if (!confirm(`Permanently delete "${l.title}"?\n\nThis will remove the listing and any uploaded photos from storage. This cannot be undone.`)) return;
+  await deleteListingPhotos(l.photo_urls);
+  const { error } = await supabaseClient.from('listings').delete().eq('id', id);
+  if (error) { toast('Could not delete listing — please try again.'); console.error(error.message); return; }
+  DB.listings.splice(DB.listings.findIndex(x => x.id === id), 1);
+  logAdminAction('listing_permanently_deleted', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category });
+  renderAListings(); updateAdminBadges(); toast('Listing permanently deleted');
 }
 
 async function aTogglePin(id) {
@@ -4862,7 +5135,7 @@ async function aOpenStudentHistory(profileId) {
 
   const [{ data: profile }, { data: listings }, { data: reportsBy }, { data: suspHistory }, { data: appeals }] = await Promise.all([
     supabaseClient.from('profiles').select('*').eq('id', profileId).single(),
-    supabaseClient.from('listings').select('id, title, status, created_at, category, emoji').eq('poster_id', profileId).order('created_at', { ascending: false }),
+    supabaseClient.from('listings').select('id, title, status, created_at, category, emoji, photo_urls, price').eq('poster_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('reports').select('*, listing:listing_id(title)').eq('reporter_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('suspension_history').select('*').eq('profile_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('appeals').select('id, status, created_at, message').eq('profile_id', profileId).order('created_at', { ascending: false })
@@ -5137,6 +5410,7 @@ async function openListingDrawer(listingId) {
     </div>` : '';
   document.getElementById('hDrawerTitle').innerHTML = `${l.emoji || '🏠'} ${l.title}`;
   document.getElementById('hDrawerBody').innerHTML = `
+    ${l.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerGalMain' })}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${sPill(l.status)}
       <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${CATEGORY_LABELS[l.category] || l.category}</span>

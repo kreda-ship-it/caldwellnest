@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-22
+Last updated: 2026-06-24
 
 ---
 
@@ -303,6 +303,74 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
       export function to query admin_activity_log instead of DB.log, add
       logAdminAction to dismissReport() and hideListingFromReport()
 
+### Listing Photos — Stage 1 ✅ (2026-06-24)
+
+**Infrastructure**
+- ✅ Supabase Storage bucket `listing-photos` — public bucket, 3 policies:
+      SELECT (public/unauthenticated read), INSERT + DELETE (authenticated, own
+      folder only — policy checks first folder segment = auth.uid())
+- ✅ `photo_urls text[]` column on listings table, default `{}`
+- ✅ Single-source-of-truth enforced: file lives in Storage, URL stored ONLY in
+      `listings.photo_urls`. Audited — no display surface copies or caches the URL
+      anywhere else. All render functions reference photo_urls at render time.
+
+**Upload pipeline**
+- ✅ File picker in post-a-listing form (tap/drag dropzone) — JPEG, PNG, WebP,
+      max 10 MB; HEIC blocked with a clear message
+- ✅ Canvas compression — max 1600px on longest side, JPEG 0.85 quality, strips
+      EXIF metadata (fixes iOS portrait rotation)
+- ✅ Upload-before-insert pattern — photo uploaded first, URL included in the
+      initial listings INSERT. Eliminates a separate UPDATE that was silently
+      failing due to RLS (authenticated users couldn't update listings after insert).
+- ✅ `crypto.randomUUID()` for storage path — collision-proof; replaces the
+      earlier timestamp + 5-char random string scheme
+- ✅ Orphan cleanup — if the DB insert fails after a successful photo upload,
+      the orphaned file is automatically deleted from Storage (path extracted from
+      the URL and removed via storage.remove())
+
+**Display surfaces (audited — all reference photo_urls at render time)**
+- ✅ Listing feed cards — photo replaces emoji when photo_urls[0] exists
+- ✅ Listing detail modal — full-width photo header (220px)
+- ✅ Student's own profile listing grid — thumbnail photo
+- ✅ Public student profile listing grid — photo_urls now passed through the
+      normalised mapping (was silently dropped — fixed)
+- ✅ Admin approvals panel — photo shown above each pending listing card
+
+**Safety + lifecycle**
+- ✅ `deleteListingPhotos(photoUrls)` — reusable helper; extracts path(s) from
+      URL(s), calls storage.remove(); designed to handle multi-photo Stage 2
+- ✅ `aHardDeleteListing(id)` — "Delete forever" on removed listings:
+      deletes photos from Storage first, then hard-deletes listing row from DB;
+      confirms before acting; logs to activity log
+- ✅ `listing_permanently_deleted` added to ACTION_META and
+      ACTIVITY_FILTER_GROUPS.moderation
+- ✅ Soft-delete safety: suspended/removed listings' photos stay in Storage
+      so reinstatement restores them correctly. Photos are invisible to students
+      because the listing is filtered out at loadListings() — not because the file
+      is deleted.
+- ✅ Multi-school: photo URLs are absolute HTTPS Supabase Storage URLs —
+      school-agnostic. A Montclair student viewing a Caldwell listing loads the
+      same URL from the same bucket with no extra routing.
+
+**Bugs fixed during photo work (2026-06-24)**
+- ✅ `initStudent()` off-by-one destructuring — `[, , , { count }]` was reading
+      `_settingsReady` (index 2) instead of the Supabase count result (index 3)
+- ✅ `viewStudentProfile` normalised mapping dropped `photo_urls` — added the field
+- ✅ Demo login (Jamie Cruz) had no `id` property — the `&& u.id` guard silently
+      skipped the entire upload block with no toast, no error. Guard removed.
+- ✅ DB update after upload was failing silently (RLS) — restructured to
+      upload-before-insert so no separate update is needed
+- ✅ `aApprove` / `confirmReject` in-memory objects already carried photo_urls ✅
+
+**Capacity (free tier)**
+- ~5,000 photos at 200 KB average before hitting 1 GB Storage limit
+- At 200 students × 2 listings × 1 photo = ~80 MB — well within free tier
+- Upgrade to Supabase Pro ($25/mo) recommended around 400+ real active users
+- Bandwidth (5 GB/mo) is the likelier bottleneck before Storage; `loading="lazy"`
+  already reduces it by only loading visible images
+
+---
+
 ### Analytics dashboard
 - ✅ Dashboard stat cards (Students, Pending, Live, Pinned, Reports, Messages)
       are real counts from Supabase — no hardcoded numbers
@@ -506,16 +574,24 @@ NOTIFY pgrst, 'reload schema';
 
 ## TIER 2 — Photos, Messaging & core features (the big build-out)
 
-### ⬜ PHOTOS / IMAGE UPLOADS
-- ⬜ Supabase Storage bucket for listing images
-- ⬜ Image upload to the post-a-listing form (choose/preview before submit)
-- ⬜ Save uploaded image URL on the listing row in Supabase
-- ⬜ Show images on listing cards + detail view
-- ⬜ Multiple photos per listing (5–10 is typical for housing), file size
-      limits, allowed file types, fallback if none uploaded
-- ⬜ Decide which categories require photos (housing/clothing yes; event poster yes)
-- ⬜ Profile picture support (same Storage bucket, separate path)
-- ⬜ Image compression so the page stays fast
+### Listing Photos — Stage 2 ⬜ (Stage 1 complete — see ALREADY DONE)
+
+*Stage 1 shipped 2026-06-24. Everything below is Stage 2.*
+
+- ⬜ Multiple photos per listing (target: 5–10 max); multi-file picker;
+      `photo_urls` array already supports it — UI + upload loop is the work
+- ⬜ Photo shown in admin listing detail drawer (`openListingDrawer`) — the fresh
+      `select('*')` already returns `photo_urls`, just not rendered yet
+- ⬜ Photo replacement on admin edit — delete old file(s) from Storage,
+      upload new, update `photo_urls` in DB. `deleteListingPhotos()` helper
+      is already built; the edit modal just needs the UI wired up.
+- ⬜ Log "submitted with photo" in activity log (observability gap — currently
+      `listing_submitted` doesn't record whether a photo was attached)
+- ⬜ Decide per-category photo requirements (housing + clothing + event posters
+      = required or strongly nudged; donation/other = optional)
+- ⬜ Profile pictures — same `listing-photos` bucket, different path convention
+      (`profiles/{userId}/avatar.jpg`); needs avatar upload UI in profile modal
+- ⬜ Image moderation / NSFW screening (long-term; may need external API)
 
 ### 🔄 MESSAGING — polish (foundation complete, extras next)
 
@@ -678,7 +754,11 @@ are in place. The placeholder currently says "Full viewer coming soon" — leave
 - Auth: student login, admin login, session restore, logout
 - `profiles` — student signup, profile data, school field, status,
   suspension_reason
-- `listings` — post, approve, reject, pin, soft-delete/restore, edit, school field
+- `listings` — post, approve, reject, pin, soft-delete/restore, edit,
+  hard-delete + photo cleanup, school field, `photo_urls text[]` column
+- `listing-photos` Storage bucket — public, 3 policies (read/insert/delete);
+  URLs stored only in `listings.photo_urls`; `deleteListingPhotos()` helper
+  removes files when a listing is permanently deleted
 - `messages` — student-to-student messaging + Realtime
 - `user_roles` / `admin_roles` — admin RBAC structure
 - `role_permissions` — permission templates; `is_super_admin()` and
@@ -789,7 +869,8 @@ profile and editing flow is partially built.
 - ✅ school field (set at signup, loaded at session restore)
 - ✅ username (set at signup; uniqueness check exists)
 - ✅ bio, pronouns, display_name (fields on profiles; editable in profile modal)
-- ⬜ Profile picture — needs Supabase Storage first
+- ⬜ Profile picture — Storage bucket exists (`listing-photos`); path convention
+      planned (`profiles/{userId}/avatar.jpg`); UI work is Stage 2 photos
 - ⬜ Username uniqueness rules finalized (length, allowed chars, changeable later?)
 - ⬜ Privacy: decide what's public vs admin-only before launch (FERPA-adjacent)
 - ⬜ Accessibility: alt text on profile + listing images (ADA)
@@ -850,7 +931,10 @@ profile and editing flow is partially built.
        - ⬜ Active now / last seen
        - ⬜ Reply-to / quote
 14. ⬜ Forgot password — needs hosted URL first
-15. ⬜ Photos (Supabase Storage) — listing photos + profile pictures
+15. 🔄 Photos (Supabase Storage)
+       - ✅ Stage 1 complete (2026-06-24) — see ALREADY DONE → Listing Photos
+       - ⬜ Stage 2 — multiple photos, photo replacement in admin edit,
+             profile pictures, drawer display, per-category requirements
 16. ⬜ In-app notifications (bell icon + feed) — see NOTIFICATIONS section
 17. ⬜ Testing pass + polish + About/Contact pages
 18. 🔒 Multi-school enforcement — school-admin RLS, Stage B + C admin panel
@@ -863,6 +947,10 @@ profile and editing flow is partially built.
 - Email confirmation is OFF for development — turn it back ON before real launch
 - No automatic backups on Supabase free tier — don't store anything irreplaceable
 - Free Supabase projects pause after ~1 week of inactivity (just un-pause them)
+- Storage free tier = 1 GB; at 200 KB/photo average that's ~5,000 photos.
+  At current scale (≤200 students) this is nowhere near the limit.
+  Upgrade to Supabase Pro ($25/mo) when approaching 400+ real active users.
+  Bandwidth (5 GB/mo free) is the more likely bottleneck — `loading="lazy"` helps.
 - `requireApproval` and `maintenance` now persist via `platform_settings` table ✅.
   `eduOnly` still resets on refresh — potential security gap. Fix: add it to
   platform_settings (DATA TIER 3 cleanup).
