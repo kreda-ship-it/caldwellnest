@@ -101,8 +101,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .filter-chip{padding:7px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .15s;font-family:'DM Sans',sans-serif;}
 .filter-chip:hover,.filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand);}
-.active-filter-tag{display:inline-flex;align-items:center;gap:4px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);color:var(--brand);border-radius:20px;padding:3px 8px 3px 11px;font-size:12px;font-weight:500;}
-.active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--brand);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
+.active-filter-tag{display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);color:var(--text-muted);border-radius:20px;padding:3px 8px 3px 11px;font-size:12px;font-weight:500;}
+.active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
+.active-filter-tag button:hover{color:var(--danger);}
+/* Category tab strip — typographic, underline on selected (no emoji, no fill) */
+.cat-tabs{display:flex;gap:22px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
+.cat-tabs::-webkit-scrollbar{display:none;}
+.cat-tab{background:none;border:none;border-bottom:2px solid transparent;padding:0 0 10px;margin-bottom:-1px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;}
+.cat-tab:hover{color:var(--text);}
+.cat-tab.active{color:var(--brand);font-weight:600;border-bottom-color:var(--brand);}
+/* Primary Filters button */
+.filters-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;flex-shrink:0;transition:border-color .15s,background .15s;}
+.filters-btn:hover{border-color:var(--brand);}
+.filters-btn.open{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
+.filters-btn-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--brand);color:#fff;font-size:11px;font-weight:600;}
 .school-badge{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
 .school-dist{font-weight:400;opacity:.75;font-size:9px;margin-left:2px;}
 .scope-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
@@ -115,6 +127,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .df-toggle:hover{background:var(--bg);}
 .df-chevron{font-size:16px;color:var(--text-muted);transition:transform .2s;line-height:1;}
 .df-body{padding:4px 16px 16px;}
+.df-static-label{padding:12px 16px 2px;font-size:13px;font-weight:600;color:var(--text);}
 .price-range-wrap{position:relative;height:38px;margin:8px 0 6px;}
 .price-range-wrap input[type="range"]{position:absolute;width:100%;pointer-events:none;-webkit-appearance:none;appearance:none;background:transparent;height:4px;top:50%;transform:translateY(-50%);margin:0;padding:0;}
 .price-range-wrap input[type="range"]::-webkit-slider-thumb{pointer-events:all;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);}
@@ -126,15 +139,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .df-chips .filter-chip{padding:5px 12px;font-size:12px;}
 .active-filter-tag{animation:tagIn .15s ease;}
 @keyframes tagIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
-/* MOBILE FILTER DRAWER */
-.mobile-filter-btn{display:none;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;margin-bottom:10px;transition:all .15s;}
-.mobile-filter-btn:hover{border-color:var(--brand);color:var(--brand);}
-.mobile-filter-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);display:none;flex-shrink:0;}
-.filter-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:480;opacity:0;transition:opacity .25s;pointer-events:none;}
+/* FILTER PANEL / DRAWER */
+.filter-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.12);z-index:480;opacity:0;transition:opacity .25s;pointer-events:none;}
 .filter-drawer-backdrop.open{opacity:1;pointer-events:all;}
-.filter-drawer{position:fixed;bottom:0;left:0;right:0;max-height:85vh;background:var(--surface);border-radius:18px 18px 0 0;z-index:490;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:0 -4px 32px rgba(0,0,0,.14);}
-.filter-drawer.open{transform:translateY(0);}
-.filter-drawer-grip{padding:12px 0 4px;display:flex;justify-content:center;cursor:grab;flex-shrink:0;}
+/* Desktop: slide-in panel from the right */
+.filter-drawer{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:var(--surface);z-index:490;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:-4px 0 32px rgba(0,0,0,.12);}
+.filter-drawer.open{transform:translateX(0);}
+.filter-drawer-grip{display:none;padding:12px 0 4px;justify-content:center;cursor:grab;flex-shrink:0;}
 .filter-drawer-grip-bar{width:36px;height:4px;background:var(--border);border-radius:2px;}
 .filter-drawer-header{display:flex;align-items:center;justify-content:space-between;padding:4px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border);}
 .filter-drawer-title{font-size:16px;font-weight:600;color:var(--text);}
@@ -143,8 +154,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .filter-drawer-body{overflow-y:auto;flex:1;padding:16px 20px 0;}
 .filter-drawer-footer{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
 @media(max-width:640px){
-  #sDeepFilters{display:none;}
-  .mobile-filter-btn{display:flex;}
+  /* Mobile: drawer becomes a bottom sheet */
+  .filter-drawer{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:85vh;border-radius:18px 18px 0 0;transform:translateY(100%);box-shadow:0 -4px 32px rgba(0,0,0,.14);}
+  .filter-drawer.open{transform:translateY(0);}
+  .filter-drawer-grip{display:flex;}
+  .filter-drawer-backdrop{background:rgba(0,0,0,.35);}
 }
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
@@ -731,34 +745,27 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div><h1 class="page-title" id="listingsTitle">Housing listings</h1><p style="color:var(--text-muted);font-size:13px;margin-top:4px;" id="listingsSub">Caldwell University students only</p></div>
         <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
         <input class="form-input" id="listingSearch" placeholder="&#128269; Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;flex:1;">
-        <button class="mobile-filter-btn" id="mobileFilterBtn" onclick="openFilterDrawer()" aria-label="Open filters">
-          &#9881; Filters <span class="mobile-filter-dot" id="mobileFilterDot"></span>
+        <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()" aria-haspopup="dialog" aria-label="Open filters">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+          <span>Filters</span><span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
         </button>
       </div>
-      <div class="scope-row" id="sSchoolScope">
-        <span class="scope-label">Scope:</span>
-        <button class="filter-chip" onclick="setSchoolScope('mine',this)">My School</button>
-        <button class="filter-chip" onclick="setSchoolScope('10mi',this)">Within 10 mi</button>
-        <button class="filter-chip active" onclick="setSchoolScope('25mi',this)">Within 25 mi</button>
-        <button class="filter-chip" onclick="setSchoolScope('all',this)">All Schools</button>
-      </div>
-      <div class="filters" id="sCategoryChips">
-        <button class="filter-chip active" onclick="setListingCat('all',this)">All</button>
-        <button class="filter-chip" onclick="setListingCat('housing',this)">&#127968; Housing</button>
-        <button class="filter-chip" onclick="setListingCat('clothing',this)">&#128085; Clothing</button>
-        <button class="filter-chip" onclick="setListingCat('technology',this)">&#128187; Technology</button>
-        <button class="filter-chip" onclick="setListingCat('donation',this)">&#127873; Donation</button>
-        <button class="filter-chip" onclick="setListingCat('organization_event',this)">&#128227; Events</button>
-        <button class="filter-chip" onclick="setListingCat('other',this)">&#127991; Other</button>
+      <div class="cat-tabs" id="sCategoryChips">
+        <button class="cat-tab active" onclick="setListingCat('all',this)">All</button>
+        <button class="cat-tab" onclick="setListingCat('housing',this)">Housing</button>
+        <button class="cat-tab" onclick="setListingCat('clothing',this)">Clothing</button>
+        <button class="cat-tab" onclick="setListingCat('technology',this)">Technology</button>
+        <button class="cat-tab" onclick="setListingCat('donation',this)">Donation</button>
+        <button class="cat-tab" onclick="setListingCat('organization_event',this)">Events</button>
+        <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
       </div>
       <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
-        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear filters</button>
+        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
         <span id="sResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
       </div>
-      <div id="sDeepFilters"></div>
       <!-- PINNED STRIP -->
       <div class="pinned-strip" id="pinnedStrip" style="display:none">
         <div class="pinned-label">&#128204; Featured listings</div>
@@ -1952,7 +1959,7 @@ const DB = {
 let currentRole = null;
 let sUser = null; // logged-in student
 let adminPreviewMode = false; // true when admin has entered student view
-let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {}, schoolScope: '25mi' };
+let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {}, schoolScope: '25mi', sort: 'newest' };
 let _kwTimer  = null;
 let _dfPriceOpen = true;
 let _dfCatOpen   = true;
@@ -2862,8 +2869,9 @@ function requireAuth(action) {
 function setListingCat(cat, el) {
   _filters.category = cat;
   _filters.details = {};  // clear category-specific filters on category switch
-  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else { const t = [...document.querySelectorAll('#sCategoryChips .cat-tab')].find(b => b.getAttribute('onclick')?.includes(`'${cat}'`)); if (t) t.classList.add('active'); }
   renderDeepFilters();
   renderListings();
 }
@@ -2873,9 +2881,11 @@ function onListingSearch(val) {
 }
 function clearListingCat() {
   _filters.category = 'all';
-  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#sCategoryChips .filter-chip');
+  _filters.details = {};
+  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
+  const allChip = document.querySelector('#sCategoryChips .cat-tab');
   if (allChip) allChip.classList.add('active');
+  renderDeepFilters();
   renderListings();
 }
 function clearListingKeyword() {
@@ -2884,15 +2894,11 @@ function clearListingKeyword() {
   renderListings();
 }
 function clearListingFilters() {
-  _filters.category = 'all'; _filters.keyword = ''; _filters.schoolScope = '25mi';
+  _filters.category = 'all'; _filters.keyword = ''; _filters.schoolScope = '25mi'; _filters.sort = 'newest';
   const el = document.getElementById('listingSearch'); if (el) el.value = '';
-  document.querySelectorAll('#sCategoryChips .filter-chip').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#sCategoryChips .filter-chip');
+  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
+  const allChip = document.querySelector('#sCategoryChips .cat-tab');
   if (allChip) allChip.classList.add('active');
-  // Reset scope chips
-  document.querySelectorAll('#sSchoolScope .filter-chip').forEach(c => c.classList.remove('active'));
-  const scopeChips = document.querySelectorAll('#sSchoolScope .filter-chip');
-  if (scopeChips[2]) scopeChips[2].classList.add('active'); // "Within 25 mi" is index 2
   clearDeepFilters(false);
   renderDeepFilters();
   renderListings();
@@ -2929,14 +2935,43 @@ function schoolsInScope() {
   return slugs;
 }
 
-function setSchoolScope(scope, el) {
+function setSchoolScope(scope) {
   _filters.schoolScope = scope;
-  document.querySelectorAll('#sSchoolScope .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  renderDeepFilters();
   renderListings();
 }
 
+function setSort(sort) {
+  _filters.sort = sort;
+  renderDeepFilters();
+  renderListings();
+}
+
+const SORT_LABELS = { newest: 'Newest first', price_asc: 'Price: low to high', price_desc: 'Price: high to low', closest: 'Closest to campus' };
+
+// Sorts a filtered listing array per _filters.sort (does not mutate the input).
+function sortListings(arr) {
+  const s = _filters.sort || 'newest';
+  const copy = [...arr];
+  if (s === 'price_asc')  copy.sort((a, b) => (a.rent || 0) - (b.rent || 0));
+  else if (s === 'price_desc') copy.sort((a, b) => (b.rent || 0) - (a.rent || 0));
+  else if (s === 'closest') {
+    const eu = getEffectiveUser();
+    const mine = eu?.school ? _schoolsList.find(x => x.slug === eu.school) : null;
+    const dist = l => {
+      const ts = _schoolsList.find(x => x.slug === l.school);
+      if (!mine?.lat || !ts?.lat) return Infinity;
+      return haversineDistance(mine.lat, mine.lng, ts.lat, ts.lng);
+    };
+    copy.sort((a, b) => dist(a) - dist(b));
+  }
+  // 'newest' = keep incoming order (DB.listings is already created_at desc)
+  return copy;
+}
+
 let _drawerTouchStartY = 0;
+
+function _drawerEscHandler(e) { if (e.key === 'Escape') closeFilterDrawer(); }
 
 function openFilterDrawer() {
   renderDeepFilters();
@@ -2945,7 +2980,10 @@ function openFilterDrawer() {
   if (!drawer) return;
   backdrop.classList.add('open');
   drawer.classList.add('open');
+  document.getElementById('filtersBtn')?.classList.add('open');
   document.body.style.overflow = 'hidden';
+  document.addEventListener('keydown', _drawerEscHandler);
+  document.querySelector('.filter-drawer-close')?.focus();
   // Swipe-to-close on the grip
   const grip = document.getElementById('filterDrawerGrip');
   if (grip && !grip._swipeReady) {
@@ -2969,8 +3007,10 @@ function closeFilterDrawer() {
   if (!drawer) return;
   drawer.classList.remove('open');
   backdrop.classList.remove('open');
+  document.getElementById('filtersBtn')?.classList.remove('open');
   document.body.style.overflow = '';
-  document.getElementById('mobileFilterBtn')?.focus();
+  document.removeEventListener('keydown', _drawerEscHandler);
+  document.getElementById('filtersBtn')?.focus();
 }
 
 function toggleDFSection(id) {
@@ -3000,11 +3040,20 @@ function setDeepDate(key, val) {
   renderListings();
 }
 
+function buildScopeSectionHTML() {
+  const s = _filters.schoolScope;
+  const opt = (val, label) => `<button class="filter-chip${s === val ? ' active' : ''}" onclick="setSchoolScope('${val}')" aria-pressed="${s === val}">${label}</button>`;
+  return `<div class="df-section"><div class="df-static-label">Scope</div><div class="df-body" style="padding-top:0"><div class="df-chips">${opt('mine', 'My school')}${opt('10mi', 'Within 10 mi')}${opt('25mi', 'Within 25 mi')}${opt('all', 'All schools')}</div></div></div>`;
+}
+
+function buildSortSectionHTML() {
+  const s = _filters.sort || 'newest';
+  const opt = (val, label) => `<button class="filter-chip${s === val ? ' active' : ''}" onclick="setSort('${val}')" aria-pressed="${s === val}">${label}</button>`;
+  return `<div class="df-section"><div class="df-static-label">Sort by</div><div class="df-body" style="padding-top:0"><div class="df-chips">${opt('newest', 'Newest')}${opt('price_asc', 'Price ↑')}${opt('price_desc', 'Price ↓')}${opt('closest', 'Closest')}</div></div></div>`;
+}
+
 function renderDeepFilters() {
-  const isMob = window.innerWidth <= 640;
-  const panel = isMob
-    ? document.getElementById('filterDrawerBody')
-    : document.getElementById('sDeepFilters');
+  const panel = document.getElementById('filterDrawerBody');
   if (!panel) return;
   const cat = _filters.category;
 
@@ -3037,7 +3086,7 @@ function renderDeepFilters() {
     </div>`;
 
   const catSection = buildCatFiltersHTML(cat);
-  panel.innerHTML = `<div class="df-panel">${priceSection}${catSection}</div>`;
+  panel.innerHTML = `<div class="df-panel">${buildScopeSectionHTML()}${priceSection}${catSection}${buildSortSectionHTML()}</div>`;
 }
 
 function onPriceRange() {
@@ -3219,6 +3268,13 @@ function renderListings() {
     const display = (k === 'furnished' || k === 'petOk') ? label : `${label}: ${v}`;
     tags.push(`<span class="active-filter-tag">${display} <button onclick="delete _filters.details['${k}'];renderDeepFilters();renderListings()">&#215;</button></span>`);
   });
+  if (_filters.schoolScope !== '25mi') {
+    const scopeLabels = { mine: 'My school', '10mi': 'Within 10 mi', '25mi': 'Within 25 mi', all: 'All schools' };
+    tags.push(`<span class="active-filter-tag">${scopeLabels[_filters.schoolScope]} <button onclick="setSchoolScope('25mi')">&#215;</button></span>`);
+  }
+  if (_filters.sort && _filters.sort !== 'newest') {
+    tags.push(`<span class="active-filter-tag">${SORT_LABELS[_filters.sort]} <button onclick="setSort('newest')">&#215;</button></span>`);
+  }
   if (tagsEl)   tagsEl.innerHTML = tags.join('');
   if (clearBtn) clearBtn.style.display = tags.length ? 'inline' : 'none';
   const total      = approved.length;
@@ -3227,12 +3283,20 @@ function renderListings() {
     ? `Showing ${matchCount} of ${total} listing${total !== 1 ? 's' : ''}`
     : (total > 0 ? `${total} listing${total !== 1 ? 's' : ''}` : '');
 
-  // Drawer apply button count + filter dot
+  // Drawer apply button count
   const applyBtn = document.getElementById('filterDrawerApply');
   if (applyBtn) applyBtn.textContent = `Show ${matchCount} listing${matchCount !== 1 ? 's' : ''}`;
-  const hasDeepFilters = _filters.minPrice !== null || _filters.maxPrice !== null || Object.keys(_filters.details).length > 0;
-  const dot = document.getElementById('mobileFilterDot');
-  if (dot) dot.style.display = hasDeepFilters ? 'inline-block' : 'none';
+  // Filters button badge — counts PANEL filters (scope, price, category-specifics, sort), not category/keyword
+  const panelCount =
+    (_filters.schoolScope !== '25mi' ? 1 : 0) +
+    ((_filters.minPrice !== null || _filters.maxPrice !== null) ? 1 : 0) +
+    Object.keys(_filters.details).length +
+    ((_filters.sort && _filters.sort !== 'newest') ? 1 : 0);
+  const badge = document.getElementById('filtersBtnCount');
+  if (badge) {
+    badge.textContent = panelCount;
+    badge.style.display = panelCount ? 'inline-flex' : 'none';
+  }
 
   // Pinned strip — only when no filters active
   const noFilters = _filters.category === 'all' && !_filters.keyword && _filters.minPrice === null && _filters.maxPrice === null && !Object.keys(_filters.details).length;
@@ -3252,7 +3316,7 @@ function renderListings() {
     </div>`;
     return;
   }
-  grid.innerHTML = filtered.map(l => listingCardHTML(l, false)).join('');
+  grid.innerHTML = sortListings(filtered).map(l => listingCardHTML(l, false)).join('');
 }
 
 // Escapes a string for safe use inside an HTML attribute (e.g. alt="").
@@ -3308,6 +3372,7 @@ function posterSchoolLine(l) {
 // Instagram-style poster header that sits on TOP of each card. Compact, supporting — never the hero.
 function posterHeaderHTML(l) {
   const p = l.poster;
+  const eu = getEffectiveUser();
   const clickable = !p.official && l.poster_id;
   const schoolLine = posterSchoolLine(l);
   return `<div class="poster-head"${clickable ? ` onclick="event.stopPropagation();viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
@@ -3316,7 +3381,7 @@ function posterHeaderHTML(l) {
       <div class="poster-head-name">${p.name}${trustBadgeHTML(p)}</div>
       ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
     </div>
-    ${sUser && sUser.id !== l.poster_id && !p.official ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
+    ${eu && eu.id !== l.poster_id && !p.official ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
   </div>`;
 }
 
@@ -3414,7 +3479,7 @@ function openDetail(id) {
       ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}</div>` : ''}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${l.desc}</div>
       ${messageBtn}
-      ${sUser && sUser.id !== l.poster_id ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
+      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
     </div>`;
   openModal('detailModal');
 }
