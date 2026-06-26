@@ -162,7 +162,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 }
 .cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
 .cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
-.cat-pick-btn .cat-emoji{font-size:28px;line-height:1;}
+.cat-pick-btn .cat-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
 /* Pinterest-style masonry via CSS multi-column: cards keep natural heights, next card slots up — no row gaps. */
 .listings-grid{column-count:3;column-gap:18px;}
 @media(max-width:1100px){.listings-grid{column-count:2;}}
@@ -304,6 +304,8 @@ img{image-orientation:from-image;}
 .lg-cell{position:relative;aspect-ratio:1/1;background:var(--bg);border-radius:6px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:opacity .15s;}
 .lg-cell:hover{opacity:.82;}
 .lg-emoji{flex:1;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.lg-fill{flex:1;display:flex;align-items:flex-start;padding:9px 9px 2px;overflow:hidden;}
+.lg-fill-title{font-family:'DM Serif Display',serif;font-size:13px;line-height:1.16;display:-webkit-box;-webkit-line-clamp:4;line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
 .lg-cap{padding:5px 7px;background:var(--surface);}
 .lg-cap-title{font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
 .lg-cap-rent{font-size:10px;color:var(--brand);font-weight:600;}
@@ -746,7 +748,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
-        <input class="form-input" id="listingSearch" placeholder="&#128269; Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;flex:1;">
+        <div style="position:relative;flex:1;">
+          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg></span>
+          <input class="form-input" id="listingSearch" placeholder="Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;width:100%;padding-left:38px;">
+        </div>
         <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()" aria-haspopup="dialog" aria-label="Open filters">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
           <span>Filters</span><span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
@@ -787,7 +792,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="convo-list" id="convoList"></div>
       </div>
       <div class="chat-area" id="chatArea" style="flex:1;min-width:0;">
-        <div class="no-chat"><button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250; Conversations</button><div style="font-size:48px;opacity:.4">&#128172;</div><div>Select a conversation</div></div>
+        <div class="no-chat"><button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250; Conversations</button><div style="opacity:.35;color:var(--text-muted)"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><div>Select a conversation</div></div>
       </div>
     </div>
   </div>
@@ -873,7 +878,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
         <div class="a-topbar-title" id="aTopTitle">Dashboard</div>
         <div class="a-topbar-right">
           <span style="font-size:11px;color:var(--text-faint)">Live data</span>
-          <button class="btn-sm-a btn-a-neutral" onclick="refreshAdmin()">&#8635; Refresh</button>
+          <button class="btn-sm-a btn-a-neutral" id="adminRefreshBtn" onclick="refreshAdmin()">&#8635; Refresh</button>
           <button class="btn-sm-a btn-a-brand" onclick="toggleAI()">&#129302; NestBot</button>
           <button class="btn-sm-a btn-a-neutral" onclick="enterStudentPreview()">&#128065; Student view</button>
         </div>
@@ -1490,6 +1495,25 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   </div>
 </div>
 
+<!-- EMAIL VERIFICATION GATE -->
+<div id="verifyScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:600;overflow-y:auto;">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;">
+    <div style="max-width:440px;width:100%;">
+      <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--brand);margin-bottom:32px;text-align:center;">Caldwell<span style="color:var(--accent)">Nest</span></div>
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:30px 28px;text-align:center;">
+        <div style="font-size:38px;margin-bottom:14px;">&#9993;&#65039;</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;">Check your email</div>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 6px;">We sent a verification link to</p>
+        <p id="verifyEmail" style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 16px;word-break:break-all;"></p>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin:0 0 22px;">Click the link to verify your account and start using CaldwellNest. It can take a minute to arrive — check your spam folder too.</p>
+        <button class="btn-full btn-brand" id="resendVerifyBtn" onclick="resendVerification()">Resend email</button>
+        <div id="verifyMsg" style="font-size:13px;margin-top:12px;min-height:18px;line-height:1.5;"></div>
+        <button onclick="hideVerifyScreen()" style="background:none;border:none;font-size:13px;color:var(--text-faint);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:6px;">&#8592; Back to home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      SHARED MODALS
 ============================================================ -->
@@ -1507,7 +1531,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           <div id="schoolDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;max-height:200px;overflow-y:auto;"></div>
         </div>
         <div id="selectedSchoolBadge" style="display:none;margin-top:8px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--brand);align-items:center;justify-content:space-between;">
-          <span>&#127979; <span id="selectedSchoolName"></span></span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg><span id="selectedSchoolName"></span></span>
           <a onclick="clearSchool()" style="font-size:12px;color:var(--brand-mid);cursor:pointer;font-weight:500;text-decoration:underline;">Change</a>
         </div>
       </div>
@@ -1672,12 +1696,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
     <div id="postStep1">
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">What are you posting?</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <button class="cat-pick-btn" onclick="selectCategory('housing')"><span class="cat-emoji">&#127968;</span>Housing</button>
-        <button class="cat-pick-btn" onclick="selectCategory('clothing')"><span class="cat-emoji">&#128085;</span>Clothing</button>
-        <button class="cat-pick-btn" onclick="selectCategory('technology')"><span class="cat-emoji">&#128187;</span>Technology</button>
-        <button class="cat-pick-btn" onclick="selectCategory('donation')"><span class="cat-emoji">&#127873;</span>Donation</button>
-        <button class="cat-pick-btn" onclick="selectCategory('organization_event')"><span class="cat-emoji">&#128227;</span>Org / Event</button>
-        <button class="cat-pick-btn" onclick="selectCategory('other')"><span class="cat-emoji">&#127991;</span>Other</button>
+        <button class="cat-pick-btn" onclick="selectCategory('housing')"><span class="cat-dot" style="background:#1F4435"></span>Housing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('clothing')"><span class="cat-dot" style="background:#7A3B4A"></span>Clothing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('technology')"><span class="cat-dot" style="background:#2C476A"></span>Technology</button>
+        <button class="cat-pick-btn" onclick="selectCategory('donation')"><span class="cat-dot" style="background:#6B5128"></span>Donation</button>
+        <button class="cat-pick-btn" onclick="selectCategory('organization_event')"><span class="cat-dot" style="background:#473A6B"></span>Org / Event</button>
+        <button class="cat-pick-btn" onclick="selectCategory('other')"><span class="cat-dot" style="background:#45453E"></span>Other</button>
       </div>
     </div>
 
@@ -1759,7 +1783,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
       <div class="form-group">
         <label class="form-label">Photo <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label>
         <label for="pPhotoInput" id="pPhotoDropzone" style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;cursor:pointer;color:var(--text-muted);font-size:13px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-          &#128247; Tap to choose or drag here<br><span style="font-size:11px;color:var(--text-faint)">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Tap to choose or drag here<br><span style="font-size:11px;color:var(--text-faint)">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
         </label>
         <input type="file" id="pPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickListingPhoto(this)">
         <div id="pPhotoPreview" style="margin-top:10px;"></div>
@@ -2057,6 +2081,11 @@ initStudent();
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
+  // Just clicked the email-verification link → Supabase set the session and redirected here.
+  if (/[#&]type=signup/.test(window.location.hash)) {
+    toast('✓ Email verified — welcome to CaldwellNest!');
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
   checkStudentNotifications(session.user.id);
   startGlobalMsgListener(session.user.id);
   startNotifListener(session.user.id);
@@ -2333,7 +2362,7 @@ function filterSchools(query) {
     dropdown.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--text-muted);">No schools found</div>`;
   } else {
     dropdown.innerHTML = matches.map(s =>
-      `<div class="school-option" onclick="selectSchoolById('${s.id}')">&#127979; ${s.name}</div>`
+      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${ico('school', 13)} ${s.name}</div>`
     ).join('');
   }
   dropdown.style.display = 'block';
@@ -2511,10 +2540,10 @@ async function viewStudentProfile(profileId) {
 
   if (!p) { body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">This profile no longer exists.</div>'; return; }
 
-  const displayName = p.display_name || (p.first_name + ' ' + p.last_name);
+  const displayName = p.display_name || p.first_name; // first-name-only privacy default (matches listing cards)
   const joined = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
   const normalised = (listings || []).map(l => ({
-    id: l.id, title: l.title, rent: l.price,
+    id: l.id, title: l.title, rent: l.price, category: l.category,
     emoji: l.emoji || CATEGORY_EMOJI[l.category] || '🏠',
     status: l.status,
     photo_urls: l.photo_urls || []
@@ -2658,6 +2687,51 @@ function forgotPassword() {
   toast('Password reset coming soon. For now, contact support if you need access.');
 }
 
+// ---- Email verification gate ----
+let _verifyEmail = null;
+let _resendCooldown = 0;
+let _resendTimer = null;
+
+function showVerifyScreen(email) {
+  _verifyEmail = email || null;
+  document.getElementById('studentApp').style.display = 'none';
+  document.getElementById('verifyEmail').textContent = email || 'your email';
+  document.getElementById('verifyMsg').textContent = '';
+  document.getElementById('verifyScreen').style.display = 'flex';
+}
+
+function hideVerifyScreen() {
+  document.getElementById('verifyScreen').style.display = 'none';
+  document.getElementById('studentApp').style.display = '';
+  clearInterval(_resendTimer); _resendCooldown = 0;
+  const btn = document.getElementById('resendVerifyBtn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Resend email'; }
+}
+
+async function resendVerification() {
+  if (_resendCooldown > 0 || !_verifyEmail) return;
+  const btn = document.getElementById('resendVerifyBtn');
+  const msg = document.getElementById('verifyMsg');
+  btn.disabled = true;
+  const { error } = await supabaseClient.auth.resend({ type: 'signup', email: _verifyEmail });
+  if (error) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = error.message || 'Could not resend just now — please wait a moment and try again.';
+    btn.disabled = false;
+    return;
+  }
+  msg.style.color = 'var(--success)';
+  msg.textContent = '✓ Sent! Check your inbox (and spam).';
+  _resendCooldown = 60; // client-side cooldown so the button can't be spammed
+  const tick = () => {
+    if (_resendCooldown <= 0) { clearInterval(_resendTimer); btn.disabled = false; btn.textContent = 'Resend email'; return; }
+    btn.textContent = `Resend in ${_resendCooldown}s`;
+    _resendCooldown--;
+  };
+  tick();
+  _resendTimer = setInterval(tick, 1000);
+}
+
 async function doSignup() {
   const first    = document.getElementById('sFirst').value.trim();
   const last     = document.getElementById('sLast').value.trim();
@@ -2683,16 +2757,35 @@ async function doSignup() {
   const { data: takenEmail } = await supabaseClient.from('profiles').select('id').eq('email', email).maybeSingle();
   if (takenEmail) { showErr('An account already exists with that email. Try logging in instead.'); return; }
 
-  const { data: authData, error: authError } = await supabaseClient.auth.signUp({ email, password: pass });
+  const initials = (first[0] + last[0]).toUpperCase();
+  const color = AC[Math.floor(Math.random() * AC.length)];
+
+  // Profile fields ride along as auth metadata so the handle_new_user trigger can create the
+  // profiles row even when email confirmation is ON (no client session exists at that point).
+  const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+    email, password: pass,
+    options: {
+      emailRedirectTo: window.location.origin,
+      data: { first_name: first, last_name: last, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug }
+    }
+  });
   if (authError) { showErr(authError.message); return; }
   if (authData.user?.identities?.length === 0) { showErr('An account already exists with that email. Try logging in instead.'); return; }
 
-  const initials = (first[0] + last[0]).toUpperCase();
-  const color = AC[Math.floor(Math.random() * AC.length)];
-  await supabaseClient.from('profiles').insert({
+  // Email confirmation ON → signUp returns no session → show the "check your email" screen.
+  // (The profile row is created by the handle_new_user trigger, not here.)
+  if (!authData.session) {
+    closeModal('signupModal');
+    showVerifyScreen(email);
+    return;
+  }
+
+  // Email confirmation OFF → we have a session and can log in immediately.
+  // Upsert is a safety net so this coexists with the trigger without a duplicate-key error.
+  await supabaseClient.from('profiles').upsert({
     id: authData.user.id, first_name: first, last_name: last,
     email, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug
-  });
+  }, { onConflict: 'id', ignoreDuplicates: true });
   logEvent('student_signup', { targetType: 'student', targetId: authData.user.id, targetLabel: first + ' ' + last, school: _selectedSchool.slug });
 
   sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, username, major, year, initials, color, school: _selectedSchool.slug };
@@ -2715,7 +2808,15 @@ async function doLogin() {
   err.style.display = 'none';
 
   const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-  if (authError) { err.textContent = 'Wrong email or password.'; err.style.display = 'block'; return; }
+  if (authError) {
+    // Unverified accounts can't get a session — show the branded check-email screen instead of a scary error.
+    if (authError.code === 'email_not_confirmed' || /not confirmed/i.test(authError.message || '')) {
+      closeModal('loginModal');
+      showVerifyScreen(email);
+      return;
+    }
+    err.textContent = 'Wrong email or password.'; err.style.display = 'block'; return;
+  }
 
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', authData.user.id).single();
   if (!profile) { err.textContent = 'Account not found. Please sign up first.'; err.style.display = 'block'; await supabaseClient.auth.signOut(); return; }
@@ -3310,7 +3411,7 @@ function renderListings() {
   const grid = document.getElementById('listingsGrid');
   if (filtered.length === 0) {
     grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
-      <div style="font-size:40px;margin-bottom:12px">${approved.length === 0 ? '&#127968;' : '&#128269;'}</div>
+      <div style="margin-bottom:12px;color:var(--text-faint)">${approved.length === 0 ? ico('inbox', 38) : ico('search', 38)}</div>
       <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
       ${!noFilters ? `<div style="font-size:13px;margin-bottom:16px">Try widening the price range or clearing a filter.</div><button onclick="clearListingFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
     </div>`;
@@ -3321,6 +3422,19 @@ function renderListings() {
 
 // Escapes a string for safe use inside an HTML attribute (e.g. alt="").
 function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+// Small Lucide-style line icons. stroke=currentColor so each inherits its context's color.
+function ico(name, size = 16) {
+  const p = {
+    search:  '<circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/>',
+    image:   '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+    pin:     '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+    message: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+    school:  '<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/>',
+    inbox:   '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
+  }[name] || '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0">${p}</svg>`;
+}
 
 // Cross-school badge (school name + distance) — '' when the listing is from the viewer's own school.
 function schoolBadgeHTML(l) {
@@ -3334,7 +3448,7 @@ function schoolBadgeHTML(l) {
     const mi = haversineDistance(mySchool.lat, mySchool.lng, theirSchool.lat, theirSchool.lng);
     distLabel = `<span class="school-dist">· ${mi.toFixed(0)} mi</span>`;
   }
-  return `<span class="school-badge">&#127979; ${name}${distLabel}</span>`;
+  return `<span class="school-badge">${ico('school', 10)} ${name}${distLabel}</span>`;
 }
 
 // A small avatar (live profile picture, else initials-on-color). Never a generic "missing user" icon.
@@ -3406,7 +3520,7 @@ function listingCardHTML(l, isPinned) {
   const hero = photoCount
     ? `<div class="lc-photo" style="background:${cat.bg}">
          <img src="${l.photo_urls[0]}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
-         ${photoCount > 1 ? `<span class="lc-count">&#128247; ${photoCount}</span>` : ''}
+         ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
          ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
        </div>`
     : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
@@ -3422,7 +3536,7 @@ function listingCardHTML(l, isPinned) {
     <div class="lc-body">
       <div class="lc-meta">${photoCount ? `${catLabel} · ` : ''}${l.posted}</div>
       ${photoCount ? `<div class="lc-title">${l.title}</div>` : ''}
-      ${l.location ? `<div class="lc-loc">&#128205; ${l.location}</div>` : ''}
+      ${l.location ? `<div class="lc-loc">${ico('pin', 13)} ${l.location}</div>` : ''}
       ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${l.desc}</div>` : ''}
       <div class="lc-foot">
         <div class="lc-price"${!photoCount ? ` style="color:${cat.text}"` : ''}>${priceLabel(l)}</div>
@@ -3464,13 +3578,13 @@ function openDetail(id) {
          <div class="detail-noimg-title">${l.title}</div>
        </div>`;
   const messageBtn = !l.poster.official
-    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">&#128172; Message ${l.poster.name}</button>` : '';
+    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">Message ${l.poster.name}</button>` : '';
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-top">${detailPosterHTML(l)}</div>
     ${hero}
     <div class="detail-body">
       ${l.photo_urls?.length ? `<div class="detail-title">${l.title}</div>` : ''}
-      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px">&#128205; ${l.location}</div>` : ''}
+      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:5px">${ico('pin', 14)} ${l.location}</div>` : ''}
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <div class="detail-price">${priceLabel(l)}</div>
         <span class="pill pill-active">${l.type}</span>
@@ -3561,7 +3675,8 @@ function selectCategory(cat) {
   _postCategory = cat;
   document.getElementById('postStep1').style.display = 'none';
   document.getElementById('postStep2').style.display = '';
-  document.getElementById('postCatBadge').textContent = CATEGORY_EMOJI[cat] + ' ' + CATEGORY_LABELS[cat];
+  const _catC = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other;
+  document.getElementById('postCatBadge').innerHTML = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${_catC.text};margin-right:6px;vertical-align:middle"></span>${CATEGORY_LABELS[cat]}`;
   document.querySelectorAll('[id^="catFields-"]').forEach(el => el.style.display = 'none');
   document.getElementById('catFields-' + cat).style.display = '';
 }
@@ -4090,12 +4205,15 @@ function renderListingGrid(listings, isOwn) {
   const badge = { approved: ['#e8f5e9','#1a7a45','Active'], pinned: ['#e8f5e9','#1a7a45','Pinned'], pending: ['#fff8e1','#b87a00','Pending'], rejected: ['#fde8e8','#c0392b','Rejected'], removed: ['#f0f0f0','#888','Removed'] };
   return `<div class="listing-grid">${listings.map(l => {
     const [bg, col, label] = badge[l.status] || badge.pending;
-    const _gridThumb = l.photo_urls?.[0]
-      ? `<img src="${l.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="">`
-      : `<div class="lg-emoji">${l.emoji || '🏠'}</div>`;
+    const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
+    const rent = l.rent ? `$${l.rent}/mo` : '';
+    const inner = l.photo_urls?.[0]
+      ? `<img src="${l.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(l.title)}">
+         <div class="lg-cap"><div class="lg-cap-title">${l.title}</div><div class="lg-cap-rent">${rent}</div></div>`
+      : `<div class="lg-fill" style="background:${cat.bg};color:${cat.text}"><div class="lg-fill-title">${l.title}</div></div>
+         <div class="lg-cap"><div class="lg-cap-rent">${rent}</div></div>`;
     return `<div class="lg-cell" onclick="openDetail(${l.id})">
-      ${_gridThumb}
-      <div class="lg-cap"><div class="lg-cap-title">${l.title}</div><div class="lg-cap-rent">$${l.rent}/mo</div></div>
+      ${inner}
       ${isOwn ? `<div class="lg-badge" style="background:${bg};color:${col}">${label}</div>` : ''}
     </div>`;
   }).join('')}</div>`;
@@ -4184,6 +4302,7 @@ function applyMaintenance() {
 
 async function initAdmin() {
   await loadPlatformSettings();
+  await loadListings();   // warm the listings cache so Approvals/Listings/Pinned aren't empty on entry
   updateAdminLogo();
   updateAllAdminBadges();
   buildMultiSchoolStats();
@@ -4209,67 +4328,60 @@ async function initAdmin() {
   }
 }
 
+// Realtime: any change on a watched table schedules ONE debounced full reload,
+// so manual refresh and live updates run the exact same path. Events are '*'
+// (INSERT/UPDATE/DELETE) so cross-admin status changes propagate too.
 function startAdminRealtimeListeners() {
   _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
   _adminRealtimeChannels = [];
-
-  const refreshActive = (sectionId, fn) => {
-    const active = document.querySelector('.a-section.active');
-    if (active?.id === sectionId) fn();
-  };
-
-  _adminRealtimeChannels.push(
-    supabaseClient.channel('adm-listings')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'listings' }, () => {
-        updateAdminBadges();
-        renderAdminDashLog();
-        refreshActive('asec-approvals', renderAApprovals);
-      })
-      .subscribe()
-  );
-
-  _adminRealtimeChannels.push(
-    supabaseClient.channel('adm-reports')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reports' }, () => {
-        updateReportsBadge();
-        renderAdminDashLog();
-        refreshActive('asec-reports', renderAReports);
-      })
-      .subscribe()
-  );
-
-  _adminRealtimeChannels.push(
-    supabaseClient.channel('adm-appeals')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'appeals' }, () => {
-        updateAppealsBadge();
-        renderAdminDashLog();
-        refreshActive('asec-appeals', renderAppeals);
-      })
-      .subscribe()
-  );
-
-  _adminRealtimeChannels.push(
-    supabaseClient.channel('adm-profiles')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, () => {
-        updateAdminBadges();
-        renderAdminDashLog();
-        refreshActive('asec-students', renderAStudents);
-      })
-      .subscribe()
-  );
+  ['listings', 'reports', 'appeals', 'profiles', 'messages'].forEach(tbl => {
+    _adminRealtimeChannels.push(
+      supabaseClient.channel('adm-' + tbl)
+        .on('postgres_changes', { event: '*', schema: 'public', table: tbl }, scheduleAdminReload)
+        .subscribe()
+    );
+  });
 }
 
-function refreshAdmin() {
-  updateAllAdminBadges();
-  buildMultiSchoolStats();
-  renderAdminDashLog();
+let _adminReloadTimer = null;
+function scheduleAdminReload() {
+  clearTimeout(_adminReloadTimer);
+  _adminReloadTimer = setTimeout(() => adminReload({ reloadCache: true }), 350);
+}
+
+// Re-renders whichever admin section is currently open, from fresh data.
+function rerenderActiveAdminSection() {
   const active = document.querySelector('.a-section.active');
-  if (active) {
-    const id = active.id.replace('asec-', '');
-    const map = { approvals: renderAApprovals, listings: renderAListings, pinned: renderAPinned, students: renderAStudents, messages: renderAMessages, reports: renderAReports, activity: renderAActivity, analytics: buildAnalytics };
-    if (map[id]) map[id]();
+  if (!active) return;
+  const id = active.id.replace('asec-', '');
+  if (typeof _agoMap !== 'undefined' && _agoMap[id]) _agoMap[id]();
+}
+
+// Single source of truth for refreshing admin data — used by both the refresh
+// button and the realtime listeners so they behave identically.
+async function adminReload({ reloadCache = true } = {}) {
+  if (reloadCache) await loadListings();        // reload DB.listings/DB.pending cache (Pattern A fix)
+  await updateAllAdminBadges();                 // fresh counts
+  buildMultiSchoolStats();
+  buildAdminBar();
+  renderAdminDashLog();
+  rerenderActiveAdminSection();                 // re-render the open section from fresh data
+}
+
+async function refreshAdmin() {
+  const btn = document.getElementById('adminRefreshBtn');
+  if (btn) {
+    if (btn.dataset.busy) return;               // idempotent — ignore double-clicks while running
+    btn.dataset.busy = '1'; btn.disabled = true;
+    btn.dataset.label = btn.innerHTML;
+    btn.innerHTML = '&#8635; Refreshing…';
   }
-  toast('✓ Refreshed');
+  try {
+    await adminReload({ reloadCache: true });
+    toast('✓ Refreshed');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.label || '&#8635; Refresh'; delete btn.dataset.busy; }
+  }
 }
 
 async function updateAdminBadges() {
@@ -4297,7 +4409,7 @@ async function updateAdminBadges() {
 }
 
 function updateAllAdminBadges() {
-  Promise.all([updateAdminBadges(), updateAppealsBadge(), updateReportsBadge()]);
+  return Promise.all([updateAdminBadges(), updateAppealsBadge(), updateReportsBadge()]);
 }
 
 async function buildMultiSchoolStats() {
