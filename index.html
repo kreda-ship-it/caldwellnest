@@ -160,9 +160,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .filter-drawer-grip{display:flex;}
   .filter-drawer-backdrop{background:rgba(0,0,0,.35);}
 }
-.cat-pick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text);transition:all .15s;}
-.cat-pick-btn:hover{border-color:var(--brand);background:var(--brand-pale);color:var(--brand);}
-.cat-pick-btn .cat-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+.cat-pick-btn{display:flex;align-items:center;justify-content:center;min-height:64px;padding:18px 12px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;transition:transform .12s,box-shadow .15s;}
+.cat-pick-btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08);}
 /* Pinterest-style masonry via CSS multi-column: cards keep natural heights, next card slots up — no row gaps. */
 .listings-grid{column-count:3;column-gap:18px;}
 @media(max-width:1100px){.listings-grid{column-count:2;}}
@@ -1696,12 +1695,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
     <div id="postStep1">
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">What are you posting?</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <button class="cat-pick-btn" onclick="selectCategory('housing')"><span class="cat-dot" style="background:#1F4435"></span>Housing</button>
-        <button class="cat-pick-btn" onclick="selectCategory('clothing')"><span class="cat-dot" style="background:#7A3B4A"></span>Clothing</button>
-        <button class="cat-pick-btn" onclick="selectCategory('technology')"><span class="cat-dot" style="background:#2C476A"></span>Technology</button>
-        <button class="cat-pick-btn" onclick="selectCategory('donation')"><span class="cat-dot" style="background:#6B5128"></span>Donation</button>
-        <button class="cat-pick-btn" onclick="selectCategory('organization_event')"><span class="cat-dot" style="background:#473A6B"></span>Org / Event</button>
-        <button class="cat-pick-btn" onclick="selectCategory('other')"><span class="cat-dot" style="background:#45453E"></span>Other</button>
+        <button class="cat-pick-btn" onclick="selectCategory('housing')" style="background:#E7F0EA;color:#1F4435">Housing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('clothing')" style="background:#F6E9EC;color:#7A3B4A">Clothing</button>
+        <button class="cat-pick-btn" onclick="selectCategory('technology')" style="background:#E8EEF5;color:#2C476A">Technology</button>
+        <button class="cat-pick-btn" onclick="selectCategory('donation')" style="background:#F7EFE1;color:#6B5128">Donation</button>
+        <button class="cat-pick-btn" onclick="selectCategory('organization_event')" style="background:#EFEAF6;color:#473A6B">Org / Event</button>
+        <button class="cat-pick-btn" onclick="selectCategory('other')" style="background:#EEEEEA;color:#45453E">Other</button>
       </div>
     </div>
 
@@ -2829,17 +2828,31 @@ async function doLogin() {
     return;
   }
 
-  sUser = { id: authData.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   closeModal('loginModal');
+  await enterStudentSession(profile, authData.user.id, 'Welcome back, ' + profile.first_name + '!');
+}
+
+// Shared post-authentication student setup — used by real login AND the demo login,
+// so the demo session behaves byte-for-byte like any other student.
+async function enterStudentSession(profile, userId, welcomeMsg) {
+  sUser = {
+    id: userId, first: profile.first_name, last: profile.last_name,
+    name: profile.first_name + ' ' + profile.last_name,
+    display_name: profile.display_name || null, email: profile.email,
+    username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null,
+    major: profile.major, year: profile.year, initials: profile.initials, color: profile.color,
+    avatar_url: profile.avatar_url || null, created_at: profile.created_at || null,
+    school: profile.school || 'caldwell'
+  };
   updateSNav();
-  toast('Welcome back, ' + profile.first_name + '!');
+  if (welcomeMsg) toast(welcomeMsg);
   if (applyMaintenance()) return;
   await loadListings();
   showPage('listings');
-  checkStudentNotifications(authData.user.id);
-  startGlobalMsgListener(authData.user.id);
-  startNotifListener(authData.user.id);
-  startProfileListener(authData.user.id);
+  checkStudentNotifications(userId);
+  startGlobalMsgListener(userId);
+  startNotifListener(userId);
+  startProfileListener(userId);
   loadStudentBroadcasts();
 }
 
@@ -2925,13 +2938,18 @@ function aNotifyStudent(profileId, type, message) {
   supabaseClient.from('notifications').insert({ profile_id: profileId, type, message, read: false });
 }
 
-function demoLogin() {
-  sUser = { first: 'Jamie', last: 'Cruz', name: 'Jamie Cruz', email: 'jcruz@caldwell.edu', major: 'Nursing', year: 'Junior', initials: 'JC', color: AC[5] };
+// Demo student — a REAL, verified Supabase student account (created in the dashboard).
+// Credentials are hardcoded for one-click demos; this is a plain student with no special powers.
+const DEMO_EMAIL = 'demo@caldwell.edu';
+const DEMO_PASSWORD = 'CaldwellDemo2026!';
+
+async function demoLogin() {
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  if (error) { toast('Demo login unavailable right now.'); console.error('[demo login]', error); return; }
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.user.id).single();
+  if (!profile) { toast('Demo profile not set up yet.'); await supabaseClient.auth.signOut(); return; }
   closeModal('loginModal');
-  updateSNav();
-  document.getElementById('msgBadge').style.display = 'inline';
-  toast('Logged in as demo student ✓');
-  showPage('listings');
+  await enterStudentSession(profile, data.user.id, 'Logged in as demo student ✓');
 }
 
 function updateSNav() {
