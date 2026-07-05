@@ -1511,6 +1511,18 @@ initStudent();
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
+  // Invisible reload: return to the page the student was on before the browser reloaded the tab.
+  const lastPage = sessionStorage.getItem('cn_last_page');
+  if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {
+    showPage(lastPage);
+    if (lastPage === 'messages') {
+      try {
+        const c = JSON.parse(sessionStorage.getItem('cn_last_convo'));
+        // ownerId check: never reopen a conversation saved by a different account on this tab
+        if (c && c.userId && c.ownerId === session.user.id) openConvo(c.userId, c.info, c.listingId);
+      } catch (e) { /* corrupt saved value — ignore, student just sees the convo list */ }
+    }
+  }
   // Just clicked the email-verification link → Supabase set the session and redirected here.
   if (/[#&]type=signup/.test(window.location.hash)) {
     toast('✓ Email verified — welcome to CaldwellNest!');
@@ -1598,6 +1610,7 @@ async function sLogout() {
   if (sProfileChannel)   { supabaseClient.removeChannel(sProfileChannel);   sProfileChannel   = null; }
   await supabaseClient.auth.signOut();
   sUser = null;
+  sessionStorage.removeItem('cn_last_convo');
   updateSNav();
   showPage('home');
   toast('Logged out');
@@ -2372,7 +2385,7 @@ function aNotifyStudent(profileId, type, message) {
 // Demo student — a REAL, verified Supabase student account (created in the dashboard).
 // Credentials are hardcoded for one-click demos; this is a plain student with no special powers.
 const DEMO_EMAIL = 'demo@caldwell.edu';
-const DEMO_PASSWORD = 'CaldwellDemo2026!';
+const DEMO_PASSWORD = 'Demoaccount2026!';
 
 async function demoLogin() {
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
@@ -2404,6 +2417,7 @@ function updateSNav() {
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
+  if (name !== 'maintenance') sessionStorage.setItem('cn_last_page', name);
   if (name === 'messages') { renderConvos(); sUnreadCount = 0; document.getElementById('msgBadge').style.display = 'none'; }
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
@@ -3475,6 +3489,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
+  const _owner = getEffectiveUser();
+  if (_owner) sessionStorage.setItem('cn_last_convo', JSON.stringify({ ownerId: _owner.id, userId: otherUserId, info: sConvoCache[otherUserId], listingId: listingId || null }));
   renderConvos();
 
   const eu = getEffectiveUser();
