@@ -194,7 +194,30 @@
         <button class="cat-tab" onclick="setListingCat('technology',this)">Technology</button>
         <button class="cat-tab" onclick="setListingCat('donation',this)">Donation</button>
         <button class="cat-tab" onclick="setListingCat('organization_event',this)">Events</button>
+        <button class="cat-tab" onclick="setListingCat('books',this)">Books</button>
         <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
+      </div>
+      <!-- BOOK-ONLY CONTROLS — shown only while the Books tab is active -->
+      <div id="bookControls" style="display:none">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+          <div style="position:relative;flex:2;min-width:200px;">
+            <input class="form-input" id="bfCourseInput" placeholder="Filter by course (e.g. NU 301)..." autocomplete="off" style="margin-bottom:0;width:100%;">
+            <div class="course-ac-list" id="bfCourseList" style="display:none"></div>
+          </div>
+          <select class="form-select" id="bfEdition" onchange="setBookEdition(this.value)" style="margin-bottom:0;flex:1;min-width:130px;max-width:170px;">
+            <option value="all">All editions</option>
+          </select>
+          <div class="filters" id="bookTypeChips" style="margin-bottom:0;">
+            <button class="filter-chip active" onclick="setBookType('all',this)">All</button>
+            <button class="filter-chip" onclick="setBookType('course',this)">Textbooks</button>
+            <button class="filter-chip" onclick="setBookType('other',this)">Other books</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
+          <span id="bActiveTags" style="display:contents;"></span>
+          <button id="bClearAll" onclick="clearBookFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
+          <span id="bResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
       </div>
       <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
@@ -208,6 +231,7 @@
         <div style="height:1px;background:var(--border);margin:20px 0;"></div>
       </div>
       <div class="listings-grid" id="listingsGrid"></div>
+      <div class="listings-grid" id="booksGrid" style="display:none"></div>
     </div>
   </div>
 
@@ -1131,6 +1155,7 @@
         <button class="cat-pick-btn" onclick="selectCategory('technology')" style="background:#E8EEF5;color:#2C476A">Technology</button>
         <button class="cat-pick-btn" onclick="selectCategory('donation')" style="background:#F7EFE1;color:#6B5128">Donation</button>
         <button class="cat-pick-btn" onclick="selectCategory('organization_event')" style="background:#EFEAF6;color:#473A6B">Org / Event</button>
+        <button class="cat-pick-btn" onclick="closePostModal();openPostBook()" style="background:#E8EEF5;color:#2C476A">Books</button>
         <button class="cat-pick-btn" onclick="selectCategory('other')" style="background:#EEEEEA;color:#45453E">Other</button>
       </div>
     </div>
@@ -1229,6 +1254,71 @@
 <div class="modal-overlay" id="detailModal">
   <div class="modal" style="max-width:560px"><div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;"><button class="modal-close" onclick="closeModal('detailModal')">&#215;</button></div>
   <div id="detailContent"></div></div>
+</div>
+
+<!-- POST A BOOK -->
+<div class="modal-overlay" id="postBookModal">
+  <div class="modal"><div class="modal-header"><div class="modal-title">Post a book</div><button class="modal-close" onclick="closePostBook()">&#215;</button></div>
+  <div class="modal-body">
+
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">What kind of book is it?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+      <button class="cat-pick-btn" id="btypeCourse" onclick="selectBookType('course')" style="background:#E8EEF5;color:#2C476A">&#128218; Textbook for a course</button>
+      <button class="cat-pick-btn" id="btypeOther" onclick="selectBookType('other')" style="background:#F7EFE1;color:#6B5128">&#128214; Other book</button>
+    </div>
+
+    <div id="bookFormFields" style="display:none">
+
+      <!-- Textbook-only: course autocomplete -->
+      <div class="form-group" id="bkCourseGroup">
+        <label class="form-label">Course</label>
+        <div style="position:relative;">
+          <input class="form-input" id="bkCourseInput" placeholder="Start typing a course code or name..." autocomplete="off" style="margin-bottom:0;">
+          <div class="course-ac-list" id="bkCourseList" style="display:none"></div>
+        </div>
+        <div id="bkCourseHint" style="font-size:11px;color:var(--text-faint);margin-top:4px;">Pick your course from the list — or choose &ldquo;My course isn&rsquo;t listed&rdquo; at the bottom.</div>
+      </div>
+
+      <!-- Other-book-only: genre -->
+      <div class="form-group" id="bkGenreGroup" style="display:none">
+        <label class="form-label">Genre</label>
+        <select class="form-select" id="bkGenre">
+          <option>Fiction / Novel</option><option>Non-fiction</option><option>Faith &amp; Spirituality</option>
+          <option>Self-help</option><option>Biography</option><option>Poetry</option>
+          <option>Comics &amp; Manga</option><option>Other</option>
+        </select>
+      </div>
+
+      <div class="form-group"><label class="form-label">ISBN <span style="font-weight:400;color:var(--text-faint)">(optional — it&rsquo;s on the back cover, near the barcode)</span></label><input class="form-input" id="bkIsbn" placeholder="e.g. 9780134515335"></div>
+      <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="bkTitle" placeholder="Book title as printed on the cover"></div>
+      <div class="form-group"><label class="form-label">Author <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label><input class="form-input" id="bkAuthor" placeholder="e.g. Patricia A. Potter"></div>
+      <div class="form-row-2">
+        <div class="form-group" id="bkEditionGroup"><label class="form-label">Edition <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label><input class="form-input" id="bkEdition" placeholder="e.g. 5th Edition"></div>
+        <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="bkCondition"><option>New</option><option>Like New</option><option selected>Good</option><option>Fair</option><option>Worn</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="bkPrice" type="number" min="0" placeholder="e.g. 40 — or 0 if you're giving it away"></div>
+
+      <div class="form-group">
+        <label class="form-label">Photos <span style="font-weight:400;color:var(--text-faint)">(optional, but photos sell books)</span></label>
+        <label for="bkPhotoInput" style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;cursor:pointer;color:var(--text-muted);font-size:13px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Tap to choose or drag here<br><span style="font-size:11px;color:var(--text-faint)">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
+        </label>
+        <input type="file" id="bkPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickBookPhoto(this)">
+        <div id="bkPhotoPreview" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="form-group"><label class="form-label">Description <span style="font-weight:400;color:var(--text-faint)">(optional)</span></label><textarea class="form-textarea" id="bkDesc" rows="3" placeholder="Highlighting? Missing access code? Anything a buyer should know."></textarea></div>
+
+      <button id="bkSubmitBtn" class="btn-full btn-brand" onclick="submitBook()">Post book</button>
+    </div>
+
+  </div></div>
+</div>
+
+<!-- BOOK DETAIL -->
+<div class="modal-overlay" id="bookDetailModal">
+  <div class="modal" style="max-width:560px"><div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;"><button class="modal-close" onclick="closeModal('bookDetailModal')">&#215;</button></div>
+  <div id="bookDetailContent"></div></div>
 </div>
 
 <!-- ADMIN EDIT LISTING -->
@@ -2505,6 +2595,7 @@ function setListingCat(cat, el) {
   renderListings();
 }
 function onListingSearch(val) {
+  if (_filters.category === 'books') { onBookSearch(val); return; }
   clearTimeout(_kwTimer);
   _kwTimer = setTimeout(() => { _filters.keyword = val.trim().toLowerCase(); renderListings(); }, 250);
 }
@@ -2839,7 +2930,24 @@ function buildCatFiltersHTML(cat) {
     </div>`;
 }
 
+// Books live in their own table with their own filters, but share the Browse page.
+// This toggles the page between "marketplace mode" and "books mode" UI.
+function setBooksBrowseMode(on) {
+  document.getElementById('bookControls').style.display = on ? '' : 'none';
+  document.getElementById('booksGrid').style.display    = on ? '' : 'none';
+  document.getElementById('listingsGrid').style.display = on ? 'none' : '';
+  document.getElementById('sFilterBar').style.display   = on ? 'none' : 'flex';
+  document.getElementById('filtersBtn').style.display   = on ? 'none' : '';
+  if (on) document.getElementById('pinnedStrip').style.display = 'none';
+  const search = document.getElementById('listingSearch');
+  search.placeholder = on ? 'Search title, author, or ISBN...' : 'Search listings...';
+  search.value = on ? _bookFilters.keyword : _filters.keyword;
+}
+
 function renderListings() {
+  const isBooks = _filters.category === 'books';
+  setBooksBrowseMode(isBooks);
+  if (isBooks) { initBooksPage(); return; }
   const approved = DB.listings.filter(l => l.status === 'approved');
   const pinned   = approved.filter(l => l.pinned);
   const rest     = approved.filter(l => !l.pinned);
@@ -3276,6 +3384,450 @@ function clearListingPhoto() {
   const prev = document.getElementById('pPhotoPreview');
   if (prev) prev.innerHTML = '';
 }
+
+// ══════════════════════ BOOKS SECTION ══════════════════════
+let _courses = null;                 // full course catalog, loaded once per session
+let _books = [];                     // active book_listings rows
+let _bookPosterMap = {};             // poster_id -> profile (live join, same idea as loadListings)
+let _bookFilters = { type: 'all', course: null, edition: 'all', keyword: '' };
+let _bookKwTimer = null;
+let _pendingBookPhotos = [];
+let _postBookType = null;            // 'course' | 'other' while the post form is open
+let _bkSelCourse = null;             // selected course code, 'NOT_LISTED', or null
+let _booksInit = false;
+let _bfCourseAC = null, _bkCourseAC = null;
+
+const BOOK_COLORS = { course: { bg: '#E8EEF5', text: '#2C476A' }, other: { bg: '#F7EFE1', text: '#6B5128' } };
+
+async function initBooksPage() {
+  if (!_courses) await loadCourses();
+  if (!_booksInit) { setupBookACs(); _booksInit = true; }
+  await loadBooks();
+  renderBooks();
+}
+
+async function loadCourses() {
+  const { data, error } = await supabaseClient
+    .from('courses').select('code, name, department, aliases').order('code');
+  if (error) { console.error('[courses]', error.message); _courses = []; return; }
+  _courses = data || [];
+}
+
+async function loadBooks() {
+  const { data, error } = await supabaseClient
+    .from('book_listings').select('*').eq('status', 'active')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('[books]', error.message); return; }
+  _books = data || [];
+  const ids = [...new Set(_books.map(b => b.poster_id).filter(Boolean))];
+  _bookPosterMap = {};
+  if (ids.length) {
+    const { data: profs } = await supabaseClient.from('profiles')
+      .select('id, display_name, first_name, last_name, initials, color, avatar_url')
+      .in('id', ids);
+    (profs || []).forEach(p => { _bookPosterMap[p.id] = p; });
+  }
+}
+
+function courseByCode(code) { return (_courses || []).find(c => c.code === code); }
+
+// Matches against code ("NU 301" / "nu301"), name, and aliases. Code matches rank first.
+function courseMatches(q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return [];
+  const sc = s.replace(/\s+/g, '');
+  const codeHits = [], nameHits = [];
+  for (const c of _courses) {
+    const code = c.code.toLowerCase();
+    if (code.startsWith(s) || code.replace(/\s+/g, '').startsWith(sc)) codeHits.push(c);
+    else if (c.name.toLowerCase().includes(s) || (c.aliases || []).some(a => a.toLowerCase().includes(s))) nameHits.push(c);
+  }
+  return codeHits.concat(nameHits).slice(0, 40);
+}
+
+// Reusable autocomplete: students can only pick from the list, never free-type a course.
+// opts.allowNotListed adds a "My course isn't listed" row that selects the special value 'NOT_LISTED'.
+function attachCourseAC(input, list, opts) {
+  let items = [], active = -1, selected = null;
+
+  function close() { list.style.display = 'none'; active = -1; }
+
+  function paint() {
+    let html = items.map((c, i) =>
+      `<div class="course-ac-item${i === active ? ' ac-active' : ''}" data-i="${i}"><span class="course-ac-code">${c.code}</span><span class="course-ac-name">${c.name}</span></div>`
+    ).join('');
+    if (!items.length) html = `<div class="course-ac-none">No matching course — try the code, like NU 301</div>`;
+    if (opts.allowNotListed) html += `<div class="course-ac-item course-ac-notlisted${active === items.length ? ' ac-active' : ''}" data-i="-2">My course isn&rsquo;t listed</div>`;
+    list.innerHTML = html;
+    list.style.display = 'block';
+    list.querySelectorAll('.course-ac-item').forEach(el => {
+      el.addEventListener('mousedown', e => e.preventDefault()); // keep focus so blur doesn't fire first
+      el.addEventListener('click', () => pick(parseInt(el.dataset.i, 10)));
+    });
+  }
+
+  function pick(i) {
+    if (isNaN(i)) return;
+    if (i === -2) { selected = 'NOT_LISTED'; input.value = 'My course isn’t listed'; }
+    else {
+      const c = items[i]; if (!c) return;
+      selected = c.code;
+      input.value = `${c.code} – ${c.name}`;
+    }
+    close();
+    opts.onSelect(selected);
+  }
+
+  input.addEventListener('input', () => {
+    if (selected) { selected = null; opts.onSelect(null); }
+    const q = input.value;
+    if (!q.trim()) { close(); return; }
+    items = courseMatches(q); active = -1; paint();
+  });
+
+  input.addEventListener('keydown', e => {
+    if (list.style.display === 'none') return;
+    const max = items.length - 1 + (opts.allowNotListed ? 1 : 0);
+    if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, max); paint(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); paint(); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active === items.length && opts.allowNotListed) pick(-2);
+      else pick(active >= 0 ? active : 0);
+    }
+    else if (e.key === 'Escape') close();
+  });
+
+  // No valid pick = no value. The field clears itself so a half-typed course can't linger.
+  input.addEventListener('blur', () => setTimeout(() => {
+    if (!selected && input.value.trim()) { input.value = ''; opts.onSelect(null); }
+    close();
+  }, 150));
+
+  return {
+    reset() { selected = null; input.value = ''; close(); },
+    get selected() { return selected; }
+  };
+}
+
+function setupBookACs() {
+  _bfCourseAC = attachCourseAC(
+    document.getElementById('bfCourseInput'),
+    document.getElementById('bfCourseList'),
+    { allowNotListed: false, onSelect: code => { _bookFilters.course = code; renderBooks(); } }
+  );
+  _bkCourseAC = attachCourseAC(
+    document.getElementById('bkCourseInput'),
+    document.getElementById('bkCourseList'),
+    { allowNotListed: true, onSelect: code => { _bkSelCourse = code; } }
+  );
+}
+
+// ---- Browse: filters + rendering ----
+function setBookType(t, el) {
+  _bookFilters.type = t;
+  document.querySelectorAll('#bookTypeChips .filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderBooks();
+}
+function onBookSearch(val) {
+  clearTimeout(_bookKwTimer);
+  _bookKwTimer = setTimeout(() => { _bookFilters.keyword = val.trim().toLowerCase(); renderBooks(); }, 250);
+}
+function setBookEdition(v) { _bookFilters.edition = v; renderBooks(); }
+function clearBookFilters() {
+  _bookFilters = { type: 'all', course: null, edition: 'all', keyword: '' };
+  const s = document.getElementById('listingSearch'); if (s) s.value = '';
+  const e = document.getElementById('bfEdition'); if (e) e.value = 'all';
+  if (_bfCourseAC) _bfCourseAC.reset();
+  document.querySelectorAll('#bookTypeChips .filter-chip').forEach(c => c.classList.remove('active'));
+  const allChip = document.querySelector('#bookTypeChips .filter-chip');
+  if (allChip) allChip.classList.add('active');
+  renderBooks();
+}
+
+function renderBooks() {
+  const f = _bookFilters;
+  const typeMatch = b => f.type === 'all' || b.book_type === f.type;
+  const courseMatch = b => !f.course || b.course_code === f.course;
+  const editionMatch = b => f.edition === 'all' || (b.edition || '').trim() === f.edition;
+  const kwMatch = b => !f.keyword ||
+    b.title.toLowerCase().includes(f.keyword) ||
+    (b.author || '').toLowerCase().includes(f.keyword) ||
+    (b.isbn || '').replace(/[- ]/g, '').includes(f.keyword.replace(/[- ]/g, ''));
+  const filtered = _books.filter(b => typeMatch(b) && courseMatch(b) && editionMatch(b) && kwMatch(b));
+
+  // Edition dropdown: distinct editions present in active listings
+  const edSel = document.getElementById('bfEdition');
+  if (edSel) {
+    const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
+    const cur = f.edition;
+    edSel.innerHTML = `<option value="all">All editions</option>` + editions.map(e => `<option${e === cur ? ' selected' : ''}>${e}</option>`).join('');
+    if (cur !== 'all' && !editions.includes(cur)) { f.edition = 'all'; edSel.value = 'all'; }
+  }
+
+  // Active filter tags + count
+  const tags = [];
+  if (f.course) tags.push(`<span class="active-filter-tag">${f.course} <button onclick="_bookFilters.course=null;_bfCourseAC.reset();renderBooks()">&#215;</button></span>`);
+  if (f.edition !== 'all') tags.push(`<span class="active-filter-tag">${f.edition} <button onclick="setBookEdition('all');document.getElementById('bfEdition').value='all'">&#215;</button></span>`);
+  if (f.keyword) tags.push(`<span class="active-filter-tag">&ldquo;${f.keyword}&rdquo; <button onclick="_bookFilters.keyword='';document.getElementById('listingSearch').value='';renderBooks()">&#215;</button></span>`);
+  const tagsEl = document.getElementById('bActiveTags');
+  const clearBtn = document.getElementById('bClearAll');
+  const countEl = document.getElementById('bResultCount');
+  if (tagsEl) tagsEl.innerHTML = tags.join('');
+  if (clearBtn) clearBtn.style.display = (tags.length || f.type !== 'all') ? 'inline' : 'none';
+  if (countEl) countEl.textContent = _books.length
+    ? (tags.length || f.type !== 'all' ? `Showing ${filtered.length} of ${_books.length}` : `${_books.length} book${_books.length !== 1 ? 's' : ''}`)
+    : '';
+
+  const grid = document.getElementById('booksGrid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
+      <div style="margin-bottom:12px;color:var(--text-faint)">${ico(_books.length ? 'search' : 'inbox', 38)}</div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${_books.length ? 'No books match these filters.' : 'No books yet — be the first to post one!'}</div>
+      ${_books.length ? `<button onclick="clearBookFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
+    </div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(bookCardHTML).join('');
+}
+
+function bookChipLabel(b) {
+  if (b.book_type === 'course') return b.course_code || 'Textbook';
+  return b.genre || 'Book';
+}
+
+function bookCardHTML(b) {
+  const col = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
+  const chip = bookChipLabel(b);
+  const photoCount = b.photo_urls?.length || 0;
+  const hero = photoCount
+    ? `<div class="lc-photo" style="background:${col.bg}">
+         <img src="${b.photo_urls[0]}" alt="${escAttr(b.title)}" loading="lazy" class="lc-photo-img">
+         ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
+       </div>`
+    : `<div class="lc-noimg" style="background:${col.bg};color:${col.text}">
+         <div class="lc-noimg-cat">${chip}</div>
+         <div class="lc-noimg-title">${b.title}</div>
+       </div>`;
+  const own = getEffectiveUser()?.id === b.poster_id;
+  const messageBtn = own ? '' : `<button class="btn-contact" onclick="event.stopPropagation();bContact(${b.id})">Message</button>`;
+  const metaBits = [b.edition, b.condition].filter(Boolean).join(' · ');
+  return `<div class="listing-card" tabindex="0" role="button" aria-label="${escAttr(b.title)}"
+      onclick="openBookDetail(${b.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openBookDetail(${b.id})}">
+    ${hero}
+    <div class="lc-body">
+      <div class="lc-meta">${chip}${photoCount ? '' : ' · ' + new Date(b.created_at).toLocaleDateString()}</div>
+      ${photoCount ? `<div class="lc-title">${b.title}</div>` : ''}
+      ${b.author ? `<div class="lc-loc">${b.author}</div>` : ''}
+      ${metaBits ? `<div class="lc-desc">${metaBits}</div>` : ''}
+      <div class="lc-foot">
+        <div class="lc-price"${!photoCount ? ` style="color:${col.text}"` : ''}>${b.price > 0 ? '$' + b.price : 'Free'}</div>
+        ${messageBtn}
+      </div>
+    </div>
+  </div>`;
+}
+
+function openBookDetail(id) {
+  const b = _books.find(x => x.id === id); if (!b) return;
+  const col = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
+  const course = b.course_code ? courseByCode(b.course_code) : null;
+  const hero = b.photo_urls?.length
+    ? photoGalleryHtml(b.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'bookGalMain', alt: b.title })
+    : `<div style="background:${col.bg};color:${col.text};padding:40px 28px;text-align:center;font-size:20px;font-weight:600;">${b.title}</div>`;
+
+  const facts = [];
+  if (b.book_type === 'course') facts.push(['Course', course ? `${course.code} – ${course.name}` : 'Not listed yet']);
+  if (b.book_type === 'other' && b.genre) facts.push(['Genre', b.genre]);
+  if (b.author)  facts.push(['Author', b.author]);
+  if (b.edition) facts.push(['Edition', b.edition]);
+  facts.push(['Condition', b.condition]);
+  if (b.isbn) facts.push(['ISBN', b.isbn]);
+
+  const p = _bookPosterMap[b.poster_id];
+  const posterName = p ? (p.display_name || `${p.first_name} ${p.last_name}`) : 'Caldwell student';
+  const own = getEffectiveUser()?.id === b.poster_id;
+  const actionBtn = own
+    ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
+    : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
+
+  document.getElementById('bookDetailContent').innerHTML = `
+    ${hero}
+    <div style="padding:20px 24px 24px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${bookChipLabel(b)} · Posted ${new Date(b.created_at).toLocaleDateString()}</div>
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px;">${b.title}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--brand);margin-bottom:14px;">${b.price > 0 ? '$' + b.price : 'Free'}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;margin-bottom:14px;">
+        ${facts.map(([k, v]) => `<div style="color:var(--text-muted)">${k}</div><div>${v}</div>`).join('')}
+      </div>
+      ${b.description ? `<div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:16px;">${b.description}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);margin-bottom:16px;">
+        ${p ? avatarHTML({ ...p, name: posterName }, 38) : ''}
+        <div style="font-size:13px;"><div style="font-weight:600">${posterName}</div><div style="color:var(--text-muted)">Caldwell University</div></div>
+      </div>
+      ${actionBtn}
+    </div>`;
+  openModal('bookDetailModal');
+}
+
+async function bContact(bookId) {
+  const eu = getEffectiveUser();
+  if (!eu) { openModal('loginModal'); return; }
+  const b = _books.find(x => x.id === bookId); if (!b) return;
+  if (b.poster_id === eu.id) { toast("That's your own listing!"); return; }
+  let p = _bookPosterMap[b.poster_id];
+  if (!p) {
+    const { data } = await supabaseClient.from('profiles').select('display_name, first_name, last_name, initials, color').eq('id', b.poster_id).single();
+    p = data;
+  }
+  if (!p) { toast('Messaging not available for this listing yet.'); return; }
+  const info = { name: p.display_name || `${p.first_name} ${p.last_name}`, initials: p.initials, color: p.color };
+  showPage('messages');
+  setTimeout(() => openConvo(b.poster_id, info, null), 100);
+}
+
+async function markBookSold(id) {
+  if (!confirm('Mark this book as sold? It will disappear from the Books feed.')) return;
+  const { error } = await supabaseClient.from('book_listings')
+    .update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
+  closeModal('bookDetailModal');
+  toast('Marked as sold — congrats!');
+  await loadBooks();
+  renderBooks();
+}
+
+// ---- Post-a-book form ----
+function openPostBook() {
+  if (!getEffectiveUser()) { openModal('loginModal'); return; }
+  resetBookForm();
+  openModal('postBookModal');
+}
+function closePostBook() {
+  closeModal('postBookModal');
+  setTimeout(resetBookForm, 200);
+}
+function resetBookForm() {
+  _postBookType = null; _bkSelCourse = null; _pendingBookPhotos = [];
+  if (_bkCourseAC) _bkCourseAC.reset();
+  ['bkIsbn', 'bkTitle', 'bkAuthor', 'bkEdition', 'bkPrice', 'bkDesc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('bkCondition').value = 'Good';
+  document.getElementById('bkGenre').selectedIndex = 0;
+  document.getElementById('bookFormFields').style.display = 'none';
+  document.getElementById('btypeCourse').style.outline = '';
+  document.getElementById('btypeOther').style.outline = '';
+  const inp = document.getElementById('bkPhotoInput'); if (inp) inp.value = '';
+  renderBookPhotoPreviews();
+  const btn = document.getElementById('bkSubmitBtn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Post book'; }
+}
+function selectBookType(t) {
+  _postBookType = t;
+  document.getElementById('btypeCourse').style.outline = t === 'course' ? '2px solid #2C476A' : '';
+  document.getElementById('btypeOther').style.outline = t === 'other' ? '2px solid #6B5128' : '';
+  document.getElementById('bookFormFields').style.display = 'block';
+  document.getElementById('bkCourseGroup').style.display = t === 'course' ? 'block' : 'none';
+  document.getElementById('bkEditionGroup').style.display = t === 'course' ? 'block' : 'none';
+  document.getElementById('bkGenreGroup').style.display = t === 'other' ? 'block' : 'none';
+}
+
+function pickBookPhoto(input) {
+  const files = [...input.files];
+  input.value = '';
+  if (!files.length) return;
+  for (const file of files) {
+    if (_pendingBookPhotos.length >= MAX_LISTING_PHOTOS) { toast(`You can add up to ${MAX_LISTING_PHOTOS} photos.`); break; }
+    const isHEIC = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
+    if (isHEIC) { toast(`"${file.name}" is HEIC — not supported yet, skipped.`); continue; }
+    if (!file.type.startsWith('image/')) { toast(`"${file.name}" isn't an image — skipped.`); continue; }
+    if (file.size > 10 * 1024 * 1024) { toast(`"${file.name}" is over 10 MB — skipped.`); continue; }
+    _pendingBookPhotos.push(file);
+  }
+  renderBookPhotoPreviews();
+}
+function renderBookPhotoPreviews() {
+  const prev = document.getElementById('bkPhotoPreview');
+  if (!prev) return;
+  if (!_pendingBookPhotos.length) { prev.innerHTML = ''; return; }
+  prev.innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:8px;">` +
+    _pendingBookPhotos.map((file, i) => `<div style="position:relative;display:inline-block;">
+        <img src="${URL.createObjectURL(file)}" style="width:84px;height:64px;object-fit:cover;border-radius:6px;display:block;">
+        ${i === 0 ? '<span style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;">Cover</span>' : ''}
+        <button type="button" onclick="removeBookPhoto(${i})" style="position:absolute;top:-7px;right:-7px;background:#fff;border:1px solid var(--border);border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.15);">&#215;</button>
+      </div>`).join('') +
+    `</div>
+    <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">${_pendingBookPhotos.length} of ${MAX_LISTING_PHOTOS} photos · first photo is the cover · compressed before upload</div>`;
+}
+function removeBookPhoto(i) {
+  _pendingBookPhotos.splice(i, 1);
+  renderBookPhotoPreviews();
+}
+
+async function submitBook() {
+  if (!_postBookType) { toast('Please choose Textbook or Other book'); return; }
+  const title = document.getElementById('bkTitle').value.trim();
+  if (!title) { toast('Please add the book title'); return; }
+  if (_postBookType === 'course' && !_bkSelCourse) { toast('Please pick your course from the list (or "My course isn’t listed")'); return; }
+  const price = parseFloat(document.getElementById('bkPrice').value);
+  if (isNaN(price) || price < 0) { toast('Please enter a price — use 0 if it’s free'); return; }
+  const u = getEffectiveUser();
+  if (!u || !u.id) { openModal('loginModal'); return; }
+
+  if (!_pendingBookPhotos.length) {
+    if (!confirm('Books with a photo sell much faster.\n\nPost without a photo?')) return;
+  }
+
+  const btn = document.getElementById('bkSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  // Same all-or-nothing photo batch behavior as marketplace listings
+  let photoUrls = [];
+  if (_pendingBookPhotos.length) {
+    try {
+      for (let i = 0; i < _pendingBookPhotos.length; i++) {
+        if (btn) btn.textContent = `Uploading photo ${i + 1} of ${_pendingBookPhotos.length}…`;
+        const blob = await resizeImage(_pendingBookPhotos[i]);
+        photoUrls.push(await uploadListingPhoto(blob, u.id));
+      }
+    } catch (err) {
+      console.error('[book photo upload]', err);
+      if (photoUrls.length) deleteListingPhotos(photoUrls);
+      photoUrls = [];
+      toast('Photos could not be uploaded — book will be saved without them.');
+    }
+    if (btn) btn.textContent = 'Saving…';
+  }
+
+  const { error } = await supabaseClient.from('book_listings').insert({
+    book_type: _postBookType,
+    course_code: _postBookType === 'course' && _bkSelCourse !== 'NOT_LISTED' ? _bkSelCourse : null,
+    genre: _postBookType === 'other' ? document.getElementById('bkGenre').value : null,
+    title,
+    author: document.getElementById('bkAuthor').value.trim() || null,
+    isbn: document.getElementById('bkIsbn').value.trim() || null,
+    edition: _postBookType === 'course' ? (document.getElementById('bkEdition').value.trim() || null) : null,
+    price,
+    condition: document.getElementById('bkCondition').value,
+    description: document.getElementById('bkDesc').value.trim() || null,
+    photo_urls: photoUrls,
+    poster_id: u.id,
+    status: 'active'
+  });
+  if (error) {
+    toast('Could not save your book — please try again.');
+    console.error('[book insert]', error.message);
+    if (photoUrls.length) deleteListingPhotos(photoUrls);
+    if (btn) { btn.disabled = false; btn.textContent = 'Post book'; }
+    return;
+  }
+  closePostBook();
+  toast('Your book is live!');
+  await loadBooks();
+  renderBooks();
+}
+// ══════════════════════ END BOOKS SECTION ══════════════════════
 
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
