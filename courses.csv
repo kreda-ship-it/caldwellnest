@@ -1,0 +1,886 @@
+code,name,department,aliases
+ABA 312,Assessment and Interventions in ABA,ABA,{}
+ABA 313,Assessment and Interventions In ABA II,ABA,{}
+ABA 330,Foundations of Behavior Analysis,ABA,{}
+ABA 340,Ethics in Behavior Analysis,ABA,{}
+ABA 350,Research Methods in Behavior Assessment,ABA,{}
+ABA 360,Organizational Behavior Management,ABA,{}
+ABA 400,Applied Practicum In Aba I,ABA,{}
+ABA 401,Applied Practicum In Aba II,ABA,{}
+ABA 487,Field Internship I,ABA,{}
+ABA 499,Independent Study,ABA,{}
+AH 122,Language of World Art,AH,{}
+AH 205,Getting Smashed: History of Destruction & Vandalism of Images,AH,{}
+AH 206,Design History,AH,{}
+AH 211,Introduction to Museology,AH,{}
+AH 212,World Art I,AH,{}
+AH 214,Modern Art,AH,{}
+AH 215,World Art II,AH,{}
+AH 220,Islamic Art & Architecture,AH,{}
+AH 245,Art Fundamentals for the Elementary Classroom Teacher,AH,{}
+AH 262,Art and Architecture in the Roman Catholic World,AH,{}
+AH 303,Contemporary Art,AH,{}
+AH 312,Nineteenth Century Art,AH,{}
+AH 324,Non-western Art,AH,{}
+AH 330,"Chemistry & Art: Pigments, History, & the Impact of Resource Extraction",AH,{}
+AH 339,Women Artistsand Modernism,AH,{}
+AH 341,Study Abroad,AH,{}
+AH 346,African/African American Art,AH,{}
+AH 347,Latin American Art,AH,{}
+AH 348,History of Photography,AH,{}
+AH 360,Critical Issues In Museology,AH,{}
+AN 225,Cultural Anthropology,AN,{}
+AN 250,Anthropology of Food,AN,{}
+AN 301,Sex and Gender Across Cultures,AN,{}
+AR 111,Drawing I,AR,{}
+AR 118,3D Design,AR,{}
+AR 200,2D Design and Color,AR,{}
+AR 210,"Mediated Identities: Exploring and Understanding Cultural Identity through Sound, Performance and Video Art",AR,{}
+AR 216,Watercolor,AR,{}
+AR 220,Digital Art I,AR,{}
+AR 221,Digital Illustration,AR,"{""Computer Illustration""}"
+AR 224,Graphic Design I,AR,{}
+AR 226,Drawing II,AR,{}
+AR 227,Life Drawing,AR,{}
+AR 229,Photography I,AR,{}
+AR 233,Relief Printmaking,AR,{}
+AR 235,Serigraphy,AR,{}
+AR 236,Video Art,AR,{}
+AR 243,Ceramics I,AR,{}
+AR 248,Typography I,AR,{}
+AR 250,Sculpture I,AR,{}
+AR 262,Concepts of Painting,AR,{}
+AR 280,Painting I,AR,{}
+AR 308,Photography II,AR,{}
+AR 310,Junior Comprehensive,AR,{}
+AR 314,Exploratory Painting,AR,{}
+AR 315,Intaglio,AR,{}
+AR 319,Intermediate Sculpture,AR,{}
+AR 327A,Life Drawing II,AR,{}
+AR 327B,Life Drawing III,AR,{}
+AR 337,Identity Design,AR,{}
+AR 339,Video Art II,AR,{}
+AR 341,Interm Painting I,AR,{}
+AR 342,Interm Painting II,AR,{}
+AR 343,Ceramics II,AR,{}
+AR 348,Graphic Design II,AR,{}
+AR 349,Digital Art II,AR,{}
+AR 350,Digital Imaging I,AR,{}
+AR 357,Web Design,AR,{}
+AR 358,Typography II,AR,{}
+AR 360,Interactive Design,AR,{}
+AR 404,Intermediate Intaglio,AR,{}
+AR 414,3D Animation,AR,{}
+AR 415,Exploratory Drawing,AR,{}
+AR 417A,Advanced Painting I,AR,{}
+AR 417B,Advanced Painting II,AR,{}
+AR 419,Multimedia,AR,{}
+AR 437,Adv Portfolio Design,AR,{}
+AR 440,Advanced Photography,AR,{}
+AR 445,Advanced Studio Projects,AR,{}
+AR 450,Advanced Sculpture,AR,{}
+AR 455,Senior Seminar,AR,{}
+AR 456,Digital Imaging II,AR,{}
+AR 465,B.A. Senior Exhibition,AR,{}
+AR 466,BFA Thesis and Exhibition,AR,{}
+AR 487,Field Internship I,AR,{}
+AR 489,Field Internship II,AR,{}
+AR 490,Field Internship III,AR,{}
+AR 499,Independent Study,AR,{}
+AS 101,American Sign Language I,AS,{}
+AS 102,American Sign Language II,AS,{}
+AS 103,American Sign Language III,AS,{}
+AS 125,Introduction to the Deaf Community,AS,{}
+AS 201,Intermediate Asl I,AS,{}
+AS 202,Intermediate Asl II,AS,{}
+AT 230,Introduction to Art Therapy,AT,{}
+AT 310,Art Therapy Methods,AT,{}
+AT 320,Art Therapy In Practice,AT,{}
+BI 101,General Biology I,BI,{}
+BI 101L,General Biology I Laboratory,BI,{}
+BI 102,General Biology II,BI,{}
+BI 102L,General Biology II Laboratory,BI,{}
+BI 103,Biological Principles,BI,{}
+BI 103L,Biological Principles Laboratory,BI,{}
+BI 106,Introductory Ecology,BI,{}
+BI 109,Marine Biology,BI,{}
+BI 110,The Human Body,BI,{}
+BI 203,Human Anatomy and Physiology I,BI,{}
+BI 203L,Human Anatomy and Physiology Laboratory I,BI,{}
+BI 204,Human Anatomy and Physiology II,BI,{}
+BI 204L,Human Anatomy and Physiology Laboratory I,BI,{}
+BI 207,Physiology,BI,{}
+BI 207L,Physiology Lab,BI,{}
+BI 208,Anatomy,BI,{}
+BI 208L,Anatomy Lab,BI,{}
+BI 210,Cell Biology,BI,{}
+BI 210L,Cell Biology Laboratory,BI,{}
+BI 212,Biostatistics,BI,{}
+BI 216,Statistics for Biology,BI,{}
+BI 217,Nursing Microbiology,BI,{}
+BI 217L,Nursing Microbiology Laboratory,BI,{}
+BI 220,Bioinformatics,BI,{}
+BI 220L,Bioinformatics La,BI,{}
+BI 301,Histology,BI,{}
+BI 301L,Histology Laboratory,BI,{}
+BI 302,Embryology,BI,{}
+BI 302L,Embryology Laboratory,BI,{}
+BI 305,Environmental Biology,BI,{}
+BI 305L,Environmental Biology Lab,BI,{}
+BI 311,Research As A Tool,BI,{}
+BI 315,Microbiology,BI,{}
+BI 315L,Microbiology Laboratory,BI,{}
+BI 315N,Nursing Microbiology,BI,{}
+BI 315X,Nursing Microbiology Laboratory,BI,{}
+BI 316,Immunology,BI,{}
+BI 316L,Immunology Laboratory,BI,{}
+BI 402,Genetics,BI,{}
+BI 402L,Genetics Laboratory,BI,{}
+BI 405,Physiology Of Disease,BI,{}
+BI 487,Field Internship,BI,{}
+BI 488,Field Internship,BI,{}
+BI 489,Field Internship,BI,{}
+BI 489A,Field Internship,BI,{}
+BI 489B,Field Internship,BI,{}
+BI 495,Professional Program (Taken Twice),BI,{}
+BI 499,Independent Study,BI,{}
+BU 101,Survey of Economics,BU,{}
+BU 105,Contemporary Business,BU,{}
+BU 110,Business Communications,BU,{}
+BU 205,Principles of Economics I,BU,{}
+BU 208,Introduction to International Business,BU,{}
+BU 210,Principles of Economics II,BU,{}
+BU 211,Accounting I,BU,{}
+BU 212,Accounting II,BU,{}
+BU 213,Introduction to Healthcare Administration,BU,{}
+BU 214,Ethical Issues in Healthcare,BU,{}
+BU 217,Accounting for Healthcare Managers,BU,{}
+BU 220,Introduction to Supply Chain Management,BU,{}
+BU 221,Marketing,BU,{}
+BU 223,Healthcare Marketing,BU,{}
+BU 230,Data Visualization,BU,{}
+BU 235,Choice: From Self-Management to Leader,BU,{}
+BU 236,Where Law Meets Ethics: Corporate Social Responsibility,BU,{}
+BU 238,The Startup of You,BU,{}
+BU 245,Decision Analysis,BU,{}
+BU 251,Introduction to Sport Management,BU,{}
+BU 252,Introduction to Esports Management,BU,{}
+BU 260,Leading and Managing Holistically,BU,{}
+BU 299,Independent Study,BU,{}
+BU 301,Business Analytics,BU,{}
+BU 302,"Healthcare Budgeting, Finance, and Payments",BU,{}
+BU 305,Introduction to Statistics,BU,{}
+BU 307,Sociological Impact of Esports,BU,{}
+BU 321,Intermediate Accounting I,BU,{}
+BU 322,Intermediate Accounting II,BU,{}
+BU 323,Cost Accounting,BU,{}
+BU 325,Auditing,BU,{}
+BU 327,International Marketing,BU,{}
+BU 328,Esports Marketing and Branding,BU,{}
+BU 331,Sport Ethics,BU,{}
+BU 332,Federal Income Taxes,BU,{}
+BU 333,Sport Marketing,BU,{}
+BU 334,Facility Operations and Event Management,BU,{}
+BU 335,Enterprise Resource Planning,BU,{}
+BU 337,Principles of Finance,BU,{}
+BU 341,Study Abroad,BU,{}
+BU 343,"Creativity, Innovation, and the Competitive Edge",BU,{}
+BU 347,Public Relations,BU,{}
+BU 348,Principles of Environmental Law,BU,{}
+BU 350,Legal Environment of Business I,BU,{}
+BU 356,Healthcare Law and Regulation,BU,{}
+BU 360,Advertising,BU,{}
+BU 370,Organizational Behavior,BU,{}
+BU 371,Operations Management in Healthcare,BU,{}
+BU 372,Sport Law and Risk Management,BU,{}
+BU 375,International Business Management,BU,{}
+BU 382,Sports Media,BU,{}
+BU 400,Quantitative Financial Economics,BU,{}
+BU 403,Securities Industries Essentials Exam Preparation,BU,{}
+BU 416,Selling and Sales Management,BU,{}
+BU 417,International Finance,BU,{}
+BU 420,Ethical Business Strategy,BU,{}
+BU 424,Quality and Process Improvement in Healthcare,BU,{}
+BU 425,Consumer Research and Product Innovation,BU,{}
+BU 427,Digital Marketing,BU,{}
+BU 430,Advanced Topics in Accounting,BU,{}
+BU 433,Financial Markets I,BU,{}
+BU 434,Financial Markets II,BU,{}
+BU 435,Strategic Leadership in the Sports Industry,BU,{}
+BU 436,Project and Operations Management,BU,{}
+BU 441,Data Analytics Research Seminar,BU,{}
+BU 455,Financial Economics,BU,{}
+BU 460,Entrepreneurship and Business Planning,BU,{}
+BU 465,Managerial Epidemiology,BU,{}
+BU 470,Human Resource Management,BU,{}
+BU 471,Marketing Management,BU,{}
+BU 472,Legal Aspects of Human Resource Management,BU,{}
+BU 482,Leadership: Managing and Delivering Organizational Change,BU,{}
+BU 485,Leadership and Organizational Change,BU,{}
+BU 487,Field Internship I,BU,{}
+BU 489,Field Internship II,BU,{}
+BU 490,Field Internship III,BU,{}
+BU 491,International Travel Experience,BU,{}
+BU 499,Independent Study,BU,{}
+BU 634,Accounting Information Systems,BU,{}
+CD 100,Introduction to Communication Science and Disorders,CD,{}
+CD 110,Speech Anatomy and Physiology,CD,{}
+CD 205,Speech and Language Development,CD,{}
+CD 310,Audiology,CD,{}
+CD 315,Phonetics,CD,{}
+CD 325,Speech and Hearing Science,CD,{}
+CD 340,Aural Rehabilitation,CD,{}
+CD 350,"Neurological Bases of Speech, Language & Hearing",CD,{}
+CD 415,Communication Disorders Across the Lifespan,CD,{}
+CD 487,Clinical Observation and Capstone,CD,{}
+CH 011,"General Chemistry, Calculation and Computation I",CH,{}
+CH 012,"General Chemistry, Calculation and Computation II",CH,{}
+CH 100,Connecting to Chemistry,CH,{}
+CH 105,World Issue in Chemistry,CH,{}
+CH 110,Principles Of Chemistry,CH,{}
+CH 110L,Principles of Chemistry Laboratory,CH,{}
+CH 111,General Chemistry I,CH,{}
+CH 111L,General Chemistry I & Lab,CH,{}
+CH 112,General Chemistry II,CH,{}
+CH 112L,General Chemistry II Laboratory,CH,{}
+CH 203,Organic Chemistry,CH,{}
+CH 203L,Organic Chemistry I Laboratory,CH,{}
+CH 204,Organic Chemistry II,CH,{}
+CH 204L,Organic Chemistry II Laboratory,CH,{}
+CH 306,Analytical Chemistry,CH,{}
+CH 306L,Analytical Chemistry Laboratory,CH,{}
+CH 307,Instrumental Analysis,CH,{}
+CH 307L,Instrumental Analysis Laboratory,CH,{}
+CH 310,Forensic Chemistry,CH,{}
+CH 312,Research As A Tool,CH,{}
+CH 320,Physical Chemistry: Thermodynamics,CH,{}
+CH 321,Physical Chemistry: Quantum Mechanics,CH,{}
+CH 401,Biochemistry I,CH,{}
+CH 401L,Biochemistry I Laboratory,CH,{}
+CH 402,Biochemistry II,CH,{}
+CH 402L,Biochemistry II Laboratory,CH,{}
+CH 407,Medicinal Chemistry,CH,{}
+CH 411C,Research/Composition,CH,{}
+CH 411R,Research/Laboratory,CH,{}
+CH 411S,Seminar in Chemistry,CH,{}
+CH 412,Synthesis Of Pharmaceutical Drugs,CH,{}
+CH 413,Spectroscopic Determination,CH,{}
+CH 414,Polymer Chemistry,CH,{}
+CH 420,Chemical Pharmacology,CH,{}
+CH 487,Field Internship I,CH,{}
+CH 488,Field Internship,CH,{}
+CH 489,Field Internship,CH,{}
+CH 499,Independent Study,CH,{}
+CJ 200,Ethics in Criminal Justice,CJ,{}
+CJ 201,Introduction to Criminal Justice,CJ,{}
+CJ 228,Cybercrime,CJ,{}
+CJ 250,Victimology,CJ,{}
+CJ 255a,Film: Criminal Justice Issues and the Media,CJ,{}
+CJ 260,Domestic and International Terrorism,CJ,{}
+CJ 275,Juvenile Justice,CJ,{}
+CJ 280,Community-Based Corrections,CJ,{}
+CJ 290,Institutional Treatment of the Offender,CJ,{}
+CJ 350,Criminal Justice System and Women,CJ,{}
+CJ 384,The Police and Law Enforcement,CJ,{}
+CJ 387,Organized Crime,CJ,{}
+CJ 388,Counseling and Guidance of the Offender,CJ,{}
+CJ 390,U. S. Courts: Structure and Functioning,CJ,{}
+CJ 410a,"Seminar: Topics in Anthropology, Sociology, and Criminal Justice",CJ,{}
+CJ 420,Forensic Anthropology,CJ,{}
+CJ 425,Crime Scene Processing and Investigation,CJ,{}
+CJ 428,Criminalistics,CJ,{}
+CJ 430,Crime and Criminal Law,CJ,{}
+CJ 487,Field Internship,CJ,{}
+CJ 499,Independent Study,CJ,{}
+CO 201,Contemporary Mass Media,CO,{}
+CO 210,Television Production,CO,{}
+CO 230,Communication Skills,CO,{}
+CO 250,Film History: Theory and Criticism,CO,{}
+CO 260,Film Genres,CO,{}
+CO 275,Multimedia Journalism,CO,{}
+CO 303,Advanced Communication Skills,CO,{}
+CO 305,Television Show Genres,CO,{}
+CO 310,Video Editing,CO,{}
+CO 311,Media Literacy (Enriched Core and Minor Only),CO,{}
+CO 312,Media and Society,CO,{}
+CO 314,Seminar in Contemporary Cinema,CO,{}
+CO 315,Advanced Video Editing,CO,{}
+CO 323,Artificial Intelligence Communication (AI),CO,{}
+CO 325,Advanced Multimedia Journalism,CO,{}
+CO 340,Director as Auteur,CO,{}
+CO 345,Intercultural Communication,CO,{}
+CO 350,Podcasting and Radio,CO,{}
+CO 355,Digital Filmmaking,CO,{}
+CO 362,Social Media Communication,CO,{}
+CO 380,"Advanced Lighting, Camera, And",CO,{}
+CO 382,Sports Media,CO,{}
+CO 402,Screenwriting,CO,{}
+CO 405,Film Analysis Through Video Essays,CO,{}
+CO 410,"Advanced Podcasting: Perf, Prd, Pur",CO,{}
+CO 420,Senior Media Seminar,CO,{}
+CO 425,Film Analysis Through Video Essays,CO,{}
+CO 487,Field Internship I,CO,{}
+CO 489,Field Internship II,CO,{}
+CO 499,Independent Study,CO,{}
+CP 201,Career Exploration and Planning,CP,{}
+CS 115,Essential Computer Skills,CS,{}
+CS 125,Introduction to Technology,CS,{}
+CS 195,Computer Programming I,CS,{}
+CS 196,Computer Programming II,CS,{}
+CS 197,Computer Programming Accelerated,CS,{}
+CS 216,Data Structures,CS,{}
+CS 219,Business Spreadsheet Applications,CS,{}
+CS 225,Introduction to Operating Systems,CS,{}
+CS 230,Front-End Web Development,CS,{}
+CS 231,Responsible Technology in a Digital Society,CS,{}
+CS 238,E-Commerce,CS,{}
+CS 240,Windows Programming,CS,{}
+CS 242,UI/UX Human-Centered Design,CS,{}
+CS 260,Database Management Systems,CS,{}
+CS 285,Fundamentals of MIS,CS,{}
+CS 299,Independent Study,CS,{}
+CS 301,Computer Organization and Architecture,CS,{}
+CS 302,Design and Analysis of Algorithms,CS,{}
+CS 305,Creative Problem Solving and Team Programming,CS,{}
+CS 310,Healthcare Information Systems,CS,{}
+CS 315,System and Analysis and Design,CS,{}
+CS 320,Networking and Communications,CS,{}
+CS 322,Programming Languages and Paradigms,CS,{}
+CS 327,Internet and Enterprise Security,CS,{}
+CS 328,Data Jam,CS,{}
+CS 328L,Data Jam Lab,CS,{}
+CS 334,Computer Forensics I,CS,{}
+CS 340,Introduction to Data Science,CS,{}
+CS 344,Computer Forensics II,CS,{}
+CS 348,Data Security and Disaster Recovery,CS,{}
+CS 355,Full-Stack Web Development,CS,{}
+CS 360,Mobile Development,CS,{}
+CS 405,Data Analysis in Healthcare,CS,{}
+CS 415,Computational Models and Simulations,CS,{}
+CS 420,Artificial Intelligence,CS,{}
+CS 440,Operations Research and Production Management,CS,{}
+CS 450,Software Engineering,CS,{}
+CS 487,Field Internship I,CS,{}
+CS 489,Field Internship II,CS,{}
+CS 490,Field Internship III,CS,{}
+CS 491,Undergraduate Research I,CS,{}
+CS 492,Undergraduate Research II,CS,{}
+CS 498,Seminar in Special Topics,CS,{}
+CS 499,Independent Study,CS,{}
+DR 202,Great Drama in Performance,DR,{}
+DR 203,Modern and Contemporary Drama in Performance,DR,{}
+DR 204,Shakespeare in Performance,DR,{}
+DR 205,Solo Performance: From Script to Stage,DR,{}
+ED 206,Philosophical and Historical Foundations of School Curriculum for General and Special Education,ED,{}
+ED 331,Introduction to the Education of Exceptional Children and Children with Autism,ED,{}
+ED 332,Methods in Early Childhood Education,ED,{}
+ED 333,Curriculum in Early Childhood Education,ED,{}
+ED 340,"Teaching Reading/Language Arts, Elementary",ED,{}
+ED 348,Secondary Content Area Learning and Literacy,ED,{}
+ED 351,Assessment Issues,ED,{}
+ED 360,Behavior Management Strategies for Students with Autism Inclusive and Self-Contained Classrooms,ED,{}
+ED 380,Specialized Reading Instruction,ED,{}
+ED 409,Methods of Teaching Health for School Nurses K-12,ED,{}
+ED 447,Instructional Technology,ED,{}
+ED 448E,Instructional Design I: Methods of Teaching Elementary School Mathematics,ED,{}
+ED 448S,Instructional Design I: Methods of Teaching Secondary Education,ED,{}
+ED 449E,Instructional Design II: Methods of Teaching Elementary Social Studies and Science,ED,{}
+ED 449S,Instructional Design II: Methods of Teaching Secondary Education,ED,{}
+ED 451,"School Nursing I: Health Assessment, School Law and Services in Schools",ED,{}
+ED 453,Public Health,ED,{}
+ED 455,"School Nursing II: Health Assessment, School Law and Services in Schools",ED,{}
+ED 460,Inclusive Practices,ED,{}
+ED 470,Student Teaching,ED,{}
+ED 475,Student Teaching Seminar,ED,{}
+ED 580,ED 580,ED,{}
+ED 610,Educational Research I,ED,{}
+EN 101,The Process of Writing,EN,{}
+EN 111,College Writing,EN,{}
+EN 202,Intro To Drama,EN,{}
+EN 207,Global Literature,EN,{}
+EN 216,Literary Studies,EN,{}
+EN 217,American Lit Non-Native Speaker,EN,{}
+EN 221,Women In Literature,EN,{}
+EN 222,Literature and the Law,EN,{}
+EN 226,Psychology And Literature,EN,{}
+EN 227,American Images in Literature,EN,{}
+EN 229,Literature and the Arts,EN,{}
+EN 230,Literature and Medicine,EN,{}
+EN 240,Introduction to Poetry,EN,{}
+EN 301,Masterpieces of Western Literature,EN,{}
+EN 302,Renaissance Literature from Spenser to Milton,EN,{}
+EN 303,Literature of the Romantic Movement,EN,{}
+EN 304,Literature and Diversity,EN,{}
+EN 305,American Literature,EN,{}
+EN 306,English Literature,EN,{}
+EN 307,Modern Drama,EN,{}
+EN 308,Telling Tales: Narrative from Beowulf to Beloved,EN,{}
+EN 312,The English Novel,EN,{}
+EN 313,The American Novel,EN,{}
+EN 314,Children'S Literature,EN,{}
+EN 315,Coming of Age Literature,EN,{}
+EN 316,Poking Fun: Irony & Satire through the Ages,EN,{}
+EN 319,Writing the Self in Poetry & Prose,EN,{}
+EN 321,Work & Working-Class Life in Literature,EN,{}
+EN 322,Literary Magazine Publication: Calyx,EN,{}
+EN 323,Journal Editing: Presence,EN,{}
+EN 324,Catholic Writers,EN,{}
+EN 326,Shakespeare: Plays of Politics,EN,{}
+EN 327,Shakespeare: Plays of Love,EN,{}
+EN 330,Contemporary Irish Fiction,EN,{}
+EN 331,Creative Writing: Reading & Writing Monsters,EN,{}
+EN 332,Modern Irish Drama,EN,{}
+EN 334,Refugee Crisis in World Lit,EN,{}
+EN 338,Writing for the Professions,EN,{}
+EN 345,Africian-American Literature,EN,{}
+EN 349,Literature and the Environment,EN,{}
+EN 403,Literature of the Victorian Age,EN,{}
+EN 405,Medieval Literature,EN,{}
+EN 406,Creative Writing,EN,{}
+EN 409,Modern Poetry,EN,{}
+EN 410,Capstone E-Portfolio Project,EN,{}
+EN 411,Contemporary Poetry,EN,{}
+EN 413,Contemporary Fiction,EN,{}
+EN 414,Journalism: Newswriting,EN,{}
+EN 415,Masterpieces of Short Fiction,EN,{}
+EN 418,Guilty Pleasures: Reading and Writing Genre Fiction,EN,{}
+EN 420,His/Struct Eng Lang,EN,{}
+EN 425,Creative Writing: How to Write a Novel & Survive your First Book,EN,{}
+EN 487,Field Internship I,EN,{}
+EN 489,Field Internship II,EN,{}
+EN 490,Field Internship III,EN,{}
+EN 499,Independent Study,EN,{}
+ES 150,Introduction to Exercise Science,ES,{}
+ES 225,Nutrition for Human Performance,ES,{}
+ES 230,Applied Musculoskeletal Anatomy,ES,{}
+ES 230L,Applied Musculoskeletal Anatomy Lab,ES,{}
+ES 270,Biomechanics of Human Movement,ES,{}
+ES 280,Exercise Physiology,ES,{}
+ES 280L,Exercise Physiology Lab,ES,{}
+ES 310,Principles of Strength and Conditioning,ES,{}
+ES 315,Exercise Programing for Special Populations,ES,{}
+ES 489,Internship in Exercise Science,ES,{}
+EV 150,Earth Science,EV,{}
+EV 150L,Earth Science Lab,EV,{}
+EV 160,Environmental Science,EV,{}
+EV 160L,Environmental Science Lab,EV,{}
+FR 101,Elementary French I,FR,{}
+FR 102,Elementary French II,FR,{}
+FR 113,French Culture I,FR,{}
+FR 114,French Culture II,FR,{}
+FR 201,Intermediate French I,FR,{}
+FR 202,Intermediate French II,FR,"{""Interm French II""}"
+FR 211,The World Comes to Paris,FR,{}
+FR 321,Advanced French Grammar I,FR,{}
+FR 322,Advanced French Grammar II,FR,{}
+FR 325,Communication through French Films I,FR,{}
+FR 341,Seminar in France,FR,{}
+FR 409,Topics in French Studies,FR,{}
+FR 487,Field Internship I,FR,{}
+FR 489,Field Internship II,FR,{}
+FR 490,Field Internship II,FR,{}
+FR 499,Independent Study,FR,{}
+FS 189,First Year Student Seminar,FS,{}
+GY 335,World Geography: Concepts and Regions,GY,{}
+HI 101,Roots of the West,HI,{}
+HI 102,The Shaping of the West,HI,{}
+HI 103,The West and the World: 1945 to the Present,HI,{}
+HI 146,Environmental History,HI,{}
+HI 203,The Growth of the American Nation I,HI,{}
+HI 204,The Growth of the American Nation II,HI,{}
+HI 208,History of Catholics in America,HI,{}
+HI 210,Women in the Western Tradition,HI,{}
+HI 211,Women in American History and Politics,HI,{}
+HI 213,The History of New Jersey,HI,{}
+HI 215,History of the Catholic Church,HI,{}
+HI 217,Native American History,HI,{}
+HI 220,African American History,HI,{}
+HI 250,The Vietnam War,HI,{}
+HI 316,Modern British History,HI,{}
+HI 318,The Holocaust,HI,{}
+HI 326,Modern Irish History,HI,{}
+HI 328,World War I,HI,{}
+HI 331,History and Politics of Asia,HI,{}
+HI 333,History and Politics of Africa,HI,{}
+HI 337,History and Politics of Latin America,HI,{}
+HI 338,History and Politics of the Middle East,HI,{}
+HI 341,Study Abroad,HI,{}
+HI 352,Religious Diversity in Early America,HI,{}
+HI 378,Public History,HI,{}
+HI 405,American Constitutional History,HI,{}
+HI 407,Colonial America,HI,{}
+HI 413,The United States Civil War,HI,{}
+HI 432,Contemporary Issues and Problems in World Politics,HI,{}
+HI 440,Recent America,HI,{}
+HI 455,Europe Since 1945,HI,{}
+HI 489,Internship,HI,{}
+HI 492,Research Seminar,HI,{}
+HI 499,Independent Study,HI,{}
+HP 300,Introduction to Contemporary South Asian Literature and Film,HP,{}
+HP 310,Forced Migration and the International Response,HP,{}
+HP 312,"Exploring Diversity, Privilege and Oppression",HP,{}
+HP 316,Exploring Women's Studies,HP,{}
+HP 318,Evolution's Lessons,HP,{}
+HP 323,GAIA: A Theory Of Ecology,HP,{}
+HP 324,Violence and Political Change,HP,{}
+HP 326,Music and the Arts,HP,{}
+HP 330,Ideal Self and Reality,HP,{}
+HP 332,The Family In U.S. Literature,HP,{}
+HP 335,The Holocaust In European Film,HP,{}
+HP 338,Art & Identity,HP,{}
+HP 340,Utopian Societies,HP,{}
+HP 342,South Africa: From Apartheid to the Rainbow Nation,HP,{}
+HP 346,Art and Visual Culture of the 1960s,HP,{}
+HP 347,Science: Visions and Reality,HP,{}
+HP 348,"Language, Self and Society",HP,{}
+HP 360,Globalization,HP,{}
+HP 362,Ecology and Society,HP,{}
+HP 363,Ethnic Literature and Culture of the USA,HP,{}
+HP 364,Medieval Studies,HP,{}
+HP 365,Controversial Legal Issues,HP,{}
+HP 366,Film: Politics and Propaganda,HP,{}
+HP 367,Suffering In U.S. Literature,HP,{}
+HP 369,Ethical Issues,HP,{}
+HP 371,Renaissance Studies,HP,{}
+HP 372,Decolonization,HP,{}
+HP 400,Honors Program Research Methods,HP,{}
+HP 405,Honors Project,HP,{}
+HP 406,Immigration and National Identity in Europe,HP,{}
+HS 101,Medical Terminology,HS,{}
+HS 201,Introduction to Medical Profession,HS,{}
+HS 342,Health Science Seminar,HS,{}
+HS 489,Health Science Internship,HS,{}
+IT 101,Elementary Italian I,IT,{}
+IT 102,Elementary Italian II,IT,{}
+IT 113,Italian Culture I,IT,{}
+IT 114,Italian Culture II,IT,{}
+IT 201,Intermediate Italian I,IT,{}
+IT 202,Intermediate Italian II,IT,"{""Interm Italian II""}"
+IT 305,Conversation and Culture I,IT,{}
+IT 306,Conversation and Culture II,IT,{}
+IT 341,Seminar in Italy,IT,{}
+LA 101,Foundations of Learning,LA,{}
+LA 102,Foundations of Learning II,LA,{}
+LA 301,Introduction to Language,LA,{}
+LA 487,Field Internship (Outcomes Assessment),LA,{}
+MA 090,Basic Mathematics with Algebra,MA,{}
+MA 105,Mathematics For Liberal Arts,MA,{}
+MA 106,Mathematics For Social Sciences,MA,{}
+MA 112,Concepts of Mathematics,MA,{}
+MA 113,College Algebra,MA,{}
+MA 116,Explorations Of Mathematics,MA,{}
+MA 117,Mathematical Perspectives,MA,{}
+MA 118,Analytical Mathematics For The,MA,{}
+MA 120,Applied Mathematics for Business and the Social Sciences,MA,{}
+MA 125,Mathematics without Numbers,MA,{}
+MA 130,Foundations of Analysis I,MA,{}
+MA 131,Foundations Of Analysis II,MA,{}
+MA 140,Discrete Mathematical Structures,MA,{}
+MA 207,Applications of Statistics I,MA,{}
+MA 208,Applications of Statistics II,MA,{}
+MA 214,Linear Algebra,MA,{}
+MA 216,Linear Algebra II,MA,{}
+MA 218,History Of Mathematics,MA,{}
+MA 220,Calculus I,MA,{}
+MA 221,Calculus II,MA,{}
+MA 307,Modern Geometry,MA,{}
+MA 309,Foundations of Mathematics,MA,{}
+MA 311,Probability and Statistics I,MA,{}
+MA 312,Probability and Statistics II,MA,{}
+MA 313,Mathematical Applications through Digital Technology,MA,{}
+MA 324,Calculus III,MA,{}
+MA 325,Calculus IV,MA,{}
+MA 331,Number Theory,MA,{}
+MA 340,Differential Equations,MA,{}
+MA 409,Numerical Analy.I,MA,{}
+MA 411,Introduction to Real Analysis,MA,{}
+MA 413,Integrating Technology into Mathematics,MA,{}
+MA 420,Abstract Algebra,MA,{}
+MA 450,Coordinating Seminar,MA,{}
+MA 489,Field Internship,MA,{}
+MA 499,Independent Study,MA,{}
+MU 100,Applied Music for Non-majors,MU,{}
+MU 100E,Voice Class for Non-majors,MU,{}
+MU 100F,Piano Class for Non-majors,MU,{}
+MU 100K,Guitar Class for Non-majors,MU,{}
+MU 101,Applied Music,MU,{}
+MU 101E,Voice Class for Majors,MU,{}
+MU 101F,Piano Class for Majors,MU,{}
+MU 101K,Guitar Class for Majors,MU,{}
+MU 102,Applied Music,MU,{}
+MU 103,Music Theory I,MU,{}
+MU 104,Music Theory II,MU,{}
+MU 117,Music Fundamentals,MU,{}
+MU 118,Sight-Singing and Ear Training I,MU,{}
+MU 119,Sight-Singing and Ear Training II,MU,{}
+MU 122,Language of Music,MU,{}
+MU 123,Introduction to Music Education,MU,{}
+MU 125,University Chorale,MU,{}
+MU 126,Keyboard Harmony I,MU,{}
+MU 127,Keyboard Harmony II,MU,{}
+MU 130,Opera/Musical Theatre Workshop,MU,{}
+MU 135,Wind Ensemble,MU,{}
+MU 136,Orchestra,MU,{}
+MU 137,Marching Band,MU,{}
+MU 140,Jazz Ensemble,MU,{}
+MU 141,Chamber Ensembles,MU,{}
+MU 141S,String Ensemble,MU,{}
+MU 201,Applied Music,MU,{}
+MU 202,Applied Music,MU,{}
+MU 203,Theory III,MU,{}
+MU 208,Instrumental Techniques: Strings,MU,{}
+MU 212,Into the Woods: A Journey through America’s Musical Theatre,MU,{}
+MU 218,Sight Singing and Ear Train III,MU,{}
+MU 220,Jazz: An American Story,MU,{}
+MU 221,"Roots: The Origins of Rock, R&B and Hip-Hop",MU,{}
+MU 225,Performance Class,MU,{}
+MU 226,Keyboard Harmony III,MU,{}
+MU 231,Introduction to Music Therapy,MU,{}
+MU 240,American Music,MU,{}
+MU 241,Improvisation: Theory In Practice,MU,{}
+MU 245,Music Fundamentals for the Elem Teacher,MU,{}
+MU 250,Women in Music,MU,{}
+MU 255,World Music: The Global Beat,MU,{}
+MU 260,Music Industry,MU,{}
+MU 301,Applied Music,MU,{}
+MU 302,Applied Music,MU,{}
+MU 304,Music and Contemplation,MU,{}
+MU 308,Instrumental Techniques: Woodwinds,MU,{}
+MU 310,Conducting,MU,{}
+MU 318,History & Literature Of Music I,MU,{}
+MU 319,History & Literature Of Music II,MU,{}
+MU 323,Arranging,MU,{}
+MU 325,Music and Ethics,MU,{}
+MU 326,Adv Piano Skills,MU,{}
+MU 350,Introduction to Computers In Music,MU,{}
+MU 360,"Intro To Music Recording, Producing and Engineering",MU,{}
+MU 401,Applied Music,MU,{}
+MU 402,Applied Music,MU,{}
+MU 408,Instrumental Techniques: Brass,MU,{}
+MU 421,Instrumental Techniques: Percussion,MU,{}
+MU 425,"Style, Form and Analysis",MU,{}
+MU 431,Techniques Music For Children,MU,{}
+MU 434,Choral Rehearsal Techniques,MU,{}
+MU 438,Instrumental Rehearsal Techniques,MU,{}
+MU 487,Field Internship I,MU,{}
+MU 489,Field Internship II,MU,{}
+MU 490,Field Internship III,MU,{}
+MU 495,Independent Study — Senior Recital,MU,{}
+MU 496,Independent Study — Senior Lecture Recital,MU,{}
+NS 101,Survey of Science Careers,NS,{}
+NS 107,Introductory Environmental Science,NS,{}
+NS 201,Environmental Health,NS,{}
+NS 341,Science Senior Seminar,NS,{}
+NS 350,Undergraduate Research,NS,{}
+NS 351,Undergraduate Research,NS,{}
+NS 352,Undergraduate Research,NS,{}
+NS 353,Undergraduate Research,NS,{}
+NS 411,Research/Laboratory,NS,{}
+NS 412,Independent Research Communication,NS,{}
+NS 413,Continuation of Independent Research,NS,{}
+NU 202,End of Life Matters (Enriched Core),NU,{}
+NU 210,Ethical Issues In Healthcare (Enriched Core),NU,{}
+NU 219,The Professional Nurse: An Introduction to Practice,NU,{}
+NU 301,Fundamentals Of Nursing,NU,{}
+NU 301C,Clinical component to NU 301,NU,{}
+NU 301L,Lab component to NU 301,NU,{}
+NU 303,Health & Cultural Assessment Across the Lifespan,NU,{}
+NU 303L,Lab component to NU 303,NU,{}
+NU 305,Pathophysiology,NU,{}
+NU 306,Adult Health Nursing I,NU,{}
+NU 306C,Clinical component to NU 306,NU,{}
+NU 306L,Lab component to NU 306,NU,{}
+NU 308,Nursing Research and Evidence-Based Practice,NU,{}
+NU 310,Pharmacology,NU,{}
+NU 409,Maternal Child Nursing,NU,{}
+NU 409C,Clinical component to NU 409,NU,{}
+NU 410,Pediatric Nursing,NU,{}
+NU 410C,Clinical component to NU 410,NU,{}
+NU 411,Parent Child/Pediatric Nursing,NU,{}
+NU 412,Psychiatric-Mental Health Nursing,NU,{}
+NU 412C,Clinical component to NU 412,NU,{}
+NU 415,"Leadership, Finance, and Health Care Policy in Nursing",NU,{}
+NU 416,Adult Health II,NU,{}
+NU 416C,Clinical component to NU 416,NU,{}
+NU 418,Transition to Professional Practice,NU,{}
+NU 419,Professional Nursing 2 for R.N.s,NU,{}
+NU 420,Community and Public Health,NU,{}
+NU 420C,Clinical component to NU 420,NU,{}
+PH 102,Introduction to Philosophy,PH,{}
+PH 214,American Philosophy,PH,{}
+PH 216,Business Ethics,PH,{}
+PH 230,Ethics,PH,{}
+PH 310,Eastern Philosophies,PH,{}
+PH 318,Philosophy of Law and Society,PH,{}
+PH 324,Philosophy of Art,PH,{}
+PH 489,Field Internship,PH,{}
+PH 499,Independent Study,PH,{}
+PO 125,Understanding the Political World,PO,{}
+PO 225,American Government,PO,{}
+PO 230,State and Local Government,PO,{}
+PO 240,Ethics in International Relations,PO,{}
+PO 328,Ethnic Politics,PO,{}
+PO 330,Introduction to the American Legal System,PO,{}
+PO 346,International Law,PO,{}
+PO 361,United States Foreign Policy and Diplomacy,PO,{}
+PO 362,International Relations,PO,{}
+PO 363,The United Nations and the International System,PO,{}
+PO 364,Comparative Government,PO,{}
+PO 372,Introduction to Public Administration,PO,{}
+PO 375,Public Policy,PO,{}
+PO 432,Contemporary Issues and Problems in World Politics,PO,{}
+PO 453,History of Political Theory,PO,{}
+PO 489,Internship,PO,{}
+PO 492,Research Seminar,PO,{}
+PO 499,Independent Study,PO,{}
+PS 101,General Psychology,PS,{}
+PS 201,Human Growth and Development,PS,{}
+PS 208,Psychological Statistics,PS,{}
+PS 209,Prenatal and Infant Psychology,PS,{}
+PS 210,Child Psychopathology,PS,{}
+PS 211,Child Psychology,PS,{}
+PS 213,Writing in Psychology,PS,{}
+PS 215,Human Sexuality,PS,{}
+PS 216,Adolescent Psychology,PS,{}
+PS 232,Psychology of Personality,PS,{}
+PS 235,Psychology of Women and Gender,PS,{}
+PS 261,Interpersonal Relations,PS,{}
+PS 275,Overview of Autism,PS,{}
+PS 288,Career Planning,PS,{}
+PS 304,Biopsychology,PS,{}
+PS 306,Psychology of Adulthood,PS,{}
+PS 309,Psychopathology,PS,{}
+PS 310,Career Counseling,PS,{}
+PS 311,Psychology of Sport,PS,{}
+PS 312,Applied Behavior Analysis,PS,{}
+PS 313,Counseling Psychology,PS,{}
+PS 314,Social Psychology,PS,{}
+PS 318,Cross-Cultural Psychology,PS,{}
+PS 319,Psychological Testing,PS,{}
+PS 321,Human Motivation,PS,{}
+PS 322,Educational Psychology,PS,{}
+PS 323,Sensation and Perception,PS,{}
+PS 324,Forensic Psychology,PS,{}
+PS 326,Cognitive Psychology,PS,{}
+PS 328,Psychology of Learning,PS,{}
+PS 330,Psychology of Addiction,PS,{}
+PS 332,History and Systems in Psychology,PS,{}
+PS 335,Health Psychology,PS,{}
+PS 336,Positive Psychology,PS,{}
+PS 345,"Cultural Competence: Diversity, Privilege, and Prejudice",PS,{}
+PS 385,"Existentialism, Psychology and Film",PS,{}
+PS 402,Experimental Psychology,PS,{}
+PS 405,Advanced Research In Psychology,PS,{}
+PS 410,Special Topics: Organizational Psychology,PS,{}
+PS 425,Psychology Capstone,PS,{}
+PS 489,Field Internship,PS,{}
+PS 499,Independent Study,PS,{}
+PU 200,Introduction To Public Health,PU,{}
+PU 205,Theory of Health Beliefs,PU,{}
+PU 215,Public Health Preparedness and Emergency Management,PU,{}
+PU 230,Communication Strategies in Public Health Education,PU,{}
+PU 301,Fundamentals of Epidemiology,PU,{}
+PU 305,Essentials of Chronic Disease Management,PU,{}
+PU 310,Fundamental Consideration of Global Health,PU,{}
+PU 315,Community Needs Assessment,PU,{}
+PU 410,Nutrition,PU,{}
+PU 415,Public Health Planning & Evaluation,PU,{}
+PU 487,Field Internship I,PU,{}
+PU 489,Field Internship II,PU,{}
+PY 101,Survey of the Physical Sciences,PY,{}
+PY 104,Astronomy,PY,{}
+PY 109,Science Within the Law,PY,{}
+PY 201,General Physics I,PY,{}
+PY 201L,General Physics I Laboratory,PY,{}
+PY 202,General Physics II,PY,{}
+PY 202L,General Physics II Laboratory,PY,{}
+PY 205,Science for the Middle School Educator,PY,{}
+PY 301,Advanced Classical Mechanics,PY,{}
+PY 317,Quantum Mechanics,PY,{}
+PY 320,Physical Chemistry: Thermodynamics,PY,{}
+PY 321,Physical Chemistry: Quantum Mechanics,PY,{}
+RN 219,The Professional Nurse: An Introduction to Practice,RN,{}
+RN 303,Health and Cultural Assessment Across the Lifespan,RN,{}
+RN 305,Pathophysiology,RN,{}
+RN 308,Nursing Research and Evidence-based Practice,RN,{}
+RN 310,Pharmacology,RN,{}
+RN 418,Transition to Professional Practice,RN,{}
+RN 420,Community and Public Health,RN,{}
+SJ 110,Introduction to Social Justice,SJ,{}
+SO 101,Introduction to Sociology I: Foundations,SO,{}
+SO 200,Writing in Sociology and Criminal Justice,SO,{}
+SO 210,Community Service,SO,{}
+SO 212,The World of Work,SO,{}
+SO 224,Social Change,SO,{}
+SO 231,Sociology of Poverty,SO,{}
+SO 312,Media and Society,SO,{}
+SO 314,Social Psychology,SO,{}
+SO 323,Sociology of Racial and Cultural Groups,SO,{}
+SO 326,Social Inequality,SO,{}
+SO 330,Sociology of Marriage and the Family,SO,{}
+SO 334,Sociology of Medicine,SO,{}
+SO 335,Criminology,SO,{}
+SO 336,Sociological Theory,SO,{}
+SO 339,Sociology of Aging,SO,{}
+SO 343,Sociology of Education,SO,{}
+SO 344,Methods of Social Research I,SO,{}
+SO 346,Methods of Social Research II,SO,{}
+SO 348,Sociology of Deviance,SO,{}
+SO 360,Sociology of Sport,SO,{}
+SO 410a,"Seminar: Topics in Anthropology, Sociology, and Criminal Justice",SO,{}
+SO 425,Sociology of Gender and Sexuality,SO,{}
+SO 452,Sociology of Religion,SO,{}
+SO 474,Contemporary Social Problems,SO,{}
+SO 476,Urban Sociology,SO,{}
+SO 487,Field Internship,SO,{}
+SO 499,Independent Study,SO,{}
+SP 101,Elementary Spanish I,SP,{}
+SP 102,Elementary Spanish II,SP,{}
+SP 105,Spanish for Health Professionals I,SP,{}
+SP 106,Spanish for Health Professionals II,SP,{}
+SP 201,Intermediate Spanish I,SP,{}
+SP 202,Intermediate Spanish II,SP,"{""Interm Spanish II""}"
+SP 211,Spanish for Heritage Speakers,SP,{}
+SP 212,Spanish For Healthcare Prof II,SP,{}
+SP 312,Translation,SP,{}
+SP 320,Catholic Writers in the Hispanic World,SP,{}
+SP 321,Advanced Spanish Grammar I,SP,{}
+SP 322,Advanced Spanish Grammar II,SP,{}
+SP 325,Spanish Conversation and Composition I,SP,{}
+SP 326,Spanish Conversation and Composition II,SP,{}
+SP 329,Hispanic Civilization I,SP,{}
+SP 330,Hispanic Civilization II,SP,{}
+SP 331,"Dominican Republic: Literature, Music and Arts",SP,{}
+SP 341,Seminar in a Spanish Speaking Country,SP,{}
+SP 390,Children’s Literature,SP,{}
+SP 401,Spanish Literature I,SP,{}
+SP 402,Spanish Literature II,SP,{}
+SP 403,Survey of Spanish American Literature,SP,{}
+SP 404,The Contemporary Spanish American Novel,SP,{}
+SP 408,The Spanish American Short Story,SP,{}
+SP 409,Topics in Spanish Studies,SP,{}
+SP 420,Teaching World Languages,SP,{}
+SP 423,Hispanic Caribbean Literature,SP,{}
+SP 487,Field Internship I,SP,{}
+SP 489,Field Internship II,SP,{}
+SP 490,Field Internship III,SP,{}
+SP 499,Independent Study,SP,{}
+SS 101,Topics in Social Studies,SS,{}
+TH 102,Introduction to Christian Theology,TH,{}
+TH 201,Christian Responsibility,TH,{}
+TH 209,Contemporary Catholic Social Teaching,TH,{}
+TH 215,Catholic Medical Ethics,TH,{}
+TH 304,Catholic Health Care in the United States,TH,{}
+TH 305,Contemporary Theologians,TH,{}
+TH 306,Communications and Catholic Thought,TH,{}
+TH 308,Religious Dimensions of Peace,TH,{}
+TH 312,Sacraments in Contemporary Life,TH,{}
+TH 316,The History of Christian Thought,TH,{}
+TH 317,Marriage and Catholic Theology,TH,{}
+TH 318,The Old Testament,TH,{}
+TH 319,The New Testament,TH,{}
+TH 326,Theological Perspectives on Women,TH,{}
+TH 331,Theology of Migration,TH,{}
+TH 334,Christology,TH,{}
+TH 371,Christian Spirituality,TH,{}
+TH 495,Theology Capstone,TH,{}

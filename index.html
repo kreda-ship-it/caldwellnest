@@ -1473,10 +1473,21 @@ currentRole = 'student';
 const _settingsReady = loadPlatformSettings();
 initStudent();
 
+// Early restore: paint the last-visited page immediately (no network wait) so a
+// browser-forced reload shows the right page instead of flashing the landing page.
+if (!adminPreviewMode) {
+  const _rp = sessionStorage.getItem('cn_last_page');
+  if (_rp && _rp !== 'home' && document.getElementById('page-' + _rp)) showPage(_rp);
+}
+
 (async () => {
   if (adminPreviewMode) return;
   const [, { data: { session } }] = await Promise.all([_settingsReady, supabaseClient.auth.getSession()]);
-  if (!session) { applyMaintenance(); return; }
+  if (!session) {
+    // Signed out: the early restore above may have painted a signed-in-only page — undo that.
+    if (!applyMaintenance() && ['messages', 'profile'].includes(sessionStorage.getItem('cn_last_page'))) showPage('home');
+    return;
+  }
 
   // Check if this is an admin account
   const { data: roles } = await supabaseClient.from('user_roles').select('role_id, school').eq('user_id', session.user.id);
@@ -1646,6 +1657,60 @@ function reopenMsgSidebar() {
   sidebar.classList.remove('msg-collapsed');
   localStorage.setItem('cn_msg_sidebar', 'open');
 }
+
+// ── Swipe right on the chat (touch/pen only) to reveal the conversation sidebar.
+// The ‹ / › arrow buttons stay as the mouse/desktop path.
+const MSG_SIDEBAR_W = 300;         // must match .msg-sidebar width in styles.css
+let _msgSwipe = null;              // gesture in progress: {x, y, t, active, aborted}
+
+(function initMsgSwipe() {
+  const chat = document.getElementById('chatArea');
+  const sidebar = document.getElementById('msgSidebar');
+  if (!chat || !sidebar) return;
+
+  chat.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;                       // desktop uses the arrows
+    if (!sidebar.classList.contains('msg-collapsed')) return;    // nothing to reveal
+    _msgSwipe = { x: e.clientX, y: e.clientY, t: Date.now(), active: false, aborted: false };
+  });
+
+  chat.addEventListener('pointermove', e => {
+    if (!_msgSwipe || _msgSwipe.aborted) return;
+    const dx = e.clientX - _msgSwipe.x, dy = e.clientY - _msgSwipe.y;
+    if (!_msgSwipe.active) {
+      // Axis lock: decide once, on the first ~10px, whether this is a scroll or a swipe.
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { _msgSwipe.aborted = true; return; }
+      if (dx > 10 && dx > Math.abs(dy)) {
+        _msgSwipe.active = true;
+        sidebar.classList.add('msg-swiping');
+        chat.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
+    sidebar.style.transform = `translateX(${Math.min(Math.max(dx, 0), MSG_SIDEBAR_W)}px)`;
+  });
+
+  const finish = e => {
+    if (!_msgSwipe) return;
+    const s = _msgSwipe;
+    _msgSwipe = null;
+    if (!s.active) return;
+    const dx = e.clientX - s.x;
+    const velocity = dx / Math.max(Date.now() - s.t, 1);         // px per ms, whole-gesture average
+    const commit = e.type === 'pointerup' && (dx > MSG_SIDEBAR_W * 0.35 || velocity > 0.5);
+    sidebar.classList.add('msg-snap');
+    sidebar.style.transform = commit ? `translateX(${MSG_SIDEBAR_W}px)` : 'translateX(0)';
+    setTimeout(() => {
+      // Open BEFORE dropping the overlay classes: the fully-slid-in overlay and the normal
+      // open sidebar occupy the same 300px, so the swap doesn't flash.
+      if (commit) reopenMsgSidebar();
+      sidebar.classList.remove('msg-swiping', 'msg-snap');
+      sidebar.style.transform = '';
+    }, 190);
+  };
+  chat.addEventListener('pointerup', finish);
+  chat.addEventListener('pointercancel', finish);
+})();
 
 
 // ── Admin sidebar collapse ───────────────────────────────────
@@ -2922,10 +2987,9 @@ function avatarHTML(p, size) {
     : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${p.color || '#888'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${p.initials || '?'}</div>`;
 }
 
-// The small trust marker shown after a poster's name.
+// The small trust marker shown after a poster's name (Official only — every student is verified, so no tick on listings).
 function trustBadgeHTML(p) {
   if (p.official) return `<span class="trust-official" title="Official CaldwellNest account">Official</span>`;
-  if (p.verified) return `<span class="verified-tick" title="Verified Caldwell student" aria-label="Verified Caldwell student">&#10003;</span>`;
   return '';
 }
 
@@ -3015,9 +3079,7 @@ function detailPosterHTML(l) {
   const clickable = !p.official && l.poster_id;
   const bits = [p.year, p.major].filter(Boolean);
   const school = schoolBadgeHTML(l);
-  const trust = p.official
-    ? `<span class="trust-official">Official</span>`
-    : (p.verified ? `<span class="verified-tick" title="Verified Caldwell student">&#10003;</span><span class="verified-label">Verified student</span>` : '');
+  const trust = p.official ? `<span class="trust-official">Official</span>` : '';
   const since = p.memberSince
     ? `On CaldwellNest since ${new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
     : (p.official ? 'Official account' : '');
@@ -3486,6 +3548,10 @@ function filterConvos(q) { document.querySelectorAll('.convo-item').forEach(item
 async function openConvo(otherUserId, otherInfo, listingId) {
   const info = otherInfo || sConvoCache[otherUserId];
   if (!info) return;
+  // Phone-width screens: the chat needs the full width, so auto-hide the conversation
+  // list when a chat opens (swipe right or tap › to bring it back). Deliberately not
+  // saved to localStorage — it's situational, not a user preference.
+  if (window.innerWidth <= 700) document.getElementById('msgSidebar')?.classList.add('msg-collapsed');
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };

@@ -533,6 +533,7 @@ NOTIFY pgrst, 'reload schema';
 - ⬜ Student receives a confirmation email with a link they must click before
       the account is fully active — until confirmed, status is "pending verification"
 - ⬜ Until verified: account exists but can't post listings or message
+      *(commit `885852f` may have added a gate — status unconfirmed; verify before trusting)*
 - ⬜ Send a "Welcome to CaldwellNest" email on successful signup — reflects
       per-school branding ("your slice of Nestrel")
 - ⬜ Re-send option on the verification screen if they didn't get the email
@@ -574,22 +575,22 @@ NOTIFY pgrst, 'reload schema';
 
 ## TIER 2 — Photos, Messaging & core features (the big build-out)
 
-### Listing Photos — Stage 2 ⬜ (Stage 1 complete — see ALREADY DONE)
+### Listing Photos — Stage 2 🔄 (Stage 1 complete; Stage 2 mostly shipped 2026-06-26, commit `534a94d`)
 
 *Stage 1 shipped 2026-06-24. Everything below is Stage 2.*
 
-- ⬜ Multiple photos per listing (target: 5–10 max); multi-file picker;
+- ✅ Multiple photos per listing (target: 5–10 max); multi-file picker;
       `photo_urls` array already supports it — UI + upload loop is the work
-- ⬜ Photo shown in admin listing detail drawer (`openListingDrawer`) — the fresh
+- ✅ Photo shown in admin listing detail drawer (`openListingDrawer`) — the fresh
       `select('*')` already returns `photo_urls`, just not rendered yet
 - ⬜ Photo replacement on admin edit — delete old file(s) from Storage,
       upload new, update `photo_urls` in DB. `deleteListingPhotos()` helper
       is already built; the edit modal just needs the UI wired up.
-- ⬜ Log "submitted with photo" in activity log (observability gap — currently
+- ✅ Log "submitted with photo" in activity log (observability gap — currently
       `listing_submitted` doesn't record whether a photo was attached)
-- ⬜ Decide per-category photo requirements (housing + clothing + event posters
-      = required or strongly nudged; donation/other = optional)
-- ⬜ Profile pictures — same `listing-photos` bucket, different path convention
+- ✅ Decide per-category photo requirements (housing + clothing + event posters
+      = required or strongly nudged; donation/other = optional) — per-category nudge shipped
+- ✅ Profile pictures — same `listing-photos` bucket, different path convention
       (`profiles/{userId}/avatar.jpg`); needs avatar upload UI in profile modal
 - ⬜ Image moderation / NSFW screening (long-term; may need external API)
 
@@ -980,3 +981,351 @@ Basic maintenance toggle works and persists. Future polish ideas:
       so specific people can test the site while maintenance is on
 - ⬜ Maintenance scheduled window — set a start + end time in advance; toggles
       automatically without admin staying awake to flip it
+
+---
+---
+
+# APPENDED 2026-07-03 — sync from CaldwellNest_Roadmap (7).md
+
+*These six sections existed in the working roadmap doc but hadn't made it into
+this repo file yet. Added here verbatim (markers normalized to this file's
+✅ done / 🔄 in progress / ⬜ not started; 📝 = not started but a build prompt
+is already drafted).*
+
+---
+
+## ADDED 2026-06-24 — What Nestrel actually solves (locked-in answer)
+
+### The student problem
+College students live in scattered, chaotic information ecosystems for everything
+outside the classroom — overflowing Messenger groups, scammy Facebook Marketplace,
+random flyers, generic email blasts. Each tool solves one slice badly; together
+they create a chaos tax students pay every day.
+
+### What Nestrel solves
+The ONE trusted space where verified students at a given school can do everything
+campus life requires — housing, roommates, marketplace, free items, events,
+organizations — inside one platform that knows they're a student at that school.
+
+### The unique combination (the moat)
+- Verified .edu only (eliminates scams + outside creeps)
+- ALL campus-life threads in one place (not five separate apps)
+- School-aware (your school is default; cross-school is opt-in for nearby)
+- Built for college rhythms (semester cycles, move-in, graduation handoffs)
+- Multi-school by design (CaldwellNest is the first instance of Nestrel)
+
+### Why this isn't "just another roommate app"
+The roommate space (Rumii, SpareRoom) is crowded. Nestrel's moat is the integrated
+campus-life-hub model + multi-school scalability + verified-student trust layer.
+Each piece alone exists; the combination doesn't.
+
+### Why schools will eventually partner
+Student housing chaos, roommate disputes, and unsafe peer-to-peer transactions
+create real problems for residence life and student affairs offices. Nestrel offers
+a school-branded, school-aware platform that improves student life with zero
+infrastructure cost to the school.
+
+---
+
+## ADDED 2026-06-24 — Code organization roadmap (POST-BETA)
+
+### Current state — single index.html (~10,000+ lines)
+This was the right choice for the building phase: simplicity, speed, visibility,
+no build tools, no module systems. Most successful products start this way.
+
+### Why it's time to restructure (post-beta)
+- Finding code is harder (file navigation > Cmd+F)
+- Bugs in one feature can hide in another section
+- Harder for collaborators / professors to read the repo
+- Limits how the system can be thought about
+- Makes Claude Code's edits less precise
+
+### NOT NOW — after beta
+Restructuring before launch is risky — it touches everything and introduces subtle
+bugs that surface in production. Discipline: land the beta on current structure,
+restructure after.
+
+### A SMALL move that's safe pre-beta (optional, for the professor email)
+- ✅ Extract CSS into a separate `styles.css` file. Biggest immediate win, lowest
+     risk. Demonstrates structural thinking without touching logic.
+     **DONE 2026-07-03 (commit `6e3fefd`) — pure move, 568 CSS lines, zero visual change.**
+- ⬜ (Optional) Extract 1-2 JavaScript modules (auth, listings) into separate
+     files. Riskier — defer if unsure.
+
+### Post-beta full restructuring plan
+1. ✅ Extract CSS into its own file *(done 2026-07-03)*
+2. ⬜ Extract JavaScript modules by feature:
+   auth.js, listings.js, messaging.js, admin.js, broadcasts.js, profile.js,
+   settings.js, utils.js (shared helpers)
+3. ⬜ Decide on framework path:
+   - Option A: stay vanilla with proper ES modules (lowest risk, fastest)
+   - Option B: migrate to a lightweight framework (Alpine.js, Lit) — middle ground
+   - Option C: full React migration — biggest investment, biggest payoff
+4. ⬜ Add a simple build setup (Vite or similar) — bundles files for production
+5. ⬜ Set up local development workflow with hot-reload
+
+### Use restructuring as a deliberate learning exercise
+Don't restructure mindlessly — use it to deepen skills. Read other people's
+well-organized projects first. Notice their conventions. Apply the patterns that
+make sense for our codebase.
+
+---
+
+## ADDED 2026-06-24 — Personal coding development plan
+
+Not a Nestrel task — but a longer arc that improves every Nestrel decision.
+
+### Where I am now
+Self-taught from zero to a real platform with auth, database, realtime, storage,
+multi-tenancy, complex permissions. Real engineering instincts developing
+(root-cause analysis, single source of truth, soft-delete, refusing to
+over-engineer).
+
+### Where to grow next (priority order)
+1. ⬜ Read other people's well-written code (open-source projects, Supabase
+   example apps) — like reading a book. Notice their organization, naming,
+   edge-case handling.
+2. ⬜ Learn Git deeply — branching, reviewing own diffs, rebasing. One focused weekend.
+3. ⬜ Get comfortable with Chrome DevTools debugger — breakpoints, watching
+   variables, stepping through code. Replaces 90% of "what's going on?" frustration.
+4. ⬜ Read my own code from 6 months ago periodically. Wincing is learning.
+5. ⬜ Build 2-3 small focused side projects between Nestrel sessions.
+6. ⬜ Find one technical mentor — the biggest single unlock. The CS professor
+   outreach is exactly this move.
+7. ⬜ When restructuring post-beta, learn one framework properly — likely React.
+
+### Reassurance to remember
+Every developer feels they don't know enough. Even senior engineers google things
+constantly, forget syntax, get stumped, ask colleagues. The mark of an engineer
+isn't knowing everything — it's developing strategies for figuring things out.
+I already have those strategies.
+
+---
+
+## ADDED 2026-06-24 — Launch timeline (working target, revisit before locking)
+
+### Working soft-beta target: August 2, 2026
+- Platform technically ready: all critical bugs fixed, all in-flight features shipped.
+- Onboarding the first 5-10 closest friends for stress-testing.
+- Closed-alpha mode — catch embarrassing bugs in low-stakes conditions.
+
+### Working real-beta target: August 25-30, 2026
+- Full beta opens to 20-50 Caldwell students.
+- Aligns with students returning to campus + peak fall housing demand.
+
+### Why this phasing
+- Avoids launching too early (students still in summer mode in July).
+- Avoids missing peak demand (waiting too long misses move-in season).
+- Builds in real buffer for the surprises every founder hits.
+
+### Honest reality check
+Working hours per day average ~2-3 during school year, ~6-8 in focused stretches.
+Average pre-beta feature: 4-6 hours of design + build + test + commit. Roughly
+3-4 features per week. ~15 in-flight items = ~4-5 weeks of focused work.
+
+### What MUST be done before any beta opening
+- ⬜ Signup bug fixed
+- ⬜ Photo upload end-to-end working
+- ⬜ Email verification flow ON, with branded templates and "check your email" UI
+      *(status unconfirmed — verify whether the gate in `885852f` is actually live)*
+- ⬜ Auto-update audit + unified fix
+- ⬜ Two-Caldwells root cause fixed
+- ⬜ Suspension hides listings (safety gap)
+- ⬜ Listings log / activity log integrated
+- ⬜ Mark-as-sold + soft-hide listing lifecycle
+- ✅ UI polish: masonry, no-photo cards, poster + description preview, filter redesign
+      *(cards redesign `41467b4`; filter redesign `115ccda`)*
+- ⬜ Demo account removed *(note: superseded — plan is now to REPURPOSE, not delete)*
+- ⬜ Settings + maintenance mode tested
+- ⬜ Basic Terms of Service + Privacy Policy (placeholder OK, real review pre-public)
+- ⬜ Mobile responsiveness verified across every screen
+- ⬜ All fake numbers / placeholder data removed
+- ⬜ Working Nestrel landing page
+
+### NOT required for beta opening (post-beta or later)
+- Full notifications system
+- Full email composer + digests
+- Multi-photo carousel polish (Stage 1 photos is enough)
+- Cross-school browsing UI (data foundation ready; UI experience can wait)
+- Multi-admin permissions (only super-admin needed for beta)
+- Code restructuring
+- Real legal review (placeholder OK for closed beta; needed pre-public)
+
+---
+
+## ADDED 2026-06-24 — Second project: Student rideshare (LONG-TERM)
+
+### The vision
+An Uber-style rideshare app for verified college students — students driving and
+riding with other students. Common routes: airport trips, home-for-break, late-night
+campus runs, between-school events, grocery and off-campus needs. Pricing positioned
+below Uber's surge rates, made trustworthy by .edu verification.
+
+### Why this fits Amahle's thesis
+- Same audience as Nestrel: verified college students.
+- Same trust layer: .edu-gated.
+- Same multi-school scalability pattern.
+- Reinforces Amahle Digital Creatives' identity: TRUSTED SERVICES FOR VERIFIED
+  COLLEGE STUDENTS.
+- Network effects: students using Nestrel + Amahle Rides reinforces each.
+
+### Why this is FAR more complex than Nestrel — to walk into eyes-open
+- **Legal**: insurance law, contractor classification, state DOT regulations,
+  NJ-specific TNC rules, background checks, liability law. Uber spent BILLIONS in
+  legal fights. Real legal counsel is non-negotiable before any real rides.
+- **Insurance**: personal auto insurance does NOT cover commercial driving. Drivers
+  need rideshare riders or commercial coverage. One uncovered accident is
+  catastrophic. The single biggest reason "rideshare for X" ideas fail.
+- **Safety stakes are physical**: students in cars at 2am makes safety incidents the
+  platform's problem. Real-time tracking, panic buttons, ride verification, identity
+  systems are NON-NEGOTIABLE from day one.
+- **Two-sided marketplace**: need drivers AND riders simultaneously. Cold-start is
+  severe. Uber subsidized losses for years to bootstrap supply + demand.
+- **Operational lift**: background checks, vehicle inspections, insurance
+  verification, payments, dispute resolution, dynamic pricing, route optimization.
+- **Capital**: Stripe Connect, Google Maps API (costs scale fast), legal counsel,
+  insurance products, support, likely a small team. Cannot be bootstrapped on a free
+  tier the way Nestrel can.
+
+### Honest mentor framing
+A real, worthwhile idea. But it is a 2-3 years from now idea, not a "right after
+Nestrel beta" idea. Treating it as side-by-side underestimates the lift by 10-50x.
+
+### A SANE staged path
+- **Stage 0 (now, ZERO BUILD):** Park it. Document the vision. Don't build it.
+- **Stage 1 (after Nestrel beta healthy, fall 2026):** Validate — survey 50+ Caldwell
+  students; talk to 5-10 live; decide if demand is real.
+- **Stage 2 (2027, if validated): MVP — RIDES BOARD.** Not a true rideshare app: a
+  board where students post "driving to Newark Airport Sat, $20 gas share, 2 seats."
+  Legally defensible (gas-sharing among classmates, no rides SOLD). Could be a
+  NESTREL FEATURE (new category), not its own app — ~5% of the legal/ops complexity.
+- **Stage 3 (post-grad, with legal counsel + possible funding): True rideshare.**
+  Real entity, insurance, GPS tracking, payments, driver vetting, dispatch. Consider
+  an accelerator. Start in ONE city, ONE school, ONE route. Prove it, then expand.
+
+### Naming for the future
+"Amahle Rides" or similar — within the Amahle Digital Creatives parent.
+
+### Reference points to study
+Uber's early regulatory history; HopSkipDrive (kids' rideshare safety standards);
+BlaBlaCar (Europe's ride-share-for-gas, closest to Stage 2); Wheeli / RideWith /
+college rideshare attempts — most failed; study WHY.
+
+---
+
+## ADDED 2026-06-26 — Full in-flight work log (everything we designed prompts for)
+
+*Status legend: ⬜ not started · 📝 prompt written, build pending · 🔄 in progress · ✅ done.*
+
+### 🐛 BUGS & FIXES (highest priority)
+- 📝 SIGNUP BUG — silent failure on submit, no error shown.
+     Diagnostic prompt written. CRITICAL: blocks new students entirely.
+- 📝 TWO-CALDWELLS BUG — duplicate Caldwell records. Root-cause
+     diagnostic prompt written. Must merge data before deleting duplicate.
+- 📝 AUTO-UPDATE AUDIT (student side) — listings don't load on
+     first sign-in (needs refresh); messaging badge doesn't update live.
+- 📝 AUTO-UPDATE AUDIT (admin side) — refresh button doesn't work;
+     messages don't auto-update. Unified fix strategy requested.
+- 📝 SUSPENSION HIDES LISTINGS — safety gap: suspending a student
+     does NOT hide their active listings. CRITICAL safety.
+- 📝 PROFILE PICTURE ZOOM — avatars zoom in too much when set.
+- ✅ SETTINGS PERSISTENCE — require-approval + maintenance toggles persist to
+     Supabase and survive refresh. Maintenance mode blocks students, not admins.
+
+### 📸 PHOTOS
+- ✅ PHOTO UPLOAD — end-to-end working (Stage 1 + Stage 2 shipped).
+- ✅ Storage architecture decided — public bucket `listing-photos`, path
+     {poster_id}/{listing_id}/{timestamp}{random}.jpg, photo_urls text[] column.
+- 📝 SINGLE-SOURCE-OF-TRUTH photo audit — verify no duplicate
+     photo storage across surfaces; every render reads from photo_urls.
+- 🔄 MULTI-PHOTO — multi-file upload shipped (`534a94d`); Instagram-style
+     swipeable CAROUSEL polish (dots, arrows, keyboard nav) still pending.
+
+### 🎨 LISTING UI REDESIGN — ✅ shipped (commit `41467b4`)
+- ✅ PHOTO-LED CARD REDESIGN — natural aspect ratios, not cropped to a fixed box.
+- ✅ NO-PHOTO CARDS — typography-on-color, category-aware soft palette.
+- ✅ POSTER ON CARD — small avatar + first name + school + subtle verified signal;
+     description preview under location.
+- ✅ MASONRY LAYOUT — Pinterest-style; single column on mobile.
+- ✅ DESCRIPTION COLOR — darker for readability.
+
+### 🔍 FILTER UI (student side) — ✅ redesign shipped (commit `115ccda`)
+- ✅ FILTER REDESIGN — collapsed behind a "Filters" button; category strip visible;
+     active filter chips, dynamic result count, real-time updates.
+- ✅ Stage B — deep filters panel (price slider, category-specific fields).
+- 📝 Stage C — cross-school browsing (My School / 10mi / 25mi / All,
+     haversineDistance() helper, lat/lng on schools table).
+- ✅ Stage D — mobile bottom drawer + visual polish.
+
+### 💬 MESSAGING
+- 📝 PREMIUM MESSAGING EXPERIENCE — real-time everywhere, touch
+     gestures (swipe-to-reply, long-press), desktop keyboard shortcuts.
+- 📝 PHOTO SHARING in messages — storage-smart hybrid; client-side
+     compression. Possibly deferrable for beta.
+- 📝 LISTING CONTEXT SYSTEM — established once at convo start;
+     pinned header + small chip near input; inline divider only when context switches.
+
+### 📢 BROADCASTS
+- ✅ Broadcasts persistence (moved to Supabase).
+- 📝 BROADCAST TEMPLATES — welcome, seasonal, updates, safety, beta, breaks.
+- 📝 BROADCAST UI UPGRADE — premium compose, preview,
+     send-confirmation with audience count, recent-broadcasts log.
+- 📝 BROADCAST LANDING PAGES — optional richer click-through content
+     (MUST sanitize for XSS).
+
+### 🎫 ADMIN PORTAL
+- ✅ Admin logo role-aware — super-admin sees "Nestrel" + "Platform Admin"; school
+     admins see their brand + "School Admin". Drill-in "Viewing: CaldwellNest" indicator.
+- 📝 ADMIN MESSAGES PORTAL — real metadata (active conversations,
+     counts, trends). NO content reading. Role-scoped.
+- 📝 LISTINGS LOG / ACTIVITY LOG — comprehensive history of every
+     listing. ONE event log. Per-listing lifecycle + per-student history + search/filter.
+- 📝 ACTIVITY LOG PERSISTENCE — DB.log currently in-memory; move to
+     Supabase via one logEvent() helper.
+- 📝 ANALYTICS INTERACTIVITY — clickable widgets that navigate to the
+     relevant page with a back button.
+
+### 🔐 AUTH & ONBOARDING
+- 📝 SCHOOL PICKER SIGNUP — pick school from list + email domain
+     verification + waitlist for unrecognized schools; multiple domains per school.
+- 📝 EMAIL VERIFICATION FLOW — Supabase confirm-email ON; branded verification +
+     welcome emails; unverified state gates posting/messaging; "check your email"
+     screen; resend option. *(commit `885852f` may have added a gate — unconfirmed.)*
+- 📝 DEMO STUDENT ACCOUNT — REPURPOSE (not delete) into a real
+     verified account with one-click login, for demos. SUPERSEDES the earlier
+     "remove demo account" item.
+- 📝 SECOND SUPER-ADMIN (amahledigitalcreatives@gmail.com) — blocked
+     by "Database error creating new user" (signup trigger fails for Gmail/non-.edu).
+
+### 🏠 LANDING PAGE & PAGES
+- 📝 NESTREL LANDING PAGE REBUILD — three audiences
+     (students/schools/orgs), Nestrel lead brand, CaldwellNest as flagship proof.
+- 📝 PER-SCHOOL BRAND FOR STUDENTS — Caldwell students see
+     "CaldwellNest" throughout; "Nestrel" only on landing/partner pages.
+- ⬜ ABOUT / MISSION / CONTACT / TERMS / PRIVACY pages — placeholder for beta.
+
+### ✨ UI POLISH (student experience)
+- 📝 EMOJI REMOVAL — replace emoji-as-UI-labels with typography /
+     subtle icons / category color dots. Keep emoji only where decorative.
+- 📝 ENTER KEY SUBMITS — login, signup, and other actions via Enter.
+
+### 🗂️ CODE ORGANIZATION
+- ✅ EXTRACT CSS into styles.css — safe pre-beta refactor. Done 2026-07-03
+     (commit `6e3fefd`), pure move, verified identical. JS extraction deferred post-beta.
+
+### 🔁 LISTING LIFECYCLE (student-facing)
+- 📝 MARK AS SOLD / FILLED — soft-hide (stays in DB + logged), un-hide.
+- 📝 LAST DAY / EXPIRATION — optional soft deadline; auto-hide +
+     "still available?" prompt.
+- 📝 SAVE DRAFT + PREVIEW — drafts in Supabase; 30-day auto-cleanup.
+
+### 🔮 DEFERRED / FUTURE (documented, not for beta)
+- ⬜ Admin reading private messages — needs ToS disclosure + scoped access + audit log
+     + NJ wiretap law research. Deferred.
+- ⬜ Multi-admin permissions system + school-admin management dashboard.
+- ⬜ Sex/gender preference on housing — PARKED until Fair Housing legal review.
+- ⬜ Featured posts redesign (premium UI treatment).
+- ⬜ Reports system with clickable cross-linking.
+- ⬜ Student history dashboard (appeals column, side expansion, grid/list toggle).
+- ⬜ Branches / worktrees / PRs workflow — deferred until basics solid.
+- ⬜ Rides board (Nestrel feature) — see rideshare second-project entry.
