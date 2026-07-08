@@ -569,3 +569,58 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* SWITCH INTERFACE BTN */
 .switch-interface{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);font-size:11px;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s;}
 .switch-interface:hover{background:rgba(255,255,255,0.2);color:#fff;}
+
+/* BOOKS: course autocomplete dropdown */
+.course-ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:262px;overflow-y:auto;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.12);}
+.course-ac-item{padding:9px 12px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:baseline;min-width:0;}
+.course-ac-item:hover,.course-ac-item.ac-active{background:var(--bg);}
+.course-ac-code{font-weight:600;white-space:nowrap;flex-shrink:0;}
+.course-ac-name{color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.course-ac-none{padding:10px 12px;font-size:12px;color:var(--text-faint);}
+.course-ac-notlisted{border-top:1px solid var(--border);color:var(--text-muted);font-style:italic;}
+
+/* ============================================================
+   MOBILE APP CHROME (≤768px only)
+   Everything below is invisible on desktop: the bars are
+   display:none by default and only switched on inside the
+   media query, so desktop styles above are never affected.
+============================================================ */
+:root{
+  --m-topbar-h:56px;   /* fixed mobile top bar (added in a later step) */
+  --m-tabbar-h:56px;   /* fixed bottom tab bar, excluding the iPhone home-indicator inset */
+}
+.m-tabbar{display:none;}
+
+@media(max-width:768px){
+  /* BOTTOM TAB BAR — always visible, never hides on scroll */
+  .m-tabbar{
+    display:flex;align-items:stretch;
+    position:fixed;left:0;right:0;bottom:0;z-index:120;
+    height:calc(var(--m-tabbar-h) + env(safe-area-inset-bottom));
+    padding:0 4px env(safe-area-inset-bottom);
+    background:var(--surface);border-top:1px solid var(--border);
+  }
+  .m-tab{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:none;border:none;padding:0;cursor:pointer;position:relative;
+    font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;color:var(--text-muted);
+  }
+  .m-tab.active{color:var(--brand);font-weight:600;}
+  .m-tab.active svg{stroke-width:2.4;}
+  .m-tab-plus{flex:0 0 62px;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;}
+  .m-tab-plus-circle{
+    width:44px;height:44px;border-radius:50%;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 12px rgba(26,58,42,.35);transition:transform .12s;
+  }
+  .m-tab-plus:active .m-tab-plus-circle{transform:scale(.92);}
+  .m-tab-badge{
+    position:absolute;top:6px;left:calc(50% + 4px);
+    background:var(--accent);color:var(--brand);
+    font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.4;
+  }
+  /* Content must not end hidden underneath the fixed bar */
+  #studentApp .page:not(#page-messages){padding-bottom:calc(var(--m-tabbar-h) + env(safe-area-inset-bottom) + 8px);}
+  .msg-layout{height:calc(100dvh - 58px - var(--m-tabbar-h) - env(safe-area-inset-bottom));}
+  .toast{bottom:calc(var(--m-tabbar-h) + env(safe-area-inset-bottom) + 16px);}
+}
