@@ -1773,54 +1773,87 @@ function reopenMsgSidebar() {
   localStorage.setItem('cn_msg_sidebar', 'open');
 }
 
-// ── Swipe right on the chat (touch/pen only) to reveal the conversation sidebar.
-// The ‹ / › arrow buttons stay as the mouse/desktop path.
-const MSG_SIDEBAR_W = 300;         // must match .msg-sidebar width in styles.css
-let _msgSwipe = null;              // gesture in progress: {x, y, t, active, aborted}
+// ── Mobile messages: one pane at a time ──────────────────────
+// Single source of truth for "are we on a phone-width screen".
+const mqMobile = window.matchMedia('(max-width: 768px)');
+function isMobileView() { return mqMobile.matches; }
 
+// Conversation mode: full-screen chat, global top/tab bars hidden (body.chat-open).
+// A history entry is pushed so the phone's back gesture exits the chat instead of
+// leaving the app with the chrome stuck hidden.
+function enterConvoMode() {
+  if (document.body.classList.contains('chat-open')) return;
+  document.body.classList.add('chat-open');
+  if (!history.state?.cnChat) history.pushState({ cnChat: true }, '');
+}
+
+function closeConvo(fromPop = false) {
+  document.body.classList.remove('chat-open');
+  // If the user tapped ‹ (rather than using the back gesture), consume the history
+  // entry we pushed, so their next back press behaves normally.
+  if (!fromPop && history.state?.cnChat) history.back();
+  if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  sConvoActive = null;
+  sessionStorage.removeItem('cn_last_convo');
+  renderConvos(); // drop the active-row highlight in the list
+}
+
+window.addEventListener('popstate', () => {
+  if (document.body.classList.contains('chat-open')) closeConvo(true);
+});
+
+// Crossing the 768px line must never strand the layout: growing past it restores
+// the desktop split pane (the open chat stays in the right pane); shrinking with
+// a chat open re-enters full-screen conversation mode.
+mqMobile.addEventListener('change', e => {
+  if (!e.matches) document.body.classList.remove('chat-open');
+  else if (sConvoActive) enterConvoMode();
+});
+
+// ── Swipe right anywhere on an open chat (touch/pen) to go back to the list —
+// same action as the ‹ chevron. The pane follows the finger; a drag past 35% of
+// the screen or a quick flick commits, anything less snaps back.
 (function initMsgSwipe() {
   const chat = document.getElementById('chatArea');
-  const sidebar = document.getElementById('msgSidebar');
-  if (!chat || !sidebar) return;
+  if (!chat) return;
+  let g = null; // gesture in progress: {x, y, t, active, aborted}
 
   chat.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse') return;                       // desktop uses the arrows
-    if (!sidebar.classList.contains('msg-collapsed')) return;    // nothing to reveal
-    _msgSwipe = { x: e.clientX, y: e.clientY, t: Date.now(), active: false, aborted: false };
+    if (e.pointerType === 'mouse') return;
+    if (!document.body.classList.contains('chat-open')) return;
+    g = { x: e.clientX, y: e.clientY, t: Date.now(), active: false, aborted: false };
   });
 
   chat.addEventListener('pointermove', e => {
-    if (!_msgSwipe || _msgSwipe.aborted) return;
-    const dx = e.clientX - _msgSwipe.x, dy = e.clientY - _msgSwipe.y;
-    if (!_msgSwipe.active) {
+    if (!g || g.aborted) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.active) {
       // Axis lock: decide once, on the first ~10px, whether this is a scroll or a swipe.
-      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { _msgSwipe.aborted = true; return; }
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { g.aborted = true; return; }
       if (dx > 10 && dx > Math.abs(dy)) {
-        _msgSwipe.active = true;
-        sidebar.classList.add('msg-swiping');
+        g.active = true;
+        chat.style.transition = 'none';
         chat.setPointerCapture(e.pointerId);
       }
       return;
     }
-    sidebar.style.transform = `translateX(${Math.min(Math.max(dx, 0), MSG_SIDEBAR_W)}px)`;
+    chat.style.transform = `translateX(${Math.max(dx, 0)}px)`;
   });
 
   const finish = e => {
-    if (!_msgSwipe) return;
-    const s = _msgSwipe;
-    _msgSwipe = null;
+    if (!g) return;
+    const s = g;
+    g = null;
     if (!s.active) return;
     const dx = e.clientX - s.x;
-    const velocity = dx / Math.max(Date.now() - s.t, 1);         // px per ms, whole-gesture average
-    const commit = e.type === 'pointerup' && (dx > MSG_SIDEBAR_W * 0.35 || velocity > 0.5);
-    sidebar.classList.add('msg-snap');
-    sidebar.style.transform = commit ? `translateX(${MSG_SIDEBAR_W}px)` : 'translateX(0)';
+    const velocity = dx / Math.max(Date.now() - s.t, 1); // px per ms, whole-gesture average
+    const commit = e.type === 'pointerup' && (dx > window.innerWidth * 0.35 || velocity > 0.5);
+    chat.style.transition = 'transform .18s ease';
+    chat.style.transform = commit ? `translateX(${window.innerWidth}px)` : 'translateX(0)';
     setTimeout(() => {
-      // Open BEFORE dropping the overlay classes: the fully-slid-in overlay and the normal
-      // open sidebar occupy the same 300px, so the swap doesn't flash.
-      if (commit) reopenMsgSidebar();
-      sidebar.classList.remove('msg-swiping', 'msg-snap');
-      sidebar.style.transform = '';
+      chat.style.transition = '';
+      chat.style.transform = '';
+      if (commit) closeConvo();
     }, 190);
   };
   chat.addEventListener('pointerup', finish);
@@ -2595,6 +2628,9 @@ function updateSNav() {
 // STUDENT — PAGES & LISTINGS
 // ============================================================
 function showPage(name) {
+  // Navigating anywhere else must exit conversation mode, or the full-screen
+  // chat overlay would keep covering the new page with the chrome hidden.
+  if (name !== 'messages' && document.body.classList.contains('chat-open')) closeConvo();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (name !== 'maintenance') sessionStorage.setItem('cn_last_page', name);
@@ -4174,11 +4210,7 @@ function filterConvos(q) { document.querySelectorAll('.convo-item').forEach(item
 async function openConvo(otherUserId, otherInfo, listingId) {
   const info = otherInfo || sConvoCache[otherUserId];
   if (!info) return;
-  // Phone-width screens: the chat needs the full width, so auto-hide the conversation
-  // list when a chat opens (swipe right or tap › to bring it back). Deliberately not
-  // saved to localStorage — it's situational, not a user preference.
-  // 768 matches the mobile-chrome breakpoint in styles.css.
-  if (window.innerWidth <= 768) document.getElementById('msgSidebar')?.classList.add('msg-collapsed');
+  if (isMobileView()) enterConvoMode(); // phones: full-screen chat, chrome hidden
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
@@ -4209,19 +4241,22 @@ async function openConvo(otherUserId, otherInfo, listingId) {
       prevListingId = m.listing_id;
     }
     const mine = m.sender_id === eu.id;
-    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="msg-avatar-sm" style="background:${mine ? eu.color : info.color}">${mine ? eu.initials : info.initials}</div><div><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}</div><div class="msg-time">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div></div>`);
+    const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}<span class="bubble-meta">${mTime}</span></div></div>`);
   }
   const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
 
   document.getElementById('chatArea').innerHTML = `
     <div class="chat-header">
+      <button class="m-back" onclick="closeConvo()" aria-label="Back to conversations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
       <div class="convo-avatar" style="background:${info.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${info.initials}</div>
       <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${info.name}</span></div></div>
     </div>
     <div class="chat-messages" id="chatMsgs">${bubbles}</div>
     <div class="chat-input-area">
-      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sMsg()}"></textarea>
+      <button class="composer-plus" onclick="toast('Sharing a listing into chat is coming soon')" title="Share a listing (coming soon)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
       <button class="send-btn" onclick="sMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>`;
   scrollChat();
@@ -4249,7 +4284,7 @@ async function sMsg() {
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
   const div = document.createElement('div'); div.className = 'msg-row mine';
-  div.innerHTML = `<div class="msg-avatar-sm" style="background:${eu.color}">${eu.initials}</div><div><div class="bubble mine">${text}</div><div class="msg-time">${time}</div></div>`;
+  div.innerHTML = `<div class="bubble mine">${text}<span class="bubble-meta">${time}</span></div>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();
@@ -4271,10 +4306,9 @@ function handleRealtimeMessage(payload) {
   if (!msgs) return;
   const first = msgs.firstElementChild;
   if (first && first.textContent.includes('No messages yet')) first.remove();
-  const info = sConvoActive;
   const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const div = document.createElement('div'); div.className = 'msg-row';
-  div.innerHTML = `<div class="msg-avatar-sm" style="background:${info.color}">${info.initials}</div><div><div class="bubble theirs">${msg.content}</div><div class="msg-time">${time}</div></div>`;
+  div.innerHTML = `<div class="bubble theirs">${msg.content}<span class="bubble-meta">${time}</span></div>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();

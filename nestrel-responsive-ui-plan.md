@@ -144,3 +144,162 @@ Commit: `feat(desktop): vertical sidebar navigation`
 ## Part 5 — Timeline fit
 
 Rough sizing against the Aug 2 soft beta: Session 0 + 1 in one Saturday deep-work block; Session 2 in a second block or two strong commute-planning + one build session; Session 3 is the biggest (a full Saturday); Session 4 needs the schema decision plus a focused block; Session 5 is cut-able. If it's mid-July and Sessions 3–4 aren't done, ship the beta with Sessions 1–3 and defer listing-sharing — the chrome alone delivers most of the perceived upgrade.
+
+---
+
+## Part 6 — Additive Roadmap Update
+
+This section adds the new feature-expansion work without replacing the original responsive overhaul plan above.
+
+Companion doc added:
+- `docs/nestrel-feature-expansion-plan.md`
+
+Current implementation snapshot:
+- DONE: CSS has been extracted into `styles.css`.
+- DONE: mobile viewport/safe-area support exists, including `interactive-widget=resizes-content`.
+- DONE: mobile top bar exists by adapting `.s-nav`, with `CaldwellNest` mobile branding and hide-on-scroll.
+- DONE: mobile bottom tab bar exists with Home, Search, Plus, Messages, Events, safe-area padding, active states, and unread badge support.
+- DONE/PARTIAL: Search and Events tabs are wired to the existing Browse/Listings page and category state; the filter drawer already becomes a mobile bottom sheet.
+- DONE/PARTIAL: mobile conversation mode exists (`body.chat-open`), with full-screen chat, hidden global chrome, back chevron, mobile Enter behavior, browser-back handling, and swipe-to-return.
+- TODO: Plus tab still opens the existing create flow directly; it does not yet show the category chooser.
+- TODO: listing sharing in chat is still a placeholder.
+- TODO: full search redesign, listing lifecycle/deadlines, Events E1, and organization profiles are tracked in the expansion plan.
+
+Current working-tree note:
+- `index.html` and `styles.css` contain uncommitted app changes after commit `e90b374`. Treat those as user/work-in-progress changes and verify before committing the next code session.
+
+### 6.1 Updated Priority Framing
+
+Soft beta target: Aug 2. Real beta target: Aug 25-30.
+
+Recommended beta scope:
+1. Verify and commit the current mobile messages/responsive work.
+2. Finish the remaining responsive gaps: Plus chooser, conversation polish, and chat listing-share schema.
+3. Add listing lifecycle/deadlines with activity logging.
+4. Build Events E1: rich event details, RSVP, capacity, add-to-calendar, and auto-expiry.
+5. Redesign Search if time remains.
+
+Post-beta:
+1. Events E2 public share pages.
+2. Events E3 organization profiles, as its own planning doc.
+
+### 6.2 Decisions And Contradictions To Resolve
+
+Resolved or reaffirmed:
+- Plus button should open a bottom-sheet chooser: Marketplace, Free, Housing, Books, Events.
+- In-chat listing picker should search all listings and support chips for `My listings` and the other student's listings.
+- Shared-listing messages should use explicit columns: `message_type` and `listing_id`, not JSON.
+- Detailed filtering belongs in Search, not Home.
+- Schema changes are always presented as SQL first, run manually in Supabase, then confirmed before app code depends on them.
+
+Needs decision:
+- Listing status model: current marketplace listings use moderation statuses (`pending`, `approved`, `rejected`, `removed`), while the expansion plan introduces lifecycle statuses (`active`, `sold/claimed`, `withdrawn`, `expired`). Recommendation: keep moderation status and lifecycle status separate, e.g. `moderation_status` plus `lifecycle_status`, instead of overloading one `status` column.
+- Activity log table: the app already uses `admin_activity_log`; the expansion plan proposes `activity_log`. Recommendation: decide whether to extend `admin_activity_log` or create a new student/listing lifecycle log table with a clear boundary.
+- Events data model: events currently appear to live as listing category `organization_event`; Events E1 likely needs richer event-specific fields and `event_rsvps`. Decide whether to extend `listings` for events or introduce a dedicated `events` table before writing SQL.
+- Doc location: the expansion plan expects both plans in `docs/`, but this repo currently has `nestrel-responsive-ui-plan.md` at the root. This update keeps the existing root roadmap and adds the expansion plan at `docs/nestrel-feature-expansion-plan.md`.
+
+### 6.3 Additional Build Sessions After The Responsive Overhaul
+
+#### Session A: Verify And Commit Current Mobile Work
+
+Purpose: lock down the already-completed responsive and mobile messages work before adding more.
+
+Tasks:
+- Smoke-test mobile Home, Search, Messages, Events, and Profile at `<=768px`.
+- Verify the top bar hides/reveals smoothly and does not jitter at the top.
+- Verify bottom tab safe-area spacing and unread badge behavior.
+- Verify conversation mode: open chat, back chevron, browser back, swipe return, desktop/mobile breakpoint crossing, keyboard visibility, and long-message wrapping.
+- Confirm desktop at `>768px` has no unwanted regressions.
+- Commit the current app changes once verified.
+
+Suggested commit: `feat(mobile): finish responsive messages chrome`
+
+#### Session B: Finish Plus Chooser
+
+Purpose: complete the already-resolved Plus-button behavior from Session 2.
+
+Tasks:
+- Plus opens a mobile bottom sheet with Marketplace, Free, Housing, Books, Events.
+- Marketplace/Free/Housing route into the existing listing creation flow with the right category preset.
+- Books routes into the structured books form.
+- Events routes into event creation. If Events E1 is not built yet, use the current organization-event listing flow and leave a TODO that points to Events E1.
+- Keep desktop behavior unchanged unless desktop has an existing create entry point that should reuse the chooser.
+
+Suggested commit: `feat(mobile): add create category chooser`
+
+#### Session C: Listing Lifecycle And Activity Logging
+
+Purpose: prevent stale posts from polluting feeds and give admins a reliable audit trail.
+
+Tasks:
+- Resolve the moderation-vs-lifecycle status decision.
+- Add lifecycle fields for marketplace listings and book listings.
+- Add optional `expires_at`.
+- Update feed/search queries to hide inactive or expired content.
+- Add My Listings manage actions: sold/claimed, withdrawn, edit, extend deadline, delete.
+- Write activity rows for create/edit/status/deletion events.
+- Add an admin activity view or extend the existing admin activity surface.
+
+Suggested commit: `feat(listings): add lifecycle status and deadlines`
+
+#### Session D: Events E1
+
+Purpose: deliver the beta events platform.
+
+Tasks:
+- Resolve whether events remain listing-backed or move to a dedicated events table.
+- Event creation fields: title, description, cover image, location, optional map link, start/end date-time, capacity, free/paid label, host name, contact/link.
+- Events tab browses upcoming events only.
+- Event detail shows full details, attendee count, capacity/spots left, RSVP button, and add-to-calendar actions.
+- Add `event_rsvps` with unique event/student pair.
+- Generate Google Calendar template URL and downloadable `.ics`.
+- Auto-expire events at end time.
+
+Suggested commit: `feat(events): add RSVP and calendar flow`
+
+#### Session E: Search Redesign
+
+Purpose: make Search intent-driven instead of looking like Home.
+
+Reference: `docs/nestrel-feature-expansion-plan.md`, section 1.
+
+Tasks:
+- Entry state: focused search bar, recent searches, category quick-select tiles.
+- Results state: compact toolbar with result count, sort control, filters button, active-filter count.
+- Mobile filters open as bottom sheet; desktop filters open as panel.
+- Category-aware filters:
+  - All: category, price range, posted-within.
+  - Housing: rent range, move-in date, lease length.
+  - Books: course code, condition, price range.
+  - Events: date range, free/paid, organization.
+- Applied filters render as removable chips.
+- Home keeps only light discovery chips.
+
+Suggested commit: `feat(search): redesign intent-driven search`
+
+### 6.4 Post-Beta Roadmap
+
+Details live in `docs/nestrel-feature-expansion-plan.md`.
+
+Events E2:
+- Public event share pages with per-event Open Graph metadata.
+- Public visibility toggle.
+- External registration link support.
+- Signed-out visitors can view public event pages but are prompted to sign in for app actions.
+
+Events E3:
+- Organization profile application flow.
+- Admin approval.
+- Organization members and roles.
+- Organization pages with events.
+- Analytics for event views, RSVP counts, and share clicks.
+- Organization activity log.
+- Native form builder later; Google Forms link first.
+
+### 6.5 Expanded Testing Addendum
+
+Add these checks to the Part 4 checklist when the relevant sessions land:
+- Search filters: no overlap with tab bar; active filters and result counts stay correct.
+- Events: RSVP uniqueness, capacity enforcement, past-event hiding, calendar links.
+- Listing lifecycle: inactive, withdrawn, sold/claimed, and expired listings disappear from student feeds/search but remain available to their owner/admin history.
+- Admin views, verified badges, NestBot, reports, appeals, and suspension flows remain untouched unless the session explicitly changes them.
