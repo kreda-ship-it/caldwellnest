@@ -1542,7 +1542,8 @@ let sRealtimeChannel  = null;
 let sGlobalMsgChannel = null;
 let sNotifChannel     = null;
 let sProfileChannel   = null;
-let sUnreadCount = 0;
+let sUnreadCount = 0; // total unseen messages (derived from DB by refreshUnread, not counted by hand)
+let sUnread = {};     // conversation_key → unseen count, for per-conversation badges
 let adminUUID = null;
 const SUPER_ADMIN_ID = '7f4e052c-666e-4955-8ced-9da380dbe589';
 const isProtectedAdmin = id => id === SUPER_ADMIN_ID || id === adminUUID;
@@ -1810,55 +1811,97 @@ mqMobile.addEventListener('change', e => {
   else if (sConvoActive) enterConvoMode();
 });
 
-// ── Swipe right anywhere on an open chat (touch/pen) to go back to the list —
-// same action as the ‹ chevron. The pane follows the finger; a drag past 35% of
-// the screen or a quick flick commits, anything less snaps back.
-(function initMsgSwipe() {
+// ── Reply to a message ───────────────────────────────────────
+// Touch: swipe a bubble a short way right (WhatsApp-style) — the row follows the
+// finger up to 72px, always snaps back, and past 48px arms a reply. Desktop uses
+// the hover ↩ button instead. Scoped to message rows only, so it can never fire
+// on other pages or fight vertical scrolling (axis lock, same as before).
+let sReplyTo = null;   // { id, name, content } of the message being replied to
+let sMsgCache = {};    // message id → { content, senderId }, for quotes & scroll-to
+
+// Touch events (not pointer events) on purpose: iOS Safari silently cancels pointer
+// events once it decides a drag is a scroll, even with touch-action set — but it honors
+// preventDefault() on a non-passive touchmove. Same pattern as the filter drawer's
+// swipe-to-close, which is proven to work on iOS.
+(function initReplySwipe() {
   const chat = document.getElementById('chatArea');
   if (!chat) return;
-  let g = null; // gesture in progress: {x, y, t, active, aborted}
+  let g = null; // gesture in progress: {row, x, y, active, aborted}
 
-  chat.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse') return;
-    if (!document.body.classList.contains('chat-open')) return;
-    g = { x: e.clientX, y: e.clientY, t: Date.now(), active: false, aborted: false };
-  });
+  chat.addEventListener('touchstart', e => {
+    const row = e.target.closest('.msg-row');
+    if (!row || !row.dataset.mid) return;
+    g = { row, x: e.touches[0].clientX, y: e.touches[0].clientY, active: false, aborted: false };
+  }, { passive: true });
 
-  chat.addEventListener('pointermove', e => {
+  chat.addEventListener('touchmove', e => {
     if (!g || g.aborted) return;
-    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    const t = e.touches[0];
+    const dx = t.clientX - g.x, dy = t.clientY - g.y;
     if (!g.active) {
       // Axis lock: decide once, on the first ~10px, whether this is a scroll or a swipe.
       if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { g.aborted = true; return; }
       if (dx > 10 && dx > Math.abs(dy)) {
         g.active = true;
-        chat.style.transition = 'none';
-        chat.setPointerCapture(e.pointerId);
+        g.row.style.transition = 'none';
       }
       return;
     }
-    chat.style.transform = `translateX(${Math.max(dx, 0)}px)`;
-  });
+    e.preventDefault(); // the gesture is ours now — stop iOS from scrolling or cancelling
+    g.row.style.transform = `translateX(${Math.min(Math.max(dx, 0), 72)}px)`;
+  }, { passive: false });
 
   const finish = e => {
     if (!g) return;
     const s = g;
     g = null;
     if (!s.active) return;
-    const dx = e.clientX - s.x;
-    const velocity = dx / Math.max(Date.now() - s.t, 1); // px per ms, whole-gesture average
-    const commit = e.type === 'pointerup' && (dx > window.innerWidth * 0.35 || velocity > 0.5);
-    chat.style.transition = 'transform .18s ease';
-    chat.style.transform = commit ? `translateX(${window.innerWidth}px)` : 'translateX(0)';
-    setTimeout(() => {
-      chat.style.transition = '';
-      chat.style.transform = '';
-      if (commit) closeConvo();
-    }, 190);
+    const dx = (e.changedTouches?.[0]?.clientX ?? s.x) - s.x;
+    s.row.style.transition = 'transform .18s ease';
+    s.row.style.transform = 'translateX(0)';
+    setTimeout(() => { s.row.style.transition = ''; }, 190);
+    if (e.type === 'touchend' && dx > 48) startReply(s.row.dataset.mid);
   };
-  chat.addEventListener('pointerup', finish);
-  chat.addEventListener('pointercancel', finish);
+  chat.addEventListener('touchend', finish);
+  chat.addEventListener('touchcancel', finish);
 })();
+
+// Quoted block rendered inside a reply bubble; tapping it jumps to the original.
+function quoteHtml(replyToId) {
+  if (!replyToId) return '';
+  const q = sMsgCache[replyToId];
+  const eu = getEffectiveUser();
+  const name = q ? (q.senderId === eu?.id ? 'You' : (sConvoActive?.name || '')) : '';
+  const text = q ? q.content : 'Original message unavailable';
+  return `<div class="bubble-quote" onclick="scrollToMsg('${replyToId}')"><span class="bq-name">${name}</span><span class="bq-text">${text}</span></div>`;
+}
+
+function startReply(id) {
+  const m = sMsgCache[id];
+  if (!m || !sConvoActive) return;
+  const eu = getEffectiveUser();
+  sReplyTo = { id, name: m.senderId === eu?.id ? 'You' : sConvoActive.name, content: m.content };
+  document.getElementById('replyBar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'replyBar';
+  bar.className = 'reply-bar';
+  bar.innerHTML = `<div class="reply-bar-body"><span class="bq-name">${sReplyTo.name}</span><span class="bq-text">${sReplyTo.content}</span></div><button class="reply-bar-x" onclick="cancelReply()" aria-label="Cancel reply">&times;</button>`;
+  document.querySelector('.chat-input-area')?.before(bar);
+  document.getElementById('msgInput')?.focus();
+}
+
+function cancelReply() {
+  sReplyTo = null;
+  document.getElementById('replyBar')?.remove();
+}
+
+function scrollToMsg(id) {
+  const row = document.querySelector(`.msg-row[data-mid="${id}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.add('msg-flash');
+  setTimeout(() => row.classList.remove('msg-flash'), 1200);
+}
 
 
 // ── Admin sidebar collapse ───────────────────────────────────
@@ -2634,7 +2677,7 @@ function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (name !== 'maintenance') sessionStorage.setItem('cn_last_page', name);
-  if (name === 'messages') { renderConvos(); sUnreadCount = 0; updateMsgBadges(); }
+  if (name === 'messages') renderConvos(); // badges come from refreshUnread (DB), not a manual reset
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
   updateMTabbar(name);
@@ -4164,9 +4207,27 @@ async function submitListing() {
 // STUDENT MESSAGES
 let sConvoCache = {}; // keyed by userId: { name, initials, color }
 
+// Unread = database truth: messages addressed to me with no seen_at yet.
+// Survives refresh; only actually opening a conversation clears its count.
+async function refreshUnread() {
+  const eu = getEffectiveUser();
+  if (!eu) return;
+  const { data, error } = await supabaseClient
+    .from('messages')
+    .select('conversation_key')
+    .eq('receiver_id', eu.id)
+    .is('seen_at', null);
+  if (error) { console.warn('refreshUnread:', error.message); return; } // seen_at column not migrated yet — badges stay off
+  sUnread = {};
+  (data || []).forEach(m => { sUnread[m.conversation_key] = (sUnread[m.conversation_key] || 0) + 1; });
+  sUnreadCount = (data || []).length;
+  updateMsgBadges();
+}
+
 async function renderConvos() {
   const eu = getEffectiveUser();
   if (!eu) return;
+  await refreshUnread();
   const { data: msgs } = await supabaseClient
     .from('messages')
     .select('*')
@@ -4197,10 +4258,11 @@ async function renderConvos() {
     const p = pMap[otherId] || { display_name: null, first_name: 'User', last_name: '', initials: '?', color: '#888' };
     const isActive = sConvoActive && sConvoActive.userId === otherId;
     const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const unread = sUnread[m.conversation_key] || 0;
     return `<div class="convo-item ${isActive ? 'active-convo' : ''}" onclick="openConvo('${otherId}')">
       <div class="convo-avatar" style="background:${p.color}">${p.initials}</div>
-      <div class="convo-info"><div class="convo-name">${p.display_name || (p.first_name + ' ' + p.last_name)}</div><div class="convo-preview">${m.content}</div></div>
-      <div class="convo-meta"><div class="convo-time">${time}</div></div>
+      <div class="convo-info"><div class="convo-name">${p.display_name || (p.first_name + ' ' + p.last_name)}</div><div class="convo-preview${unread ? ' unread' : ''}">${m.content}</div></div>
+      <div class="convo-meta"><div class="convo-time">${time}</div>${unread ? `<div class="convo-badge">${unread}</div>` : ''}</div>
     </div>`;
   }).join('');
 }
@@ -4212,6 +4274,7 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   if (!info) return;
   if (isMobileView()) enterConvoMode(); // phones: full-screen chat, chrome hidden
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
+  sReplyTo = null; sMsgCache = {}; // reply state never carries across conversations
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
   const _owner = getEffectiveUser();
@@ -4225,6 +4288,13 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     .eq('conversation_key', convKey)
     .order('created_at', { ascending: true });
 
+  // Opening the thread is what "reads" it: mark everything addressed to me as seen,
+  // then repaint the list so this conversation's badge clears.
+  supabaseClient.from('messages')
+    .update({ seen_at: new Date().toISOString() })
+    .eq('conversation_key', convKey).eq('receiver_id', eu.id).is('seen_at', null)
+    .then(({ error }) => { if (error) console.warn('mark seen:', error.message); else renderConvos(); });
+
   const listingIds = [...new Set((msgs || []).map(m => m.listing_id).filter(Boolean))];
   let listingTitles = {};
   if (listingIds.length > 0) {
@@ -4234,6 +4304,7 @@ async function openConvo(otherUserId, otherInfo, listingId) {
 
   let prevListingId = null;
   const parts = [];
+  for (const m of (msgs || [])) sMsgCache[m.id] = { content: m.content, senderId: m.sender_id }; // fill before rendering so quotes can look up any message, even earlier ones
   for (const m of (msgs || [])) {
     if (m.listing_id !== prevListingId) {
       const label = m.listing_id ? `About: ${listingTitles[m.listing_id] || 'a listing'}` : 'General conversation';
@@ -4242,7 +4313,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     }
     const mine = m.sender_id === eu.id;
     const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}"><div class="bubble ${mine ? 'mine' : 'theirs'}">${m.content}<span class="bubble-meta">${mTime}</span></div></div>`);
+    const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? '&#10003;&#10003;' : '&#10003;'}</span>` : '';
+    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"><div class="bubble ${mine ? 'mine' : 'theirs'}">${quoteHtml(m.reply_to)}${m.content}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`);
   }
   const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
 
@@ -4263,6 +4335,7 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   if (sConvoActive.userId !== otherUserId) return;
   sRealtimeChannel = supabaseClient.channel('msgs-' + convKey)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleRealtimeMessage)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleSeenUpdate)
     .subscribe();
 }
 
@@ -4272,19 +4345,25 @@ async function sMsg() {
   const eu = getEffectiveUser();
   if (!text || !sConvoActive || !eu) return;
 
-  const { error } = await supabaseClient.from('messages').insert({
+  const payload = {
     sender_id: eu.id,
     receiver_id: sConvoActive.userId,
     listing_id: sConvoActive.listingId || null,
     content: text
-  });
+  };
+  if (sReplyTo) payload.reply_to = sReplyTo.id; // column is reply_to (see ROADMAP note — reply_to_id was never created)
+  const { data: sent, error } = await supabaseClient.from('messages').insert(payload).select().single();
   if (error) { toast('Could not send — please try again.'); console.error('sMsg error:', error); return; }
 
   inp.value = '';
+  const quote = sReplyTo ? quoteHtml(sReplyTo.id) : '';
+  cancelReply();
+  if (sent) sMsgCache[sent.id] = { content: sent.content, senderId: sent.sender_id };
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
   const div = document.createElement('div'); div.className = 'msg-row mine';
-  div.innerHTML = `<div class="bubble mine">${text}<span class="bubble-meta">${time}</span></div>`;
+  if (sent) div.dataset.mid = sent.id;
+  div.innerHTML = `<div class="bubble mine">${quote}${text}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();
@@ -4292,26 +4371,62 @@ async function sMsg() {
 
 function scrollChat() { setTimeout(() => { const m = document.getElementById('chatMsgs'); if (m) m.scrollTop = m.scrollHeight; }, 50); }
 
-function handleRealtimeMessage(payload) {
+async function handleRealtimeMessage(payload) {
   const msg = payload.new;
   const eu = getEffectiveUser();
   if (!msg || !eu) return;
   if (msg.sender_id === eu.id) return; // already rendered locally on send
-  if (!document.getElementById('page-messages').classList.contains('active')) {
-    sUnreadCount++;
-    updateMsgBadges();
+  const viewing = sConvoActive && document.getElementById('page-messages').classList.contains('active');
+  if (viewing) {
+    // The thread is on screen — this message is seen the moment it lands.
+    const { error } = await supabaseClient.from('messages').update({ seen_at: new Date().toISOString() }).eq('id', msg.id);
+    if (error) console.warn('mark seen:', error.message);
+  } else {
+    msgToastFor(msg); // convo open in the background (desktop) — banner + badges
   }
-  if (!sConvoActive) return; // badge is updated above; nothing to render in thread
-  const msgs = document.getElementById('chatMsgs');
-  if (!msgs) return;
-  const first = msgs.firstElementChild;
-  if (first && first.textContent.includes('No messages yet')) first.remove();
-  const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const div = document.createElement('div'); div.className = 'msg-row';
-  div.innerHTML = `<div class="bubble theirs">${msg.content}<span class="bubble-meta">${time}</span></div>`;
-  msgs.appendChild(div);
-  scrollChat();
-  renderConvos();
+  if (sConvoActive) {
+    const msgs = document.getElementById('chatMsgs');
+    if (msgs) {
+      const first = msgs.firstElementChild;
+      if (first && first.textContent.includes('No messages yet')) first.remove();
+      sMsgCache[msg.id] = { content: msg.content, senderId: msg.sender_id };
+      const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const div = document.createElement('div'); div.className = 'msg-row';
+      div.dataset.mid = msg.id;
+      div.innerHTML = `<div class="bubble theirs">${quoteHtml(msg.reply_to)}${msg.content}<span class="bubble-meta">${time}</span></div><button class="reply-hover" onclick="startReply('${msg.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
+      msgs.appendChild(div);
+      scrollChat();
+    }
+  }
+  renderConvos(); // repaints list + DB-derived badges (after mark-seen, so counts are right)
+}
+
+// The other side marked my messages seen → flip ✓ to ✓✓ live on the open thread.
+function handleSeenUpdate(payload) {
+  const m = payload.new;
+  const eu = getEffectiveUser();
+  if (!m || !eu || !m.seen_at || m.sender_id !== eu.id) return;
+  const tick = document.querySelector(`.msg-row[data-mid="${m.id}"] .ticks`);
+  if (tick) { tick.innerHTML = '&#10003;&#10003;'; tick.classList.add('seen'); }
+}
+
+// Tappable banner for a message arriving while the user is anywhere but the Messages page.
+async function msgToastFor(msg) {
+  if (document.getElementById('page-messages')?.classList.contains('active')) return;
+  let info = sConvoCache[msg.sender_id];
+  if (!info) {
+    const { data: p } = await supabaseClient.from('profiles').select('first_name, last_name, display_name, initials, color').eq('id', msg.sender_id).single();
+    if (p) { info = { name: p.display_name || (p.first_name + ' ' + p.last_name), initials: p.initials, color: p.color }; sConvoCache[msg.sender_id] = info; }
+  }
+  document.getElementById('msgToast')?.remove();
+  const t = document.createElement('div');
+  t.id = 'msgToast';
+  t.className = 'msg-toast';
+  t.innerHTML = `<div class="msg-toast-name">${info?.name || 'New message'}</div><div class="msg-toast-preview">${msg.content}</div>`;
+  t.onclick = () => { t.remove(); showPage('messages'); openConvo(msg.sender_id); };
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 4500);
 }
 
 function startGlobalMsgListener(userId) {
@@ -4320,6 +4435,7 @@ function startGlobalMsgListener(userId) {
     .channel('global-msgs-' + userId)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` }, handleGlobalMessage)
     .subscribe();
+  refreshUnread(); // badges are correct from the moment of login/refresh
 }
 
 function startNotifListener(userId) {
@@ -4377,11 +4493,8 @@ function handleGlobalMessage(payload) {
     const activeKey = [eu.id, sConvoActive.userId].sort().join(':');
     if (msg.conversation_key === activeKey) return;
   }
-  if (!document.getElementById('page-messages').classList.contains('active')) {
-    sUnreadCount++;
-    updateMsgBadges();
-  }
-  renderConvos();
+  msgToastFor(msg); // no-op if the Messages page is on screen (list row + badge suffice)
+  renderConvos();   // repaints list + DB-derived badges
 }
 
 function renderListingGrid(listings, isOwn) {

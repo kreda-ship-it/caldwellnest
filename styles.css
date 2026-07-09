@@ -231,6 +231,7 @@ img{image-orientation:from-image;}
 .convo-info{flex:1;min-width:0;}
 .convo-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .convo-preview{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.convo-preview.unread{color:var(--text);font-weight:600;}
 .convo-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
 .convo-time{font-size:11px;color:var(--text-faint);}
 .convo-badge{background:var(--brand);color:#fff;font-size:10px;font-weight:600;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
@@ -247,6 +248,29 @@ img{image-orientation:from-image;}
 .bubble.mine{background:var(--brand);color:#fff;border-radius:16px 4px 16px 16px;}
 /* Timestamp (and later, read ticks) tucked inside the bubble's bottom-right, WhatsApp-style */
 .bubble-meta{float:right;font-size:10.5px;line-height:1;opacity:.65;white-space:nowrap;margin:9px -2px 0 8px;}
+/* Read ticks (own messages only): ✓ = delivered to server, ✓✓ tinted = seen */
+.ticks{margin-left:4px;letter-spacing:-1px;}
+.ticks.seen{color:var(--accent);}
+/* REPLIES: quoted block inside a reply bubble (tap → jump to original) */
+.bubble-quote{display:block;border-left:3px solid var(--brand);background:rgba(0,0,0,.05);border-radius:6px;padding:6px 9px;margin:0 0 6px;font-size:12px;line-height:1.4;cursor:pointer;}
+.bubble.mine .bubble-quote{border-left-color:#fff;background:rgba(255,255,255,.16);}
+.bq-name{display:block;font-weight:600;font-size:11px;margin-bottom:1px;}
+.bubble.theirs .bq-name{color:var(--brand);}
+.bq-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+/* Desktop reply affordance: ↩ fades in beside a hovered bubble (hidden on touch layouts) */
+.reply-hover{opacity:0;background:none;border:none;cursor:pointer;color:var(--text-faint);padding:0 6px;align-self:center;transition:opacity .15s,color .15s;}
+.msg-row:hover .reply-hover{opacity:1;}
+.reply-hover:hover{color:var(--brand);}
+.msg-row.mine .reply-hover{order:-1;}
+/* Composing state: preview of the message being replied to, pinned above the input */
+.reply-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border-top:1px solid var(--border);padding:8px 16px 0;}
+.reply-bar-body{flex:1;min-width:0;border-left:3px solid var(--brand);background:var(--bg);border-radius:6px;padding:6px 10px;font-size:12px;}
+.reply-bar-body .bq-name{color:var(--brand);}
+.reply-bar-body .bq-text{-webkit-line-clamp:1;}
+.reply-bar-x{background:none;border:none;cursor:pointer;font-size:19px;color:var(--text-muted);padding:2px 6px;line-height:1;}
+/* Brief halo on the original message after tapping a quote */
+.msg-flash .bubble{animation:msgflash 1.2s ease;}
+@keyframes msgflash{0%,55%{box-shadow:0 0 0 3px var(--accent);}100%{box-shadow:0 0 0 3px transparent;}}
 .chat-input-area{background:var(--surface);padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-end;}
 .composer-plus{background:none;border:none;cursor:pointer;color:var(--text-muted);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;}
 .composer-plus:hover{background:var(--brand-pale);color:var(--brand);}
@@ -544,6 +568,11 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* SHARED TOAST */
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--brand);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;transition:all .3s;pointer-events:none;opacity:0;}
+/* Tappable new-message banner (drops from the top, phone-notification style) */
+.msg-toast{position:fixed;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-16px);background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:10px 16px;z-index:9999;min-width:220px;max-width:min(360px,calc(100vw - 32px));cursor:pointer;opacity:0;transition:all .25s ease;}
+.msg-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.msg-toast-name{font-weight:600;font-size:13px;color:var(--brand);margin-bottom:2px;}
+.msg-toast-preview{font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
 /* DETAIL LISTING MODAL */
@@ -654,4 +683,5 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   body.chat-open .chat-messages{padding:16px 12px 12px;}
   body.chat-open .chat-input-area{padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
   .m-back{display:flex;align-items:center;}
+  .reply-hover{display:none;} /* touch replies via bubble swipe, not hover */
 }

@@ -605,7 +605,7 @@ NOTIFY pgrst, 'reload schema';
 - ⬜ Active now / last seen
 
 **Later polish**
-- ⬜ Reply-to / quote — tap a bubble to quote it; needs `reply_to_id uuid` column
+- ✅ Reply-to / quote — swipe a bubble (mobile) or hover ↩ (desktop); uses the `reply_to uuid` column (NOT `reply_to_id` — that name was never created)
 - ⬜ "Official" badge on CaldwellNest messages — purple ✓, not confusable with
       a regular student
 - ⬜ Message timestamps — date dividers ("Today", "Yesterday") + per-message

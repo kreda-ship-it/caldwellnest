@@ -49,6 +49,11 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - Point out good habits when they come up.
 - When relevant, remind me of the git step after a change (add, commit, push).
 
+## Supabase rules (hard-learned — follow exactly)
+- After ANY schema change (`ALTER TABLE`, `CREATE POLICY`, `GRANT`, new table), always tell me to also run `NOTIFY pgrst, 'reload schema';` — Supabase's API caches the schema and will reject new columns until then, with errors that look like the column doesn't exist.
+- When code and database disagree about a column name, the DATABASE is ground truth. Verify what actually exists (Table Editor, or `information_schema.columns`) before renaming anything in code. Plans/roadmap notes describe intentions, not reality. (A session once renamed working code to match a stale ROADMAP note — don't repeat that.)
+- Mobile gestures: use `touchstart/touchmove/touchend` with `preventDefault()` on a non-passive touchmove — NOT pointer events, which iOS Safari cancels silently.
+
 ## Known limitations (do NOT "fix" these silently — they're planned for Phase 3 backend)
 - Data is in-memory only; it resets on browser refresh. Real persistence is a future task.
 - NestBot calls the Anthropic API from the browser, so it only works inside Claude's preview, not a plain browser. A real backend will fix this later.
