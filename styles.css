@@ -590,8 +590,26 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   --m-tabbar-h:56px;   /* fixed bottom tab bar, excluding the iPhone home-indicator inset */
 }
 .m-tabbar{display:none;}
+/* Mobile-only brand text ("CaldwellNest") — swapped in for the desktop logo ≤768px */
+.s-logo-m{display:none;font-family:'DM Serif Display',serif;color:#fff;font-size:20px;letter-spacing:-.5px;cursor:pointer;}
+.s-logo-m span{color:var(--accent);}
 
 @media(max-width:768px){
+  /* TOP BAR — the existing .s-nav becomes a fixed 56px app bar */
+  .s-nav{
+    position:fixed;top:0;left:0;right:0;z-index:110;
+    height:calc(var(--m-topbar-h) + env(safe-area-inset-top));
+    padding:env(safe-area-inset-top) 16px 0;
+    transition:transform .25s ease;
+  }
+  /* Hide-on-scroll: slides up out of view while scrolling down, back on scroll-up */
+  .s-nav.m-hidden{transform:translateY(-100%);}
+  /* .s-nav left the normal flow (fixed), so push the app content down to start below it */
+  #studentApp{padding-top:calc(var(--m-topbar-h) + env(safe-area-inset-top));}
+  .s-logo{display:none;}
+  .s-logo-m{display:inline;}
+  /* Browse & Messages moved into the bottom tab bar */
+  #navUser .nav-btn{display:none;}
   /* BOTTOM TAB BAR — always visible, never hides on scroll */
   .m-tabbar{
     display:flex;align-items:stretch;
@@ -621,6 +639,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   }
   /* Content must not end hidden underneath the fixed bar */
   #studentApp .page:not(#page-messages){padding-bottom:calc(var(--m-tabbar-h) + env(safe-area-inset-bottom) + 8px);}
-  .msg-layout{height:calc(100dvh - 58px - var(--m-tabbar-h) - env(safe-area-inset-bottom));}
+  /* Filter bottom sheet slides over the tab bar — keep its footer clear of the home indicator */
+  .filter-drawer{padding-bottom:env(safe-area-inset-bottom);}
+  .msg-layout{height:calc(100dvh - var(--m-topbar-h) - env(safe-area-inset-top) - var(--m-tabbar-h) - env(safe-area-inset-bottom));}
   .toast{bottom:calc(var(--m-tabbar-h) + env(safe-area-inset-bottom) + 16px);}
 }

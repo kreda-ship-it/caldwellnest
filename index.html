@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -20,6 +20,7 @@
 <div id="studentApp">
   <nav class="s-nav">
     <span class="s-logo" onclick="showPage('home')">Nest<span>rel</span></span>
+    <span class="s-logo-m" onclick="showPage('home')">Caldwell<span>Nest</span></span>
     <div class="nav-links" id="navGuest">
       <button class="nav-btn nav-ghost" onclick="openModal('loginModal')">Log in</button>
       <button class="nav-btn nav-solid" onclick="openModal('signupModal')">Sign up</button>
@@ -2601,6 +2602,8 @@ function showPage(name) {
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
   updateMTabbar(name);
+  document.querySelector('.s-nav')?.classList.remove('m-hidden'); // navigating always reveals the top bar
+  if (window.innerWidth <= 768) window.scrollTo(0, 0); // app-style: each page opens at its top
 }
 
 // Highlights the mobile bottom-bar tab matching the current page. Search and Events
@@ -2622,6 +2625,29 @@ function updateMsgBadges() {
     if (b) { b.textContent = sUnreadCount; b.style.display = show ? 'inline' : 'none'; }
   });
 }
+
+// ── Mobile top bar hide-on-scroll (≤768px only) ─────────────
+// Scrolling down tucks the bar away; any scroll up brings it back; it is always
+// visible near the very top. The messages page is naturally exempt because it
+// scrolls inside its own panes, not the window.
+(function initTopbarHideOnScroll() {
+  const MOBILE_MAX = 768;  // must match the styles.css media query
+  const JITTER = 6;        // ignore scroll wiggle smaller than this (px)
+  const MIN_HIDE_Y = 80;   // never hide within this distance of the top
+  const nav = document.querySelector('.s-nav');
+  if (!nav) return;
+  let lastY = Math.max(0, window.scrollY);
+  window.addEventListener('scroll', () => {
+    if (window.innerWidth > MOBILE_MAX) return;
+    const y = Math.max(0, window.scrollY);  // iOS rubber-banding can report negative values
+    const dy = y - lastY;
+    if (Math.abs(dy) < JITTER) return;
+    if (y <= 8) nav.classList.remove('m-hidden');
+    else if (dy > 0 && y > MIN_HIDE_Y) nav.classList.add('m-hidden');
+    else if (dy < 0) nav.classList.remove('m-hidden');
+    lastY = y;
+  }, { passive: true });
+})();
 
 function guestBrowse() { showPage('listings'); }
 function requireAuth(action) {
@@ -2990,6 +3016,9 @@ function setBooksBrowseMode(on) {
 }
 
 function renderListings() {
+  // Keep the mobile tab highlight honest when the category changes *within* the Browse
+  // page (e.g. tapping the Events chip should light up the Events tab, not Search).
+  if (document.getElementById('page-listings').classList.contains('active')) updateMTabbar('listings');
   const isBooks = _filters.category === 'books';
   setBooksBrowseMode(isBooks);
   if (isBooks) { initBooksPage(); return; }
@@ -4148,7 +4177,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   // Phone-width screens: the chat needs the full width, so auto-hide the conversation
   // list when a chat opens (swipe right or tap › to bring it back). Deliberately not
   // saved to localStorage — it's situational, not a user preference.
-  if (window.innerWidth <= 700) document.getElementById('msgSidebar')?.classList.add('msg-collapsed');
+  // 768 matches the mobile-chrome breakpoint in styles.css.
+  if (window.innerWidth <= 768) document.getElementById('msgSidebar')?.classList.add('msg-collapsed');
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
   sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
