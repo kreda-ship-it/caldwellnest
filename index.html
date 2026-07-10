@@ -402,6 +402,10 @@
               <div class="tcard-title">Approvals</div>
               <button id="aApprovalFilterBtn" class="btn-sm-a btn-a-neutral" onclick="toggleFilterPanel('aApprovalFilterPanel','aApprovalFilterBtn')" style="white-space:nowrap">&#9657; Filters</button>
             </div>
+            <div style="display:flex;gap:6px;padding:10px 18px 0;">
+              <button id="aApprovalTab-listings" class="filter-chip active" onclick="setApprovalsTab('listings')">Listings</button>
+              <button id="aApprovalTab-books" class="filter-chip" onclick="setApprovalsTab('books')">Books<span id="aApprovalBookBadge" style="display:none"></span></button>
+            </div>
             <div id="aApprovalFilterPanel" style="padding:10px 18px 14px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:10px"></div>
             <div id="aApprovalQ"></div>
           </div>
@@ -1365,7 +1369,7 @@
 
 <!-- REJECT -->
 <div class="modal-overlay" id="rejectModal">
-  <div class="modal" style="max-width:420px"><div class="modal-header"><div class="modal-title">Reject listing</div><button class="modal-close" onclick="closeModal('rejectModal')">&#215;</button></div>
+  <div class="modal" style="max-width:420px"><div class="modal-header"><div class="modal-title" id="rejectModalTitle">Reject listing</div><button class="modal-close" onclick="closeModal('rejectModal')">&#215;</button></div>
   <div class="modal-body"><p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Reason (sent to student):</p>
   <textarea class="form-textarea" id="rejReason"></textarea>
   <button style="width:100%;margin-top:12px;background:var(--danger);color:#fff;padding:10px;font-size:14px;font-weight:600;cursor:pointer;border-radius:var(--radius-sm);border:none;font-family:'DM Sans',sans-serif;" onclick="confirmReject()">Confirm rejection</button>
@@ -1488,8 +1492,8 @@
 
 <script>
 // ── Supabase connection ──────────────────────────────────────
-const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;' };
-const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other' };
+const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
+const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
 const CATEGORY_COLORS = {
@@ -1515,6 +1519,8 @@ const DB = {
   students:[], // populated from Supabase profiles — never seeded
   pending:[],  // populated from Supabase listings (status=pending) via loadListings()
   listings:[], // populated from Supabase listings (status!=pending) via loadListings()
+  pendingBooks:[], // admin-only: book_listings (status=pending) via loadAdminBooks()
+  adminBooks:[],   // admin-only: book_listings (status!=pending) via loadAdminBooks()
   convos:[],   // legacy in-memory store — admin messages view queries Supabase directly
   reports:[],  // legacy in-memory store — reports view queries Supabase directly
   log:[],      // in-session activity log; resets on refresh (no Supabase backend yet)
@@ -1556,6 +1562,7 @@ let _histStack = [];           // navigation stack: [{type:'section',value:'stud
 let _histCurrentProfileId = null;
 let _histGoingBack = false;
 let _histListings = [], _histListingView = 'list', _pinnedView = 'grid';
+let _histBooks = [];
 let _stuSchoolFilter = 'all', _stuStatusFilter = 'all';
 let _stuYearFilter = 'all', _stuMajorSearch = '', _stuSort = 'newest', _stuSearch = '', _stuFlagFilter = 'none';
 let _listingSchoolFilter = 'all', _listingTypeFilter = 'all', _listingStatusFilter = 'all';
@@ -1564,6 +1571,8 @@ let _reportSchoolFilter = 'all', _reportStatusFilter = 'all', _reportCatFilter =
 let _appealStatusFilter = 'all', _appealSort = 'newest', _appealSearch = '';
 let _anaRange = '30d', _anaSchool = 'all', _anaNavSource = null;
 let _approvalSchoolFilter = 'all', _approvalCategoryFilter = 'all';
+let _approvalsTab = 'listings'; // 'listings' | 'books'
+let aBookRejectId = null;
 let _dashLogFilter = 'all';
 let _actPage = 0, _actFilter = 'all';
 let _adminRealtimeChannels = [];
@@ -1978,6 +1987,17 @@ function posterFromRow(row, prof) {
   };
 }
 
+// Canonical visibility rule (mirrors the `visible_listings` SQL view) — a listing
+// is live in feed/search only if admin-approved, still in an active lifecycle
+// state, and not past its deadline. Owner and admin views bypass this on purpose
+// (they query Supabase directly, not this cached/filtered list).
+function isListingLive(l) {
+  if (l.status !== 'approved') return false;
+  if (!['active', 'pending_sale'].includes(l.lifecycle_status)) return false;
+  if (l.expires_at && new Date(l.expires_at) <= new Date()) return false;
+  return true;
+}
+
 async function loadListings() {
   const { data: suspendedProfiles } = await supabaseClient
     .from('profiles').select('id').eq('status', 'suspended');
@@ -2020,6 +2040,8 @@ async function loadListings() {
     posted: new Date(row.created_at).toLocaleDateString(),
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
     status: row.status,
+    lifecycle_status: row.lifecycle_status,
+    expires_at: row.expires_at,
     pinned: row.pinned,
     rejection_reason: row.rejection_reason || null,
     photo_urls: row.photo_urls || []
@@ -2028,6 +2050,48 @@ async function loadListings() {
   DB.listings = visible.filter(row => row.status !== 'pending').map(mapRow);
   DB.pending = visible.filter(row => row.status === 'pending').map(mapRow);
   // removed listings stay in DB.listings with status:'removed' — hidden from students, visible to admin
+}
+
+// Admin-only: loads ALL book_listings regardless of moderation/lifecycle state (the public
+// loadBooks() only pulls approved+active). Mirrors loadListings()'s pending/live split.
+async function loadAdminBooks() {
+  const { data, error } = await supabaseClient
+    .from('book_listings').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('[loadAdminBooks]', error.message); return; }
+  const posterIds = [...new Set((data || []).map(r => r.poster_id).filter(Boolean))];
+  const profMap = {};
+  if (posterIds.length) {
+    const { data: profs } = await supabaseClient.from('profiles')
+      .select('id, display_name, first_name, last_name, initials, color, email')
+      .in('id', posterIds);
+    (profs || []).forEach(p => { profMap[p.id] = p; });
+  }
+  const mapBookRow = row => {
+    const p = profMap[row.poster_id];
+    return {
+      id: row.id,
+      title: row.title,
+      category: 'books',
+      type: row.book_type === 'course' ? (row.course_code || 'Textbook') : (row.genre || 'Book'),
+      author: row.author,
+      isbn: row.isbn,
+      edition: row.edition,
+      rent: row.price,
+      condition: row.condition,
+      desc: row.description || 'No description.',
+      poster_id: row.poster_id,
+      poster: p ? { name: p.display_name || `${p.first_name} ${p.last_name}`, fullName: p.display_name || `${p.first_name} ${p.last_name}`, initials: p.initials, color: p.color, email: p.email } : { name: 'Unknown', fullName: 'Unknown', initials: '?', color: '#888', email: '' },
+      submitted: new Date(row.created_at).toLocaleDateString(),
+      posted: new Date(row.created_at).toLocaleDateString(),
+      status: row.status,
+      lifecycle_status: row.lifecycle_status,
+      expires_at: row.expires_at,
+      rejection_reason: row.rejection_reason || null,
+      photo_urls: row.photo_urls || []
+    };
+  };
+  DB.pendingBooks = (data || []).filter(r => r.status === 'pending').map(mapBookRow);
+  DB.adminBooks   = (data || []).filter(r => r.status !== 'pending').map(mapBookRow);
 }
 
 async function initStudent() {
@@ -2041,7 +2105,7 @@ async function initStudent() {
   if (applyMaintenance()) return;
   renderDeepFilters();
   renderListings();
-  animNum('statListings', 0, DB.listings.filter(l=>l.status==='approved').length, 600);
+  animNum('statListings', 0, DB.listings.filter(isListingLive).length, 600);
   animNum('statStudents', 0, stuCount || 0, 800);
   if (localStorage.getItem('cn_msg_sidebar') === 'collapsed') {
     msgSidebarPinned = false;
@@ -2960,7 +3024,7 @@ function renderDeepFilters() {
   const cat = _filters.category;
 
   // Compute price max from listings in current category
-  const catListings = DB.listings.filter(l => l.status === 'approved' && (cat === 'all' || l.category === cat));
+  const catListings = DB.listings.filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
   const prices = catListings.map(l => l.rent || 0).filter(p => p > 0);
   _pMax = prices.length ? Math.ceil(Math.max(...prices) / 50) * 50 : 2000;
   _pMax = Math.max(_pMax, 100);
@@ -3133,7 +3197,7 @@ function renderListings() {
   const isBooks = _filters.category === 'books';
   setBooksBrowseMode(isBooks);
   if (isBooks) { initBooksPage(); return; }
-  const approved = DB.listings.filter(l => l.status === 'approved');
+  const approved = DB.listings.filter(isListingLive);
   const pinned   = approved.filter(l => l.pinned);
   const rest     = approved.filter(l => !l.pinned);
 
@@ -3614,7 +3678,7 @@ async function loadCourses() {
 
 async function loadBooks() {
   const { data, error } = await supabaseClient
-    .from('book_listings').select('*').eq('status', 'active')
+    .from('book_listings').select('*').eq('status', 'approved').eq('lifecycle_status', 'active')
     .order('created_at', { ascending: false });
   if (error) { console.error('[books]', error.message); return; }
   _books = data || [];
@@ -3889,7 +3953,7 @@ async function bContact(bookId) {
 async function markBookSold(id) {
   if (!confirm('Mark this book as sold? It will disappear from the Books feed.')) return;
   const { error } = await supabaseClient.from('book_listings')
-    .update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
+    .update({ lifecycle_status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
   if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
   closeModal('bookDetailModal');
   toast('Marked as sold — congrats!');
@@ -3999,7 +4063,8 @@ async function submitBook() {
     if (btn) btn.textContent = 'Saving…';
   }
 
-  const { error } = await supabaseClient.from('book_listings').insert({
+  const initialStatus = DB.settings.requireApproval ? 'pending' : 'approved';
+  const { data, error } = await supabaseClient.from('book_listings').insert({
     book_type: _postBookType,
     course_code: _postBookType === 'course' && _bkSelCourse !== 'NOT_LISTED' ? _bkSelCourse : null,
     genre: _postBookType === 'other' ? document.getElementById('bkGenre').value : null,
@@ -4012,8 +4077,8 @@ async function submitBook() {
     description: document.getElementById('bkDesc').value.trim() || null,
     photo_urls: photoUrls,
     poster_id: u.id,
-    status: 'active'
-  });
+    status: initialStatus
+  }).select().single();
   if (error) {
     toast('Could not save your book — please try again.');
     console.error('[book insert]', error.message);
@@ -4021,8 +4086,9 @@ async function submitBook() {
     if (btn) { btn.disabled = false; btn.textContent = 'Post book'; }
     return;
   }
+  logEvent('book_submitted', { targetType: 'book_listing', targetId: data.id, targetLabel: title, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
   closePostBook();
-  toast('Your book is live!');
+  toast(initialStatus === 'pending' ? '✓ Book submitted for admin review!' : '✓ Your book is live!');
   await loadBooks();
   renderBooks();
 }
@@ -4790,6 +4856,7 @@ function applyMaintenance() {
 async function initAdmin() {
   await loadPlatformSettings();
   await loadListings();   // warm the listings cache so Approvals/Listings/Pinned aren't empty on entry
+  await loadAdminBooks(); // warm the book_listings cache so Approvals isn't empty on entry
   updateAdminLogo();
   updateAllAdminBadges();
   buildMultiSchoolStats();
@@ -4821,7 +4888,7 @@ async function initAdmin() {
 function startAdminRealtimeListeners() {
   _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
   _adminRealtimeChannels = [];
-  ['listings', 'reports', 'appeals', 'profiles', 'messages'].forEach(tbl => {
+  ['listings', 'book_listings', 'reports', 'appeals', 'profiles', 'messages'].forEach(tbl => {
     _adminRealtimeChannels.push(
       supabaseClient.channel('adm-' + tbl)
         .on('postgres_changes', { event: '*', schema: 'public', table: tbl }, scheduleAdminReload)
@@ -4848,6 +4915,7 @@ function rerenderActiveAdminSection() {
 // button and the realtime listeners so they behave identically.
 async function adminReload({ reloadCache = true } = {}) {
   if (reloadCache) await loadListings();        // reload DB.listings/DB.pending cache (Pattern A fix)
+  if (reloadCache) await loadAdminBooks();      // reload DB.adminBooks/DB.pendingBooks cache
   await updateAllAdminBadges();                 // fresh counts
   buildMultiSchoolStats();
   buildAdminBar();
@@ -4876,18 +4944,22 @@ async function updateAdminBadges() {
   let pendQ  = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'pending');
   let liveQ  = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'approved');
   let pinQ   = supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('pinned', true);
+  let pendBookQ = supabaseClient.from('book_listings').select('id', { count: 'exact', head: true }).eq('status', 'pending');
   if (aAdminSchool) {
     stuQ  = stuQ.eq('school', aAdminSchool);
     pendQ = pendQ.eq('school', aAdminSchool);
     liveQ = liveQ.eq('school', aAdminSchool);
     pinQ  = pinQ.eq('school', aAdminSchool);
+    // book_listings has no school column yet — school-scoped admins see all pending books for now.
   }
-  const [{ count: stuN }, { count: pendN }, { count: liveN }, { count: pinN }, { count: msgN }] =
+  const [{ count: stuN }, { count: pendN }, { count: liveN }, { count: pinN }, { count: msgN }, { count: pendBookN }] =
     await Promise.all([stuQ, pendQ, liveQ, pinQ,
-      supabaseClient.from('messages').select('id', { count: 'exact', head: true })]);
-  const pending = pendN || 0;
+      supabaseClient.from('messages').select('id', { count: 'exact', head: true }), pendBookQ]);
+  const pending = (pendN || 0) + (pendBookN || 0);
   document.getElementById('pendBadge').textContent = pending;
   document.getElementById('pendBadge').style.display = pending ? 'inline' : 'none';
+  const bookBadge = document.getElementById('aApprovalBookBadge');
+  if (bookBadge) { bookBadge.textContent = ` (${pendBookN || 0})`; bookBadge.style.display = pendBookN ? 'inline' : 'none'; }
   document.getElementById('ds-s').textContent    = stuN  ?? '—';
   document.getElementById('ds-p').textContent    = pending;
   document.getElementById('ds-l').textContent    = liveN ?? '—';
@@ -4991,22 +5063,33 @@ async function buildAdminBar() {
   }
   el.innerHTML = counts.map((v, i) => `<div class="bwrap"><div class="bval">${v || ''}</div><div class="bar" style="height:${Math.round((v/mx)*70)}px"></div><div class="blabel">${dayNames[dates[i].getDay()]}</div></div>`).join('');
 }
+function goToBookApprovals() {
+  const btn = [...document.querySelectorAll('.a-nav-item')].find(b => b.getAttribute('onclick')?.includes("'approvals'"));
+  ago('approvals', btn || null);
+  setApprovalsTab('books');
+}
+
 async function buildTypeChart() {
   const el = document.getElementById('aDashTypeChart');
   if (!el) return;
-  const { data } = await supabaseClient.from('listings').select('category').neq('status', 'removed');
-  if (!data || data.length === 0) {
+  const [{ data }, { data: bookData }] = await Promise.all([
+    supabaseClient.from('listings').select('category').neq('status', 'removed'),
+    supabaseClient.from('book_listings').select('id').neq('status', 'removed')
+  ]);
+  const counts = {};
+  (data || []).forEach(r => { const c = r.category || 'other'; counts[c] = (counts[c] || 0) + 1; });
+  if (bookData && bookData.length) counts.books = bookData.length;
+  if (Object.keys(counts).length === 0) {
     el.innerHTML = '<div style="padding:8px 0;color:var(--text-faint);font-size:12px;text-align:center">No listings yet</div>';
     return;
   }
-  const counts = {};
-  data.forEach(r => { const c = r.category || 'other'; counts[c] = (counts[c] || 0) + 1; });
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const mx = Math.max(...sorted.map(e => e[1]), 1);
   el.innerHTML = sorted.map(([cat, n]) => {
     const label = CATEGORY_LABELS[cat] || cat;
     const emoji = CATEGORY_EMOJI[cat] || '📦';
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer" title="View ${label} listings" onclick="goToListingsFiltered(null,'${cat}')">
+    const clickHandler = cat === 'books' ? 'goToBookApprovals()' : `goToListingsFiltered(null,'${cat}')`;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer" title="View ${label} listings" onclick="${clickHandler}">
       <div style="width:22px;text-align:center;font-size:14px">${emoji}</div>
       <div style="width:90px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${label}</div>
       <div style="flex:1;height:18px;background:var(--bg);border-radius:4px;overflow:hidden">
@@ -5051,6 +5134,7 @@ const ACTION_META = {
   undo_action:          { label: 'Action undone',           color: '#d4860a' },
   student_signup:       { label: 'New student signup',      color: '#4a9470' },
   listing_submitted:    { label: 'Listing submitted',       color: '#d4860a' },
+  book_submitted:       { label: 'Book submitted',          color: '#d4860a' },
   report_submitted:     { label: 'Report filed',            color: '#c0392b' },
   appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
 };
@@ -5060,7 +5144,7 @@ const ACTIVITY_FILTER_GROUPS = {
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
-  students:   ['student_signup','listing_submitted','report_submitted','appeal_submitted'],
+  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted'],
 };
 
 const fmtActivityTime = d => {
@@ -5267,7 +5351,15 @@ async function _executeUndo(entryId, actionType, targetId) {
 }
 
 // ADMIN APPROVALS
+function setApprovalsTab(tab) {
+  _approvalsTab = tab;
+  document.getElementById('aApprovalTab-listings').classList.toggle('active', tab === 'listings');
+  document.getElementById('aApprovalTab-books').classList.toggle('active', tab === 'books');
+  renderAApprovals();
+}
+
 function renderAApprovals() {
+  if (_approvalsTab === 'books') { renderABookApprovals(); return; }
   const q = document.getElementById('aApprovalQ');
 
   const filterPanel = document.getElementById('aApprovalFilterPanel');
@@ -5359,8 +5451,10 @@ async function aReturnToPending(id) {
   toast('Listing returned to pending review');
 }
 
-function aOpenReject(id) { aRejectId = id; document.getElementById('rejReason').value = ''; openModal('rejectModal'); }
+let _rejectTarget = 'listing'; // 'listing' | 'book' — which confirmReject() should act on
+function aOpenReject(id) { aRejectId = id; _rejectTarget = 'listing'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject listing'; openModal('rejectModal'); }
 async function confirmReject() {
+  if (_rejectTarget === 'book') return confirmRejectBook();
   const l = DB.pending.find(x => x.id === aRejectId); if (!l) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
   const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
@@ -5370,6 +5464,107 @@ async function confirmReject() {
   DB.log.unshift({ type: 'reject', text: `Listing rejected: "${l.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('reject_listing', { targetType: 'listing', targetId: aRejectId, targetLabel: l.title, school: l.school, category: l.category, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
   updateAdminBadges(); closeModal('rejectModal'); renderAApprovals(); toast('Listing rejected');
+}
+
+// ─── BOOK APPROVALS ─────────────────────────────────────────
+function renderABookApprovals() {
+  const q = document.getElementById('aApprovalQ');
+  const filterPanel = document.getElementById('aApprovalFilterPanel');
+  if (filterPanel) filterPanel.innerHTML = '';
+  const pending = DB.pendingBooks;
+  const live    = DB.adminBooks.filter(b => b.status === 'approved');
+  const removed = DB.adminBooks.filter(b => b.status === 'removed');
+
+  const pendingHtml = pending.length
+    ? `<div style="font-size:13px;font-weight:600;color:var(--warning);margin-bottom:12px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:var(--warning);border-radius:50%;display:inline-block"></span>${pending.length} book${pending.length>1?'s':''} awaiting review</div>` +
+      pending.map(b => `<div class="acard">
+        ${b.photo_urls?.length ? `<div style="margin-bottom:10px">${photoGalleryHtml(b.photo_urls, { height: 180, radius: '6px', mainId: 'aqb' + b.id })}</div>` : ''}
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
+          <div><div class="acard-title">${b.title}</div><div class="acard-meta">${b.type}${b.author ? ' · ' + b.author : ''} · $${b.rent}${b.condition ? ' · ' + b.condition : ''}${b.isbn ? ' · ISBN ' + b.isbn : ''} · ${b.submitted}</div></div>
+          <span class="pill pill-pending">Pending</span>
+        </div>
+        <div class="acard-desc">${b.desc}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="mav" style="background:${b.poster.color}">${b.poster.initials}</div>
+            <div>
+              <div style="font-size:13px;font-weight:500">${b.poster.fullName || b.poster.name}</div>
+              <div style="font-size:11px;color:var(--text-faint)">${b.poster.email}</div>
+            </div>
+          </div>
+          <div class="arow">
+            <button class="btn-sm-a btn-a-danger" onclick="aOpenRejectBook(${b.id})">&#10005; Reject</button>
+            <button class="btn-sm-a btn-a-success" onclick="aApproveBook(${b.id})">&#10003; Approve</button>
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div style="text-align:center;padding:32px;color:var(--text-faint)"><div style="font-size:32px;margin-bottom:8px">&#9745;</div>No pending books</div>';
+
+  const rowHtml = (b, actionBtn) => `<tr>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.title}</td>
+    <td><span class="pill pill-active" style="font-size:10px">${b.type}</span></td>
+    <td style="font-weight:600;color:var(--brand)">$${b.rent}</td>
+    <td>${b.poster?.name || '—'}</td>
+    <td>${actionBtn}</td>
+  </tr>`;
+
+  const liveHtml = live.length ? `
+    <div style="margin-top:24px;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px">${live.length} live book${live.length>1?'s':''}</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Price</th><th>Poster</th><th>Actions</th></tr></thead>
+    <tbody>${live.map(b => rowHtml(b, `<button class="btn-sm-a btn-a-danger" onclick="aRemoveBook(${b.id})">Remove</button>`)).join('')}</tbody></table></div>` : '';
+
+  const removedHtml = removed.length ? `
+    <div style="margin-top:24px;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px">${removed.length} removed book${removed.length>1?'s':''}</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Price</th><th>Poster</th><th>Actions</th></tr></thead>
+    <tbody>${removed.map(b => rowHtml(b, `<button class="btn-sm-a btn-a-success" onclick="aRestoreBook(${b.id})">&#8635; Restore</button>`)).join('')}</tbody></table></div>` : '';
+
+  q.innerHTML = pendingHtml + liveHtml + removedHtml;
+}
+
+async function aApproveBook(id) {
+  const b = DB.pendingBooks.find(x => x.id === id); if (!b) return;
+  const { error } = await supabaseClient.from('book_listings').update({ status: 'approved' }).eq('id', id);
+  if (error) { toast('Could not approve book — please try again.'); console.error(error.message); return; }
+  DB.adminBooks.unshift({ ...b, status: 'approved' });
+  DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === id), 1);
+  DB.log.unshift({ type: 'book', text: `Book approved: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
+  logAdminAction('approve_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
+  updateAdminBadges(); renderAApprovals(); renderBooks();
+  toast('✓ Book approved — now live on the Books board');
+}
+
+function aOpenRejectBook(id) { aBookRejectId = id; _rejectTarget = 'book'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject book'; openModal('rejectModal'); }
+async function confirmRejectBook() {
+  const b = DB.pendingBooks.find(x => x.id === aBookRejectId); if (!b) return;
+  const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
+  const { error } = await supabaseClient.from('book_listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aBookRejectId);
+  if (error) { toast('Could not reject book — please try again.'); console.error(error.message); return; }
+  DB.adminBooks.unshift({ ...b, status: 'rejected', rejection_reason: r });
+  DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === aBookRejectId), 1);
+  DB.log.unshift({ type: 'book', text: `Book rejected: "${b.title}"`, time: 'Just now', color: '#c0392b' });
+  logAdminAction('reject_listing', { targetType: 'book_listing', targetId: aBookRejectId, targetLabel: b.title, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
+  updateAdminBadges(); closeModal('rejectModal'); renderAApprovals();
+  toast('Book rejected');
+}
+
+async function aRemoveBook(id) {
+  const b = DB.adminBooks.find(x => x.id === id); if (!b) return;
+  const { error } = await supabaseClient.from('book_listings').update({ status: 'removed' }).eq('id', id);
+  if (error) { toast('Could not remove book — please try again.'); console.error(error.message); return; }
+  b.status = 'removed';
+  DB.log.unshift({ type: 'book', text: `Book removed: "${b.title}"`, time: 'Just now', color: '#c0392b' });
+  logAdminAction('remove_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'approved' }, after: { status: 'removed' } });
+  renderBooks(); updateAdminBadges(); toast('Book removed');
+}
+
+async function aRestoreBook(id) {
+  const b = DB.adminBooks.find(x => x.id === id); if (!b) return;
+  const { error } = await supabaseClient.from('book_listings').update({ status: 'approved' }).eq('id', id);
+  if (error) { toast('Could not restore book — please try again.'); console.error(error.message); return; }
+  b.status = 'approved';
+  DB.log.unshift({ type: 'book', text: `Book restored: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
+  logAdminAction('restore_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'removed' }, after: { status: 'approved' } });
+  renderBooks(); updateAdminBadges(); toast('Book restored');
 }
 
 // ADMIN ALL LISTINGS
@@ -6016,9 +6211,10 @@ async function aOpenStudentHistory(profileId) {
   document.getElementById('aTopTitle').textContent = 'Student record';
   document.getElementById('aHistBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-faint);font-size:14px">Loading…</div>';
 
-  const [{ data: profile }, { data: listings }, { data: reportsBy }, { data: suspHistory }, { data: appeals }] = await Promise.all([
+  const [{ data: profile }, { data: listings }, { data: books }, { data: reportsBy }, { data: suspHistory }, { data: appeals }] = await Promise.all([
     supabaseClient.from('profiles').select('*').eq('id', profileId).single(),
     supabaseClient.from('listings').select('id, title, status, created_at, category, emoji, photo_urls, price').eq('poster_id', profileId).order('created_at', { ascending: false }),
+    supabaseClient.from('book_listings').select('id, title, author, status, lifecycle_status, created_at, book_type, price, photo_urls').eq('poster_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('reports').select('*, listing:listing_id(title)').eq('reporter_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('suspension_history').select('*').eq('profile_id', profileId).order('created_at', { ascending: false }),
     supabaseClient.from('appeals').select('id, status, created_at, message').eq('profile_id', profileId).order('created_at', { ascending: false })
@@ -6031,10 +6227,10 @@ async function aOpenStudentHistory(profileId) {
     reportsAgainst = ra || [];
   }
 
-  renderStudentHistory(profile, listings || [], reportsBy || [], reportsAgainst, suspHistory || [], appeals || []);
+  renderStudentHistory(profile, listings || [], books || [], reportsBy || [], reportsAgainst, suspHistory || [], appeals || []);
 }
 
-function renderStudentHistory(profile, listings, reportsBy, reportsAgainst, suspHistory, appeals) {
+function renderStudentHistory(profile, listings, books, reportsBy, reportsAgainst, suspHistory, appeals) {
   const body = document.getElementById('aHistBody');
   if (!profile) {
     body.innerHTML = `<div class="tcard" style="padding:40px;text-align:center;color:var(--text-muted)">
@@ -6052,6 +6248,7 @@ function renderStudentHistory(profile, listings, reportsBy, reportsAgainst, susp
   const timesSuspended = suspHistory.filter(e => e.action === 'suspended').length;
   const schoolLabel = profile.school || 'caldwell';
   _histListings = listings;
+  _histBooks = books;
   _histListingView = 'list';
   const actionBtn = suspended
     ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${profile.id}')">Reinstate</button>`
@@ -6126,7 +6323,7 @@ function renderStudentHistory(profile, listings, reportsBy, reportsAgainst, susp
       </div>
       <div class="hist-stat-grid">
         <div class="hist-stat" style="cursor:pointer" onclick="switchHistoryTab('listings')">
-          <div class="hist-stat-num">${listings.length}</div><div class="hist-stat-label">Listings posted</div>
+          <div class="hist-stat-num">${listings.length + books.length}</div><div class="hist-stat-label">Listings posted</div>
         </div>
         <div class="hist-stat" style="cursor:pointer" onclick="switchHistoryTab('reports-filed')">
           <div class="hist-stat-num">${reportsBy.length}</div><div class="hist-stat-label">Reports filed</div>
@@ -6146,12 +6343,14 @@ function renderStudentHistory(profile, listings, reportsBy, reportsAgainst, susp
     <div class="tcard">
       <div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto">
         <button class="htab active" id="htab-listings"         onclick="switchHistoryTab('listings')">Listings <span style="opacity:.6">(${listings.length})</span></button>
+        <button class="htab"        id="htab-books"            onclick="switchHistoryTab('books')">Books <span style="opacity:.6">(${books.length})</span></button>
         <button class="htab"        id="htab-reports-filed"    onclick="switchHistoryTab('reports-filed')">Reports filed <span style="opacity:.6">(${reportsBy.length})</span></button>
         <button class="htab"        id="htab-reports-received" onclick="switchHistoryTab('reports-received')">Reports received <span style="opacity:.6">(${reportsAgainst.length})</span></button>
         <button class="htab"        id="htab-history"          onclick="switchHistoryTab('history')">Suspension history <span style="opacity:.6">(${timesSuspended})</span></button>
         <button class="htab"        id="htab-appeals"          onclick="switchHistoryTab('appeals')">Appeals <span style="opacity:.6">(${appeals.length})</span></button>
       </div>
       <div id="htab-pane-listings"         class="htab-pane active">${buildListingsPaneHtml()}</div>
+      <div id="htab-pane-books"            class="htab-pane">${buildBooksHistoryPaneHtml()}</div>
       <div id="htab-pane-reports-filed"    class="htab-pane">${reportsBy.length ? reportsBy.map(reportRow).join('') : '<div class="hist-empty">No reports filed.</div>'}</div>
       <div id="htab-pane-reports-received" class="htab-pane">${reportsAgainst.length ? reportsAgainst.map(reportRow).join('') : '<div class="hist-empty">No reports received.</div>'}</div>
       <div id="htab-pane-history"          class="htab-pane">${historyPane}</div>
@@ -6232,6 +6431,49 @@ function buildListingsPaneHtml() {
       ${sPill(l.status)}
       <span style="font-size:14px;color:var(--text-faint);flex-shrink:0">›</span>
     </div>`).join('');
+}
+
+function buildBooksHistoryPaneHtml() {
+  if (!_histBooks.length) return '<div class="hist-empty">No books posted yet.</div>';
+  const sPill = s => {
+    const m = { approved:'pill-approved', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
+    return `<span class="pill ${m[s] || 'pill-pending'}" style="font-size:11px;flex-shrink:0">${s}</span>`;
+  };
+  return _histBooks.map(b => `
+    <div class="hist-row" onclick="openBookHistoryDrawer(${b.id})">
+      <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">&#128218;</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;font-size:14px">${b.title}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${b.book_type === 'course' ? 'Textbook' : 'Book'} · ${fmtDate(b.created_at)}</div>
+      </div>
+      ${sPill(b.status)}
+      <span style="font-size:14px;color:var(--text-faint);flex-shrink:0">›</span>
+    </div>`).join('');
+}
+
+async function openBookHistoryDrawer(bookId) {
+  openHDrawer('Loading…', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading book…</div>');
+  const { data: b } = await supabaseClient.from('book_listings').select('*').eq('id', bookId).single();
+  if (!b) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this book.</div>'; return; }
+  const sPill = s => {
+    const m = { approved:'pill-approved', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
+    return `<span class="pill ${m[s] || 'pill-pending'}">${s}</span>`;
+  };
+  document.getElementById('hDrawerTitle').innerHTML = `&#128218; ${b.title}`;
+  document.getElementById('hDrawerBody').innerHTML = `
+    ${b.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(b.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerBookGalMain' })}</div>` : ''}
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${sPill(b.status)}
+      <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${b.book_type === 'course' ? (b.course_code || 'Textbook') : (b.genre || 'Book')}</span>
+      ${b.lifecycle_status && b.lifecycle_status !== 'active' ? `<span class="pill pill-pending">${b.lifecycle_status}</span>` : ''}
+    </div>
+    <div style="font-size:24px;font-weight:700;color:var(--brand);margin-bottom:6px">${b.price ? '$' + b.price : 'Free'}</div>
+    ${b.author ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">by ${b.author}</div>` : ''}
+    ${b.isbn ? `<div style="font-size:12px;color:var(--text-faint);margin-bottom:4px">ISBN ${b.isbn}</div>` : ''}
+    ${b.condition ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Condition: ${b.condition}</div>` : ''}
+    ${b.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text)">${b.description}</div>` : ''}
+    ${b.rejection_reason ? `<div style="margin-top:14px;font-size:12px;color:var(--danger)">Rejected: ${b.rejection_reason}</div>` : ''}
+  `;
 }
 
 async function openListingDrawer(listingId) {
