@@ -65,6 +65,8 @@ Still open:
 
 ## Part 3 — Build sessions (paste-ready Claude Code prompts)
 
+**Status as of the Part 6 update below: Sessions 0–4 are done or partially done (see the 6.1 snapshot). Do not re-run the prompts below as-is — they're kept as a historical record of what was asked. The actual next sessions to run are Part 6 §6.3, Session A onward.** Session 5 (desktop sidebar) below is still un-started and still optional; slot it in after Part 6's sessions, per the 6.1 timing note.
+
 Run each in terminal Claude Code from `~/Documents/Amahle/caldwellNest`. Commit after each session (suggested messages included). Review in browser (and phone via local network or deployed preview) before moving on.
 
 ### Session 0 (optional but recommended): CSS extraction
@@ -149,7 +151,7 @@ Rough sizing against the Aug 2 soft beta: Session 0 + 1 in one Saturday deep-wor
 
 ## Part 6 — Additive Roadmap Update
 
-This section adds the new feature-expansion work without replacing the original responsive overhaul plan above.
+This section adds the new feature-expansion work without replacing the original responsive overhaul plan above. **This is the current source of truth for what's done and what's next** — Part 3's session prompts above are historical (see the status note at the top of Part 3).
 
 Companion doc added:
 - `docs/nestrel-feature-expansion-plan.md`
@@ -196,7 +198,7 @@ Needs decision:
 - Listing status model: current marketplace listings use moderation statuses (`pending`, `approved`, `rejected`, `removed`), while the expansion plan introduces lifecycle statuses (`active`, `sold/claimed`, `withdrawn`, `expired`). Recommendation: keep moderation status and lifecycle status separate, e.g. `moderation_status` plus `lifecycle_status`, instead of overloading one `status` column.
 - Activity log table: the app already uses `admin_activity_log`; the expansion plan proposes `activity_log`. Recommendation: decide whether to extend `admin_activity_log` or create a new student/listing lifecycle log table with a clear boundary.
 - Events data model: events currently appear to live as listing category `organization_event`; Events E1 likely needs richer event-specific fields and `event_rsvps`. Decide whether to extend `listings` for events or introduce a dedicated `events` table before writing SQL.
-- Doc location: the expansion plan expects both plans in `docs/`, but this repo currently has `nestrel-responsive-ui-plan.md` at the root. This update keeps the existing root roadmap and adds the expansion plan at `docs/nestrel-feature-expansion-plan.md`.
+- ~~Doc location~~ — RESOLVED: this file has been moved to `docs/nestrel-responsive-ui-plan.md`, matching where the expansion plan expects it.
 
 ### 6.3 Additional Build Sessions After The Responsive Overhaul
 

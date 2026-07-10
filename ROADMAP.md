@@ -3,7 +3,7 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-06-24
+Last updated: 2026-07-09
 
 ---
 
@@ -597,19 +597,28 @@ NOTIFY pgrst, 'reload schema';
 ### 🔄 MESSAGING — polish (foundation complete, extras next)
 
 **Next up**
-- ⬜ Filter messages by listing — inside a conversation, filter to messages
+- ✅ Listing sharing in chat (2026-07-09) — composer + button opens a listing
+      picker (bottom sheet on mobile, panel on desktop; All / My / their-listings
+      chips); sends `message_type='listing'` + `listing_id`; card renders in the
+      thread, tap → listing detail.
+- 🔒 Filter messages by listing — inside a conversation, filter to messages
       about a specific listing (dropdown or chips)
-- ⬜ Listing chip in the input bar — small pill showing which listing the next
+      *(superseded by listing sharing + date dividers — revisit only if threads get confusing)*
+- 🔒 Listing chip in the input bar — small pill showing which listing the next
       message is tagged to; tap to clear or switch
+      *(superseded by listing sharing — the shared card now carries the context)*
 - ⬜ Typing indicator — "Jordan is typing…" using Supabase Presence
-- ⬜ Active now / last seen
+- ⬜ Active now / last seen (deferred — see mobile overhaul notes)
 
 **Later polish**
 - ✅ Reply-to / quote — swipe a bubble (mobile) or hover ↩ (desktop); uses the `reply_to uuid` column (NOT `reply_to_id` — that name was never created)
+- ✅ Message timestamps (2026-07-08/09) — WhatsApp-style date dividers
+      ("Today", "Yesterday") + per-message time inside each bubble
+- ✅ Read receipts (2026-07-08) — ✓ sent / ✓✓ seen ticks; unread counts come
+      from the database (`seen_at`), not manual counting; tappable new-message
+      toast banner
 - ⬜ "Official" badge on CaldwellNest messages — purple ✓, not confusable with
       a regular student
-- ⬜ Message timestamps — date dividers ("Today", "Yesterday") + per-message
-      timestamps on hover/tap
 - ⬜ Blocking / reporting — report a message or block a user
 - ⬜ Push / email notifications
 
@@ -662,9 +671,21 @@ NOTIFY pgrst, 'reload schema';
 - Student activity feed (full history) is a future extension of the bell, not
   a separate thing to build now.
 
-### ⬜ MOBILE + DESKTOP RESPONSIVE
-- ⬜ Test and fix layout on phones (most students will use phones)
-- ⬜ Post form, filters, messaging, and admin panel all work on mobile
+### 🔄 MOBILE + DESKTOP RESPONSIVE — student app DONE (2026-07-06 → 09)
+- 🔄 Test and fix layout on phones (most students will use phones)
+      *(student app done — see items below; admin panel still untested on mobile)*
+- 🔄 Post form, filters, messaging, and admin panel all work on mobile
+      *(post form ✅, filters ✅, messaging ✅ — admin panel ⬜)*
+- ✅ Mobile app chrome (≤768px, desktop untouched): fixed 56px top bar
+      (hide-on-scroll, safe-area aware) + persistent bottom tab bar
+      (Home / Search / Plus / Messages / Events, active states, unread badge)
+- ✅ Conversation mode: full-screen chat on mobile, both bars hidden, back
+      chevron + phone back-gesture exits, one-pane messages list
+- ✅ Filter drawer becomes a bottom sheet on mobile; toasts clear the tab bar
+- ✅ Plus-chooser bottom sheet: built, then REVERTED by decision — Plus opens
+      the post modal directly. Revisit only with a different design.
+- ⬜ Admin panel on mobile — not started (deferred; admin is desktop-first)
+- ⬜ Desktop vertical sidebar (plan Session 5) — optional, cut-able for beta
 
 ### ⬜ FILTERING & SORTING (expand what exists)
 - ⬜ Filters: price range, distance from campus, # roommates, move-in date,
@@ -926,11 +947,15 @@ profile and editing flow is partially built.
        - ⬜ Build email verification + welcome email flow
        - ⬜ Remove demo student account (Jamie Cruz / demoLogin())
        - ⬜ UI polish pass — microcopy, empty states, loading states, mobile check
-13. ⬜ Messaging polish
-       - ⬜ Filter by listing / listing chip in input bar
+13. 🔄 Messaging polish — mostly DONE (2026-07-08/09)
+       - ✅ Reply-to / quote (swipe on mobile, hover ↩ on desktop)
+       - ✅ Read ticks + DB-truth unread counts + new-message toast
+       - ✅ Date dividers + in-bubble timestamps
+       - ✅ Listing sharing in chat
+       - 🔒 Filter by listing / listing chip in input bar
+             *(superseded by listing sharing — revisit only if needed)*
        - ⬜ Typing indicator (Supabase Presence)
-       - ⬜ Active now / last seen
-       - ⬜ Reply-to / quote
+       - 🔒 Active now / last seen (deferred)
 14. ⬜ Forgot password — needs hosted URL first
 15. 🔄 Photos (Supabase Storage)
        - ✅ Stage 1 complete (2026-06-24) — see ALREADY DONE → Listing Photos
@@ -1329,3 +1354,49 @@ college rideshare attempts — most failed; study WHY.
 - ⬜ Student history dashboard (appeals column, side expansion, grid/list toggle).
 - ⬜ Branches / worktrees / PRs workflow — deferred until basics solid.
 - ⬜ Rides board (Nestrel feature) — see rideshare second-project entry.
+
+---
+---
+
+# APPENDED 2026-07-09 — Mobile overhaul + messaging upgrade shipped
+
+*Detailed specs and the go-forward session list live in
+`docs/nestrel-responsive-ui-plan.md` (Part 6 is the source of truth) and
+`docs/nestrel-feature-expansion-plan.md`. This is the roadmap-level summary.*
+
+### Shipped since 2026-07-05
+- ✅ **Books section** (2026-07-05) — `courses` (885 rows) + `book_listings`
+      tables, course autocomplete, structured post-a-book form, book cards +
+      detail modal (`books_schema.sql`)
+- ✅ **Books merged into Browse** (2026-07-06, `5b1467e`) — Books is a category
+      tab inside the marketplace; separate Books page and nav button removed;
+      Books tile added to the post-a-listing category picker
+- ✅ **Mobile app chrome** (2026-07-06, `3f68858` + `e90b374`) — fixed top bar
+      with hide-on-scroll, persistent bottom tab bar with safe-area support,
+      768px breakpoint everywhere, desktop pixel-identical
+- ✅ **Conversation mode** (2026-07-08, `d3182ab`) — full-screen mobile chat
+      (`body.chat-open`), back chevron + browser/phone back gesture, one-pane
+      messages list, WhatsApp-style bubbles
+- ✅ **Reply / quote** (2026-07-08, `2ccb4ac`) — bubble-swipe on touch, hover ↩
+      on desktop, in-bubble quote with tap-to-scroll
+- ✅ **Read ticks + DB-truth unread + message toast** (2026-07-08, `e5bab38`)
+- ✅ **Listing sharing in chat + date dividers** (2026-07-09, `3bf0fd1`)
+- ✅ **Category line-art icons** (2026-07-09) — compact spots only (chat cards,
+      picker thumbs, post-modal step-2 badge); step-1 tiles stay text-only
+- ❌ **Plus-chooser bottom sheet** — built 2026-07-06, reverted same day by
+      decision; Plus opens the post modal directly
+
+### Schema note (verify before trusting)
+Messaging features degrade gracefully (console.warn, ticks/badges stay off)
+until these columns/policies exist in Supabase: `messages.reply_to uuid` FK,
+`messages.seen_at timestamptz` + receiver-update RLS policy,
+`messages.message_type text`. SQL was provided 2026-07-08/09 — **confirm it
+was actually run** before relying on replies, ticks, or listing shares.
+
+### Next sessions (from the plan, in order)
+1. ⬜ Session C — listing lifecycle + deadlines + activity logging
+      (needs decision: separate `lifecycle_status` from moderation `status`)
+2. ⬜ Session D — Events E1: rich events, RSVP, capacity, add-to-calendar,
+      auto-expiry (needs decision: extend `listings` vs dedicated `events` table)
+3. ⬜ Session E — intent-driven Search redesign (if time before beta)
+4. 🔒 Post-beta: Events E2 (public share pages), E3 (org profiles)
