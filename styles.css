@@ -43,6 +43,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* Flex (not absolute) side-lines so a long label ("About: …") wraps instead of overlapping them */
 .divider{display:flex;align-items:center;gap:10px;color:var(--text-faint);font-size:12px;margin:16px 0;text-align:center;overflow-wrap:anywhere;}
 .divider::before,.divider::after{content:'';flex:1;min-width:24px;height:1px;background:var(--border);}
+/* Chat date separators: plain centered label, no side lines (the auth modal's "or" keeps its lines) */
+.date-divider{justify-content:center;}
+.date-divider::before,.date-divider::after{display:none;}
 .switch-link{text-align:center;font-size:13px;color:var(--text-muted);margin-top:14px;}
 .switch-link a{color:var(--brand);font-weight:500;cursor:pointer;}
 .login-error{background:var(--danger-pale);color:var(--danger);font-size:13px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;display:none;}

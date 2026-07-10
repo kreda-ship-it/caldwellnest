@@ -1803,6 +1803,38 @@ window.addEventListener('popstate', () => {
   if (document.body.classList.contains('chat-open')) closeConvo(true);
 });
 
+// A conversation only counts as "being read" when it is genuinely on screen:
+// Messages page active, tab visible AND window focused, and on mobile the
+// full-screen chat actually open. Anything less (background window, other tab,
+// thread restored behind another page) leaves messages unread — WhatsApp rules.
+function isViewingActiveConvo() {
+  if (!sConvoActive) return false;
+  if (!document.getElementById('page-messages')?.classList.contains('active')) return false;
+  if (document.hidden || !document.hasFocus()) return false;
+  if (isMobileView() && !document.body.classList.contains('chat-open')) return false;
+  return true;
+}
+
+// Marks everything addressed to me in the active thread as seen — but only if
+// I'm really looking at it. Called whenever that becomes true: opening the thread,
+// returning to the Messages page, or the window regaining focus/visibility.
+function markActiveConvoSeen() {
+  const eu = getEffectiveUser();
+  if (!eu || !isViewingActiveConvo()) return;
+  const convKey = [eu.id, sConvoActive.userId].sort().join(':');
+  supabaseClient.from('messages')
+    .update({ seen_at: new Date().toISOString() })
+    .eq('conversation_key', convKey).eq('receiver_id', eu.id).is('seen_at', null)
+    .select('id') // a GRANT/RLS block "succeeds" with zero rows — count them so it can't hide
+    .then(({ data, error }) => {
+      if (error) { console.warn('mark seen:', error.message); return; }
+      if (data && data.length > 0) renderConvos();
+      else if ((sUnread[convKey] || 0) > 0) console.warn('mark seen updated 0 rows despite unread — check GRANT UPDATE + receiver UPDATE policy on messages');
+    });
+}
+window.addEventListener('focus', () => markActiveConvoSeen());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) markActiveConvoSeen(); });
+
 // Crossing the 768px line must never strand the layout: growing past it restores
 // the desktop split pane (the open chat stays in the right pane); shrinking with
 // a chat open re-enters full-screen conversation mode.
@@ -2677,7 +2709,7 @@ function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (name !== 'maintenance') sessionStorage.setItem('cn_last_page', name);
-  if (name === 'messages') renderConvos(); // badges come from refreshUnread (DB), not a manual reset
+  if (name === 'messages') { renderConvos(); markActiveConvoSeen(); } // returning to an already-open thread reads it; badges come from refreshUnread (DB)
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
   updateMTabbar(name);
@@ -4206,6 +4238,26 @@ async function submitListing() {
 
 // STUDENT MESSAGES
 let sConvoCache = {}; // keyed by userId: { name, initials, color }
+let sLastDivLabel = null; // date label of the last divider in the open thread
+
+// WhatsApp-style date labels: Today, Yesterday, weekday within the last week, full date beyond.
+function chatDateLabel(d) {
+  const date = new Date(d), now = new Date();
+  const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'long' });
+  return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+// Live-appended messages (sent or received) also need a divider when the day changed.
+function appendDateDivider(msgsEl, when) {
+  const dLabel = chatDateLabel(when);
+  if (dLabel === sLastDivLabel) return;
+  msgsEl.insertAdjacentHTML('beforeend', `<div class="divider date-divider">${dLabel}</div>`);
+  sLastDivLabel = dLabel;
+}
 
 // Unread = database truth: messages addressed to me with no seen_at yet.
 // Survives refresh; only actually opening a conversation clears its count.
@@ -4288,28 +4340,18 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     .eq('conversation_key', convKey)
     .order('created_at', { ascending: true });
 
-  // Opening the thread is what "reads" it: mark everything addressed to me as seen,
-  // then repaint the list so this conversation's badge clears.
-  supabaseClient.from('messages')
-    .update({ seen_at: new Date().toISOString() })
-    .eq('conversation_key', convKey).eq('receiver_id', eu.id).is('seen_at', null)
-    .then(({ error }) => { if (error) console.warn('mark seen:', error.message); else renderConvos(); });
+  // Viewing the thread is what "reads" it — the helper checks the window is
+  // actually visible/focused, so a background window can't fake a read receipt.
+  markActiveConvoSeen();
 
-  const listingIds = [...new Set((msgs || []).map(m => m.listing_id).filter(Boolean))];
-  let listingTitles = {};
-  if (listingIds.length > 0) {
-    const { data: lRows } = await supabaseClient.from('listings').select('id, title').in('id', listingIds);
-    if (lRows) lRows.forEach(l => { listingTitles[l.id] = l.title; });
-  }
-
-  let prevListingId = null;
+  sLastDivLabel = null;
   const parts = [];
   for (const m of (msgs || [])) sMsgCache[m.id] = { content: m.content, senderId: m.sender_id }; // fill before rendering so quotes can look up any message, even earlier ones
   for (const m of (msgs || [])) {
-    if (m.listing_id !== prevListingId) {
-      const label = m.listing_id ? `About: ${listingTitles[m.listing_id] || 'a listing'}` : 'General conversation';
-      parts.push(`<div class="divider">${label}</div>`);
-      prevListingId = m.listing_id;
+    const dLabel = chatDateLabel(m.created_at);
+    if (dLabel !== sLastDivLabel) {
+      parts.push(`<div class="divider date-divider">${dLabel}</div>`);
+      sLastDivLabel = dLabel;
     }
     const mine = m.sender_id === eu.id;
     const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -4361,6 +4403,9 @@ async function sMsg() {
   if (sent) sMsgCache[sent.id] = { content: sent.content, senderId: sent.sender_id };
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
+  const ph = msgs.firstElementChild;
+  if (ph && ph.textContent.includes('No messages yet')) ph.remove(); // clear the empty-thread placeholder on first send
+  appendDateDivider(msgs, new Date());
   const div = document.createElement('div'); div.className = 'msg-row mine';
   if (sent) div.dataset.mid = sent.id;
   div.innerHTML = `<div class="bubble mine">${quote}${text}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
@@ -4376,11 +4421,11 @@ async function handleRealtimeMessage(payload) {
   const eu = getEffectiveUser();
   if (!msg || !eu) return;
   if (msg.sender_id === eu.id) return; // already rendered locally on send
-  const viewing = sConvoActive && document.getElementById('page-messages').classList.contains('active');
-  if (viewing) {
-    // The thread is on screen — this message is seen the moment it lands.
-    const { error } = await supabaseClient.from('messages').update({ seen_at: new Date().toISOString() }).eq('id', msg.id);
+  if (isViewingActiveConvo()) {
+    // The thread is genuinely on screen — this message is seen the moment it lands.
+    const { data, error } = await supabaseClient.from('messages').update({ seen_at: new Date().toISOString() }).eq('id', msg.id).select('id');
     if (error) console.warn('mark seen:', error.message);
+    else if (!data || data.length === 0) console.warn('mark seen updated 0 rows — messages table is missing GRANT UPDATE and/or the receiver UPDATE policy');
   } else {
     msgToastFor(msg); // convo open in the background (desktop) — banner + badges
   }
@@ -4389,6 +4434,7 @@ async function handleRealtimeMessage(payload) {
     if (msgs) {
       const first = msgs.firstElementChild;
       if (first && first.textContent.includes('No messages yet')) first.remove();
+      appendDateDivider(msgs, msg.created_at);
       sMsgCache[msg.id] = { content: msg.content, senderId: msg.sender_id };
       const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const div = document.createElement('div'); div.className = 'msg-row';

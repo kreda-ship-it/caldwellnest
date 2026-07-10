@@ -54,6 +54,6 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - When code and database disagree about a column name, the DATABASE is ground truth. Verify what actually exists (Table Editor, or `information_schema.columns`) before renaming anything in code. Plans/roadmap notes describe intentions, not reality. (A session once renamed working code to match a stale ROADMAP note — don't repeat that.)
 - Mobile gestures: use `touchstart/touchmove/touchend` with `preventDefault()` on a non-passive touchmove — NOT pointer events, which iOS Safari cancels silently.
 
-## Known limitations (do NOT "fix" these silently — they're planned for Phase 3 backend)
-- Data is in-memory only; it resets on browser refresh. Real persistence is a future task.
+## Known limitations (do NOT "fix" these silently — they're known and planned)
+- Core data (accounts, profiles, listings, messages, books) persists in Supabase. But the ADMIN side still has in-memory pieces that reset on refresh: the activity log (`DB.log`) and the live site editor content (`DB.content`). Persisting those is a future task.
 - NestBot calls the Anthropic API from the browser, so it only works inside Claude's preview, not a plain browser. A real backend will fix this later.
