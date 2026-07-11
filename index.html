@@ -1575,7 +1575,13 @@ function pickRole(role) {
 
 currentRole = 'student';
 const _settingsReady = loadPlatformSettings();
-initStudent();
+// Wait for Supabase to finish restoring the saved login BEFORE the first data load.
+// initStudent() used to fire immediately and race the session restore: when its
+// queries went out before the auth token was ready, RLS answered as if we were an
+// anonymous visitor and returned a partial/empty feed — listings then "randomly"
+// appeared or vanished depending on which request won the race on each reload.
+const _sessionReady = supabaseClient.auth.getSession();
+_sessionReady.then(() => initStudent());
 
 // Early restore: paint the last-visited page immediately (no network wait) so a
 // browser-forced reload shows the right page instead of flashing the landing page.
@@ -1586,7 +1592,7 @@ if (!adminPreviewMode) {
 
 (async () => {
   if (adminPreviewMode) return;
-  const [, { data: { session } }] = await Promise.all([_settingsReady, supabaseClient.auth.getSession()]);
+  const [, { data: { session } }] = await Promise.all([_settingsReady, _sessionReady]);
   if (!session) {
     // Signed out: the early restore above may have painted a signed-in-only page — undo that.
     if (!applyMaintenance() && ['messages', 'profile'].includes(sessionStorage.getItem('cn_last_page'))) showPage('home');
