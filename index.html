@@ -2019,16 +2019,22 @@ function browseItems() {
   return [...DB.listings, ..._books.map(bookAsListing)];
 }
 
+let _lastSuspendedIds = new Set(); // last successful "who is suspended" answer — see below
 async function loadListings() {
-  const { data: suspendedProfiles } = await supabaseClient
+  const { data: suspendedProfiles, error: suspErr } = await supabaseClient
     .from('profiles').select('id').eq('status', 'suspended');
-  const suspendedIds = new Set((suspendedProfiles || []).map(p => p.id));
+  // A transient failure here must NOT un-hide suspended posters' listings for a
+  // refresh cycle — fall back to the last known suspended set, never an empty one.
+  if (suspErr) console.warn('[loadListings] suspended lookup failed, using last known set:', suspErr.message);
+  const suspendedIds = suspErr ? _lastSuspendedIds : new Set((suspendedProfiles || []).map(p => p.id));
+  if (!suspErr) _lastSuspendedIds = suspendedIds;
 
   const { data, error } = await supabaseClient
     .from('listings')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error || data.length === 0) return;
+  if (error) { console.error('[loadListings]', error.message); return; } // keep stale cache over nothing
+  if (data.length === 0) return;
 
   // Live-join poster profiles so avatar + name + trust info are a single source of truth
   // (update your picture → next load every card reflects it). Official CaldwellNest posts
@@ -5061,14 +5067,27 @@ function rerenderActiveAdminSection() {
 
 // Single source of truth for refreshing admin data — used by both the refresh
 // button and the realtime listeners so they behave identically.
+// Reloads never overlap: the 350ms debounce is shorter than a reload takes, so
+// realtime bursts used to start concurrent reloads whose responses could land
+// out of order — an older answer overwriting a newer one made rows flicker.
+// While one runs, the next request just queues a single trailing re-run.
+let _adminReloadRunning = false;
+let _adminReloadQueued = false;
 async function adminReload({ reloadCache = true } = {}) {
-  if (reloadCache) await loadListings();        // reload DB.listings/DB.pending cache (Pattern A fix)
-  if (reloadCache) await loadAdminBooks();      // reload DB.adminBooks/DB.pendingBooks cache
-  await updateAllAdminBadges();                 // fresh counts
-  buildMultiSchoolStats();
-  buildAdminBar();
-  renderAdminDashLog();
-  rerenderActiveAdminSection();                 // re-render the open section from fresh data
+  if (_adminReloadRunning) { _adminReloadQueued = true; return; }
+  _adminReloadRunning = true;
+  try {
+    if (reloadCache) await loadListings();        // reload DB.listings/DB.pending cache (Pattern A fix)
+    if (reloadCache) await loadAdminBooks();      // reload DB.adminBooks/DB.pendingBooks cache
+    await updateAllAdminBadges();                 // fresh counts
+    buildMultiSchoolStats();
+    buildAdminBar();
+    renderAdminDashLog();
+    rerenderActiveAdminSection();                 // re-render the open section from fresh data
+  } finally {
+    _adminReloadRunning = false;
+    if (_adminReloadQueued) { _adminReloadQueued = false; adminReload({ reloadCache: true }); }
+  }
 }
 
 async function refreshAdmin() {
