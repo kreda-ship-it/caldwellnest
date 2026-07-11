@@ -272,6 +272,11 @@
         <div class="section-divider"></div>
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
+        <div id="myBooksSection" style="display:none">
+          <div class="section-divider"></div>
+          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Books</div>
+          <div id="myBooks"></div>
+        </div>
         <button class="btn-full" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border);margin-top:16px;" onclick="sLogout()">Log out</button>
       </div>
     </div>
@@ -1993,7 +1998,9 @@ function posterFromRow(row, prof) {
 // (they query Supabase directly, not this cached/filtered list).
 function isListingLive(l) {
   if (l.status !== 'approved') return false;
-  if (!['active', 'pending_sale'].includes(l.lifecycle_status)) return false;
+  // Missing lifecycle_status = a client-constructed row (fresh post/approve before the
+  // next Supabase reload); the DB column is NOT NULL DEFAULT 'active', so treat as active.
+  if (l.lifecycle_status && !['active', 'pending_sale'].includes(l.lifecycle_status)) return false;
   if (l.expires_at && new Date(l.expires_at) <= new Date()) return false;
   return true;
 }
@@ -3413,18 +3420,22 @@ function listingCardHTML(l, isPinned) {
   const photoCount = l.photo_urls?.length || 0;
   const messageBtn = !l.poster.official
     ? `<button class="btn-contact" onclick="event.stopPropagation();sContact(${l.id})">Message</button>` : '';
+  // Buyers should see a deal is already in progress BEFORE they open/message (Facebook
+  // Marketplace behavior — pending stays visible, badged, so people know to hurry or move on).
+  const pendingBadge = l.lifecycle_status === 'pending_sale'
+    ? '<span class="pin-badge" style="background:#3B5BA5">Pending sale</span>' : '';
 
   // HERO: a natural-ratio photo, or (no photo) a colored typographic panel where the title IS the design.
   const hero = photoCount
     ? `<div class="lc-photo" style="background:${cat.bg}">
          <img src="${l.photo_urls[0]}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
          ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
-         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
+         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
        </div>`
     : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
          <div class="lc-noimg-cat">${catLabel}</div>
          <div class="lc-noimg-title">${l.title}</div>
-         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : ''}
+         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
        </div>`;
 
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" tabindex="0" role="button" aria-label="${escAttr(l.title)}"
@@ -3485,13 +3496,134 @@ function openDetail(id) {
         <div class="detail-price">${priceLabel(l)}</div>
         <span class="pill pill-active">${l.type}</span>
         ${l.pinned ? '<span class="pill pill-pinned">&#128204; Featured</span>' : ''}
+        ${(() => { if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) { const [bg, col, label] = listingLifecycleBadge(l); return `<span class="pill" style="background:${bg};color:${col}">${label}</span>`; } return ''; })()}
       </div>
       ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}</div>` : ''}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${l.desc}</div>
       ${messageBtn}
       ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
+      ${ownerManagePanelHtml(l)}
     </div>`;
   openModal('detailModal');
+}
+
+// Owner-only "manage this listing" panel — mark sold/claimed, withdraw, reactivate,
+// set/extend a deadline. Only shown for the poster's own approved listing; only the
+// change_listing_status() RPC can write these fields (students have no direct UPDATE
+// grant on `listings`, by design — see the guard rationale in listing_lifecycle memory).
+function ownerManagePanelHtml(l) {
+  const eu = getEffectiveUser();
+  if (!eu || eu.id !== l.poster_id || l.status !== 'approved') return '';
+  const ls = l.lifecycle_status || 'active';
+  const isExpired = (ls === 'active' || ls === 'pending_sale') && l.expires_at && new Date(l.expires_at) <= new Date();
+  const soldLabel = l.rent ? 'Mark as sold' : 'Mark as claimed';
+  // Format in LOCAL time — toISOString() would show the UTC date, which rolls to the
+  // next day for a deadline stored as 23:59:59 local in any UTC-negative timezone.
+  const deadlineVal = l.expires_at ? (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(l.expires_at)) : '';
+
+  let actions;
+  if (isExpired) {
+    actions = `
+      <button class="btn-sm-a btn-a-success" onclick="renewListing(${l.id})">&#8635; Renew with new deadline</button>
+      <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','sold')">${soldLabel}</button>
+      <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
+  } else if (ls === 'pending_sale') {
+    actions = `
+      <button class="btn-sm-a btn-a-success" onclick="lifecycleAction(${l.id},'listings','sold')">${soldLabel}</button>
+      <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Back to active</button>
+      <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
+  } else if (ls === 'sold') {
+    actions = `<button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Mark active again</button>`;
+  } else if (ls === 'withdrawn') {
+    actions = `<button class="btn-sm-a btn-a-success" onclick="lifecycleAction(${l.id},'listings','active')">Reactivate</button>`;
+  } else {
+    actions = `
+      <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','pending_sale')">Mark pending sale</button>
+      <button class="btn-sm-a btn-a-success" onclick="lifecycleAction(${l.id},'listings','sold')">${soldLabel}</button>
+      <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
+  }
+
+  return `<div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Manage this listing</div>
+    <div class="arow" style="flex-wrap:wrap;margin-bottom:14px">${actions}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <label style="font-size:12px;color:var(--text-muted)">Deadline</label>
+      <input type="date" id="deadlineInput-${l.id}" value="${deadlineVal}" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit">
+      ${!isExpired ? `<button class="btn-sm-a btn-a-neutral" onclick="setListingDeadline(${l.id})">${l.expires_at ? 'Update' : 'Set'} deadline</button>
+      ${l.expires_at ? `<button class="btn-sm-a btn-a-neutral" onclick="clearListingDeadline(${l.id})">Clear</button>` : ''}` : ''}
+    </div>
+  </div>`;
+}
+
+// Applies an RPC-confirmed lifecycle change to the local cache + re-renders affected views.
+function applyLocalLifecycleChange(id, changes) {
+  const l = DB.listings.find(x => x.id === id);
+  if (!l) return;
+  Object.assign(l, changes);
+  renderListings();
+  if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
+}
+
+const LIFECYCLE_EVENT_TYPES = { sold: 'listing_sold', pending_sale: 'listing_pending_sale', withdrawn: 'listing_withdrawn', active: 'listing_relisted' };
+
+async function lifecycleAction(id, table, newStatus) {
+  const l = DB.listings.find(x => x.id === id);
+  const prev = l?.lifecycle_status || 'active';
+  const { error } = await supabaseClient.rpc('change_listing_status', { p_listing_id: id, p_new_status: newStatus, p_table: table });
+  if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
+  applyLocalLifecycleChange(id, { lifecycle_status: newStatus });
+  logEvent(LIFECYCLE_EVENT_TYPES[newStatus] || 'listing_relisted', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus } });
+  closeModal('detailModal');
+  toast('✓ Listing updated');
+}
+
+async function setListingDeadline(id) {
+  const l = DB.listings.find(x => x.id === id); if (!l) return;
+  const input = document.getElementById(`deadlineInput-${id}`);
+  const val = input?.value;
+  if (!val) { toast('Pick a date first.'); return; }
+  const iso = new Date(val + 'T23:59:59').toISOString();
+  const { error } = await supabaseClient.rpc('change_listing_status', {
+    p_listing_id: id, p_new_status: l.lifecycle_status || 'active', p_table: 'listings',
+    p_expires_at: iso, p_set_expires: true
+  });
+  if (error) { toast('Could not set deadline — please try again.'); console.error(error.message); return; }
+  const prevDeadline = l.expires_at || null;
+  applyLocalLifecycleChange(id, { expires_at: iso });
+  logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: iso } });
+  closeModal('detailModal');
+  toast('✓ Deadline set');
+}
+
+async function clearListingDeadline(id) {
+  const l = DB.listings.find(x => x.id === id); if (!l) return;
+  const { error } = await supabaseClient.rpc('change_listing_status', {
+    p_listing_id: id, p_new_status: l.lifecycle_status || 'active', p_table: 'listings',
+    p_expires_at: null, p_set_expires: true
+  });
+  if (error) { toast('Could not clear deadline — please try again.'); console.error(error.message); return; }
+  const prevDeadline = l.expires_at || null;
+  applyLocalLifecycleChange(id, { expires_at: null });
+  logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: null } });
+  closeModal('detailModal');
+  toast('✓ Deadline cleared');
+}
+
+async function renewListing(id) {
+  const input = document.getElementById(`deadlineInput-${id}`);
+  const val = input?.value;
+  if (!val) { toast('Pick a new deadline date first.'); return; }
+  const iso = new Date(val + 'T23:59:59').toISOString();
+  const { error } = await supabaseClient.rpc('change_listing_status', {
+    p_listing_id: id, p_new_status: 'active', p_table: 'listings',
+    p_expires_at: iso, p_set_expires: true
+  });
+  if (error) { toast('Could not renew — please try again.'); console.error(error.message); return; }
+  const l = DB.listings.find(x => x.id === id);
+  applyLocalLifecycleChange(id, { lifecycle_status: 'active', expires_at: iso });
+  logEvent('listing_renewed', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, after: { lifecycle_status: 'active', expires_at: iso } });
+  closeModal('detailModal');
+  toast('✓ Listing renewed');
 }
 
 async function sContact(listingId) {
@@ -3892,8 +4024,15 @@ function bookCardHTML(b) {
   </div>`;
 }
 
-function openBookDetail(id) {
-  const b = _books.find(x => x.id === id); if (!b) return;
+async function openBookDetail(id) {
+  // The public cache only holds approved+active books; a student's own pending/sold
+  // book (opened from the profile) has to be fetched directly.
+  let b = _books.find(x => x.id === id);
+  if (!b) {
+    const { data } = await supabaseClient.from('book_listings').select('*').eq('id', id).single();
+    if (!data) { toast('Could not load this book.'); return; }
+    b = data;
+  }
   const col = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
   const course = b.course_code ? courseByCode(b.course_code) : null;
   const hero = b.photo_urls?.length
@@ -3911,8 +4050,12 @@ function openBookDetail(id) {
   const p = _bookPosterMap[b.poster_id];
   const posterName = p ? (p.display_name || `${p.first_name} ${p.last_name}`) : 'Caldwell student';
   const own = getEffectiveUser()?.id === b.poster_id;
+  const isLive = b.status === 'approved' && (b.lifecycle_status || 'active') === 'active';
+  const [sBg, sCol, sLabel] = listingLifecycleBadge({ status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at, rent: b.price, pinned: false });
   const actionBtn = own
-    ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
+    ? (isLive
+        ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
+        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${b.rejection_reason}</div>` : ''}</div>`)
     : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
 
   document.getElementById('bookDetailContent').innerHTML = `
@@ -3952,9 +4095,11 @@ async function bContact(bookId) {
 
 async function markBookSold(id) {
   if (!confirm('Mark this book as sold? It will disappear from the Books feed.')) return;
+  const b = _books.find(x => x.id === id);
   const { error } = await supabaseClient.from('book_listings')
     .update({ lifecycle_status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
   if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
+  logEvent('book_sold', { targetType: 'book_listing', targetId: id, targetLabel: b?.title, before: { lifecycle_status: 'active' }, after: { lifecycle_status: 'sold' } });
   closeModal('bookDetailModal');
   toast('Marked as sold — congrats!');
   await loadBooks();
@@ -4307,7 +4452,7 @@ async function submitListing() {
     DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
   } else {
-    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', emoji, status: 'approved', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
+    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', emoji, status: 'approved', lifecycle_status: 'active', expires_at: null, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing posted (auto-approved): "${title}"`, time: 'Just now', color: '#1a7a45' });
     renderListings();
   }
@@ -4584,12 +4729,18 @@ function renderListingPicker() {
 
 // Compact card rendered inside a bubble for message_type === 'listing'.
 // Looks the listing up in the already-loaded DB.listings — if it was removed
-// since, a quiet placeholder renders instead of a broken card.
+// since, a quiet placeholder renders instead of a broken card. A card shared
+// last week stays honest: sold/expired/pending-sale get a badge today.
 function listingCardHtml(listingId) {
   const l = DB.listings.find(x => String(x.id) === String(listingId) && x.status === 'approved');
   if (!l) return '<div class="msg-listing-card msg-listing-gone">Listing no longer available</div>';
   const thumb = l.photo_urls?.[0] ? `<img class="mlc-thumb" src="${l.photo_urls[0]}" alt="">` : lpCatTile(l, 'mlc-thumb');
-  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">${thumb}<div><div class="mlc-title">${l.title}</div><div class="mlc-price">${l.rent ? '$' + l.rent : 'Free'}</div></div></div>`;
+  let stateBadge = '';
+  if (!isListingLive(l) || l.lifecycle_status === 'pending_sale') {
+    const [bg, col, label] = listingLifecycleBadge(l);
+    stateBadge = `<span class="pill" style="background:${bg};color:${col};font-size:10px;margin-left:6px">${label}</span>`;
+  }
+  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">${thumb}<div><div class="mlc-title">${l.title}${stateBadge}</div><div class="mlc-price">${l.rent ? '$' + l.rent : 'Free'}</div></div></div>`;
 }
 
 async function sendListingMsg(listingId) {
@@ -4749,15 +4900,27 @@ function handleGlobalMessage(payload) {
   renderConvos();   // repaints list + DB-derived badges
 }
 
+// Owner-facing status badge — folds the moderation status AND the student lifecycle
+// state into one label, since a listing can be status='approved' but sold/withdrawn/expired.
+function listingLifecycleBadge(l) {
+  const modBadge = { pinned: ['#e8f5e9','#1a7a45','Pinned'], pending: ['#fff8e1','#b87a00','Pending review'], rejected: ['#fde8e8','#c0392b','Rejected'], removed: ['#f0f0f0','#888','Removed'] };
+  if (l.pinned) return modBadge.pinned;
+  if (l.status !== 'approved') return modBadge[l.status] || modBadge.pending;
+  const isExpired = l.expires_at && new Date(l.expires_at) <= new Date();
+  if (isExpired && (l.lifecycle_status === 'active' || l.lifecycle_status === 'pending_sale')) return ['#f0f0f0','#888','Expired'];
+  const soldLabel = l.rent ? 'Sold' : 'Claimed';
+  const lcBadge = { active: ['#e8f5e9','#1a7a45','Active'], pending_sale: ['#e8f0fd','#3B5BA5','Pending sale'], sold: ['#f0f0f0','#888', soldLabel], withdrawn: ['#f0f0f0','#888','Withdrawn'] };
+  return lcBadge[l.lifecycle_status] || lcBadge.active;
+}
+
 function renderListingGrid(listings, isOwn) {
   if (!listings || !listings.length) {
     return `<div style="text-align:center;padding:28px 0;color:var(--text-faint);font-size:13px">
       ${isOwn ? `No listings yet. <a onclick="openModal('postModal')" style="color:var(--brand);cursor:pointer">Post one now →</a>` : 'No active listings yet.'}
     </div>`;
   }
-  const badge = { approved: ['#e8f5e9','#1a7a45','Active'], pinned: ['#e8f5e9','#1a7a45','Pinned'], pending: ['#fff8e1','#b87a00','Pending'], rejected: ['#fde8e8','#c0392b','Rejected'], removed: ['#f0f0f0','#888','Removed'] };
   return `<div class="listing-grid">${listings.map(l => {
-    const [bg, col, label] = badge[l.status] || badge.pending;
+    const [bg, col, label] = listingLifecycleBadge(l);
     const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
     const rent = l.rent ? `$${l.rent}/mo` : '';
     const inner = l.photo_urls?.[0]
@@ -4803,6 +4966,32 @@ function renderProfile() {
 
   const myListings = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
   document.getElementById('myListings').innerHTML = renderListingGrid(myListings, true);
+  renderMyBooks(u); // async fill of the Books section (hidden if the student has none)
+}
+
+// Own books on the profile — the public Books feed only shows approved+active, so this
+// is the ONLY place a student can see (and reopen) their pending/sold/rejected books.
+async function renderMyBooks(u) {
+  const wrap = document.getElementById('myBooksSection');
+  const grid = document.getElementById('myBooks');
+  if (!wrap || !grid) return;
+  const { data, error } = await supabaseClient.from('book_listings')
+    .select('id, title, price, status, lifecycle_status, expires_at, photo_urls, book_type')
+    .eq('poster_id', u.id).order('created_at', { ascending: false });
+  if (error) console.error('[renderMyBooks]', error.message);
+  if (!data || !data.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  grid.innerHTML = `<div class="listing-grid">${data.map(b => {
+    const [bg, col, label] = listingLifecycleBadge({ status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at, rent: b.price, pinned: false });
+    const price = b.price > 0 ? '$' + b.price : 'Free';
+    const bcol = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
+    const inner = b.photo_urls?.[0]
+      ? `<img src="${b.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(b.title)}">
+         <div class="lg-cap"><div class="lg-cap-title">${b.title}</div><div class="lg-cap-rent">${price}</div></div>`
+      : `<div class="lg-fill" style="background:${bcol.bg};color:${bcol.text}"><div class="lg-fill-title">${b.title}</div></div>
+         <div class="lg-cap"><div class="lg-cap-rent">${price}</div></div>`;
+    return `<div class="lg-cell" onclick="openBookDetail(${b.id})">${inner}<div class="lg-badge" style="background:${bg};color:${col}">${label}</div></div>`;
+  }).join('')}</div>`;
 }
 
 // ============================================================
@@ -5135,16 +5324,31 @@ const ACTION_META = {
   student_signup:       { label: 'New student signup',      color: '#4a9470' },
   listing_submitted:    { label: 'Listing submitted',       color: '#d4860a' },
   book_submitted:       { label: 'Book submitted',          color: '#d4860a' },
+  // Student lifecycle actions (Session C4) — written via logEvent(), never undoable
+  listing_sold:         { label: 'Listing marked sold',     color: '#888888' },
+  listing_pending_sale: { label: 'Listing pending sale',    color: '#3B5BA5' },
+  listing_withdrawn:    { label: 'Listing withdrawn',       color: '#888888' },
+  listing_relisted:     { label: 'Listing relisted',        color: '#1a7a45' },
+  listing_renewed:      { label: 'Listing renewed',         color: '#1a7a45' },
+  listing_deadline_set: { label: 'Listing deadline changed', color: '#3B5BA5' },
+  book_sold:            { label: 'Book marked sold',        color: '#888888' },
+  // Book moderation gets its OWN action types — never reuse approve_listing etc. for
+  // books: book ids and listing ids are independent sequences, and the undo machinery
+  // routes purely on action_type into the `listings` table (see _executeUndo).
+  approve_book:         { label: 'Book approved',           color: '#1a7a45' },
+  reject_book:          { label: 'Book rejected',           color: '#c0392b' },
+  remove_book:          { label: 'Book removed',            color: '#c0392b' },
+  restore_book:         { label: 'Book restored',           color: '#1a7a45' },
   report_submitted:     { label: 'Report filed',            color: '#c0392b' },
   appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
 };
 
 const ACTIVITY_FILTER_GROUPS = {
-  approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing'],
-  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report'],
+  approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
-  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted'],
+  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold'],
 };
 
 const fmtActivityTime = d => {
@@ -5355,6 +5559,12 @@ function setApprovalsTab(tab) {
   _approvalsTab = tab;
   document.getElementById('aApprovalTab-listings').classList.toggle('active', tab === 'listings');
   document.getElementById('aApprovalTab-books').classList.toggle('active', tab === 'books');
+  // The category/school filters only apply to marketplace listings; hide the button
+  // (and any open panel) on the Books tab instead of offering an empty panel.
+  const fBtn = document.getElementById('aApprovalFilterBtn');
+  const fPanel = document.getElementById('aApprovalFilterPanel');
+  if (fBtn) fBtn.style.display = tab === 'books' ? 'none' : '';
+  if (fPanel && tab === 'books') { fPanel.style.display = 'none'; fBtn && (fBtn.innerHTML = '&#9657; Filters'); }
   renderAApprovals();
 }
 
@@ -5429,7 +5639,7 @@ async function aApprove(id) {
   const l = DB.pending.find(x => x.id === id); if (!l) return;
   const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
   if (error) { toast('Could not approve listing — please try again.'); console.error(error.message); return; }
-  DB.listings.unshift({ id, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', pinned: false, photo_urls: l.photo_urls || [], school: l.school });
+  DB.listings.unshift({ id, title: l.title, category: l.category, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', lifecycle_status: l.lifecycle_status || 'active', expires_at: l.expires_at || null, pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
   DB.log.unshift({ type: 'approve', text: `Listing approved: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'pending' }, after: { status: 'approved' } });
@@ -5528,8 +5738,9 @@ async function aApproveBook(id) {
   DB.adminBooks.unshift({ ...b, status: 'approved' });
   DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === id), 1);
   DB.log.unshift({ type: 'book', text: `Book approved: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
-  logAdminAction('approve_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
-  updateAdminBadges(); renderAApprovals(); renderBooks();
+  logAdminAction('approve_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
+  updateAdminBadges(); renderAApprovals();
+  await loadBooks(); renderBooks(); // refresh the student Books cache so the approval is visible without a reload
   toast('✓ Book approved — now live on the Books board');
 }
 
@@ -5542,19 +5753,22 @@ async function confirmRejectBook() {
   DB.adminBooks.unshift({ ...b, status: 'rejected', rejection_reason: r });
   DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === aBookRejectId), 1);
   DB.log.unshift({ type: 'book', text: `Book rejected: "${b.title}"`, time: 'Just now', color: '#c0392b' });
-  logAdminAction('reject_listing', { targetType: 'book_listing', targetId: aBookRejectId, targetLabel: b.title, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
+  logAdminAction('reject_book', { targetType: 'book_listing', targetId: aBookRejectId, targetLabel: b.title, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
   updateAdminBadges(); closeModal('rejectModal'); renderAApprovals();
   toast('Book rejected');
 }
 
 async function aRemoveBook(id) {
   const b = DB.adminBooks.find(x => x.id === id); if (!b) return;
+  const prevStatus = b.status;
   const { error } = await supabaseClient.from('book_listings').update({ status: 'removed' }).eq('id', id);
   if (error) { toast('Could not remove book — please try again.'); console.error(error.message); return; }
   b.status = 'removed';
   DB.log.unshift({ type: 'book', text: `Book removed: "${b.title}"`, time: 'Just now', color: '#c0392b' });
-  logAdminAction('remove_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'approved' }, after: { status: 'removed' } });
-  renderBooks(); updateAdminBadges(); toast('Book removed');
+  logAdminAction('remove_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: prevStatus }, after: { status: 'removed' } });
+  renderAApprovals(); updateAdminBadges();
+  await loadBooks(); renderBooks();
+  toast('Book removed');
 }
 
 async function aRestoreBook(id) {
@@ -5563,8 +5777,10 @@ async function aRestoreBook(id) {
   if (error) { toast('Could not restore book — please try again.'); console.error(error.message); return; }
   b.status = 'approved';
   DB.log.unshift({ type: 'book', text: `Book restored: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
-  logAdminAction('restore_listing', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'removed' }, after: { status: 'approved' } });
-  renderBooks(); updateAdminBadges(); toast('Book restored');
+  logAdminAction('restore_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'removed' }, after: { status: 'approved' } });
+  renderAApprovals(); updateAdminBadges();
+  await loadBooks(); renderBooks();
+  toast('Book restored');
 }
 
 // ADMIN ALL LISTINGS
@@ -5780,8 +5996,16 @@ async function saveAEdit() {
 // ADMIN PINNED
 async function renderAPinned() {
   const pins  = DB.listings.filter(l => l.pinned && l.status === 'approved');
-  const avail = DB.listings.filter(l => l.status === 'approved' && !l.pinned);
+  // Only live listings are offered for pinning — featuring a sold/expired listing
+  // would occupy a slot invisibly (the feed hides non-live listings, pinned or not).
+  const avail = DB.listings.filter(l => isListingLive(l) && !l.pinned);
   const el    = document.getElementById('aPinnedGrid');
+  // A pin whose listing has since gone non-live (sold/withdrawn/expired) needs a warning tag.
+  const notLiveTag = l => {
+    if (isListingLive(l)) return '';
+    const [, , label] = listingLifecycleBadge(l);
+    return `<span style="font-size:10px;font-weight:700;background:#f0f0f0;color:#888;padding:1px 7px;border-radius:10px" title="This listing is hidden from the student feed — the pin slot is wasted until unpinned or relisted">${label} — not in feed</span>`;
+  };
 
   // Fetch "pinned since" timestamps from activity log (max 3 items — trivial query)
   const pinnedTimes = {};
@@ -5813,7 +6037,7 @@ async function renderAPinned() {
           return `<div style="background:var(--pin-pale);border:2px solid rgba(107,33,168,0.25);border-radius:var(--radius);padding:16px;position:relative;cursor:pointer;transition:box-shadow .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.boxShadow='0 2px 12px rgba(107,33,168,.15)'" onmouseout="this.style.boxShadow='none'">
             <div style="position:absolute;top:11px;right:11px;font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:2px 8px;border-radius:10px">&#128204; FEATURED</div>
             <div style="font-size:26px;margin-bottom:8px">${l.emoji || '🏠'}</div>
-            <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${l.title}</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${l.title} ${notLiveTag(l)}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">${l.type} · $${l.rent}/mo</div>
             <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">&#128205; ${l.location}</div>
             ${since ? `<div style="font-size:11px;color:var(--pin);opacity:.75;margin-bottom:12px">${since}</div>` : ''}
@@ -5831,7 +6055,7 @@ async function renderAPinned() {
           return `<div class="hist-row" style="align-items:center" onclick="openListingDrawer(${l.id})">
             <div style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${l.emoji || '🏠'}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${l.title} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span></div>
+              <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${l.title} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span> ${notLiveTag(l)}</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${l.type} · $${l.rent}/mo · &#128205; ${l.location}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
             </div>
             <div class="arow" onclick="event.stopPropagation()">
