@@ -198,28 +198,7 @@
         <button class="cat-tab" onclick="setListingCat('books',this)">Books</button>
         <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
       </div>
-      <!-- BOOK-ONLY CONTROLS — shown only while the Books tab is active -->
-      <div id="bookControls" style="display:none">
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-          <div style="position:relative;flex:2;min-width:200px;">
-            <input class="form-input" id="bfCourseInput" placeholder="Filter by course (e.g. NU 301)..." autocomplete="off" style="margin-bottom:0;width:100%;">
-            <div class="course-ac-list" id="bfCourseList" style="display:none"></div>
-          </div>
-          <select class="form-select" id="bfEdition" onchange="setBookEdition(this.value)" style="margin-bottom:0;flex:1;min-width:130px;max-width:170px;">
-            <option value="all">All editions</option>
-          </select>
-          <div class="filters" id="bookTypeChips" style="margin-bottom:0;">
-            <button class="filter-chip active" onclick="setBookType('all',this)">All</button>
-            <button class="filter-chip" onclick="setBookType('course',this)">Textbooks</button>
-            <button class="filter-chip" onclick="setBookType('other',this)">Other books</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
-          <span id="bActiveTags" style="display:contents;"></span>
-          <button id="bClearAll" onclick="clearBookFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
-          <span id="bResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
-        </div>
-      </div>
+      <!-- Books merged into the main grid 2026-07-10 — book filters live in the Filters drawer now -->
       <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
         <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
@@ -232,7 +211,6 @@
         <div style="height:1px;background:var(--border);margin:20px 0;"></div>
       </div>
       <div class="listings-grid" id="listingsGrid"></div>
-      <div class="listings-grid" id="booksGrid" style="display:none"></div>
     </div>
   </div>
 
@@ -272,11 +250,6 @@
         <div class="section-divider"></div>
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
-        <div id="myBooksSection" style="display:none">
-          <div class="section-divider"></div>
-          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Books</div>
-          <div id="myBooks"></div>
-        </div>
         <button class="btn-full" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border);margin-top:16px;" onclick="sLogout()">Log out</button>
       </div>
     </div>
@@ -1482,7 +1455,7 @@
 <div class="ai-chat" id="aiChat">
   <div class="ai-chat-head">
     <div class="ai-chat-av">&#129302;</div>
-    <div><div class="ai-chat-name">NestBot</div><div class="ai-chat-status">Powered by Claude · Admin AI</div></div>
+    <div><div class="ai-chat-name">NestBot</div><div class="ai-chat-status">Local preview mode · Admin AI</div></div>
     <button class="ai-close-btn" onclick="toggleAI()">&#215;</button>
   </div>
   <div class="ai-msgs" id="aiMsgs"></div>
@@ -1507,6 +1480,7 @@ const CATEGORY_COLORS = {
   technology:         { bg:'#E8EEF5', text:'#2C476A' }, // slate blue
   donation:           { bg:'#F7EFE1', text:'#6B5128' }, // warm sand
   organization_event: { bg:'#EFEAF6', text:'#473A6B' }, // muted lavender
+  books:              { bg:'#E6EFEF', text:'#2F5D5A' }, // muted teal
   other:              { bg:'#EEEEEA', text:'#45453E' }  // warm greige
 };
 let _postCategory = null;
@@ -2005,6 +1979,40 @@ function isListingLive(l) {
   return true;
 }
 
+// ── Books-as-a-category normalizer ──────────────────────────
+// book_listings stays a separate table (different fields, own detail page), but every
+// GRID treats books as just another category. This maps a book row into the same shape
+// listingCardHTML/renderListingGrid expect. `isBook: true` is the routing flag — book
+// ids and listing ids are independent sequences, so taps/lookups must never cross tables.
+function bookAsListing(b) {
+  const p = _bookPosterMap[b.poster_id];
+  return {
+    id: b.id, isBook: true, category: 'books',
+    title: b.title, rent: b.price, desc: b.description || '',
+    location: null, tags: [], details: {},
+    type: bookChipLabel(b),
+    author: b.author, isbn: b.isbn, edition: b.edition,
+    book_type: b.book_type, course_code: b.course_code,
+    // book_listings has no school column — borrow the POSTER's school so the card
+    // shows their university and the distance/scope filter treats books like listings.
+    school: p?.school ? p.school.toLowerCase() : null,
+    poster_id: b.poster_id,
+    poster: p
+      ? { name: p.display_name || p.first_name || 'Student', fullName: p.display_name || `${p.first_name} ${p.last_name}`, initials: p.initials, color: p.color, avatar_url: p.avatar_url || null, email: null, verified: true, official: false, year: p.year || null, major: p.major || null, memberSince: p.created_at || null }
+      : { name: 'Caldwell student', fullName: 'Caldwell student', initials: '?', color: '#888', avatar_url: null, email: null, verified: false, official: false, year: null, major: null, memberSince: null },
+    posted: new Date(b.created_at).toLocaleDateString(),
+    created_at: b.created_at,
+    emoji: CATEGORY_EMOJI.books,
+    status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at,
+    pinned: false, photo_urls: b.photo_urls || []
+  };
+}
+
+// The one browse source: marketplace cache + normalized books, together.
+function browseItems() {
+  return [...DB.listings, ..._books.map(bookAsListing)];
+}
+
 async function loadListings() {
   const { data: suspendedProfiles } = await supabaseClient
     .from('profiles').select('id').eq('status', 'suspended');
@@ -2045,6 +2053,7 @@ async function loadListings() {
     poster_id: row.poster_id,
     poster: posterFromRow(row, profMap[row.poster_id]),
     posted: new Date(row.created_at).toLocaleDateString(),
+    created_at: row.created_at, // raw timestamp — merged feed sorting needs it
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
     status: row.status,
     lifecycle_status: row.lifecycle_status,
@@ -2102,8 +2111,9 @@ async function loadAdminBooks() {
 }
 
 async function initStudent() {
-  const [, , , { count: stuCount }] = await Promise.all([
+  const [, , , , { count: stuCount }] = await Promise.all([
     loadListings(),
+    loadBooks(), // books are part of the browse feed now — load with everything else
     loadSchools(),
     _settingsReady,
     supabaseClient.from('profiles').select('id', { count: 'exact', head: true })
@@ -2112,7 +2122,7 @@ async function initStudent() {
   if (applyMaintenance()) return;
   renderDeepFilters();
   renderListings();
-  animNum('statListings', 0, DB.listings.filter(isListingLive).length, 600);
+  animNum('statListings', 0, browseItems().filter(isListingLive).length, 600);
   animNum('statStudents', 0, stuCount || 0, 800);
   if (localStorage.getItem('cn_msg_sidebar') === 'collapsed') {
     msgSidebarPinned = false;
@@ -2335,9 +2345,10 @@ async function viewStudentProfile(profileId) {
   body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">Loading…</div>';
   openModal('pubProfileModal');
 
-  const [{ data: p }, { data: listings }] = await Promise.all([
+  const [{ data: p }, { data: listings }, { data: books }] = await Promise.all([
     supabaseClient.from('profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
-    supabaseClient.from('listings').select('id, title, price, category, details, emoji, status, photo_urls').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
+    supabaseClient.from('listings').select('id, title, price, category, details, emoji, status, lifecycle_status, expires_at, created_at, photo_urls').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false }),
+    supabaseClient.from('book_listings').select('*').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
   ]);
 
   if (!p) { body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">This profile no longer exists.</div>'; return; }
@@ -2347,10 +2358,17 @@ async function viewStudentProfile(profileId) {
   const normalised = (listings || []).map(l => ({
     id: l.id, title: l.title, rent: l.price, category: l.category,
     emoji: l.emoji || CATEGORY_EMOJI[l.category] || '🏠',
-    status: l.status,
+    status: l.status, lifecycle_status: l.lifecycle_status, expires_at: l.expires_at, created_at: l.created_at,
     photo_urls: l.photo_urls || []
-  }));
-  const listingsHtml = `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>${renderListingGrid(normalised, false)}`;
+  })).concat((books || []).map(bookAsListing))
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  // Live items shown normally; sold/claimed ones move to a badged, dimmed "Sold" group
+  // (the honest-marketplace behavior — outcomes visible, nothing vanishes mysteriously).
+  // Withdrawn and expired stay fully hidden from the public view.
+  const liveItems = normalised.filter(isListingLive);
+  const soldItems = normalised.filter(l => l.lifecycle_status === 'sold');
+  const listingsHtml = `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>${renderListingGrid(liveItems, false)}`
+    + (soldItems.length ? `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px">Sold</div><div style="opacity:.72">${renderListingGrid(soldItems, true)}</div>` : '');
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
@@ -2848,7 +2866,6 @@ function setListingCat(cat, el) {
   renderListings();
 }
 function onListingSearch(val) {
-  if (_filters.category === 'books') { onBookSearch(val); return; }
   clearTimeout(_kwTimer);
   _kwTimer = setTimeout(() => { _filters.keyword = val.trim().toLowerCase(); renderListings(); }, 250);
 }
@@ -3030,8 +3047,8 @@ function renderDeepFilters() {
   if (!panel) return;
   const cat = _filters.category;
 
-  // Compute price max from listings in current category
-  const catListings = DB.listings.filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
+  // Compute price max from listings in current category (books included via browseItems)
+  const catListings = browseItems().filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
   const prices = catListings.map(l => l.rent || 0).filter(p => p > 0);
   _pMax = prices.length ? Math.ceil(Math.max(...prices) / 50) * 50 : 2000;
   _pMax = Math.max(_pMax, 100);
@@ -3060,6 +3077,26 @@ function renderDeepFilters() {
 
   const catSection = buildCatFiltersHTML(cat);
   panel.innerHTML = `<div class="df-panel">${buildScopeSectionHTML()}${priceSection}${catSection}${buildSortSectionHTML()}</div>`;
+  if (cat === 'books') attachDrawerCourseAC(); // typeahead needs a live DOM node — attach after innerHTML
+}
+
+// Course typeahead inside the filter drawer (books category only). Re-attached on every
+// drawer render because innerHTML replaces the input node. Courses catalog loads lazily.
+async function attachDrawerCourseAC() {
+  const input = document.getElementById('dfCourseInput');
+  const list  = document.getElementById('dfCourseList');
+  if (!input || !list) return;
+  if (!_courses) await loadCourses();
+  attachCourseAC(input, list, {
+    allowNotListed: false,
+    onSelect: code => { _filters.details.courseCode = code; renderListings(); }
+  });
+}
+
+function setDeepEdition(v) {
+  if (v) _filters.details.edition = v;
+  else delete _filters.details.edition;
+  renderListings();
 }
 
 function onPriceRange() {
@@ -3171,6 +3208,30 @@ function buildCatFiltersHTML(cat) {
           </div>
         </div>
       </div>`;
+  } else if (cat === 'books') {
+    const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
+    html = `
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Book type</div>
+        <div class="df-chips">
+          ${chip('bookType','course','Textbooks')}
+          ${chip('bookType','other','Other books')}
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Course</div>
+        <div style="position:relative">
+          <input class="form-input" id="dfCourseInput" placeholder="e.g. NU 301..." autocomplete="off" value="${d.courseCode || ''}" style="margin-bottom:0">
+          <div class="course-ac-list" id="dfCourseList" style="display:none"></div>
+        </div>
+      </div>
+      ${editions.length ? `<div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Edition</div>
+        <select class="form-select" onchange="setDeepEdition(this.value)" style="margin-bottom:0;max-width:200px">
+          <option value="">All editions</option>
+          ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${e}</option>`).join('')}
+        </select>
+      </div>` : ''}`;
   }
 
   if (!html) return '';
@@ -3183,35 +3244,23 @@ function buildCatFiltersHTML(cat) {
     </div>`;
 }
 
-// Books live in their own table with their own filters, but share the Browse page.
-// This toggles the page between "marketplace mode" and "books mode" UI.
-function setBooksBrowseMode(on) {
-  document.getElementById('bookControls').style.display = on ? '' : 'none';
-  document.getElementById('booksGrid').style.display    = on ? '' : 'none';
-  document.getElementById('listingsGrid').style.display = on ? 'none' : '';
-  document.getElementById('sFilterBar').style.display   = on ? 'none' : 'flex';
-  document.getElementById('filtersBtn').style.display   = on ? 'none' : '';
-  if (on) document.getElementById('pinnedStrip').style.display = 'none';
-  const search = document.getElementById('listingSearch');
-  search.placeholder = on ? 'Search title, author, or ISBN...' : 'Search listings...';
-  search.value = on ? _bookFilters.keyword : _filters.keyword;
-}
-
 function renderListings() {
   // Keep the mobile tab highlight honest when the category changes *within* the Browse
   // page (e.g. tapping the Events chip should light up the Events tab, not Search).
   if (document.getElementById('page-listings').classList.contains('active')) updateMTabbar('listings');
-  const isBooks = _filters.category === 'books';
-  setBooksBrowseMode(isBooks);
-  if (isBooks) { initBooksPage(); return; }
-  const approved = DB.listings.filter(isListingLive);
+  // Books mix into the one grid like any other category (separate table underneath,
+  // same cards + filters up here). Newest-first across BOTH sources.
+  const approved = browseItems().filter(isListingLive)
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   const pinned   = approved.filter(l => l.pinned);
   const rest     = approved.filter(l => !l.pinned);
 
   const catMatch = l => _filters.category === 'all' || l.category === _filters.category;
   const kwMatch  = l => !_filters.keyword ||
     l.title.toLowerCase().includes(_filters.keyword) ||
-    (l.desc || '').toLowerCase().includes(_filters.keyword);
+    (l.desc || '').toLowerCase().includes(_filters.keyword) ||
+    (l.author || '').toLowerCase().includes(_filters.keyword) ||
+    (l.isbn || '').replace(/[- ]/g, '').includes(_filters.keyword.replace(/[- ]/g, ''));
   const priceMatch = l => {
     const p = l.rent || 0;
     if (_filters.minPrice !== null && p < _filters.minPrice) return false;
@@ -3228,6 +3277,10 @@ function renderListings() {
     if (d.size       && !(l.details.size || '').toLowerCase().includes(d.size.toLowerCase())) return false;
     if (d.eventDateFrom && l.details.event_date && l.details.event_date < d.eventDateFrom) return false;
     if (d.eventDateTo   && l.details.event_date && l.details.event_date > d.eventDateTo)   return false;
+    // Book filters exclude non-books by design: course/type/edition only exist on books.
+    if (d.bookType   && l.book_type !== d.bookType)               return false;
+    if (d.courseCode && l.course_code !== d.courseCode)           return false;
+    if (d.edition    && (l.edition || '').trim() !== d.edition)   return false;
     return true;
   };
   const _scope = schoolsInScope();
@@ -3255,10 +3308,11 @@ function renderListings() {
     tags.push(`<span class="active-filter-tag">${lo} – ${hi} <button onclick="_filters.minPrice=null;_filters.maxPrice=null;renderDeepFilters();renderListings()">&#215;</button></span>`);
   }
   const d = _filters.details;
-  const detailTagLabels = { room_type:'Room', condition:'Condition', size:'Size', delivery:'Delivery', furnished:'Furnished', petOk:'Pets OK', eventDateFrom:'From', eventDateTo:'To' };
+  const detailTagLabels = { room_type:'Room', condition:'Condition', size:'Size', delivery:'Delivery', furnished:'Furnished', petOk:'Pets OK', eventDateFrom:'From', eventDateTo:'To', bookType:'Type', courseCode:'Course', edition:'Edition' };
   Object.entries(d).forEach(([k, v]) => {
     const label = detailTagLabels[k] || k;
-    const display = (k === 'furnished' || k === 'petOk') ? label : `${label}: ${v}`;
+    const prettyVal = k === 'bookType' ? (v === 'course' ? 'Textbooks' : 'Other books') : v;
+    const display = (k === 'furnished' || k === 'petOk') ? label : `${label}: ${prettyVal}`;
     tags.push(`<span class="active-filter-tag">${display} <button onclick="delete _filters.details['${k}'];renderDeepFilters();renderListings()">&#215;</button></span>`);
   });
   if (_filters.schoolScope !== '25mi') {
@@ -3400,14 +3454,15 @@ function posterHeaderHTML(l) {
       <div class="poster-head-name">${p.name}${trustBadgeHTML(p)}</div>
       ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
     </div>
-    ${eu && eu.id !== l.poster_id && !p.official ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
+    ${eu && eu.id !== l.poster_id && !p.official && !l.isBook ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
   </div>`;
 }
 
-// Price line — category aware (Free for donations, Event for org posts, /mo only for housing).
+// Price line — category aware (Free for donations and $0 books, Event for org posts, /mo only for housing).
 function priceLabel(l) {
   if (l.category === 'organization_event') return `<span class="lc-soft">Event</span>`;
   if (l.category === 'donation') return `<span class="lc-soft">Free</span>`;
+  if (l.category === 'books' && !(l.rent > 0)) return `<span class="lc-soft">Free</span>`;
   if (l.rent == null || l.rent === '' || isNaN(l.rent)) return `<span class="lc-soft">Contact</span>`;
   const per = l.category === 'housing' ? '<span>/mo</span>' : '';
   const prefix = l.type === 'Looking for Room' ? 'Up to ' : '';
@@ -3418,8 +3473,11 @@ function listingCardHTML(l, isPinned) {
   const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
   const catLabel = CATEGORY_LABELS[l.category] || 'Listing';
   const photoCount = l.photo_urls?.length || 0;
+  // Books route to their own detail + contact path — ids are per-table sequences.
+  const openFn    = l.isBook ? 'openBookDetail' : 'openDetail';
+  const contactFn = l.isBook ? 'bContact' : 'sContact';
   const messageBtn = !l.poster.official
-    ? `<button class="btn-contact" onclick="event.stopPropagation();sContact(${l.id})">Message</button>` : '';
+    ? `<button class="btn-contact" onclick="event.stopPropagation();${contactFn}(${l.id})">Message</button>` : '';
   // Buyers should see a deal is already in progress BEFORE they open/message (Facebook
   // Marketplace behavior — pending stays visible, badged, so people know to hurry or move on).
   const pendingBadge = l.lifecycle_status === 'pending_sale'
@@ -3439,7 +3497,7 @@ function listingCardHTML(l, isPinned) {
        </div>`;
 
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" tabindex="0" role="button" aria-label="${escAttr(l.title)}"
-      onclick="openDetail(${l.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDetail(${l.id})}">
+      onclick="${openFn}(${l.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openFn}(${l.id})}">
     ${posterHeaderHTML(l)}
     ${hero}
     <div class="lc-body">
@@ -3782,24 +3840,14 @@ function clearListingPhoto() {
 
 // ══════════════════════ BOOKS SECTION ══════════════════════
 let _courses = null;                 // full course catalog, loaded once per session
-let _books = [];                     // active book_listings rows
+let _books = [];                     // live (approved+active) book_listings rows — feeds browseItems()
 let _bookPosterMap = {};             // poster_id -> profile (live join, same idea as loadListings)
-let _bookFilters = { type: 'all', course: null, edition: 'all', keyword: '' };
-let _bookKwTimer = null;
 let _pendingBookPhotos = [];
 let _postBookType = null;            // 'course' | 'other' while the post form is open
 let _bkSelCourse = null;             // selected course code, 'NOT_LISTED', or null
-let _booksInit = false;
-let _bfCourseAC = null, _bkCourseAC = null;
+let _bkCourseAC = null;              // post-form course typeahead instance
 
 const BOOK_COLORS = { course: { bg: '#E8EEF5', text: '#2C476A' }, other: { bg: '#F7EFE1', text: '#6B5128' } };
-
-async function initBooksPage() {
-  if (!_courses) await loadCourses();
-  if (!_booksInit) { setupBookACs(); _booksInit = true; }
-  await loadBooks();
-  renderBooks();
-}
 
 async function loadCourses() {
   const { data, error } = await supabaseClient
@@ -3818,7 +3866,7 @@ async function loadBooks() {
   _bookPosterMap = {};
   if (ids.length) {
     const { data: profs } = await supabaseClient.from('profiles')
-      .select('id, display_name, first_name, last_name, initials, color, avatar_url')
+      .select('id, display_name, first_name, last_name, initials, color, avatar_url, school, year, major, created_at')
       .in('id', ids);
     (profs || []).forEach(p => { _bookPosterMap[p.id] = p; });
   }
@@ -3905,12 +3953,11 @@ function attachCourseAC(input, list, opts) {
   };
 }
 
-function setupBookACs() {
-  _bfCourseAC = attachCourseAC(
-    document.getElementById('bfCourseInput'),
-    document.getElementById('bfCourseList'),
-    { allowNotListed: false, onSelect: code => { _bookFilters.course = code; renderBooks(); } }
-  );
+// The post-a-book form's course typeahead — attached once, lazily, the first time the
+// form opens (books used to init this via the old browse mode, which no longer exists).
+async function ensurePostBookAC() {
+  if (_bkCourseAC) return;
+  if (!_courses) await loadCourses();
   _bkCourseAC = attachCourseAC(
     document.getElementById('bkCourseInput'),
     document.getElementById('bkCourseList'),
@@ -3918,110 +3965,9 @@ function setupBookACs() {
   );
 }
 
-// ---- Browse: filters + rendering ----
-function setBookType(t, el) {
-  _bookFilters.type = t;
-  document.querySelectorAll('#bookTypeChips .filter-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderBooks();
-}
-function onBookSearch(val) {
-  clearTimeout(_bookKwTimer);
-  _bookKwTimer = setTimeout(() => { _bookFilters.keyword = val.trim().toLowerCase(); renderBooks(); }, 250);
-}
-function setBookEdition(v) { _bookFilters.edition = v; renderBooks(); }
-function clearBookFilters() {
-  _bookFilters = { type: 'all', course: null, edition: 'all', keyword: '' };
-  const s = document.getElementById('listingSearch'); if (s) s.value = '';
-  const e = document.getElementById('bfEdition'); if (e) e.value = 'all';
-  if (_bfCourseAC) _bfCourseAC.reset();
-  document.querySelectorAll('#bookTypeChips .filter-chip').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#bookTypeChips .filter-chip');
-  if (allChip) allChip.classList.add('active');
-  renderBooks();
-}
-
-function renderBooks() {
-  const f = _bookFilters;
-  const typeMatch = b => f.type === 'all' || b.book_type === f.type;
-  const courseMatch = b => !f.course || b.course_code === f.course;
-  const editionMatch = b => f.edition === 'all' || (b.edition || '').trim() === f.edition;
-  const kwMatch = b => !f.keyword ||
-    b.title.toLowerCase().includes(f.keyword) ||
-    (b.author || '').toLowerCase().includes(f.keyword) ||
-    (b.isbn || '').replace(/[- ]/g, '').includes(f.keyword.replace(/[- ]/g, ''));
-  const filtered = _books.filter(b => typeMatch(b) && courseMatch(b) && editionMatch(b) && kwMatch(b));
-
-  // Edition dropdown: distinct editions present in active listings
-  const edSel = document.getElementById('bfEdition');
-  if (edSel) {
-    const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
-    const cur = f.edition;
-    edSel.innerHTML = `<option value="all">All editions</option>` + editions.map(e => `<option${e === cur ? ' selected' : ''}>${e}</option>`).join('');
-    if (cur !== 'all' && !editions.includes(cur)) { f.edition = 'all'; edSel.value = 'all'; }
-  }
-
-  // Active filter tags + count
-  const tags = [];
-  if (f.course) tags.push(`<span class="active-filter-tag">${f.course} <button onclick="_bookFilters.course=null;_bfCourseAC.reset();renderBooks()">&#215;</button></span>`);
-  if (f.edition !== 'all') tags.push(`<span class="active-filter-tag">${f.edition} <button onclick="setBookEdition('all');document.getElementById('bfEdition').value='all'">&#215;</button></span>`);
-  if (f.keyword) tags.push(`<span class="active-filter-tag">&ldquo;${f.keyword}&rdquo; <button onclick="_bookFilters.keyword='';document.getElementById('listingSearch').value='';renderBooks()">&#215;</button></span>`);
-  const tagsEl = document.getElementById('bActiveTags');
-  const clearBtn = document.getElementById('bClearAll');
-  const countEl = document.getElementById('bResultCount');
-  if (tagsEl) tagsEl.innerHTML = tags.join('');
-  if (clearBtn) clearBtn.style.display = (tags.length || f.type !== 'all') ? 'inline' : 'none';
-  if (countEl) countEl.textContent = _books.length
-    ? (tags.length || f.type !== 'all' ? `Showing ${filtered.length} of ${_books.length}` : `${_books.length} book${_books.length !== 1 ? 's' : ''}`)
-    : '';
-
-  const grid = document.getElementById('booksGrid');
-  if (!filtered.length) {
-    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
-      <div style="margin-bottom:12px;color:var(--text-faint)">${ico(_books.length ? 'search' : 'inbox', 38)}</div>
-      <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${_books.length ? 'No books match these filters.' : 'No books yet — be the first to post one!'}</div>
-      ${_books.length ? `<button onclick="clearBookFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
-    </div>`;
-    return;
-  }
-  grid.innerHTML = filtered.map(bookCardHTML).join('');
-}
-
 function bookChipLabel(b) {
   if (b.book_type === 'course') return b.course_code || 'Textbook';
   return b.genre || 'Book';
-}
-
-function bookCardHTML(b) {
-  const col = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
-  const chip = bookChipLabel(b);
-  const photoCount = b.photo_urls?.length || 0;
-  const hero = photoCount
-    ? `<div class="lc-photo" style="background:${col.bg}">
-         <img src="${b.photo_urls[0]}" alt="${escAttr(b.title)}" loading="lazy" class="lc-photo-img">
-         ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
-       </div>`
-    : `<div class="lc-noimg" style="background:${col.bg};color:${col.text}">
-         <div class="lc-noimg-cat">${chip}</div>
-         <div class="lc-noimg-title">${b.title}</div>
-       </div>`;
-  const own = getEffectiveUser()?.id === b.poster_id;
-  const messageBtn = own ? '' : `<button class="btn-contact" onclick="event.stopPropagation();bContact(${b.id})">Message</button>`;
-  const metaBits = [b.edition, b.condition].filter(Boolean).join(' · ');
-  return `<div class="listing-card" tabindex="0" role="button" aria-label="${escAttr(b.title)}"
-      onclick="openBookDetail(${b.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openBookDetail(${b.id})}">
-    ${hero}
-    <div class="lc-body">
-      <div class="lc-meta">${chip}${photoCount ? '' : ' · ' + new Date(b.created_at).toLocaleDateString()}</div>
-      ${photoCount ? `<div class="lc-title">${b.title}</div>` : ''}
-      ${b.author ? `<div class="lc-loc">${b.author}</div>` : ''}
-      ${metaBits ? `<div class="lc-desc">${metaBits}</div>` : ''}
-      <div class="lc-foot">
-        <div class="lc-price"${!photoCount ? ` style="color:${col.text}"` : ''}>${b.price > 0 ? '$' + b.price : 'Free'}</div>
-        ${messageBtn}
-      </div>
-    </div>
-  </div>`;
 }
 
 async function openBookDetail(id) {
@@ -4052,10 +3998,12 @@ async function openBookDetail(id) {
   const own = getEffectiveUser()?.id === b.poster_id;
   const isLive = b.status === 'approved' && (b.lifecycle_status || 'active') === 'active';
   const [sBg, sCol, sLabel] = listingLifecycleBadge({ status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at, rent: b.price, pinned: false });
+  const canRelist = own && b.status === 'approved' && b.lifecycle_status === 'sold';
   const actionBtn = own
     ? (isLive
         ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
-        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${b.rejection_reason}</div>` : ''}</div>`)
+        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${b.rejection_reason}</div>` : ''}</div>`
+          + (canRelist ? `<button class="btn-full btn-brand" style="margin-top:10px" onclick="relistBook(${b.id})">Mark as active again</button>` : ''))
     : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
 
   document.getElementById('bookDetailContent').innerHTML = `
@@ -4103,13 +4051,28 @@ async function markBookSold(id) {
   closeModal('bookDetailModal');
   toast('Marked as sold — congrats!');
   await loadBooks();
-  renderBooks();
+  renderListings(); // books live in the main grid now
+  if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
+}
+
+// "Actually it's available again" — sold → active via the same lifecycle RPC as
+// marketplace listings (validates the transition + ownership server-side).
+async function relistBook(id) {
+  const { error } = await supabaseClient.rpc('change_listing_status', { p_listing_id: id, p_new_status: 'active', p_table: 'book_listings' });
+  if (error) { toast('Could not relist — please try again.'); console.error('[relistBook]', error.message); return; }
+  logEvent('book_relisted', { targetType: 'book_listing', targetId: id, before: { lifecycle_status: 'sold' }, after: { lifecycle_status: 'active' } });
+  closeModal('bookDetailModal');
+  toast('✓ Book is live again');
+  await loadBooks();
+  renderListings();
+  if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
 }
 
 // ---- Post-a-book form ----
 function openPostBook() {
   if (!getEffectiveUser()) { openModal('loginModal'); return; }
   resetBookForm();
+  ensurePostBookAC(); // async; typeahead is live by the time the user reaches the course field
   openModal('postBookModal');
 }
 function closePostBook() {
@@ -4235,7 +4198,7 @@ async function submitBook() {
   closePostBook();
   toast(initialStatus === 'pending' ? '✓ Book submitted for admin review!' : '✓ Your book is live!');
   await loadBooks();
-  renderBooks();
+  renderListings(); // books live in the main grid now
 }
 // ══════════════════════ END BOOKS SECTION ══════════════════════
 
@@ -4449,10 +4412,10 @@ async function submitListing() {
     year: u.year || null, major: u.major || null, memberSince: u.created_at || null
   };
   if (initialStatus === 'pending') {
-    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', emoji, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
+    DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'pending', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
   } else {
-    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', emoji, status: 'approved', lifecycle_status: 'active', expires_at: null, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
+    DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'approved', lifecycle_status: 'active', expires_at: null, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     DB.log.unshift({ type: 'listing', text: `New listing posted (auto-approved): "${title}"`, time: 'Just now', color: '#1a7a45' });
     renderListings();
   }
@@ -4922,13 +4885,13 @@ function renderListingGrid(listings, isOwn) {
   return `<div class="listing-grid">${listings.map(l => {
     const [bg, col, label] = listingLifecycleBadge(l);
     const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
-    const rent = l.rent ? `$${l.rent}/mo` : '';
+    const rent = l.rent ? (l.category === 'housing' ? `$${l.rent}/mo` : `$${l.rent}`) : '';
     const inner = l.photo_urls?.[0]
       ? `<img src="${l.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(l.title)}">
          <div class="lg-cap"><div class="lg-cap-title">${l.title}</div><div class="lg-cap-rent">${rent}</div></div>`
       : `<div class="lg-fill" style="background:${cat.bg};color:${cat.text}"><div class="lg-fill-title">${l.title}</div></div>
          <div class="lg-cap"><div class="lg-cap-rent">${rent}</div></div>`;
-    return `<div class="lg-cell" onclick="openDetail(${l.id})">
+    return `<div class="lg-cell" onclick="${l.isBook ? 'openBookDetail' : 'openDetail'}(${l.id})">
       ${inner}
       ${isOwn ? `<div class="lg-badge" style="background:${bg};color:${col}">${label}</div>` : ''}
     </div>`;
@@ -4964,34 +4927,24 @@ function renderProfile() {
     `<div class="info-item"><label>Joined</label><span>${joined}</span></div>`
   ].join('');
 
-  const myListings = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
-  document.getElementById('myListings').innerHTML = renderListingGrid(myListings, true);
-  renderMyBooks(u); // async fill of the Books section (hidden if the student has none)
+  renderMyListingsGrid(u); // async — one grid, marketplace + books together
 }
 
-// Own books on the profile — the public Books feed only shows approved+active, so this
-// is the ONLY place a student can see (and reopen) their pending/sold/rejected books.
-async function renderMyBooks(u) {
-  const wrap = document.getElementById('myBooksSection');
-  const grid = document.getElementById('myBooks');
-  if (!wrap || !grid) return;
-  const { data, error } = await supabaseClient.from('book_listings')
-    .select('id, title, price, status, lifecycle_status, expires_at, photo_urls, book_type')
-    .eq('poster_id', u.id).order('created_at', { ascending: false });
-  if (error) console.error('[renderMyBooks]', error.message);
-  if (!data || !data.length) { wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  grid.innerHTML = `<div class="listing-grid">${data.map(b => {
-    const [bg, col, label] = listingLifecycleBadge({ status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at, rent: b.price, pinned: false });
-    const price = b.price > 0 ? '$' + b.price : 'Free';
-    const bcol = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
-    const inner = b.photo_urls?.[0]
-      ? `<img src="${b.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(b.title)}">
-         <div class="lg-cap"><div class="lg-cap-title">${b.title}</div><div class="lg-cap-rent">${price}</div></div>`
-      : `<div class="lg-fill" style="background:${bcol.bg};color:${bcol.text}"><div class="lg-fill-title">${b.title}</div></div>
-         <div class="lg-cap"><div class="lg-cap-rent">${price}</div></div>`;
-    return `<div class="lg-cell" onclick="openBookDetail(${b.id})">${inner}<div class="lg-badge" style="background:${bg};color:${col}">${label}</div></div>`;
-  }).join('')}</div>`;
+// The one My Listings grid: cached marketplace rows (all statuses — owners see their
+// pending/sold/etc. with badges) merged with a fresh fetch of the student's own books
+// (the public `_books` cache only holds live ones, so own books need their own query).
+async function renderMyListingsGrid(u) {
+  const grid = document.getElementById('myListings');
+  if (!grid) return;
+  const mine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
+  grid.innerHTML = renderListingGrid(mine, true); // paint immediately; books join in a beat
+  const { data: books, error } = await supabaseClient.from('book_listings')
+    .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
+  if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
+  if (!books || !books.length) return;
+  const merged = [...mine, ...books.map(bookAsListing)]
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  grid.innerHTML = renderListingGrid(merged, true);
 }
 
 // ============================================================
@@ -5332,6 +5285,7 @@ const ACTION_META = {
   listing_renewed:      { label: 'Listing renewed',         color: '#1a7a45' },
   listing_deadline_set: { label: 'Listing deadline changed', color: '#3B5BA5' },
   book_sold:            { label: 'Book marked sold',        color: '#888888' },
+  book_relisted:        { label: 'Book relisted',           color: '#1a7a45' },
   // Book moderation gets its OWN action types — never reuse approve_listing etc. for
   // books: book ids and listing ids are independent sequences, and the undo machinery
   // routes purely on action_type into the `listings` table (see _executeUndo).
@@ -5348,7 +5302,7 @@ const ACTIVITY_FILTER_GROUPS = {
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
-  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold'],
+  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_relisted'],
 };
 
 const fmtActivityTime = d => {
@@ -5639,7 +5593,7 @@ async function aApprove(id) {
   const l = DB.pending.find(x => x.id === id); if (!l) return;
   const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
   if (error) { toast('Could not approve listing — please try again.'); console.error(error.message); return; }
-  DB.listings.unshift({ id, title: l.title, category: l.category, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'approved', lifecycle_status: l.lifecycle_status || 'active', expires_at: l.expires_at || null, pinned: false, photo_urls: l.photo_urls || [], school: l.school });
+  DB.listings.unshift({ id, title: l.title, category: l.category, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', created_at: l.created_at || new Date().toISOString(), emoji: l.emoji, status: 'approved', lifecycle_status: l.lifecycle_status || 'active', expires_at: l.expires_at || null, pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
   DB.log.unshift({ type: 'approve', text: `Listing approved: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'pending' }, after: { status: 'approved' } });
@@ -5740,7 +5694,7 @@ async function aApproveBook(id) {
   DB.log.unshift({ type: 'book', text: `Book approved: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
   updateAdminBadges(); renderAApprovals();
-  await loadBooks(); renderBooks(); // refresh the student Books cache so the approval is visible without a reload
+  await loadBooks(); renderListings(); // refresh the merged feed so the approval is visible without a reload
   toast('✓ Book approved — now live on the Books board');
 }
 
@@ -5767,7 +5721,7 @@ async function aRemoveBook(id) {
   DB.log.unshift({ type: 'book', text: `Book removed: "${b.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('remove_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: prevStatus }, after: { status: 'removed' } });
   renderAApprovals(); updateAdminBadges();
-  await loadBooks(); renderBooks();
+  await loadBooks(); renderListings();
   toast('Book removed');
 }
 
@@ -5779,7 +5733,7 @@ async function aRestoreBook(id) {
   DB.log.unshift({ type: 'book', text: `Book restored: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('restore_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'removed' }, after: { status: 'approved' } });
   renderAApprovals(); updateAdminBadges();
-  await loadBooks(); renderBooks();
+  await loadBooks(); renderListings();
   toast('Book restored');
 }
 
@@ -8117,6 +8071,24 @@ function addUserMsg(txt) {
   const m = document.getElementById('aiMsgs'); const d = document.createElement('div');
   d.className = 'ai-msg-b user'; d.textContent = txt; m.appendChild(d); m.scrollTop = m.scrollHeight;
 }
+function getFallbackAIReply(msg) {
+  const text = msg.toLowerCase();
+  const pendingCount = Array.isArray(DB.pending) ? DB.pending.length : 0;
+  const approvedCount = Array.isArray(DB.listings) ? DB.listings.filter(l => l.status === 'approved').length : 0;
+  const openReportCount = Array.isArray(DB.reports) ? DB.reports.filter(r => r.status === 'open').length : 0;
+
+  if (text.includes('pending') || text.includes('approval')) {
+    return `There are ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'} waiting for review.`;
+  }
+  if (text.includes('report')) {
+    return `There are ${openReportCount} open report${openReportCount === 1 ? '' : 's'} in the current view.`;
+  }
+  if (text.includes('student') || text.includes('listing')) {
+    return `The current view shows ${approvedCount} approved listing${approvedCount === 1 ? '' : 's'} and ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'}.`;
+  }
+  return 'NestBot is running in local preview mode right now. It can summarize the visible platform state, but it cannot reach the Claude API from this browser session. Ask about pending listings, reports, or current listings and I will help from the data already on this page.';
+}
+
 async function sendAI() {
   const inp = document.getElementById('aiInput'); const msg = inp.value.trim(); if (!msg) return;
   inp.value = ''; addUserMsg(msg);
@@ -8124,19 +8096,13 @@ async function sendAI() {
   addBot('Thinking...', true);
   aiHistory.push({ role: 'user', content: msg });
   try {
-    const sysPrompt = await buildAISys();
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: sysPrompt, messages: aiHistory })
-    });
-    const data = await res.json();
-    const reply = data.content?.map(b => b.text || '').join('') || "Couldn't process that. Try again.";
+    const reply = getFallbackAIReply(msg);
     const t = document.getElementById('aiThink'); if (t) t.remove();
     addBot(reply); aiHistory.push({ role: 'assistant', content: reply });
     if (aiHistory.length > 20) aiHistory = aiHistory.slice(-18);
   } catch (e) {
     const t = document.getElementById('aiThink'); if (t) t.remove();
-    addBot('⚠️ Could not reach Claude API. Check connection.');
+    addBot('⚠️ NestBot is unavailable right now. Please try again in a moment.');
   }
   document.getElementById('aiMsgs').scrollTop = 9999;
 }
