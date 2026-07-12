@@ -1,0 +1,111 @@
+// ============================================================
+// CONFIG
+// Supabase connection, the shared DB store, category constants, and every global state variable.
+// Split out of index.html on 2026-07-11. Loaded as a plain script (not a
+// module) so every function stays global — the HTML's onclick="..." handlers
+// depend on that. Load order is set in index.html; boot.js must stay last.
+// ============================================================
+
+// ── Supabase connection ──────────────────────────────────────
+const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
+const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other', books:'Books' };
+// Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
+// All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
+const CATEGORY_COLORS = {
+  housing:            { bg:'#E7F0EA', text:'#1F4435' }, // sage — ties to the brand green
+  clothing:           { bg:'#F6E9EC', text:'#7A3B4A' }, // dusty rose
+  technology:         { bg:'#E8EEF5', text:'#2C476A' }, // slate blue
+  donation:           { bg:'#F7EFE1', text:'#6B5128' }, // warm sand
+  organization_event: { bg:'#EFEAF6', text:'#473A6B' }, // muted lavender
+  books:              { bg:'#E6EFEF', text:'#2F5D5A' }, // muted teal
+  other:              { bg:'#EEEEEA', text:'#45453E' }  // warm greige
+};
+let _postCategory = null;
+
+const SUPABASE_URL = 'https://jcbohweepdgqqntherzo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYm9od2VlcGRncXFudGhlcnpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNTkzODEsImV4cCI6MjA5NTczNTM4MX0.8RPbq2yIGib0gVzV2QQrWGkBEWokvdXNi1z9ZWTZcHk';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================
+// SHARED DATA STORE — single source of truth for both interfaces
+// ============================================================
+const AC=['#2d6148','#3B5BA5','#C0392B','#7D3C98','#D68910','#117A65','#A04000'];
+
+const DB = {
+  students:[], // populated from Supabase profiles — never seeded
+  pending:[],  // populated from Supabase listings (status=pending) via loadListings()
+  listings:[], // populated from Supabase listings (status!=pending) via loadListings()
+  pendingBooks:[], // admin-only: book_listings (status=pending) via loadAdminBooks()
+  adminBooks:[],   // admin-only: book_listings (status!=pending) via loadAdminBooks()
+  convos:[],   // legacy in-memory store — admin messages view queries Supabase directly
+  reports:[],  // legacy in-memory store — reports view queries Supabase directly
+  log:[],      // in-session activity log; resets on refresh (no Supabase backend yet)
+  settings:{requireApproval:true,eduOnly:true,emailAlerts:true,maintenance:false},
+  content:{siteName:'CaldwellNest',tagWord:'Nest',h1:'One trusted hub',h2:'campus life.',sub:'Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.',cta:'Get started free',listTitle:'Campus listings',listSub:'Caldwell University students only',banner:'',bannerOn:false}
+};
+
+// ============================================================
+// ROLE / AUTH ROUTING
+// ============================================================
+let currentRole = null;
+let sUser = null; // logged-in student
+let adminPreviewMode = false; // true when admin has entered student view
+let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {}, schoolScope: '25mi', sort: 'newest' };
+let _kwTimer  = null;
+let _dfPriceOpen = true;
+let _dfCatOpen   = true;
+let _pMax        = 2000;
+let _schoolsList = [];
+let _selectedSchool = null;
+let _usernameTimer = null;
+let _emailTimer = null;
+let sConvoActive = null;
+let sRealtimeChannel  = null;
+let sGlobalMsgChannel = null;
+let sNotifChannel     = null;
+let sProfileChannel   = null;
+let sUnreadCount = 0; // total unseen messages (derived from DB by refreshUnread, not counted by hand)
+let sUnread = {};     // conversation_key → unseen count, for per-conversation badges
+let adminUUID = null;
+const SUPER_ADMIN_ID = '7f4e052c-666e-4955-8ced-9da380dbe589';
+const isProtectedAdmin = id => id === SUPER_ADMIN_ID || id === adminUUID;
+let aEditId = null, aEditSrc = 'listing';
+let aRejectId = null, aSuspendId = null;
+let aAdminSchool = null; // null = super admin (all schools); 'caldwell' etc = school-scoped admin
+let aAdminBrand = null;     // brand_name from schools table for school-scoped admins
+let _schoolBrandCache = {}; // slug → display brand label for drill-in context indicator
+let _histStack = [];           // navigation stack: [{type:'section',value:'students'} | {type:'profile',value:id,name:'...'}]
+let _histCurrentProfileId = null;
+let _histGoingBack = false;
+let _histListings = [], _histListingView = 'list', _pinnedView = 'grid';
+let _histBooks = [];
+let _stuSchoolFilter = 'all', _stuStatusFilter = 'all';
+let _stuYearFilter = 'all', _stuMajorSearch = '', _stuSort = 'newest', _stuSearch = '', _stuFlagFilter = 'none';
+let _listingSchoolFilter = 'all', _listingTypeFilter = 'all', _listingStatusFilter = 'all';
+let _listingMinRent = '', _listingMaxRent = '', _listingSort = 'newest';
+let _reportSchoolFilter = 'all', _reportStatusFilter = 'all', _reportCatFilter = 'all', _reportSearch = '', _reportGroupBy = 'date';
+let _appealStatusFilter = 'all', _appealSort = 'newest', _appealSearch = '';
+let _anaRange = '30d', _anaSchool = 'all', _anaNavSource = null;
+let _approvalSchoolFilter = 'all', _approvalCategoryFilter = 'all';
+let _approvalsTab = 'listings'; // 'listings' | 'books'
+let aBookRejectId = null;
+let _dashLogFilter = 'all';
+let _actPage = 0, _actFilter = 'all';
+let _adminRealtimeChannels = [];
+let aiOpen = false, aiHistory = [];
+let bType        = 'announcement';
+let _bDisplayType = 'both';
+let _bEditId      = null;
+let _bPrevStatus  = null;
+let _bHistFilter  = 'all';
+let _bcastCache        = {};
+let _pendingPhotoFiles = [];
+const MAX_LISTING_PHOTOS = 6;
+let _pendingAvatarFile = null;  // a newly picked avatar awaiting save
+let _avatarRemoved = false;     // true if the user cleared their avatar this session
+
+function pickRole(role) {
+  if (role === 'admin') {
+    openModal('adminLoginModal');
+  }
+}
