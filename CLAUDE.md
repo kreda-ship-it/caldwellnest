@@ -2,10 +2,45 @@
 
 ## About this project
 CaldwellNest is a student-only housing and campus-life platform for Caldwell University students.
-The whole prototype currently lives in a single file: `index.html`.
-It has two interfaces sharing one in-memory data store (`DB`):
+It has two interfaces sharing one data store (`DB`, defined in `js/config.js`):
 - Student interface: sign-up gate (.edu email), listings feed + filters, post a room, in-app messaging, NestBot AI helper.
 - Admin dashboard: approve/reject/pin listings, student + verification queues, live site editor, broadcasts, analytics, data export, health monitor.
+
+## File layout (split out of the old single file on 2026-07-11)
+`index.html` is now **markup only**. All styling is in `styles.css`. All JavaScript lives in `js/`,
+loaded in this order by plain `<script src>` tags at the bottom of `index.html`:
+
+| File | Holds |
+|---|---|
+| `js/config.js` | Supabase client, the shared `DB` store, category constants, all global state. **Loads first.** |
+| `js/utils.js` | `openModal` / `closeModal` / `toast` |
+| `js/data.js` | Loading + shaping Supabase data: `loadListings`, `loadBooks`' callers, `isListingLive`, `browseItems`, `initStudent` |
+| `js/auth.js` | Login/logout (student + admin), signup, email verification, suspension screen, `getEffectiveUser()` |
+| `js/profile.js` | School picker, waitlist, availability checks, public profile, edit profile |
+| `js/listings.js` | Browse feed: pages, filters, cards, detail modal, owner lifecycle actions, posting |
+| `js/books.js` | Course catalog, typeahead, book detail, posting a book |
+| `js/media.js` | Photo resize/upload/delete, galleries, avatars |
+| `js/messages.js` | Chat: sidebar, conversation mode, swipe-to-reply, realtime, listing sharing |
+| `js/admin.js` | The entire admin dashboard |
+| `js/boot.js` | Starts the app. **Must load LAST** — the only file that *runs* code instead of defining it. |
+
+Two rules this layout depends on:
+- **They are plain scripts, NOT ES modules.** Every function must stay global, because the HTML is full
+  of inline `onclick="foo()"` handlers. Never add `type="module"` and never add `export`.
+- **Function hoisting no longer spans files.** Inside one file, order doesn't matter. Across files it does:
+  a file can only *call* something from a later file at runtime (inside a function), never at load time.
+  That is why `boot.js` is last.
+
+## Two standing rules
+1. **One area per change.** When working on one feature, do not edit other feature files in the same change.
+   That is the whole point of the split — a messages fix must never be able to break listings.
+2. **All CSS goes in `styles.css`.** Never add a `<style>` block to `index.html`. New UI should use classes
+   defined in `styles.css`. (Known debt: JS-generated HTML still contains many inline `style="..."` attributes.
+   Migrating them is a slow future cleanup — but don't add new ones.)
+
+## Read this before starting work
+`docs/AUDIT-2026-07.md` — full code audit (known bugs by severity, with a suggested order of attack).
+Line numbers in it refer to the pre-split file; search by function name instead.
 
 ## About me (the founder)
 - I'm Kal, the founder. I'm learning to code from scratch — I am NOT an experienced developer.
