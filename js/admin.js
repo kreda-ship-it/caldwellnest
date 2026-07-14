@@ -435,7 +435,7 @@ function activityItem(e) {
   const undoBtn = (!e.undone_at && UNDOABLE_ACTIONS.has(e.action_type) && e.target_id)
     ? `<button onclick="event.stopPropagation();undoActivityEntry('${e.id}','${e.action_type}','${e.target_id}')" style="flex-shrink:0;align-self:center;font-size:11px;padding:2px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit" title="Undo this action">&#8617; Undo</button>`
     : '';
-  return `<div class="al-item" onclick="openActivityDetail('${e.id}')" style="cursor:pointer" title="View detail">
+  return `<div class="al-item" onclick="openActivityDetail('${e.id}')" title="View detail">
     <div class="al-dot" style="background:${escAttr(m.color)}"></div>
     <div class="al-text">${esc(m.label)}${suffix}${undone}</div>
     <div class="al-time" style="align-self:center">${fmtActivityTime(e.created_at)}</div>
@@ -526,7 +526,7 @@ async function renderAdminDashLog() {
 }
 
 async function openActivityDetail(entryId) {
-  openHDrawer('Activity detail', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading…</div>');
+  openHDrawer('Activity detail', '<div class="drawer-loading">Loading…</div>');
   const { data: e } = await supabaseClient.from('admin_activity_log').select('*').eq('id', entryId).single();
   if (!e) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px">Could not load this entry.</div>'; return; }
 
@@ -652,7 +652,7 @@ function renderAApprovals() {
         panelRows.push(`<div style="display:flex;gap:6px;flex-wrap:wrap">${slugs.map(s=>`<button class="filter-chip${_approvalSchoolFilter===s?' active':''}" onclick="_approvalSchoolFilter='${s}';renderAApprovals()">${slabel(s)}</button>`).join('')}</div>`);
       }
     } else {
-      panelRows.push(`<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128274; ${aAdminSchool} only</span>`);
+      panelRows.push(`<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span>`);
     }
 
     filterPanel.innerHTML = panelRows.join('');
@@ -685,7 +685,7 @@ function renderAApprovals() {
           <div>
             <div style="font-size:13px;font-weight:500">${esc(l.poster.fullName || l.poster.name)}</div>
             <div style="font-size:11px;color:var(--text-faint)">${esc(l.poster.email)}</div>
-            ${l.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;display:inline-block;margin-top:3px">${esc(l.school.replace(/_/g,' '))}</span>` : ''}
+            ${l.school ? `<span class="school-chip school-chip-s" style="display:inline-block;margin-top:3px">${esc(l.school.replace(/_/g,' '))}</span>` : ''}
           </div>
         </div>
         <div class="arow">
@@ -1266,7 +1266,7 @@ async function renderAStudents() {
       ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${st.id}')">Reinstate</button>`
       : isProtectedAdmin(st.id) ? ''
       : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${st.id}')">Suspend</button>`;
-    const schoolBadge = st.school ? `<span style="font-size:11px;background:var(--brand-pale);color:var(--brand);padding:2px 8px;border-radius:20px;font-weight:500;text-transform:capitalize">${esc(st.school)}</span>` : '—';
+    const schoolBadge = st.school ? `<span class="school-chip school-chip-m">${esc(st.school)}</span>` : '—';
     return `<tr>
       <td style="font-weight:500"><span class="stu-link-a" onclick="aOpenStudentHistory('${st.id}')">${esc(st.first_name)} ${esc(st.last_name)}</span></td>
       <td style="color:var(--text-muted)">${esc(st.email || '—')}</td>
@@ -1319,7 +1319,7 @@ function buildStuFilterPanel(filterEl, schoolSlugs) {
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `<div>${secHead('School')}<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `<div>${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _stuSchoolFilter, '_setStuSchool')}</div>`;
   }
@@ -1747,7 +1747,7 @@ function buildBooksHistoryPaneHtml() {
 }
 
 async function openBookHistoryDrawer(bookId) {
-  openHDrawer('Loading…', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading book…</div>');
+  openHDrawer('Loading…', '<div class="drawer-loading">Loading book…</div>');
   const { data: b } = await supabaseClient.from('book_listings').select('*').eq('id', bookId).single();
   if (!b) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this book.</div>'; return; }
   const sPill = s => aStatusPill(s);       // shared helper
@@ -1769,7 +1769,7 @@ async function openBookHistoryDrawer(bookId) {
 }
 
 async function openListingDrawer(listingId) {
-  openHDrawer('Loading…', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading listing…</div>');
+  openHDrawer('Loading…', '<div class="drawer-loading">Loading listing…</div>');
   const [{ data: l }, { data: sh }, { data: reps }] = await Promise.all([
     supabaseClient.from('listings').select('*').eq('id', listingId).single(),
     supabaseClient.from('admin_activity_log').select('id, action_type, before_state, after_state, reason, created_at').eq('listing_id', listingId).order('created_at', { ascending: true }),
@@ -1850,7 +1850,7 @@ async function openListingDrawer(listingId) {
 }
 
 async function openReportDrawer(reportId) {
-  openHDrawer('Report', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading…</div>');
+  openHDrawer('Report', '<div class="drawer-loading">Loading…</div>');
   const { data: r } = await supabaseClient.from('reports').select('*, listing:listing_id(id, title, emoji, status, poster_name, poster_id)').eq('id', reportId).single();
   if (!r) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this report.</div>'; return; }
   const cfg = r.status === 'open' ? ['#fde8e8','#c0392b','Open'] : r.status === 'dismissed' ? ['#f0f0f0','#888','Dismissed'] : ['#e8f5e9','#1a7a45','Actioned'];
@@ -1936,7 +1936,7 @@ async function renderAMessages() {
   };
   const getSchoolBadge = id => {
     const s = pMap[id]?.school;
-    return s ? `<span style="font-size:9px;background:var(--brand-pale);color:var(--brand);padding:1px 6px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:4px;vertical-align:middle">${esc(s.replace(/_/g,' '))}</span>` : '';
+    return s ? `<span class="school-chip school-chip-xs" style="margin-left:4px;vertical-align:middle">${esc(s.replace(/_/g,' '))}</span>` : '';
   };
 
   tbody.innerHTML = convos.map(c => {
@@ -2150,7 +2150,7 @@ function buildRepFilterPanel(schoolSlugs) {
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `${div}<div>${secHead('School')}<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `${div}<div>${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `${div}<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _reportSchoolFilter, '_setRepSchool')}</div>`;
   }
@@ -3570,7 +3570,7 @@ function _renderAppealGroup(g, startCollapsed) {
   const openCnt = g.appeals.filter(a => a.status === 'open').length;
   const lastDate= fmtActivityTime(g.appeals[0].created_at);
   const schoolBadge = school
-    ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:6px">${esc(school)}</span>`
+    ? `<span class="school-chip school-chip-s" style="margin-left:6px">${esc(school)}</span>`
     : '';
   const statusHint = openCnt
     ? `<span style="color:var(--danger);font-weight:600">${openCnt} open</span>`
@@ -3656,7 +3656,7 @@ function _buildAppealFilterPanel() {
   const statusOpts = [{v:'all',l:'All'},{v:'open',l:'Open'},{v:'reinstated',l:'Reinstated &#10003;'},{v:'upheld',l:'Upheld'}];
   el.innerHTML = `<div>${secHead('Status')}${chipRow(statusOpts, _appealStatusFilter, '_setAppealStatus')}</div>`;
   if (aAdminSchool) {
-    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 12px;border-radius:20px;font-weight:500;text-transform:capitalize">&#128274; ${aAdminSchool} only</span></div>`;
+    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
   }
 }
 

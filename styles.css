@@ -552,7 +552,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .bar:hover{background:var(--brand-light);}
 .blabel{font-size:10px;color:var(--text-faint);}.bval{font-size:10px;font-weight:600;color:var(--text-muted);}
 /* ACTIVITY LOG */
-.al-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+/* cursor:pointer lives here now — every activity row is clickable (opens its detail drawer),
+   so it was being repeated inline on each one. */
+.al-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
 .al-item:last-child{border-bottom:none;}
 .al-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;}
 .al-text{font-size:13px;flex:1;line-height:1.4;}
@@ -792,3 +794,17 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 .tcard-flush{margin-bottom:0;}
 .note-xs{font-size:11px;color:var(--text-faint);}
+
+/* The school / brand chip. It was hand-written 18 times in 12 slightly different
+   variants across admin.js — 9/10/11/12px fonts and six different paddings — so the
+   same badge looked subtly different on every admin screen. One component now, with
+   the sizes made explicit. They almost certainly want to collapse into ONE size;
+   that is a visual change, so it needs a decision rather than a silent refactor. */
+.school-chip{background:var(--brand-pale);color:var(--brand);border-radius:20px;font-weight:500;text-transform:capitalize;}
+.school-chip-xs{font-size:9px;padding:1px 6px;}
+.school-chip-s{font-size:10px;padding:1px 7px;}
+.school-chip-m{font-size:11px;padding:2px 8px;}
+.school-chip-l{font-size:12px;padding:4px 12px;}
+
+/* The "Loading…" block shown while a detail drawer fetches. */
+.drawer-loading{padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px;}
