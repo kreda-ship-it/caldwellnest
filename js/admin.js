@@ -285,20 +285,10 @@ async function buildMultiSchoolStats() {
 }
 
 const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
-function ago(s, btn) {
-  document.querySelectorAll('.a-section').forEach(x => x.classList.remove('active'));
-  document.querySelectorAll('.a-nav-item').forEach(x => x.classList.remove('active'));
-  const sec = document.getElementById('asec-' + s); if (!sec) return;
-  sec.classList.add('active');
-  if (btn) { btn.classList.add('active'); _anaNavSource = null; }
-  const titleEl = document.getElementById('aTopTitle');
-  titleEl.textContent = ATITLES[s] || s;
-  const backBar = document.getElementById('ana-back-bar');
-  if (backBar) backBar.style.display = (_anaNavSource === 'analytics' && s !== 'analytics') ? 'block' : 'none';
-  const map = { approvals: renderAApprovals, listings: renderAListings, pinned: renderAPinned, students: renderAStudents, messages: renderAMessages, reports: renderAReports, activity: renderAActivity, analytics: buildAnalytics };
-  if (map[s]) map[s]();
-  updateDrillCtx();
-}
+// ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
+// (There used to be a second, earlier definition here. It never ran: two function declarations
+// with the same name in one script scope means the LAST one wins for the whole scope, so this
+// one was dead code and the `_ago_orig = ago` line next to it captured the later one, not this.)
 
 // ADMIN DASHBOARD
 async function buildAdminBar() {
@@ -3175,17 +3165,22 @@ function addUserMsg(txt) {
   const m = document.getElementById('aiMsgs'); const d = document.createElement('div');
   d.className = 'ai-msg-b user'; d.textContent = txt; m.appendChild(d); m.scrollTop = m.scrollHeight;
 }
-function getFallbackAIReply(msg) {
+async function getFallbackAIReply(msg) {
   const text = msg.toLowerCase();
   const pendingCount = Array.isArray(DB.pending) ? DB.pending.length : 0;
   const approvedCount = Array.isArray(DB.listings) ? DB.listings.filter(l => l.status === 'approved').length : 0;
-  const openReportCount = Array.isArray(DB.reports) ? DB.reports.filter(r => r.status === 'open').length : 0;
 
   if (text.includes('pending') || text.includes('approval')) {
     return `There are ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'} waiting for review.`;
   }
   if (text.includes('report')) {
-    return `There are ${openReportCount} open report${openReportCount === 1 ? '' : 's'} in the current view.`;
+    // Ask the database. This used to count DB.reports — a legacy in-memory array that is never
+    // populated, so NestBot confidently answered "0 open reports" even when reports were waiting.
+    const { count, error } = await supabaseClient
+      .from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
+    if (error) { console.warn('[NestBot reports]', error.message); return "I couldn't read the reports table just now — try the Reports section."; }
+    const n = count || 0;
+    return `There ${n === 1 ? 'is' : 'are'} ${n} open report${n === 1 ? '' : 's'} right now.`;
   }
   if (text.includes('student') || text.includes('listing')) {
     return `The current view shows ${approvedCount} approved listing${approvedCount === 1 ? '' : 's'} and ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'}.`;
@@ -3200,7 +3195,7 @@ async function sendAI() {
   addBot('Thinking...', true);
   aiHistory.push({ role: 'user', content: msg });
   try {
-    const reply = getFallbackAIReply(msg);
+    const reply = await getFallbackAIReply(msg); // async now — it queries the reports count
     const t = document.getElementById('aiThink'); if (t) t.remove();
     addBot(reply); aiHistory.push({ role: 'assistant', content: reply });
     if (aiHistory.length > 20) aiHistory = aiHistory.slice(-18);
@@ -3856,7 +3851,7 @@ async function updateAppealsBadge() {
 }
 
 // ============================================================
-// EXTEND ago() to handle new sections
+// ADMIN SECTION ROUTER — ago() and the section → renderer map
 // ============================================================
 const _agoMap = {
   approvals: renderAApprovals, listings: renderAListings, pinned: renderAPinned,
@@ -3867,8 +3862,8 @@ const _agoMap = {
   health: renderHealth,
   appeals: renderAppeals,
 };
-// Override ago to include new sections
-const _ago_orig = ago;
+// The one and only ago(). Switches the visible admin section, sets the title, and calls
+// that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.
 function ago(s, btn) {
   document.querySelectorAll('.a-section').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.a-nav-item').forEach(x => x.classList.remove('active'));
