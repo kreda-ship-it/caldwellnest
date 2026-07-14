@@ -36,7 +36,13 @@ node tests/style-snapshot.js                     # writes _snap.html
 name that already existed — silently resizing every form label in the app. Nothing else would
 have found that until a student noticed.
 
-### Two traps it taught us
+### Three traps it taught us
+- **Web fonts make the geometry non-deterministic.** `index.html` pulls DM Sans from Google Fonts
+  with `display=swap`, so whether the font has arrived by snapshot time varies *between runs*. That
+  changes text metrics, which changes the width and height of nearly every element — and the diff
+  fills up with hundreds of phantom "differences" that have nothing to do with your change. The
+  harness now strips the font `<link>` so both runs measure the same fallback font. If you ever see
+  a diff that is **only** width/height with no font-size/color/margin change, suspect this first.
 - **`display:none` inline is load-bearing.** The JS does `el.style.display = ''` to *show*
   things. If `display:none` lived in a class, that reset would re-hide them. Leave those inline.
 - **Check for class-name collisions before adding a rule.** Appending `.foo{...}` when `.foo`

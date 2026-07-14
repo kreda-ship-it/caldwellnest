@@ -774,3 +774,21 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .form-label-sm{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
 .link-brand{color:var(--brand);cursor:pointer;}
 .btn-nowrap{white-space:nowrap;}
+
+/* Category colours — MUST stay in sync with CATEGORY_COLORS in js/config.js.
+   (Today they are duplicated: JS paints listing cards from the object, CSS paints the
+   post-category picker from these classes. Single-sourcing them is a follow-up.) */
+.cat-housing{background:#E7F0EA;color:#1F4435;}
+.cat-clothing{background:#F6E9EC;color:#7A3B4A;}
+.cat-technology{background:#E8EEF5;color:#2C476A;}
+.cat-donation{background:#F7EFE1;color:#6B5128;}
+.cat-organization_event{background:#EFEAF6;color:#473A6B;}
+.cat-books{background:#E6EFEF;color:#2F5D5A;}
+.cat-other{background:#EEEEEA;color:#45453E;}
+
+/* Book-type colours — mirror BOOK_COLORS in js/books.js. */
+.btype-course{background:#E8EEF5;color:#2C476A;}
+.btype-other{background:#F7EFE1;color:#6B5128;}
+
+.tcard-flush{margin-bottom:0;}
+.note-xs{font-size:11px;color:var(--text-faint);}

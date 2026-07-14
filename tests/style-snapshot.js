@@ -12,6 +12,14 @@ let html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 html = html.replace(/<script[^>]*src="js\/[^"]*"[^>]*><\/script>\s*/g, '');
 html = html.replace(/<script[^>]*src="https:\/\/cdn[^"]*"[^>]*><\/script>\s*/g, '');
 
+// Drop the Google Fonts stylesheet. It loads over the network with `display=swap`, so whether
+// DM Sans has arrived by snapshot time varies between runs — and that changes text metrics,
+// which changes the width/height of nearly every element. Without this, the harness reports
+// hundreds of phantom "differences" that are really just font-load timing. Fonts are identical
+// in both runs by definition (we never touch them), so removing them costs no coverage and
+// makes the geometry deterministic.
+html = html.replace(/<link[^>]*fonts\.(googleapis|gstatic)\.com[^>]*>\s*/g, '');
+
 // Properties that an inline style -> class conversion could plausibly change.
 const PROPS = [
   'display','position','top','right','bottom','left','z-index','float','clear',
