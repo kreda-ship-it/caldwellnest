@@ -2847,7 +2847,7 @@ function _reapplyAnaBreadcrumb(s) {
   const bar = document.getElementById('ana-back-bar');
   if (bar) bar.style.display = 'block';
   const titleEl = document.getElementById('aTopTitle');
-  const allTitles = { ...ATITLES, exports: 'Data export', verify: 'Student verification', health: 'Platform health', appeals: 'Appeals' };
+  const allTitles = { ...ATITLES, exports: 'Data export', health: 'Platform health', appeals: 'Appeals' };
   if (titleEl) titleEl.textContent = allTitles[s] || s;
 }
 
@@ -3290,57 +3290,9 @@ async function expFull() {
   toast('✓ Full backup downloaded');
 }
 
-// ============================================================
-// STUDENT VERIFICATION
-// ============================================================
-const PENDING_VERIFY = []; // starts empty — Supabase auth handles .edu gating automatically
-
-function renderVerify() {
-  const list = document.getElementById('verifyList');
-  const count = document.getElementById('verPendingCount');
-  const badge = document.getElementById('verBadge');
-  count.textContent = `${PENDING_VERIFY.length} pending`;
-  badge.textContent = PENDING_VERIFY.length;
-  badge.style.display = PENDING_VERIFY.length ? 'inline' : 'none';
-
-  if (!PENDING_VERIFY.length) {
-    list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-faint);font-size:13px">&#9989; No accounts pending verification</div>';
-    return;
-  }
-  list.innerHTML = PENDING_VERIFY.map(v => `
-    <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:12px;">
-        <div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">${esc(v.name)}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${esc(v.email)} · ${esc(v.major)} · ${esc(v.year)} · Joined ${esc(v.joined)}</div>
-          <span style="font-size:11px;background:var(--warning-pale);color:var(--warning);padding:2px 8px;border-radius:4px;">&#9888; Flag: ${esc(v.flag)}</span>
-        </div>
-        <span class="pill pill-pending">Pending</span>
-      </div>
-      <div class="arow">
-        <button class="btn-sm-a btn-a-success" onclick="verApprove(${v.id})">&#10003; Verify & activate</button>
-        <button class="btn-sm-a btn-a-danger" onclick="verDeny(${v.id})">&#10005; Deny access</button>
-        <button class="btn-sm-a btn-a-neutral" onclick="toast('Email sent requesting clarification')">&#9993; Request info</button>
-      </div>
-    </div>`).join('');
-}
-
-function verApprove(id) {
-  const i = PENDING_VERIFY.findIndex(x => x.id === id); if (i === -1) return;
-  const v = PENDING_VERIFY[i];
-  DB.students.push({ id, name: v.name, email: v.email, major: v.major, year: v.year, listings: 0, joined: v.joined, status: 'active' });
-  PENDING_VERIFY.splice(i, 1);
-  DB.log.unshift({ type: 'verify', text: `Student verified: ${v.name} (${v.email})`, time: 'Just now', color: '#1a7a45' });
-  renderVerify(); updateAdminBadges(); toast('✓ Student verified and account activated');
-}
-
-function verDeny(id) {
-  const i = PENDING_VERIFY.findIndex(x => x.id === id); if (i === -1) return;
-  const v = PENDING_VERIFY[i];
-  DB.log.unshift({ type: 'verify', text: `Verification denied: ${v.name} (${v.email})`, time: 'Just now', color: '#c0392b' });
-  PENDING_VERIFY.splice(i, 1);
-  renderVerify(); toast('Verification denied');
-}
+// STUDENT VERIFICATION removed 2026-07-13 (PENDING_VERIFY / renderVerify / verApprove / verDeny).
+// The screen rendered from an array nothing ever wrote to, so it showed "0 pending" forever.
+// Supabase Auth gates .edu signups on its own — there was never anything for an admin to approve.
 
 // ============================================================
 // PLATFORM HEALTH
@@ -3858,7 +3810,6 @@ const _agoMap = {
   students: renderAStudents, messages: renderAMessages, reports: renderAReports,
   activity: renderAActivity, analytics: buildAnalytics,
   exports: () => { renderExports(); },
-  verify: renderVerify,
   health: renderHealth,
   appeals: renderAppeals,
 };
@@ -3872,7 +3823,7 @@ function ago(s, btn) {
   if (!sec) return;
   sec.classList.add('active');
   if (btn) { btn.classList.add('active'); _anaNavSource = null; }
-  const allTitles = { ...ATITLES, exports: 'Data export', verify: 'Student verification', health: 'Platform health', appeals: 'Appeals' };
+  const allTitles = { ...ATITLES, exports: 'Data export', health: 'Platform health', appeals: 'Appeals' };
   const titleEl = document.getElementById('aTopTitle');
   titleEl.textContent = allTitles[s] || s;
   const backBar = document.getElementById('ana-back-bar');

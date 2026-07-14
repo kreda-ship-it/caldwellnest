@@ -317,7 +317,6 @@
         <button class="a-nav-item" onclick="ago('analytics',this)" data-tooltip="Analytics"><span class="n-icon">&#128202;</span><span class="n-label">Analytics</span></button>
         <button class="a-nav-item" onclick="ago('activity',this)" data-tooltip="Activity log"><span class="n-icon">&#128200;</span><span class="n-label">Activity log</span></button>
         <button class="a-nav-item" onclick="ago('exports',this)" data-tooltip="Data export"><span class="n-icon">&#128229;</span><span class="n-label">Data export</span></button>
-        <button class="a-nav-item" onclick="ago('verify',this)" data-tooltip="Verification"><span class="n-icon">&#9989;</span><span class="n-label">Verification</span><span class="n-badge" id="verBadge">1</span></button>
         <button class="a-nav-item" onclick="ago('health',this)" data-tooltip="Platform health"><span class="n-icon">&#128268;</span><span class="n-label">Platform health</span></button>
         <button class="a-nav-item" onclick="ago('asettings',this)" data-tooltip="Settings"><span class="n-icon">&#9881;</span><span class="n-label">Settings</span></button>
       </div>
@@ -797,20 +796,10 @@
           </div>
         </div>
 
-        <!-- STUDENT VERIFICATION -->
-        <div class="a-section" id="asec-verify">
-          <div style="margin-bottom:14px;padding:11px 14px;background:var(--brand-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--brand);border:1px solid rgba(74,148,112,0.25);">
-            &#9989; Students with unusual .edu variants or flagged emails appear here for manual review before their accounts are fully activated.
-          </div>
-          <div class="tcard" style="margin-bottom:16px">
-            <div class="tcard-head"><div class="tcard-title">Pending verification</div><span class="pill pill-pending" style="font-size:12px;padding:4px 10px" id="verPendingCount">1 pending</span></div>
-            <div id="verifyList"></div>
-          </div>
-          <div class="tcard">
-            <div class="tcard-head"><div class="tcard-title">Recently verified</div></div>
-            <div style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">No verification history yet. Supabase Auth handles .edu gating automatically.</div>
-          </div>
-        </div>
+        <!-- STUDENT VERIFICATION section removed 2026-07-13: it rendered from an array that was
+             never populated, so it showed "0 pending" forever. Supabase Auth gates .edu signups
+             automatically — there is nothing for an admin to approve. -->
+
 
         <!-- PLATFORM HEALTH -->
         <div class="a-section" id="asec-health">

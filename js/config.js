@@ -31,14 +31,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 // ============================================================
 const AC=['#2d6148','#3B5BA5','#C0392B','#7D3C98','#D68910','#117A65','#A04000'];
 
+// students / convos / reports were removed 2026-07-13. They were empty leftovers from before this
+// data moved to Supabase, and nothing ever wrote to them — which is exactly how NestBot ended up
+// counting DB.reports and confidently answering "0 open reports" while reports sat waiting.
+// Every surface now queries Supabase directly. Don't reintroduce a cache without a writer.
 const DB = {
-  students:[], // populated from Supabase profiles — never seeded
   pending:[],  // populated from Supabase listings (status=pending) via loadListings()
   listings:[], // populated from Supabase listings (status!=pending) via loadListings()
   pendingBooks:[], // admin-only: book_listings (status=pending) via loadAdminBooks()
   adminBooks:[],   // admin-only: book_listings (status!=pending) via loadAdminBooks()
-  convos:[],   // legacy in-memory store — admin messages view queries Supabase directly
-  reports:[],  // legacy in-memory store — reports view queries Supabase directly
   log:[],      // in-session activity log; resets on refresh (no Supabase backend yet)
   settings:{requireApproval:true,eduOnly:true,emailAlerts:true,maintenance:false},
   content:{siteName:'CaldwellNest',tagWord:'Nest',h1:'One trusted hub',h2:'campus life.',sub:'Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.',cta:'Get started free',listTitle:'Campus listings',listSub:'Caldwell University students only',banner:'',bannerOn:false}

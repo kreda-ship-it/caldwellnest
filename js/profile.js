@@ -10,11 +10,22 @@ const RESERVED_USERNAMES = new Set(['admin','caldwellnest','nestbot','support','
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,19}$/;
 
 // SCHOOL PICKER ─────────────────────────────────────────────
-async function loadSchools() {
-  if (_schoolsList.length > 0) return;
+// Schools change rarely, so the list is cached — but not forever. It used to be cached for the
+// whole session ("if we have any, never ask again"), so a school added while a student had the
+// tab open stayed invisible until a full reload — and the distance/scope filter silently had no
+// coordinates for it. The cache now expires, so it self-heals within a few minutes.
+const SCHOOLS_TTL_MS = 5 * 60 * 1000;
+let _schoolsFetchedAt = 0;
+
+async function loadSchools({ force = false } = {}) {
+  const fresh = _schoolsList.length > 0 && (Date.now() - _schoolsFetchedAt) < SCHOOLS_TTL_MS;
+  if (fresh && !force) return;
   const { data, error } = await supabaseClient.from('schools').select('id, slug, name, lat, lng').order('name');
-  if (error) console.error('[loadSchools] failed:', error.message);
+  // A failed fetch must NOT wipe a good list — `data` is null on error, and the old code assigned
+  // `data || []`, blanking every school (and the distance filter with it) on one transient blip.
+  if (error) { console.error('[loadSchools] failed, keeping the cached list:', error.message); return; }
   _schoolsList = data || [];
+  _schoolsFetchedAt = Date.now();
 }
 
 async function openSchoolDropdown() {
