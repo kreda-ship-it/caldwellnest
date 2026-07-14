@@ -368,6 +368,7 @@ const ACTION_META = {
   listing_renewed:      { label: 'Listing renewed',         color: '#1a7a45' },
   listing_deadline_set: { label: 'Listing deadline changed', color: '#3B5BA5' },
   book_sold:            { label: 'Book marked sold',        color: '#888888' },
+  book_pending_sale:    { label: 'Book pending sale',        color: '#3B5BA5' },
   book_relisted:        { label: 'Book relisted',           color: '#1a7a45' },
   // Book moderation gets its OWN action types — never reuse approve_listing etc. for
   // books: book ids and listing ids are independent sequences, and the undo machinery
@@ -385,7 +386,7 @@ const ACTIVITY_FILTER_GROUPS = {
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
-  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_relisted'],
+  students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
 };
 
 const fmtActivityTime = d => {

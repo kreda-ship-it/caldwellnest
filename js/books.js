@@ -25,8 +25,15 @@ async function loadCourses() {
 }
 
 async function loadBooks() {
+  // Fetch BOTH active and pending_sale — same rule as marketplace listings. A book with a
+  // deal in progress stays in the feed with a "Pending sale" badge, because pending means
+  // people are interested: it tells other buyers to hurry or move on. isListingLive() is
+  // the single gate that decides visibility; this query must not second-guess it (fetching
+  // only 'active' here is what used to make pending-sale books silently vanish from the
+  // feed while still showing on the seller's profile).
   const { data, error } = await supabaseClient
-    .from('book_listings').select('*').eq('status', 'approved').eq('lifecycle_status', 'active')
+    .from('book_listings').select('*').eq('status', 'approved')
+    .in('lifecycle_status', ['active', 'pending_sale'])
     .order('created_at', { ascending: false });
   if (error) { console.error('[books]', error.message); return; }
   _books = data || [];
@@ -164,15 +171,36 @@ async function openBookDetail(id) {
   const p = _bookPosterMap[b.poster_id];
   const posterName = p ? (p.display_name || `${p.first_name} ${p.last_name}`) : 'Caldwell student';
   const own = getEffectiveUser()?.id === b.poster_id;
-  const isLive = b.status === 'approved' && (b.lifecycle_status || 'active') === 'active';
+  const ls = b.lifecycle_status || 'active';
+  // pending_sale counts as live/manageable — same as marketplace listings.
+  const isLive = b.status === 'approved' && (ls === 'active' || ls === 'pending_sale');
   const [sBg, sCol, sLabel] = listingLifecycleBadge({ status: b.status, lifecycle_status: b.lifecycle_status, expires_at: b.expires_at, rent: b.price, pinned: false });
-  const canRelist = own && b.status === 'approved' && b.lifecycle_status === 'sold';
+  const canRelist = own && b.status === 'approved' && ls === 'sold';
+
+  // Owner actions mirror the marketplace "manage this listing" panel exactly.
+  let ownerActions = '';
+  if (isLive && ls === 'pending_sale') {
+    ownerActions = `
+      <button class="btn-full btn-brand" onclick="markBookSold(${b.id})">Mark as sold</button>
+      <button class="btn-full" style="margin-top:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="bookLifecycleAction(${b.id},'active')">Back to active</button>`;
+  } else if (isLive) {
+    ownerActions = `
+      <button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="bookLifecycleAction(${b.id},'pending_sale')">Mark pending sale</button>
+      <button class="btn-full" style="margin-top:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`;
+  } else {
+    ownerActions = `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${esc(b.rejection_reason)}</div>` : ''}</div>`
+      + (canRelist ? `<button class="btn-full btn-brand" style="margin-top:10px" onclick="relistBook(${b.id})">Mark as active again</button>` : '');
+  }
+
   const actionBtn = own
-    ? (isLive
-        ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
-        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${esc(b.rejection_reason)}</div>` : ''}</div>`
-          + (canRelist ? `<button class="btn-full btn-brand" style="margin-top:10px" onclick="relistBook(${b.id})">Mark as active again</button>` : ''))
+    ? ownerActions
     : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
+
+  // Buyers must see a deal is already in progress BEFORE they message (same reason the
+  // browse card carries the badge) — someone else is in talks, so hurry or move on.
+  const buyerPendingNote = (!own && ls === 'pending_sale')
+    ? `<div style="text-align:center;margin-bottom:10px;font-size:12px;color:var(--text-muted)"><span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span> &nbsp;Another student is already in talks — you can still message the seller.</div>`
+    : '';
 
   document.getElementById('bookDetailContent').innerHTML = `
     ${hero}
@@ -188,6 +216,7 @@ async function openBookDetail(id) {
         ${p ? avatarHTML({ ...p, name: posterName }, 38) : ''}
         <div style="font-size:13px;"><div style="font-weight:600">${esc(posterName)}</div><div style="color:var(--text-muted)">Caldwell University</div></div>
       </div>
+      ${buyerPendingNote}
       ${actionBtn}
     </div>`;
   openModal('bookDetailModal');
@@ -212,14 +241,39 @@ async function bContact(bookId) {
 async function markBookSold(id) {
   if (!confirm('Mark this book as sold? It will disappear from the Books feed.')) return;
   const b = _books.find(x => x.id === id);
+  const prev = b?.lifecycle_status || 'active'; // may be 'pending_sale' now, not always 'active'
   const { error } = await supabaseClient.from('book_listings')
     .update({ lifecycle_status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
   if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
-  logEvent('book_sold', { targetType: 'book_listing', targetId: id, targetLabel: b?.title, before: { lifecycle_status: 'active' }, after: { lifecycle_status: 'sold' } });
+  logEvent('book_sold', { targetType: 'book_listing', targetId: id, targetLabel: b?.title, before: { lifecycle_status: prev }, after: { lifecycle_status: 'sold' } });
   closeModal('bookDetailModal');
   toast('Marked as sold — congrats!');
   await loadBooks();
   renderListings(); // books live in the main grid now
+  if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
+}
+
+// Book lifecycle changes (active ⇄ pending_sale). Deliberately NOT the marketplace
+// lifecycleAction() — that looks the id up in DB.listings, and book ids and listing ids
+// are independent sequences, so reusing it would act on a completely unrelated listing.
+// Same server-side RPC underneath (validates the transition + ownership), p_table routes it.
+const BOOK_LIFECYCLE_EVENTS = { pending_sale: 'book_pending_sale', active: 'book_relisted' };
+
+async function bookLifecycleAction(id, newStatus) {
+  const b = _books.find(x => x.id === id);
+  const prev = b?.lifecycle_status || 'active';
+  const { error } = await supabaseClient.rpc('change_listing_status', {
+    p_listing_id: id, p_new_status: newStatus, p_table: 'book_listings'
+  });
+  if (error) { toast('Could not update — please try again.'); console.error('[bookLifecycleAction]', error.message); return; }
+  logEvent(BOOK_LIFECYCLE_EVENTS[newStatus] || 'book_relisted', {
+    targetType: 'book_listing', targetId: id, targetLabel: b?.title,
+    before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus }
+  });
+  closeModal('bookDetailModal');
+  toast(newStatus === 'pending_sale' ? '✓ Marked pending sale' : '✓ Back to active');
+  await loadBooks();
+  renderListings();
   if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
 }
 

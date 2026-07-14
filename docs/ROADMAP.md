@@ -33,6 +33,27 @@ NESTREL POWERS CaldwellNest (and every future per-school instance).
 
 ---
 
+## STANDING CODE RULES (added 2026-07-13 — read before writing any code)
+
+**1. The escaping rule (this is how the XSS hole gets reopened).**
+Any new `${...}` inside an HTML template that holds text **a person typed** must be
+wrapped in `esc()` — listing titles, descriptions, locations, poster names, chat
+messages, bios, report details, appeal text, suspension reasons, book fields.
+Values the **code** controls must NOT be escaped — category labels, emoji constants,
+computed colors, status enums. Escaping those double-escapes them and visibly breaks
+the markup. `esc()` (for text) and `escAttr()` (for `src="…"` / `alt="…"` attributes)
+both live in `js/utils.js`.
+Regression test: serve the repo (`python3 -m http.server`) and open
+`tests/xss-test.html` — it prints PASS/FAIL. Re-run it after touching any card,
+chat bubble, or admin-table template.
+
+**2. One area per change.** Work in one `js/` feature file at a time. The split
+exists so a messages change can never break listings.
+
+**3. All CSS goes in `styles.css`.** Never add a `<style>` block to `index.html`.
+
+---
+
 ## ✅ ALREADY DONE
 
 ### Setup & foundation
