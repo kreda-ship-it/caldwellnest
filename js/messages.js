@@ -168,7 +168,7 @@ function quoteHtml(replyToId) {
   const eu = getEffectiveUser();
   const name = q ? (q.senderId === eu?.id ? 'You' : (sConvoActive?.name || '')) : '';
   const text = q ? q.content : 'Original message unavailable';
-  return `<div class="bubble-quote" onclick="scrollToMsg('${replyToId}')"><span class="bq-name">${name}</span><span class="bq-text">${text}</span></div>`;
+  return `<div class="bubble-quote" onclick="scrollToMsg('${replyToId}')"><span class="bq-name">${esc(name)}</span><span class="bq-text">${esc(text)}</span></div>`;
 }
 
 function startReply(id) {
@@ -180,7 +180,7 @@ function startReply(id) {
   const bar = document.createElement('div');
   bar.id = 'replyBar';
   bar.className = 'reply-bar';
-  bar.innerHTML = `<div class="reply-bar-body"><span class="bq-name">${sReplyTo.name}</span><span class="bq-text">${sReplyTo.content}</span></div><button class="reply-bar-x" onclick="cancelReply()" aria-label="Cancel reply">&times;</button>`;
+  bar.innerHTML = `<div class="reply-bar-body"><span class="bq-name">${esc(sReplyTo.name)}</span><span class="bq-text">${esc(sReplyTo.content)}</span></div><button class="reply-bar-x" onclick="cancelReply()" aria-label="Cancel reply">&times;</button>`;
   document.querySelector('.chat-input-area')?.before(bar);
   document.getElementById('msgInput')?.focus();
 }
@@ -275,8 +275,8 @@ async function renderConvos() {
     const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const unread = sUnread[m.conversation_key] || 0;
     return `<div class="convo-item ${isActive ? 'active-convo' : ''}" onclick="openConvo('${otherId}')">
-      <div class="convo-avatar" style="background:${p.color}">${p.initials}</div>
-      <div class="convo-info"><div class="convo-name">${p.display_name || (p.first_name + ' ' + p.last_name)}</div><div class="convo-preview${unread ? ' unread' : ''}">${m.content}</div></div>
+      <div class="convo-avatar" style="background:${escAttr(p.color)}">${esc(p.initials)}</div>
+      <div class="convo-info"><div class="convo-name">${esc(p.display_name || (p.first_name + ' ' + p.last_name))}</div><div class="convo-preview${unread ? ' unread' : ''}">${esc(m.content)}</div></div>
       <div class="convo-meta"><div class="convo-time">${time}</div>${unread ? `<div class="convo-badge">${unread}</div>` : ''}</div>
     </div>`;
   }).join('');
@@ -320,7 +320,7 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? '&#10003;&#10003;' : '&#10003;'}</span>` : '';
     const isCard = m.message_type === 'listing';
-    const body = isCard ? listingCardHtml(m.listing_id) : m.content;
+    const body = isCard ? listingCardHtml(m.listing_id) : esc(m.content); // listingCardHtml builds its own escaped HTML
     parts.push(`<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"><div class="bubble ${mine ? 'mine' : 'theirs'}${isCard ? ' bubble-listing' : ''}">${quoteHtml(m.reply_to)}${body}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`);
   }
   const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
@@ -329,8 +329,8 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     <div class="chat-header">
       <button class="m-back" onclick="closeConvo()" aria-label="Back to conversations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
-      <div class="convo-avatar" style="background:${info.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${info.initials}</div>
-      <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${info.name}</span></div></div>
+      <div class="convo-avatar" style="background:${escAttr(info.color)};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${esc(info.initials)}</div>
+      <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${esc(info.name)}</span></div></div>
     </div>
     <div class="chat-messages" id="chatMsgs">${bubbles}</div>
     <div class="chat-input-area">
@@ -373,7 +373,7 @@ async function sMsg() {
   appendDateDivider(msgs, new Date());
   const div = document.createElement('div'); div.className = 'msg-row mine';
   if (sent) div.dataset.mid = sent.id;
-  div.innerHTML = `<div class="bubble mine">${quote}${text}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
+  div.innerHTML = `<div class="bubble mine">${quote}${esc(text)}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();
@@ -405,7 +405,7 @@ function openListingPicker() {
       <div class="lp-chips">
         <button class="filter-chip active" id="lpChip-all" onclick="setLpScope('all')">All</button>
         <button class="filter-chip" id="lpChip-mine" onclick="setLpScope('mine')">My listings</button>
-        <button class="filter-chip" id="lpChip-theirs" onclick="setLpScope('theirs')">${sConvoActive.name}'s listings</button>
+        <button class="filter-chip" id="lpChip-theirs" onclick="setLpScope('theirs')">${esc(sConvoActive.name)}'s listings</button>
       </div>
       <div class="lp-results" id="lpResults"></div>
     </div>`;
@@ -454,14 +454,14 @@ function renderListingPicker() {
       // colored panel (browse-card style) so nothing is written twice.
       const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
       const tile = l.photo_urls?.[0]
-        ? `<img class="lp-gthumb" src="${l.photo_urls[0]}" alt="">`
-        : `<div class="lp-gthumb lp-gnoimg" style="background:${cat.bg};color:${cat.text}"><span class="lp-gtitle">${l.title}</span></div>`;
-      return `<div class="lp-gitem" onclick="sendListingMsg(${l.id})">${tile}${l.photo_urls?.[0] ? `<div class="lp-gname">${l.title}</div>` : ''}<div class="lp-item-price">${l.rent ? '$' + l.rent : 'Free'}</div></div>`;
+        ? `<img class="lp-gthumb" src="${escAttr(l.photo_urls[0])}" alt="">`
+        : `<div class="lp-gthumb lp-gnoimg" style="background:${cat.bg};color:${cat.text}"><span class="lp-gtitle">${esc(l.title)}</span></div>`;
+      return `<div class="lp-gitem" onclick="sendListingMsg(${l.id})">${tile}${l.photo_urls?.[0] ? `<div class="lp-gname">${esc(l.title)}</div>` : ''}<div class="lp-item-price">${l.rent ? '$' + l.rent : 'Free'}</div></div>`;
     }).join('')
     : list.map(l => `
       <div class="lp-item" onclick="sendListingMsg(${l.id})">
-        ${l.photo_urls?.[0] ? `<img class="lp-thumb" src="${l.photo_urls[0]}" alt="">` : lpCatTile(l, 'lp-thumb')}
-        <div><div class="lp-item-title">${l.title}</div><div class="lp-item-price">${l.rent ? '$' + l.rent : 'Free'}</div></div>
+        ${l.photo_urls?.[0] ? `<img class="lp-thumb" src="${escAttr(l.photo_urls[0])}" alt="">` : lpCatTile(l, 'lp-thumb')}
+        <div><div class="lp-item-title">${esc(l.title)}</div><div class="lp-item-price">${l.rent ? '$' + l.rent : 'Free'}</div></div>
       </div>`).join('');
 }
 
@@ -472,13 +472,13 @@ function renderListingPicker() {
 function listingCardHtml(listingId) {
   const l = DB.listings.find(x => String(x.id) === String(listingId) && x.status === 'approved');
   if (!l) return '<div class="msg-listing-card msg-listing-gone">Listing no longer available</div>';
-  const thumb = l.photo_urls?.[0] ? `<img class="mlc-thumb" src="${l.photo_urls[0]}" alt="">` : lpCatTile(l, 'mlc-thumb');
+  const thumb = l.photo_urls?.[0] ? `<img class="mlc-thumb" src="${escAttr(l.photo_urls[0])}" alt="">` : lpCatTile(l, 'mlc-thumb');
   let stateBadge = '';
   if (!isListingLive(l) || l.lifecycle_status === 'pending_sale') {
     const [bg, col, label] = listingLifecycleBadge(l);
     stateBadge = `<span class="pill" style="background:${bg};color:${col};font-size:10px;margin-left:6px">${label}</span>`;
   }
-  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">${thumb}<div><div class="mlc-title">${l.title}${stateBadge}</div><div class="mlc-price">${l.rent ? '$' + l.rent : 'Free'}</div></div></div>`;
+  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">${thumb}<div><div class="mlc-title">${esc(l.title)}${stateBadge}</div><div class="mlc-price">${l.rent ? '$' + l.rent : 'Free'}</div></div></div>`;
 }
 
 async function sendListingMsg(listingId) {
@@ -534,7 +534,7 @@ async function handleRealtimeMessage(payload) {
       const div = document.createElement('div'); div.className = 'msg-row';
       div.dataset.mid = msg.id;
       const isCard = msg.message_type === 'listing';
-      div.innerHTML = `<div class="bubble theirs${isCard ? ' bubble-listing' : ''}">${quoteHtml(msg.reply_to)}${isCard ? listingCardHtml(msg.listing_id) : msg.content}<span class="bubble-meta">${time}</span></div><button class="reply-hover" onclick="startReply('${msg.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
+      div.innerHTML = `<div class="bubble theirs${isCard ? ' bubble-listing' : ''}">${quoteHtml(msg.reply_to)}${isCard ? listingCardHtml(msg.listing_id) : esc(msg.content)}<span class="bubble-meta">${time}</span></div><button class="reply-hover" onclick="startReply('${msg.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
       msgs.appendChild(div);
       scrollChat();
     }
@@ -563,7 +563,7 @@ async function msgToastFor(msg) {
   const t = document.createElement('div');
   t.id = 'msgToast';
   t.className = 'msg-toast';
-  t.innerHTML = `<div class="msg-toast-name">${info?.name || 'New message'}</div><div class="msg-toast-preview">${msg.content}</div>`;
+  t.innerHTML = `<div class="msg-toast-name">${esc(info?.name || 'New message')}</div><div class="msg-toast-preview">${esc(msg.content)}</div>`;
   t.onclick = () => { t.remove(); showPage('messages'); openConvo(msg.sender_id); };
   document.body.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));

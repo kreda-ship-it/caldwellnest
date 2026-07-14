@@ -439,7 +439,7 @@ function buildCatFiltersHTML(cat) {
       <div style="margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Course</div>
         <div style="position:relative">
-          <input class="form-input" id="dfCourseInput" placeholder="e.g. NU 301..." autocomplete="off" value="${d.courseCode || ''}" style="margin-bottom:0">
+          <input class="form-input" id="dfCourseInput" placeholder="e.g. NU 301..." autocomplete="off" value="${escAttr(d.courseCode || '')}" style="margin-bottom:0">
           <div class="course-ac-list" id="dfCourseList" style="display:none"></div>
         </div>
       </div>
@@ -447,7 +447,7 @@ function buildCatFiltersHTML(cat) {
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Edition</div>
         <select class="form-select" onchange="setDeepEdition(this.value)" style="margin-bottom:0;max-width:200px">
           <option value="">All editions</option>
-          ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${e}</option>`).join('')}
+          ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}
         </select>
       </div>` : ''}`;
   }
@@ -518,7 +518,7 @@ function renderListings() {
     tags.push(`<span class="active-filter-tag">${label} <button onclick="clearListingCat()">&#215;</button></span>`);
   }
   if (_filters.keyword) {
-    tags.push(`<span class="active-filter-tag">&ldquo;${_filters.keyword}&rdquo; <button onclick="clearListingKeyword()">&#215;</button></span>`);
+    tags.push(`<span class="active-filter-tag">&ldquo;${esc(_filters.keyword)}&rdquo; <button onclick="clearListingKeyword()">&#215;</button></span>`);
   }
   if (_filters.minPrice !== null || _filters.maxPrice !== null) {
     const lo = _filters.minPrice !== null ? '$' + _filters.minPrice : 'Min';
@@ -584,8 +584,7 @@ function renderListings() {
   grid.innerHTML = sortListings(filtered).map(l => listingCardHTML(l, false)).join('');
 }
 
-// Escapes a string for safe use inside an HTML attribute (e.g. alt="").
-function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+// esc() and escAttr() live in js/utils.js so every file can use them.
 
 // Small Lucide-style line icons. stroke=currentColor so each inherits its context's color.
 function ico(name, size = 16) {
@@ -633,8 +632,8 @@ function schoolBadgeHTML(l) {
 function avatarHTML(p, size) {
   const fs = Math.round(size * 0.4);
   return p.avatar_url
-    ? `<img src="${p.avatar_url}" alt="${escAttr(p.name)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${p.color || '#888'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${p.initials || '?'}</div>`;
+    ? `<img src="${escAttr(p.avatar_url)}" alt="${escAttr(p.name)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${escAttr(p.color || '#888')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${esc(p.initials || '?')}</div>`;
 }
 
 // The small trust marker shown after a poster's name (Official only — every student is verified, so no tick on listings).
@@ -669,7 +668,7 @@ function posterHeaderHTML(l) {
   return `<div class="poster-head"${clickable ? ` onclick="event.stopPropagation();viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
     ${avatarHTML(p, 32)}
     <div style="min-width:0">
-      <div class="poster-head-name">${p.name}${trustBadgeHTML(p)}</div>
+      <div class="poster-head-name">${esc(p.name)}${trustBadgeHTML(p)}</div>
       ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
     </div>
     ${eu && eu.id !== l.poster_id && !p.official && !l.isBook ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
@@ -704,13 +703,13 @@ function listingCardHTML(l, isPinned) {
   // HERO: a natural-ratio photo, or (no photo) a colored typographic panel where the title IS the design.
   const hero = photoCount
     ? `<div class="lc-photo" style="background:${cat.bg}">
-         <img src="${l.photo_urls[0]}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
+         <img src="${escAttr(l.photo_urls[0])}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
          ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
          ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
        </div>`
     : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
          <div class="lc-noimg-cat">${catLabel}</div>
-         <div class="lc-noimg-title">${l.title}</div>
+         <div class="lc-noimg-title">${esc(l.title)}</div>
          ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
        </div>`;
 
@@ -720,9 +719,9 @@ function listingCardHTML(l, isPinned) {
     ${hero}
     <div class="lc-body">
       <div class="lc-meta">${photoCount ? `${catLabel} · ` : ''}${l.posted}</div>
-      ${photoCount ? `<div class="lc-title">${l.title}</div>` : ''}
-      ${l.location ? `<div class="lc-loc">${ico('pin', 13)} ${l.location}</div>` : ''}
-      ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${l.desc}</div>` : ''}
+      ${photoCount ? `<div class="lc-title">${esc(l.title)}</div>` : ''}
+      ${l.location ? `<div class="lc-loc">${ico('pin', 13)} ${esc(l.location)}</div>` : ''}
+      ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${esc(l.desc)}</div>` : ''}
       <div class="lc-foot">
         <div class="lc-price"${!photoCount ? ` style="color:${cat.text}"` : ''}>${priceLabel(l)}</div>
         ${messageBtn}
@@ -744,8 +743,8 @@ function detailPosterHTML(l) {
   return `<div class="detail-poster"${clickable ? ` onclick="viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
     ${avatarHTML(p, 46)}
     <div style="min-width:0">
-      <div class="detail-poster-name">${p.name}${trust}</div>
-      ${bits.length || school ? `<div class="detail-poster-sub">${bits.join(' · ')}${bits.length && school ? ' · ' : ''}${school}</div>` : ''}
+      <div class="detail-poster-name">${esc(p.name)}${trust}</div>
+      ${bits.length || school ? `<div class="detail-poster-sub">${esc(bits.join(' · '))}${bits.length && school ? ' · ' : ''}${school}</div>` : ''}
       ${since ? `<div class="detail-poster-since">${since}</div>` : ''}
     </div>
   </div>`;
@@ -758,24 +757,24 @@ function openDetail(id) {
     ? photoGalleryHtml(l.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'detailGalMain', alt: l.title })
     : `<div class="detail-noimg" style="background:${cat.bg};color:${cat.text}">
          <div class="detail-noimg-cat">${CATEGORY_LABELS[l.category] || 'Listing'}</div>
-         <div class="detail-noimg-title">${l.title}</div>
+         <div class="detail-noimg-title">${esc(l.title)}</div>
        </div>`;
   const messageBtn = !l.poster.official
-    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">Message ${l.poster.name}</button>` : '';
+    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">Message ${esc(l.poster.name)}</button>` : '';
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-top">${detailPosterHTML(l)}</div>
     ${hero}
     <div class="detail-body">
-      ${l.photo_urls?.length ? `<div class="detail-title">${l.title}</div>` : ''}
-      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:5px">${ico('pin', 14)} ${l.location}</div>` : ''}
+      ${l.photo_urls?.length ? `<div class="detail-title">${esc(l.title)}</div>` : ''}
+      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:5px">${ico('pin', 14)} ${esc(l.location)}</div>` : ''}
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <div class="detail-price">${priceLabel(l)}</div>
-        <span class="pill pill-active">${l.type}</span>
+        <span class="pill pill-active">${esc(l.type)}</span>
         ${l.pinned ? '<span class="pill pill-pinned">&#128204; Featured</span>' : ''}
         ${(() => { if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) { const [bg, col, label] = listingLifecycleBadge(l); return `<span class="pill" style="background:${bg};color:${col}">${label}</span>`; } return ''; })()}
       </div>
-      ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}</div>` : ''}
-      <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${l.desc}</div>
+      ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${esc(l.desc)}</div>
       ${messageBtn}
       ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
       ${ownerManagePanelHtml(l)}

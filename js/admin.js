@@ -240,7 +240,7 @@ async function buildMultiSchoolStats() {
         </tr></thead>
         <tbody>${schools.map(sc => `
           <tr>
-            <td style="font-weight:500">${sc.name}</td>
+            <td style="font-weight:500">${esc(sc.name)}</td>
             <td style="text-align:center"><span class="school-cell-link" onclick="goToStudentsFiltered('${sc.slug}')">${stuC[sc.slug]  || 0}</span></td>
             <td style="text-align:center"><span class="school-cell-link" onclick="goToListingsFiltered('${sc.slug}')">${listC[sc.slug] || 0}</span></td>
             <td style="text-align:center"><span class="school-cell-link" onclick="goToReportsFiltered('${sc.slug}')">${repC[sc.slug]  || 0}</span></td>
@@ -325,7 +325,7 @@ async function buildTypeChart() {
   }).join('');
 }
 
-function alItem(a) { return `<div class="al-item"><div class="al-dot" style="background:${a.color}"></div><div class="al-text">${a.text}</div><div class="al-time">${a.time}</div></div>`; }
+function alItem(a) { return `<div class="al-item"><div class="al-dot" style="background:${escAttr(a.color)}"></div><div class="al-text">${esc(a.text)}</div><div class="al-time">${esc(a.time)}</div></div>`; }
 
 // ── Activity log helpers ─────────────────────────────────────────────────────
 const ACTION_META = {
@@ -405,15 +405,15 @@ const UNDOABLE_ACTIONS = new Set(['reject_listing','remove_listing','pin_listing
 function activityItem(e) {
   const m = ACTION_META[e.action_type] || { label: e.action_type, color: '#888' };
   const suffix = e.target_label
-    ? ` <span style="color:var(--text-muted)">—</span> <em style="color:var(--text)">"${e.target_label}"</em>`
+    ? ` <span style="color:var(--text-muted)">—</span> <em style="color:var(--text)">"${esc(e.target_label)}"</em>`
     : '';
   const undone = e.undone_at ? ` <span style="font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;color:var(--text-faint);margin-left:4px">reversed</span>` : '';
   const undoBtn = (!e.undone_at && UNDOABLE_ACTIONS.has(e.action_type) && e.target_id)
     ? `<button onclick="event.stopPropagation();undoActivityEntry('${e.id}','${e.action_type}','${e.target_id}')" style="flex-shrink:0;align-self:center;font-size:11px;padding:2px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit" title="Undo this action">&#8617; Undo</button>`
     : '';
   return `<div class="al-item" onclick="openActivityDetail('${e.id}')" style="cursor:pointer" title="View detail">
-    <div class="al-dot" style="background:${m.color}"></div>
-    <div class="al-text">${m.label}${suffix}${undone}</div>
+    <div class="al-dot" style="background:${escAttr(m.color)}"></div>
+    <div class="al-text">${esc(m.label)}${suffix}${undone}</div>
     <div class="al-time" style="align-self:center">${fmtActivityTime(e.created_at)}</div>
     ${undoBtn}
   </div>`;
@@ -516,8 +516,9 @@ async function openActivityDetail(entryId) {
   const row = (label, val) => val
     ? `<div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px"><div style="width:80px;flex-shrink:0;color:var(--text-faint);font-weight:500">${label}</div><div style="flex:1;color:var(--text)">${val}</div></div>`
     : '';
+  // JSON.stringify does NOT escape HTML — before/after blobs carry listing titles, so esc() the result.
   const codeRow = (label, val) => val
-    ? row(label, `<span style="font-family:monospace;font-size:12px;background:var(--bg);padding:3px 7px;border-radius:4px;display:inline-block">${JSON.stringify(val)}</span>`)
+    ? row(label, `<span style="font-family:monospace;font-size:12px;background:var(--bg);padding:3px 7px;border-radius:4px;display:inline-block">${esc(JSON.stringify(val))}</span>`)
     : '';
 
   let targetVal = '';
@@ -527,7 +528,7 @@ async function openActivityDetail(entryId) {
       link = ` <span class="stu-link-a" style="font-size:12px" onclick="closeHDrawer();openListingDrawer(${+e.target_id})">view listing →</span>`;
     else if (e.target_type === 'student' && e.target_id)
       link = ` <span class="stu-link-a" style="font-size:12px" onclick="closeHDrawer();aOpenStudentHistory('${e.target_id}')">view profile →</span>`;
-    targetVal = `"${e.target_label}" <span style="color:var(--text-faint);font-size:11px">(${e.target_type || '—'})</span>${link}`;
+    targetVal = `"${esc(e.target_label)}" <span style="color:var(--text-faint);font-size:11px">(${esc(e.target_type || '—')})</span>${link}`;
   }
 
   const chainParts = [
@@ -542,14 +543,14 @@ async function openActivityDetail(entryId) {
   const schoolLabel = e.school ? e.school.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
 
   document.getElementById('hDrawerTitle').innerHTML =
-    `<span style="display:inline-block;background:${m.color}22;color:${m.color};border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600">${m.label}</span>${reversedBadge}`;
+    `<span style="display:inline-block;background:${m.color}22;color:${m.color};border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600">${esc(m.label)}</span>${reversedBadge}`;
   document.getElementById('hDrawerBody').innerHTML =
     `<div style="padding:0 2px">` +
-    row('Actor',  actorName) +
+    row('Actor',  esc(actorName)) +
     row('Time',   new Date(e.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})) +
-    (targetVal ? row('Target', targetVal) : '') +
-    (schoolLabel ? row('School', schoolLabel) : '') +
-    (e.reason ? row('Reason', e.reason) : '') +
+    (targetVal ? row('Target', targetVal) : '') +   // targetVal already escaped + carries link HTML
+    (schoolLabel ? row('School', esc(schoolLabel)) : '') +
+    (e.reason ? row('Reason', esc(e.reason)) : '') +
     codeRow('Before', e.before_state) +
     codeRow('After',  e.after_state) +
     (e.metadata ? codeRow('Meta', e.metadata) : '') +
@@ -649,18 +650,18 @@ function renderAApprovals() {
     src.map(l => `<div class="acard">
       ${l.photo_urls?.length ? `<div style="margin-bottom:10px">${photoGalleryHtml(l.photo_urls, { height: 180, radius: '6px', mainId: 'aq' + l.id })}</div>` : ''}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
-        <div><div class="acard-title">${l.title}</div><div class="acard-meta">${l.type} · $${l.rent}/mo · ${l.location} · ${l.submitted}</div></div>
+        <div><div class="acard-title">${esc(l.title)}</div><div class="acard-meta">${esc(l.type)} · $${l.rent}/mo · ${esc(l.location)} · ${l.submitted}</div></div>
         <span class="pill pill-pending">Pending</span>
       </div>
-      <div class="acard-desc">${l.desc}</div>
-      <div class="acard-tags">${l.tags.map(t => `<span class="atag">${t}</span>`).join('')}</div>
+      <div class="acard-desc">${esc(l.desc)}</div>
+      <div class="acard-tags">${l.tags.map(t => `<span class="atag">${esc(t)}</span>`).join('')}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="mav" style="background:${l.poster.color}">${l.poster.initials}</div>
+          <div class="mav" style="background:${escAttr(l.poster.color)}">${esc(l.poster.initials)}</div>
           <div>
-            <div style="font-size:13px;font-weight:500">${l.poster.fullName || l.poster.name}</div>
-            <div style="font-size:11px;color:var(--text-faint)">${l.poster.email}</div>
-            ${l.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;display:inline-block;margin-top:3px">${l.school.replace(/_/g,' ')}</span>` : ''}
+            <div style="font-size:13px;font-weight:500">${esc(l.poster.fullName || l.poster.name)}</div>
+            <div style="font-size:11px;color:var(--text-faint)">${esc(l.poster.email)}</div>
+            ${l.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;display:inline-block;margin-top:3px">${esc(l.school.replace(/_/g,' '))}</span>` : ''}
           </div>
         </div>
         <div class="arow">
@@ -727,16 +728,16 @@ function renderABookApprovals() {
       pending.map(b => `<div class="acard">
         ${b.photo_urls?.length ? `<div style="margin-bottom:10px">${photoGalleryHtml(b.photo_urls, { height: 180, radius: '6px', mainId: 'aqb' + b.id })}</div>` : ''}
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;">
-          <div><div class="acard-title">${b.title}</div><div class="acard-meta">${b.type}${b.author ? ' · ' + b.author : ''} · $${b.rent}${b.condition ? ' · ' + b.condition : ''}${b.isbn ? ' · ISBN ' + b.isbn : ''} · ${b.submitted}</div></div>
+          <div><div class="acard-title">${esc(b.title)}</div><div class="acard-meta">${esc(b.type)}${b.author ? ' · ' + esc(b.author) : ''} · $${b.rent}${b.condition ? ' · ' + esc(b.condition) : ''}${b.isbn ? ' · ISBN ' + esc(b.isbn) : ''} · ${b.submitted}</div></div>
           <span class="pill pill-pending">Pending</span>
         </div>
-        <div class="acard-desc">${b.desc}</div>
+        <div class="acard-desc">${esc(b.desc)}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div class="mav" style="background:${b.poster.color}">${b.poster.initials}</div>
+            <div class="mav" style="background:${escAttr(b.poster.color)}">${esc(b.poster.initials)}</div>
             <div>
-              <div style="font-size:13px;font-weight:500">${b.poster.fullName || b.poster.name}</div>
-              <div style="font-size:11px;color:var(--text-faint)">${b.poster.email}</div>
+              <div style="font-size:13px;font-weight:500">${esc(b.poster.fullName || b.poster.name)}</div>
+              <div style="font-size:11px;color:var(--text-faint)">${esc(b.poster.email)}</div>
             </div>
           </div>
           <div class="arow">
@@ -748,10 +749,10 @@ function renderABookApprovals() {
     : '<div style="text-align:center;padding:32px;color:var(--text-faint)"><div style="font-size:32px;margin-bottom:8px">&#9745;</div>No pending books</div>';
 
   const rowHtml = (b, actionBtn) => `<tr>
-    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.title}</td>
-    <td><span class="pill pill-active" style="font-size:10px">${b.type}</span></td>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title)}</td>
+    <td><span class="pill pill-active" style="font-size:10px">${esc(b.type)}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${b.rent}</td>
-    <td>${b.poster?.name || '—'}</td>
+    <td>${esc(b.poster?.name || '—')}</td>
     <td>${actionBtn}</td>
   </tr>`;
 
@@ -896,11 +897,11 @@ function renderAListings() {
 
   // Table rows
   document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr>
-    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? '&#128204; ' : ''}${l.title}</td>
-    <td><span class="pill pill-active" style="font-size:10px">${l.type}</span></td>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? '&#128204; ' : ''}${esc(l.title)}</td>
+    <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
-    <td><div style="font-size:13px">${l.poster?.name || l.poster || '—'}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${l.school.replace(/_/g,' ')}</div>` : ''}</td>
-    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : l.status}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">&#128221; ${l.rejection_reason}</div>`:''}</td>
+    <td><div style="font-size:13px">${esc(l.poster?.name || l.poster || '—')}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${esc(l.school.replace(/_/g,' '))}</div>` : ''}</td>
+    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">&#128221; ${esc(l.rejection_reason)}</div>`:''}</td>
     <td><div class="arow">
       <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">&#9998; Edit</button>
       ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : '&#128204; Pin'}</button>` : ''}
@@ -914,10 +915,10 @@ function renderAListings() {
   wrap.style.display = removed.length ? 'block' : 'none';
   document.getElementById('aRemovedCount').textContent = removed.length ? `${removed.length} listing${removed.length > 1 ? 's' : ''}` : '';
   document.getElementById('aRemovedTb').innerHTML = removed.map(l => `<tr>
-    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)">${l.title}</td>
-    <td><span class="pill pill-active" style="font-size:10px">${l.type}</span></td>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)">${esc(l.title)}</td>
+    <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--text-muted)">$${l.rent}</td>
-    <td>${l.poster?.name || l.poster || '—'}</td>
+    <td>${esc(l.poster?.name || l.poster || '—')}</td>
     <td style="font-size:12px;color:var(--text-muted)">${l.updated_at ? fmtDate(l.updated_at) : '—'}</td>
     <td style="display:flex;gap:6px;align-items:center;"><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button></td>
   </tr>`).join('');
@@ -1074,9 +1075,9 @@ async function renderAPinned() {
           return `<div style="background:var(--pin-pale);border:2px solid rgba(107,33,168,0.25);border-radius:var(--radius);padding:16px;position:relative;cursor:pointer;transition:box-shadow .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.boxShadow='0 2px 12px rgba(107,33,168,.15)'" onmouseout="this.style.boxShadow='none'">
             <div style="position:absolute;top:11px;right:11px;font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:2px 8px;border-radius:10px">&#128204; FEATURED</div>
             <div style="font-size:26px;margin-bottom:8px">${l.emoji || '🏠'}</div>
-            <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${l.title} ${notLiveTag(l)}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">${l.type} · $${l.rent}/mo</div>
-            <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">&#128205; ${l.location}</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${esc(l.title)} ${notLiveTag(l)}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">${esc(l.type)} · $${l.rent}/mo</div>
+            <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">&#128205; ${esc(l.location)}</div>
             ${since ? `<div style="font-size:11px;color:var(--pin);opacity:.75;margin-bottom:12px">${since}</div>` : ''}
             <div class="arow" onclick="event.stopPropagation()">
               <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">&#9998; Edit</button>
@@ -1092,8 +1093,8 @@ async function renderAPinned() {
           return `<div class="hist-row" style="align-items:center" onclick="openListingDrawer(${l.id})">
             <div style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${l.emoji || '🏠'}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${l.title} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span> ${notLiveTag(l)}</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${l.type} · $${l.rent}/mo · &#128205; ${l.location}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
+              <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(l.title)} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span> ${notLiveTag(l)}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(l.type)} · $${l.rent}/mo · &#128205; ${esc(l.location)}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
             </div>
             <div class="arow" onclick="event.stopPropagation()">
               <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">&#9998; Edit</button>
@@ -1112,8 +1113,8 @@ async function renderAPinned() {
         avail.map(l => `
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;transition:border-color .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
             <div style="flex:1;min-width:0">
-              <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.emoji || ''} ${l.title}</div>
-              <div style="font-size:11px;color:var(--text-faint)">$${l.rent}/mo · ${l.type}</div>
+              <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.emoji || ''} ${esc(l.title)}</div>
+              <div style="font-size:11px;color:var(--text-faint)">$${l.rent}/mo · ${esc(l.type)}</div>
             </div>
             <button class="btn-sm-a btn-a-pin" onclick="event.stopPropagation();aTogglePin(${l.id})">&#128204; Pin</button>
           </div>`).join('')
@@ -1214,21 +1215,21 @@ async function renderAStudents() {
 
   document.getElementById('aStuTb').innerHTML = students.length ? students.map(st => {
     const suspended = st.status === 'suspended';
-    const statusPill = `<span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${st.status || 'active'}</span>`;
+    const statusPill = `<span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${esc(st.status || 'active')}</span>`;
     const actionBtn = suspended
       ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${st.id}')">Reinstate</button>`
       : isProtectedAdmin(st.id) ? ''
       : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${st.id}')">Suspend</button>`;
-    const schoolBadge = st.school ? `<span style="font-size:11px;background:var(--brand-pale);color:var(--brand);padding:2px 8px;border-radius:20px;font-weight:500;text-transform:capitalize">${st.school}</span>` : '—';
+    const schoolBadge = st.school ? `<span style="font-size:11px;background:var(--brand-pale);color:var(--brand);padding:2px 8px;border-radius:20px;font-weight:500;text-transform:capitalize">${esc(st.school)}</span>` : '—';
     return `<tr>
-      <td style="font-weight:500"><span class="stu-link-a" onclick="aOpenStudentHistory('${st.id}')">${st.first_name} ${st.last_name}</span></td>
-      <td style="color:var(--text-muted)">${st.email || '—'}</td>
-      <td>${st.major || '—'}</td><td>${st.year || '—'}</td>
+      <td style="font-weight:500"><span class="stu-link-a" onclick="aOpenStudentHistory('${st.id}')">${esc(st.first_name)} ${esc(st.last_name)}</span></td>
+      <td style="color:var(--text-muted)">${esc(st.email || '—')}</td>
+      <td>${esc(st.major || '—')}</td><td>${esc(st.year || '—')}</td>
       <td>${schoolBadge}</td>
       <td style="text-align:center">${lCount[st.id] || 0}</td>
       <td style="color:var(--text-faint)">${st.created_at ? new Date(st.created_at).toLocaleDateString() : '—'}</td>
       <td>${statusPill}</td>
-      <td style="max-width:180px;color:${suspended ? 'var(--danger)' : 'var(--text-faint)'};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${suspended && st.suspension_reason ? st.suspension_reason : '—'}</td>
+      <td style="max-width:180px;color:${suspended ? 'var(--danger)' : 'var(--text-faint)'};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${suspended && st.suspension_reason ? esc(st.suspension_reason) : '—'}</td>
       <td><div class="arow">
         <button class="btn-sm-a btn-a-neutral" onclick="aViewStu('${st.id}')">View</button>
         ${actionBtn}
@@ -1385,11 +1386,11 @@ async function aViewStu(id) {
     : `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend('${s.id}')">Suspend</button>`;
   document.getElementById('aStuBody').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${initials}</div>
-      <div><div style="font-size:17px;font-weight:600">${s.first_name} ${s.last_name}</div><div style="font-size:12px;color:var(--text-muted)">${s.email || '—'}</div><span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}" style="margin-top:4px;display:inline-flex">${s.status || 'active'}</span></div>
+      <div style="width:48px;height:48px;border-radius:50%;background:${escAttr(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${esc(initials)}</div>
+      <div><div style="font-size:17px;font-weight:600">${esc(s.first_name)} ${esc(s.last_name)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(s.email || '—')}</div><span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}" style="margin-top:4px;display:inline-flex">${esc(s.status || 'active')}</span></div>
     </div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${s.major || '—'}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${s.year || '—'}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${esc(s.major || '—')}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${esc(s.year || '—')}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>0</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span></div>
     <div style="margin-top:14px;display:flex;gap:8px;">${actionBtn}</div>`;
@@ -1535,14 +1536,14 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
     <div class="hist-row" style="flex-direction:column;gap:8px" onclick="openReportDrawer('${r.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%">
         <div>
-          <div style="font-weight:500;font-size:14px">${REPORT_LABELS[r.category] || r.category}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Re: <strong>${r.listing?.title || r.listing_title_snapshot || 'Listing #' + r.listing_id}</strong></div>
+          <div style="font-weight:500;font-size:14px">${esc(REPORT_LABELS[r.category] || r.category)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Re: <strong>${esc(r.listing?.title || r.listing_title_snapshot || 'Listing #' + r.listing_id)}</strong></div>
           <div style="font-size:11px;color:var(--text-faint);margin-top:3px">${fmtDate(r.created_at)}</div>
         </div>
         ${rBadge(r)}
       </div>
-      ${r.details ? `<div style="font-size:12px;color:var(--text-muted);background:var(--bg);padding:8px 12px;border-radius:6px;line-height:1.5;width:100%">"${r.details}"</div>` : ''}
-      ${r.resolution_note ? `<div style="font-size:12px;color:var(--success);font-weight:500">✓ ${r.resolution_note}</div>` : ''}
+      ${r.details ? `<div style="font-size:12px;color:var(--text-muted);background:var(--bg);padding:8px 12px;border-radius:6px;line-height:1.5;width:100%">"${esc(r.details)}"</div>` : ''}
+      ${r.resolution_note ? `<div style="font-size:12px;color:var(--success);font-weight:500">✓ ${esc(r.resolution_note)}</div>` : ''}
     </div>`;
 
   // suspension history tab
@@ -1555,7 +1556,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
       <div class="susp-dot" style="background:${isSuspend ? 'var(--danger)' : 'var(--success)'}"></div>
       <div>
         <div style="font-size:14px;font-weight:600;color:${isSuspend ? 'var(--danger)' : 'var(--success)'}">${isSuspend ? 'Suspended' : 'Reinstated'}</div>
-        ${e.reason ? `<div style="font-size:13px;color:var(--text-muted);margin-top:3px">${e.reason}</div>` : ''}
+        ${e.reason ? `<div style="font-size:13px;color:var(--text-muted);margin-top:3px">${esc(e.reason)}</div>` : ''}
         ${triggerLine}
         <div style="font-size:12px;color:var(--text-faint);margin-top:3px">${fmtDate(e.created_at)}</div>
       </div>
@@ -1568,14 +1569,14 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
     <div class="tcard" style="margin-bottom:16px">
       <div style="padding:20px 24px;display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:54px;height:54px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;flex-shrink:0">${initials}</div>
+          <div style="width:54px;height:54px;border-radius:50%;background:${escAttr(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;flex-shrink:0">${esc(initials)}</div>
           <div>
-            <div style="font-size:20px;font-weight:600;line-height:1.2">${profile.display_name || (profile.first_name + ' ' + profile.last_name)}</div>
-            <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${profile.email || '—'}</div>
+            <div style="font-size:20px;font-weight:600;line-height:1.2">${esc(profile.display_name || (profile.first_name + ' ' + profile.last_name))}</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${esc(profile.email || '—')}</div>
             <div style="display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap">
-              <span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${profile.status || 'active'}</span>
-              <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:3px 10px;border-radius:20px;font-weight:500;text-transform:capitalize">${schoolLabel}</span>
-              ${profile.major ? `<span style="font-size:12px;color:var(--text-muted)">${profile.major} · ${profile.year || ''}</span>` : ''}
+              <span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${esc(profile.status || 'active')}</span>
+              <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:3px 10px;border-radius:20px;font-weight:500;text-transform:capitalize">${esc(schoolLabel)}</span>
+              ${profile.major ? `<span style="font-size:12px;color:var(--text-muted)">${esc(profile.major)} · ${esc(profile.year || '')}</span>` : ''}
               <span style="font-size:12px;color:var(--text-faint)">Joined ${joined}</span>
             </div>
           </div>
@@ -1624,7 +1625,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
             <span style="background:${color}22;color:${color};border-radius:20px;padding:3px 11px;font-size:12px;font-weight:600">${label}</span>
             <span style="font-size:12px;color:var(--text-faint)">${fmtDate(a.created_at)}</span>
           </div>
-          <div style="font-size:13px;color:var(--text-muted);line-height:1.5">${excerpt || '<em>No message text.</em>'}</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.5">${excerpt ? esc(excerpt) : '<em>No message text.</em>'}</div>
         </div>`;
       }).join('') : '<div class="hist-empty">No appeals filed.</div>'}</div>
     </div>`;
@@ -1674,8 +1675,8 @@ function buildListingsPaneHtml() {
     return toolbar + `<div class="hist-grid">${_histListings.map(l => `
       <div class="hist-card" onclick="openListingDrawer(${l.id})">
         <div style="font-size:30px;margin-bottom:10px">${l.emoji || '🏠'}</div>
-        <div style="font-weight:600;font-size:14px;line-height:1.3;margin-bottom:6px">${l.title}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${CATEGORY_LABELS[l.category] || l.category}</div>
+        <div style="font-weight:600;font-size:14px;line-height:1.3;margin-bottom:6px">${esc(l.title)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${esc(CATEGORY_LABELS[l.category] || l.category)}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:wrap">
           ${sPill(l.status)}
           <div style="font-size:11px;color:var(--text-faint)">${fmtDate(l.created_at)}</div>
@@ -1686,8 +1687,8 @@ function buildListingsPaneHtml() {
     <div class="hist-row" onclick="openListingDrawer(${l.id})">
       <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">${l.emoji || '🏠'}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:500;font-size:14px">${l.title}</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${CATEGORY_LABELS[l.category] || l.category} · ${fmtDate(l.created_at)}</div>
+        <div style="font-weight:500;font-size:14px">${esc(l.title)}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(CATEGORY_LABELS[l.category] || l.category)} · ${fmtDate(l.created_at)}</div>
       </div>
       ${sPill(l.status)}
       <span style="font-size:14px;color:var(--text-faint);flex-shrink:0">›</span>
@@ -1704,7 +1705,7 @@ function buildBooksHistoryPaneHtml() {
     <div class="hist-row" onclick="openBookHistoryDrawer(${b.id})">
       <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">&#128218;</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:500;font-size:14px">${b.title}</div>
+        <div style="font-weight:500;font-size:14px">${esc(b.title)}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${b.book_type === 'course' ? 'Textbook' : 'Book'} · ${fmtDate(b.created_at)}</div>
       </div>
       ${sPill(b.status)}
@@ -1720,20 +1721,20 @@ async function openBookHistoryDrawer(bookId) {
     const m = { approved:'pill-approved', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
     return `<span class="pill ${m[s] || 'pill-pending'}">${s}</span>`;
   };
-  document.getElementById('hDrawerTitle').innerHTML = `&#128218; ${b.title}`;
+  document.getElementById('hDrawerTitle').innerHTML = `&#128218; ${esc(b.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
     ${b.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(b.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerBookGalMain' })}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${sPill(b.status)}
-      <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${b.book_type === 'course' ? (b.course_code || 'Textbook') : (b.genre || 'Book')}</span>
-      ${b.lifecycle_status && b.lifecycle_status !== 'active' ? `<span class="pill pill-pending">${b.lifecycle_status}</span>` : ''}
+      <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${esc(b.book_type === 'course' ? (b.course_code || 'Textbook') : (b.genre || 'Book'))}</span>
+      ${b.lifecycle_status && b.lifecycle_status !== 'active' ? `<span class="pill pill-pending">${esc(b.lifecycle_status)}</span>` : ''}
     </div>
     <div style="font-size:24px;font-weight:700;color:var(--brand);margin-bottom:6px">${b.price ? '$' + b.price : 'Free'}</div>
-    ${b.author ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">by ${b.author}</div>` : ''}
-    ${b.isbn ? `<div style="font-size:12px;color:var(--text-faint);margin-bottom:4px">ISBN ${b.isbn}</div>` : ''}
-    ${b.condition ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Condition: ${b.condition}</div>` : ''}
-    ${b.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text)">${b.description}</div>` : ''}
-    ${b.rejection_reason ? `<div style="margin-top:14px;font-size:12px;color:var(--danger)">Rejected: ${b.rejection_reason}</div>` : ''}
+    ${b.author ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">by ${esc(b.author)}</div>` : ''}
+    ${b.isbn ? `<div style="font-size:12px;color:var(--text-faint);margin-bottom:4px">ISBN ${esc(b.isbn)}</div>` : ''}
+    ${b.condition ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Condition: ${esc(b.condition)}</div>` : ''}
+    ${b.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text)">${esc(b.description)}</div>` : ''}
+    ${b.rejection_reason ? `<div style="margin-top:14px;font-size:12px;color:var(--danger)">Rejected: ${esc(b.rejection_reason)}</div>` : ''}
   `;
 }
 
@@ -1771,9 +1772,9 @@ async function openListingDrawer(listingId) {
         return `<div class="susp-entry">
           <div class="susp-dot" style="background:${m.col}"></div>
           <div>
-            <div style="font-size:13px;font-weight:600;color:${m.col}">${m.label}
-              ${prevStatus ? `<span style="font-weight:400;color:var(--text-faint);font-size:11px"> ← ${prevStatus}</span>` : ''}</div>
-            ${e.reason ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.4">${e.reason}</div>` : ''}
+            <div style="font-size:13px;font-weight:600;color:${m.col}">${esc(m.label)}
+              ${prevStatus ? `<span style="font-weight:400;color:var(--text-faint);font-size:11px"> ← ${esc(prevStatus)}</span>` : ''}</div>
+            ${e.reason ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.4">${esc(e.reason)}</div>` : ''}
             <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${fmtDate(e.created_at)}</div>
           </div>
         </div>`;
@@ -1786,32 +1787,32 @@ async function openListingDrawer(listingId) {
         const cfg = r.status === 'open' ? ['#fde8e8','#c0392b','Open'] : r.status === 'dismissed' ? ['#f0f0f0','#888','Dismissed'] : ['#e8f5e9','#1a7a45','Actioned'];
         return `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${r.details ? 6 : 0}px">
-            <div style="font-size:13px;font-weight:500">${REPORT_LABELS[r.category] || r.category}</div>
+            <div style="font-size:13px;font-weight:500">${esc(REPORT_LABELS[r.category] || r.category)}</div>
             <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:${cfg[0]};color:${cfg[1]};white-space:nowrap;flex-shrink:0">${cfg[2]}</span>
           </div>
-          ${r.details ? `<div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:5px">"${r.details}"</div>` : ''}
+          ${r.details ? `<div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:5px">"${esc(r.details)}"</div>` : ''}
           <div style="font-size:11px;color:var(--text-faint)">${fmtDate(r.created_at)}</div>
         </div>`;
       }).join('')}
     </div>` : '';
-  document.getElementById('hDrawerTitle').innerHTML = `${l.emoji || '🏠'} ${l.title}`;
+  document.getElementById('hDrawerTitle').innerHTML = `${l.emoji || '🏠'} ${esc(l.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
     ${l.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerGalMain' })}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${sPill(l.status)}
-      <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${CATEGORY_LABELS[l.category] || l.category}</span>
+      <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${esc(CATEGORY_LABELS[l.category] || l.category)}</span>
     </div>
     ${l.price ? `<div style="font-size:24px;font-weight:700;color:var(--brand);margin-bottom:6px">$${l.price}<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>` : ''}
-    ${l.location ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">📍 ${l.location}</div>` : ''}
-    ${l.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">${l.description}</div>` : ''}
-    ${l.tags && l.tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${l.tags.map(t => `<span class="atag">${t}</span>`).join('')}</div>` : ''}
+    ${l.location ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">📍 ${esc(l.location)}</div>` : ''}
+    ${l.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">${esc(l.description)}</div>` : ''}
+    ${l.tags && l.tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${l.tags.map(t => `<span class="atag">${esc(t)}</span>`).join('')}</div>` : ''}
     <div style="border-top:1px solid var(--border);padding-top:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Posted by</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:38px;height:38px;border-radius:50%;background:${l.poster_color || '#3B5BA5'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${l.poster_initials || '?'}</div>
+        <div style="width:38px;height:38px;border-radius:50%;background:${escAttr(l.poster_color || '#3B5BA5')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${esc(l.poster_initials || '?')}</div>
         <div>
-          ${l.poster_id ? `<div class="stu-link-a" style="font-size:14px;font-weight:500" onclick="closeHDrawer();aOpenStudentHistory('${l.poster_id}')">${l.poster_name || 'Unknown'} <span style="font-size:11px;color:var(--text-faint)">→ view profile</span></div>` : `<div style="font-size:14px;font-weight:500">${l.poster_name || 'Unknown'}</div>`}
-          <div style="font-size:12px;color:var(--text-faint)">${l.poster_email || '—'}</div>
+          ${l.poster_id ? `<div class="stu-link-a" style="font-size:14px;font-weight:500" onclick="closeHDrawer();aOpenStudentHistory('${l.poster_id}')">${esc(l.poster_name || 'Unknown')} <span style="font-size:11px;color:var(--text-faint)">→ view profile</span></div>` : `<div style="font-size:14px;font-weight:500">${esc(l.poster_name || 'Unknown')}</div>`}
+          <div style="font-size:12px;color:var(--text-faint)">${esc(l.poster_email || '—')}</div>
         </div>
       </div>
       ${l.created_at ? `<div style="font-size:11px;color:var(--text-faint);margin-top:10px">Posted ${fmtDate(l.created_at)}</div>` : ''}
@@ -1833,15 +1834,15 @@ async function openReportDrawer(reportId) {
       <span style="font-size:12px;font-weight:600;padding:3px 11px;border-radius:20px;background:${cfg[0]};color:${cfg[1]}">${cfg[2]}</span>
       <span style="font-size:12px;color:var(--text-faint)">${fmtDate(r.created_at)}</span>
     </div>
-    ${r.details ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">"${r.details}"</div>` : ''}
-    ${r.resolution_note ? `<div style="font-size:13px;color:var(--success);font-weight:500;padding:10px 14px;background:#f0faf4;border-radius:var(--radius-sm);margin-bottom:16px">✓ ${r.resolution_note}</div>` : ''}
+    ${r.details ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">"${esc(r.details)}"</div>` : ''}
+    ${r.resolution_note ? `<div style="font-size:13px;color:var(--success);font-weight:500;padding:10px 14px;background:#f0faf4;border-radius:var(--radius-sm);margin-bottom:16px">✓ ${esc(r.resolution_note)}</div>` : ''}
     ${listing ? `<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Reported listing</div>
       <div class="hist-row" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;border-bottom:none;margin-bottom:0" onclick="openListingDrawer(${listing.id})">
         <div style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${listing.emoji || '🏠'}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:500">${listing.title}</div>
-          <div style="font-size:12px;color:var(--text-muted)">by ${listing.poster_name || '—'}</div>
+          <div style="font-size:14px;font-weight:500">${esc(listing.title)}</div>
+          <div style="font-size:12px;color:var(--text-muted)">by ${esc(listing.poster_name || '—')}</div>
         </div>
         <span style="font-size:14px;color:var(--text-faint)">›</span>
       </div>
@@ -1908,16 +1909,17 @@ async function renderAMessages() {
   };
   const getSchoolBadge = id => {
     const s = pMap[id]?.school;
-    return s ? `<span style="font-size:9px;background:var(--brand-pale);color:var(--brand);padding:1px 6px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:4px;vertical-align:middle">${s.replace(/_/g,' ')}</span>` : '';
+    return s ? `<span style="font-size:9px;background:var(--brand-pale);color:var(--brand);padding:1px 6px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:4px;vertical-align:middle">${esc(s.replace(/_/g,' '))}</span>` : '';
   };
 
   tbody.innerHTML = convos.map(c => {
-    const participants = `${getName(c.sender_id)}${getSchoolBadge(c.sender_id)} ↔ ${getName(c.receiver_id)}${getSchoolBadge(c.receiver_id)}`;
+    // getName/listing carry student-typed text — escape here; getSchoolBadge returns finished HTML.
+    const participants = `${esc(getName(c.sender_id))}${getSchoolBadge(c.sender_id)} ↔ ${esc(getName(c.receiver_id))}${getSchoolBadge(c.receiver_id)}`;
     const listing = c.listing_id ? (lMap[c.listing_id]?.title || `Listing #${c.listing_id}`) : '—';
     const count   = msgCount[c.conversation_key] || 1;
     return `<tr>
       <td style="font-weight:500">${participants}</td>
-      <td style="color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${listing}</td>
+      <td style="color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(listing)}</td>
       <td style="text-align:center">${count}</td>
       <td style="color:var(--text-faint)">${fmtDate(c.created_at)}</td>
       <td><span class="pill pill-active">active</span></td>
@@ -1999,20 +2001,20 @@ async function renderAReports() {
     const actionTaken  = r.status === 'actioned' ? (r.resolution_note || 'Action taken') : 'Dismissed — no action';
 
     const listingEl = listingExists
-      ? `<button onclick="event.stopPropagation();openListingDrawer(${r.listing_id})" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--brand);padding:0;text-align:left;font-family:'DM Sans',sans-serif;text-decoration:underline dotted">${listingEmoji} ${listingTitle}</button>`
-      : `<span style="font-size:13px;font-weight:500;color:var(--text-muted)">${listingEmoji} "${listingTitle}" <span style="font-size:11px;color:var(--text-faint);font-style:italic">(removed)</span></span>`;
+      ? `<button onclick="event.stopPropagation();openListingDrawer(${r.listing_id})" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--brand);padding:0;text-align:left;font-family:'DM Sans',sans-serif;text-decoration:underline dotted">${listingEmoji} ${esc(listingTitle)}</button>`
+      : `<span style="font-size:13px;font-weight:500;color:var(--text-muted)">${listingEmoji} "${esc(listingTitle)}" <span style="font-size:11px;color:var(--text-faint);font-style:italic">(removed)</span></span>`;
 
     const repEl = r.reporter_id
-      ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${r.reporter_id}')" style="font-size:12px">${reporterName}</span>`
-      : `<span style="font-size:12px;color:var(--text-muted)">${reporterName}</span>`;
+      ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${r.reporter_id}')" style="font-size:12px">${esc(reporterName)}</span>`
+      : `<span style="font-size:12px;color:var(--text-muted)">${esc(reporterName)}</span>`;
 
     const pstEl = posterId
-      ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${posterId}')" style="font-size:12px">${posterName}</span>`
-      : `<span style="font-size:12px;color:var(--text-muted)">${posterName}</span>`;
+      ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${posterId}')" style="font-size:12px">${esc(posterName)}</span>`
+      : `<span style="font-size:12px;color:var(--text-muted)">${esc(posterName)}</span>`;
 
     return `<div style="padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openReportDrawer('${r.id}')" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-        <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:var(--brand-pale);color:var(--brand)">${REPORT_LABELS[r.category]||r.category}</span>
+        <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:var(--brand-pale);color:var(--brand)">${esc(REPORT_LABELS[r.category]||r.category)}</span>
         <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:${statusBg};color:${statusColor}">${statusLabel}</span>
         <span style="flex:1"></span>
         <span style="font-size:11px;color:var(--text-faint)">${fmtActivityTime(r.created_at)}</span>
@@ -2022,7 +2024,7 @@ async function renderAReports() {
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:${r.details?'8px':'0'}">
         Filed by ${repEl} <span style="color:var(--text-faint);margin:0 5px">→</span> about ${pstEl}
       </div>
-      ${r.details ? `<div style="background:var(--bg);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;border-left:3px solid var(--border)">${r.details}</div>` : ''}
+      ${r.details ? `<div style="background:var(--bg);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;border-left:3px solid var(--border)">${esc(r.details)}</div>` : ''}
       ${isOpen
         ? `<div class="arow" onclick="event.stopPropagation()">
             <button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>
@@ -2031,7 +2033,7 @@ async function renderAReports() {
           </div>`
         : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px" onclick="event.stopPropagation()">
             <div>
-              <span style="font-size:12px;color:${statusColor};font-weight:500">&#10003; ${actionTaken}</span>
+              <span style="font-size:12px;color:${statusColor};font-weight:500">&#10003; ${esc(actionTaken)}</span>
               ${r.suspension&&r.suspension.length>0?`<span style="font-size:12px;color:var(--danger);margin-left:8px">&#8594; <span class="stu-link-a" onclick="aOpenStudentHistory('${r.suspension[0].profile_id}')">view suspended student</span></span>`:''}
               <span style="font-size:11px;color:var(--text-faint);margin-left:8px">· ${fmtDate(r.resolved_at)}</span>
             </div>
@@ -2062,13 +2064,13 @@ async function renderAReports() {
       const openCnt = g.reports.filter(r => r.status === 'open').length;
       const initial = (g.name[0]||'?').toUpperCase();
       const nameEl  = (field !== 'listing' && g.profileId)
-        ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${g.profileId}')" style="font-weight:600;font-size:14px">${g.name}</span>`
+        ? `<span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${g.profileId}')" style="font-weight:600;font-size:14px">${esc(g.name)}</span>`
         : (field === 'listing' && g.linkListId && g.reports[0]?.listing)
-        ? `<button onclick="event.stopPropagation();openListingDrawer(${g.linkListId})" style="background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--brand);padding:0;font-family:'DM Sans',sans-serif;text-decoration:underline dotted">${g.name}</button>`
-        : `<span style="font-weight:600;font-size:14px">${g.name}</span>`;
+        ? `<button onclick="event.stopPropagation();openListingDrawer(${g.linkListId})" style="background:none;border:none;cursor:pointer;font-size:14px;font-weight:600;color:var(--brand);padding:0;font-family:'DM Sans',sans-serif;text-decoration:underline dotted">${esc(g.name)}</button>`
+        : `<span style="font-weight:600;font-size:14px">${esc(g.name)}</span>`;
       return `<div class="tcard" style="margin-bottom:12px">
         <div style="padding:12px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none" onclick="_toggleRepGroup('${sk}')">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brand);flex-shrink:0">${initial}</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brand);flex-shrink:0">${esc(initial)}</div>
           <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             ${nameEl}
             <span style="font-size:12px;color:var(--text-muted)">${g.reports.length} report${g.reports.length===1?'':'s'}</span>
@@ -2238,16 +2240,16 @@ async function viewReportedListing(listingId) {
 
   body.innerHTML = `
     <div style="font-size:22px;text-align:center;margin-bottom:12px">${l.emoji || '🏠'}</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${l.title}</div>
-    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">&#128205; ${l.location || '—'}</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${esc(l.title)}</div>
+    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">&#128205; ${esc(l.location || '—')}</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <span class="pill pill-active">$${l.price || l.rent || '—'}/mo</span>
-      <span class="pill pill-active">${l.type || '—'}</span>
-      <span class="pill" style="background:var(--bg)">${l.status}</span>
+      <span class="pill pill-active">${esc(l.type || '—')}</span>
+      <span class="pill" style="background:var(--bg)">${esc(l.status)}</span>
     </div>
-    ${l.description ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px">${l.description}</div>` : ''}
+    ${l.description ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px">${esc(l.description)}</div>` : ''}
     <div style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text-faint)">
-      Posted by <strong>${l.poster_name || '—'}</strong> · ${fmtDate(l.created_at)}
+      Posted by <strong>${esc(l.poster_name || '—')}</strong> · ${fmtDate(l.created_at)}
     </div>`;
 }
 
@@ -2600,8 +2602,8 @@ async function renderBcastHistory() {
         ${statusBadge(b.status)}${typeBadge(b.type)}${landingChip(b)}
         <span style="margin-left:auto;font-size:11px;color:var(--text-faint)">${fmtDate(b.created_at)}</span>
       </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:3px">${b.subject}</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${b.body}</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:3px">${esc(b.subject)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${esc(b.body)}</div>
       ${schedLine}${expiryLine}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
         <span style="font-size:11px;color:var(--text-faint)">${b.audience || 'All students'}</span>
@@ -2960,7 +2962,7 @@ async function buildAnalytics() {
     const mmax = Math.max(...majors.map(x=>x.c));
     document.getElementById('aMajorChart').innerHTML = majors.map(m => `
       <div class="maj-row">
-        <div class="maj-label">${m.n}</div>
+        <div class="maj-label">${esc(m.n)}</div>
         <div class="maj-bar-outer"><div class="maj-bar-inner" style="width:${Math.round((m.c/mmax)*100)}%"></div></div>
         <div class="maj-count">${m.c}</div>
       </div>`).join('');
@@ -3010,13 +3012,13 @@ async function buildAnalytics() {
       const maxC = topPosters[0].count;
       topEl.innerHTML = topPosters.map((p, i) => {
         const initials = p.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?';
-        const schoolBadge = p.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;margin-left:6px;text-transform:capitalize">${p.school}</span>` : '';
+        const schoolBadge = p.school ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;margin-left:6px;text-transform:capitalize">${esc(p.school)}</span>` : '';
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
           <div style="width:22px;text-align:center;font-size:11px;font-weight:700;color:var(--text-faint);flex-shrink:0">${i+1}</div>
-          <div style="width:30px;height:30px;border-radius:50%;background:var(--brand-pale);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${initials}</div>
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--brand-pale);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${esc(initials)}</div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-              <span style="font-size:13px;font-weight:500;cursor:pointer;color:var(--brand)" onclick="aOpenStudentHistory('${p.id}')">${p.name}</span>${schoolBadge}
+              <span style="font-size:13px;font-weight:500;cursor:pointer;color:var(--brand)" onclick="aOpenStudentHistory('${p.id}')">${esc(p.name)}</span>${schoolBadge}
             </div>
             <div style="height:6px;background:var(--bg);border-radius:3px;margin-top:5px;overflow:hidden;">
               <div style="height:100%;width:${Math.round((p.count/maxC)*100)}%;background:var(--brand-light);border-radius:3px;"></div>
@@ -3280,9 +3282,9 @@ function renderVerify() {
     <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:12px;">
         <div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">${v.name}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${v.email} · ${v.major} · ${v.year} · Joined ${v.joined}</div>
-          <span style="font-size:11px;background:var(--warning-pale);color:var(--warning);padding:2px 8px;border-radius:4px;">&#9888; Flag: ${v.flag}</span>
+          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">${esc(v.name)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${esc(v.email)} · ${esc(v.major)} · ${esc(v.year)} · Joined ${esc(v.joined)}</div>
+          <span style="font-size:11px;background:var(--warning-pale);color:var(--warning);padding:2px 8px;border-radius:4px;">&#9888; Flag: ${esc(v.flag)}</span>
         </div>
         <span class="pill pill-pending">Pending</span>
       </div>
@@ -3585,7 +3587,7 @@ function _renderAppealGroup(g, startCollapsed) {
   const openCnt = g.appeals.filter(a => a.status === 'open').length;
   const lastDate= fmtActivityTime(g.appeals[0].created_at);
   const schoolBadge = school
-    ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:6px">${school}</span>`
+    ? `<span style="font-size:10px;background:var(--brand-pale);color:var(--brand);padding:1px 7px;border-radius:20px;font-weight:500;text-transform:capitalize;margin-left:6px">${esc(school)}</span>`
     : '';
   const statusHint = openCnt
     ? `<span style="color:var(--danger);font-weight:600">${openCnt} open</span>`
@@ -3597,10 +3599,10 @@ function _renderAppealGroup(g, startCollapsed) {
 
   return `<div style="border-bottom:1px solid var(--border)">
     <div style="padding:11px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none" onclick="_toggleAppealGroup('${sk}')">
-      <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brand);flex-shrink:0">${initial}</div>
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brand);flex-shrink:0">${esc(initial)}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-          <span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${g.profileId}')" style="font-weight:600;font-size:14px">${name}</span>
+          <span class="stu-link-a" onclick="event.stopPropagation();aOpenStudentHistory('${g.profileId}')" style="font-weight:600;font-size:14px">${esc(name)}</span>
           ${schoolBadge}
         </div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
@@ -3627,10 +3629,10 @@ function _appealCard(a) {
       <span style="font-size:11px;color:var(--text-faint)">${fmtActivityTime(a.created_at)}</span>
     </div>
     ${a.suspension ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--text-muted)">
-      <span style="font-weight:600;color:var(--text)">Suspension reason:</span> ${a.suspension.reason || '<em>No reason recorded</em>'}
+      <span style="font-weight:600;color:var(--text)">Suspension reason:</span> ${a.suspension.reason ? esc(a.suspension.reason) : '<em>No reason recorded</em>'}
       ${a.suspension.report_id ? ` &nbsp;·&nbsp; <span class="stu-link-a" onclick="openReportDrawer('${a.suspension.report_id}')">View triggering report ↗</span>` : ''}
     </div>` : ''}
-    <p style="color:var(--text-muted);font-size:13px;line-height:1.6;margin:0 0 12px">${a.message || '—'}</p>
+    <p style="color:var(--text-muted);font-size:13px;line-height:1.6;margin:0 0 12px">${esc(a.message || '—')}</p>
     ${isOpen
       ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
            <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">&#10003; Reinstate — grant appeal</button>
@@ -3802,7 +3804,7 @@ async function toggleAppealLog(id) {
   logEl.innerHTML = entries.map(e => `
     <div style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
       <div style="font-weight:600;color:var(--text)">${actionLabel(e.action)} → ${statusLabel(e.new_status)}</div>
-      ${e.note ? `<div style="color:var(--text-muted)">${e.note}</div>` : ''}
+      ${e.note ? `<div style="color:var(--text-muted)">${esc(e.note)}</div>` : ''}
       <div style="color:var(--text-faint)">${fmtDate(e.created_at)}</div>
     </div>`).join('');
 }

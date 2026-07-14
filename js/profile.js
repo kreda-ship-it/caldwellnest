@@ -31,7 +31,7 @@ function filterSchools(query) {
     dropdown.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--text-muted);">No schools found</div>`;
   } else {
     dropdown.innerHTML = matches.map(s =>
-      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${ico('school', 13)} ${s.name}</div>`
+      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${ico('school', 13)} ${esc(s.name)}</div>`
     ).join('');
   }
   dropdown.style.display = 'block';
@@ -165,7 +165,7 @@ async function checkEmailAvailability(raw) {
       statusEl.textContent = '';
       if (!_schoolsList.find(s => s.id === matched.id)) _schoolsList.push(matched);
       if (mismatchEl) {
-        mismatchEl.innerHTML = `That looks like a <strong>${matched.name}</strong> email. Did you mean to pick ${matched.name}? <a onclick="selectSchoolById('${matched.id}')" style="color:var(--brand);cursor:pointer;font-weight:600;">Switch &#8594;</a>`;
+        mismatchEl.innerHTML = `That looks like a <strong>${esc(matched.name)}</strong> email. Did you mean to pick ${esc(matched.name)}? <a onclick="selectSchoolById('${matched.id}')" style="color:var(--brand);cursor:pointer;font-weight:600;">Switch &#8594;</a>`;
         mismatchEl.style.display = 'block';
       }
       return;
@@ -229,17 +229,17 @@ async function viewStudentProfile(profileId) {
 
   body.innerHTML = `
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-      <div style="width:60px;height:60px;border-radius:50%;background:${p.color};background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:#fff;flex-shrink:0">${p.avatar_url ? `<img src="${p.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">` : p.initials}</div>
+      <div style="width:60px;height:60px;border-radius:50%;background:${escAttr(p.color)};background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:#fff;flex-shrink:0">${p.avatar_url ? `<img src="${escAttr(p.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">` : esc(p.initials)}</div>
       <div>
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2">${displayName}</div>
-        ${p.username ? `<div style="font-size:13px;color:var(--brand);font-weight:500;margin-top:2px">@${p.username}</div>` : ''}
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2">${esc(displayName)}</div>
+        ${p.username ? `<div style="font-size:13px;color:var(--brand);font-weight:500;margin-top:2px">@${esc(p.username)}</div>` : ''}
         <div class="edu-badge" style="margin-top:6px">&#10003; .edu verified</div>
       </div>
     </div>
-    ${p.bio ? `<div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:14px">${p.bio}</div>` : ''}
+    ${p.bio ? `<div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:14px">${esc(p.bio)}</div>` : ''}
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-      ${p.year ? `<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 10px;border-radius:20px;font-weight:500">${p.year}</span>` : ''}
-      ${p.pronouns ? `<span style="font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:20px">${p.pronouns}</span>` : ''}
+      ${p.year ? `<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 10px;border-radius:20px;font-weight:500">${esc(p.year)}</span>` : ''}
+      ${p.pronouns ? `<span style="font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:20px">${esc(p.pronouns)}</span>` : ''}
       ${joined ? `<span style="font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:20px">Joined ${joined}</span>` : ''}
     </div>
     ${listingsHtml}`;
@@ -364,7 +364,7 @@ function renderProfile() {
 
   const unEl = document.getElementById('profileUsername');
   if (u.username) {
-    unEl.innerHTML = `<span style="font-size:14px;color:var(--brand);font-weight:500">@${u.username}</span>`;
+    unEl.innerHTML = `<span style="font-size:14px;color:var(--brand);font-weight:500">@${esc(u.username)}</span>`;
   } else {
     unEl.innerHTML = `<a onclick="openEditProfile()" style="font-size:13px;color:var(--brand);cursor:pointer;font-weight:500">+ Pick a username</a>`;
   }
@@ -375,9 +375,9 @@ function renderProfile() {
 
   const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently';
   document.getElementById('profileInfo').innerHTML = [
-    `<div class="info-item"><label>Major</label><span>${u.major || 'Not set'}</span></div>`,
-    `<div class="info-item"><label>Year</label><span>${u.year || 'Not set'}</span></div>`,
-    u.pronouns ? `<div class="info-item"><label>Pronouns</label><span>${u.pronouns}</span></div>` : '',
+    `<div class="info-item"><label>Major</label><span>${esc(u.major || 'Not set')}</span></div>`,
+    `<div class="info-item"><label>Year</label><span>${esc(u.year || 'Not set')}</span></div>`,
+    u.pronouns ? `<div class="info-item"><label>Pronouns</label><span>${esc(u.pronouns)}</span></div>` : '',
     `<div class="info-item"><label>Joined</label><span>${joined}</span></div>`
   ].join('');
 

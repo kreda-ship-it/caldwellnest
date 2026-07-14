@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>XSS regression test</title>
+<body>
+<div id="out" style="font:14px/1.6 monospace;white-space:pre-wrap"></div>
+
+<!-- Stub Supabase so config.js can construct a client without a network. -->
+<script>
+  const _noop = () => _chain;
+  const _chain = new Proxy(function () {}, {
+    get: () => _chain,
+    apply: () => Promise.resolve({ data: [], error: null }),
+  });
+  window.supabase = { createClient: () => _chain };
+  window.XSS_FIRED = [];
+</script>
+
+<!-- The real app code, minus boot.js (which would start the app). -->
+<script src="../js/config.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/profile.js"></script>
+<script src="../js/listings.js"></script>
+<script src="../js/books.js"></script>
+<script src="../js/media.js"></script>
+<script src="../js/messages.js"></script>
+<script src="../js/admin.js"></script>
+
+<script>
+const log = [];
+const P = tag => `<img src=x onerror="window.XSS_FIRED.push('${tag}')">`;
+
+// A listing where every student-supplied field is a live XSS payload.
+const evil = {
+  id: 1, category: 'housing', type: P('type'), rent: 900,
+  title: P('title'), desc: P('desc'), location: P('location'),
+  tags: [P('tag')], details: {}, school: null, poster_id: 'u1',
+  status: 'approved', lifecycle_status: 'active', expires_at: null,
+  pinned: false, photo_urls: [], posted: 'Today', created_at: new Date().toISOString(),
+  poster: { name: P('poster'), fullName: P('posterFull'), initials: P('initials'),
+            color: '#fff" onload="window.XSS_FIRED.push(\'color\')', avatar_url: null,
+            verified: true, official: false, year: null, major: null, memberSince: null },
+};
+
+// Render the real components into a real DOM.
+sUser = { id: 'me', school: 'caldwell' };
+DB.listings = [evil];
+sConvoActive = { userId: 'u1', name: P('convoName') };
+sMsgCache = { m1: { content: P('quote'), senderId: 'u1' } };
+
+const html = [
+  listingCardHTML(evil, false),   // browse card
+  listingCardHtml(1),             // shared-listing card in a chat bubble
+  quoteHtml('m1'),                // reply quote
+  `<div>${esc(P('rawEsc'))}</div>`,
+].join('\n');
+
+const host = document.createElement('div');
+host.innerHTML = html;
+document.body.appendChild(host);
+
+// Images load async — give onerror a chance to fire, then report.
+setTimeout(() => {
+  const fired = window.XSS_FIRED;
+  const structureOk = html.includes('class="listing-card') && html.includes('class="lc-body"');
+  const escapedOk   = html.includes('&lt;img');
+  const rawPayload  = /onerror="window\.XSS_FIRED/.test(html);
+
+  log.push('payloads executed : ' + (fired.length ? 'YES → ' + fired.join(', ') : 'none'));
+  log.push('payload escaped   : ' + (escapedOk ? 'yes (&lt;img present)' : 'NO'));
+  log.push('raw payload in DOM: ' + (rawPayload ? 'YES (unescaped!)' : 'no'));
+  log.push('card structure ok  : ' + (structureOk ? 'yes (not over-escaped)' : 'NO — structure broken'));
+  log.push('');
+  log.push(fired.length === 0 && escapedOk && !rawPayload && structureOk
+    ? 'RESULT: PASS'
+    : 'RESULT: FAIL');
+  document.getElementById('out').textContent = log.join('\n');
+  console.log(log.join('\n'));
+}, 400);
+</script>

@@ -65,7 +65,7 @@ function attachCourseAC(input, list, opts) {
 
   function paint() {
     let html = items.map((c, i) =>
-      `<div class="course-ac-item${i === active ? ' ac-active' : ''}" data-i="${i}"><span class="course-ac-code">${c.code}</span><span class="course-ac-name">${c.name}</span></div>`
+      `<div class="course-ac-item${i === active ? ' ac-active' : ''}" data-i="${i}"><span class="course-ac-code">${esc(c.code)}</span><span class="course-ac-name">${esc(c.name)}</span></div>`
     ).join('');
     if (!items.length) html = `<div class="course-ac-none">No matching course — try the code, like NU 301</div>`;
     if (opts.allowNotListed) html += `<div class="course-ac-item course-ac-notlisted${active === items.length ? ' ac-active' : ''}" data-i="-2">My course isn&rsquo;t listed</div>`;
@@ -151,7 +151,7 @@ async function openBookDetail(id) {
   const course = b.course_code ? courseByCode(b.course_code) : null;
   const hero = b.photo_urls?.length
     ? photoGalleryHtml(b.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'bookGalMain', alt: b.title })
-    : `<div style="background:${col.bg};color:${col.text};padding:40px 28px;text-align:center;font-size:20px;font-weight:600;">${b.title}</div>`;
+    : `<div style="background:${col.bg};color:${col.text};padding:40px 28px;text-align:center;font-size:20px;font-weight:600;">${esc(b.title)}</div>`;
 
   const facts = [];
   if (b.book_type === 'course') facts.push(['Course', course ? `${course.code} – ${course.name}` : 'Not listed yet']);
@@ -170,23 +170,23 @@ async function openBookDetail(id) {
   const actionBtn = own
     ? (isLive
         ? `<button class="btn-full" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="markBookSold(${b.id})">Mark as sold</button>`
-        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${b.rejection_reason}</div>` : ''}</div>`
+        : `<div style="text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted)">Status: <span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span>${b.rejection_reason ? `<div style="margin-top:6px;font-size:12px;color:var(--danger)">${esc(b.rejection_reason)}</div>` : ''}</div>`
           + (canRelist ? `<button class="btn-full btn-brand" style="margin-top:10px" onclick="relistBook(${b.id})">Mark as active again</button>` : ''))
     : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
 
   document.getElementById('bookDetailContent').innerHTML = `
     ${hero}
     <div style="padding:20px 24px 24px;">
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${bookChipLabel(b)} · Posted ${new Date(b.created_at).toLocaleDateString()}</div>
-      <div style="font-size:19px;font-weight:700;margin-bottom:4px;">${b.title}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${esc(bookChipLabel(b))} · Posted ${new Date(b.created_at).toLocaleDateString()}</div>
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px;">${esc(b.title)}</div>
       <div style="font-size:20px;font-weight:700;color:var(--brand);margin-bottom:14px;">${b.price > 0 ? '$' + b.price : 'Free'}</div>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;margin-bottom:14px;">
-        ${facts.map(([k, v]) => `<div style="color:var(--text-muted)">${k}</div><div>${v}</div>`).join('')}
+        ${facts.map(([k, v]) => `<div style="color:var(--text-muted)">${esc(k)}</div><div>${esc(v)}</div>`).join('')}
       </div>
-      ${b.description ? `<div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:16px;">${b.description}</div>` : ''}
+      ${b.description ? `<div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:16px;">${esc(b.description)}</div>` : ''}
       <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);margin-bottom:16px;">
         ${p ? avatarHTML({ ...p, name: posterName }, 38) : ''}
-        <div style="font-size:13px;"><div style="font-weight:600">${posterName}</div><div style="color:var(--text-muted)">Caldwell University</div></div>
+        <div style="font-size:13px;"><div style="font-weight:600">${esc(posterName)}</div><div style="color:var(--text-muted)">Caldwell University</div></div>
       </div>
       ${actionBtn}
     </div>`;

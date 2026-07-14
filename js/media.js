@@ -60,10 +60,10 @@ function photoGalleryHtml(urls, opts = {}) {
   const sizeStyle = opts.natural
     ? `width:100%;height:auto;max-height:${opts.maxHeight || '60vh'};object-fit:cover;`
     : `width:100%;height:${opts.height || 220}px;object-fit:cover;`;
-  const main = `<img id="${mainId}" src="${urls[0]}" style="${sizeStyle}display:block;border-radius:${radius};" loading="lazy" alt="${alt}">`;
+  const main = `<img id="${mainId}" src="${escAttr(urls[0])}" style="${sizeStyle}display:block;border-radius:${radius};" loading="lazy" alt="${alt}">`;
   if (urls.length === 1) return main;
   const thumbs = `<div style="display:flex;gap:6px;padding:8px 12px;overflow-x:auto;">` +
-    urls.map((u, i) => `<img src="${u}" onclick="document.getElementById('${mainId}').src=this.src;[...this.parentNode.children].forEach(t=>t.style.borderColor='transparent');this.style.borderColor='var(--brand)'" style="width:54px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;border:2px solid ${i === 0 ? 'var(--brand)' : 'transparent'};" loading="lazy" alt="">`).join('') +
+    urls.map((u, i) => `<img src="${escAttr(u)}" onclick="document.getElementById('${mainId}').src=this.src;[...this.parentNode.children].forEach(t=>t.style.borderColor='transparent');this.style.borderColor='var(--brand)'" style="width:54px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;border:2px solid ${i === 0 ? 'var(--brand)' : 'transparent'};" loading="lazy" alt="">`).join('') +
     `</div>`;
   return main + thumbs;
 }
@@ -75,7 +75,7 @@ function paintAvatarEl(el, url, initials, color) {
   if (!el) return;
   if (url) {
     el.textContent = '';
-    el.style.backgroundImage = `url('${url}')`;
+    el.style.backgroundImage = `url('${String(url).replace(/['"()]/g, '')}')`; // quotes/parens would break out of the CSS url()
   } else {
     el.style.backgroundImage = '';
     el.style.background = color || el.style.background;
