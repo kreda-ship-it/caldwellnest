@@ -747,3 +747,30 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* Uppercase label above a group of controls in the student filter drawer.
    (was: the same inline string repeated 11 times in listings.js) */
 .df-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+
+
+/* ---- Patterns lifted out of index.html (L6 phase 2, 2026-07-13) ----
+   Every declaration below is exactly what the inline style it replaced said.
+   Proven by a computed-style diff of all 1,543 elements before vs after.
+
+   NOT moved here: the 28 inline `display:none` attributes. The JS resets
+   elements with `el.style.display = ''` to fall back to their default — if
+   display:none lived in a class, that reset would re-hide them instead of
+   showing them. Those inline styles are load-bearing. */
+
+.label-hint{font-weight:400;color:var(--text-faint);}
+.hiw-card-title{font-weight:600;font-size:15px;margin-bottom:6px;}
+.hiw-card-text{font-size:14px;color:var(--text-muted);line-height:1.6;}
+.exp-body{padding:16px;}
+.exp-desc{font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;}
+.exp-count{font-size:12px;color:var(--text-faint);margin-bottom:12px;}
+.exp-actions{display:flex;gap:8px;}
+.exp-btn{flex:1;padding:9px;}
+.bg-alt{background:var(--bg);}
+.bg-surface{background:var(--surface);}
+.check-label{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;}
+.modal-narrow{max-width:420px;}
+.table-scroll{overflow-x:auto;}
+.form-label-sm{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;}
+.link-brand{color:var(--brand);cursor:pointer;}
+.btn-nowrap{white-space:nowrap;}
