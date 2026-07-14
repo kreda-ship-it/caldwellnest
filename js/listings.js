@@ -475,7 +475,7 @@ function renderListings() {
 
   const catMatch = l => _filters.category === 'all' || l.category === _filters.category;
   const kwMatch  = l => !_filters.keyword ||
-    l.title.toLowerCase().includes(_filters.keyword) ||
+    (l.title || '').toLowerCase().includes(_filters.keyword) ||
     (l.desc || '').toLowerCase().includes(_filters.keyword) ||
     (l.author || '').toLowerCase().includes(_filters.keyword) ||
     (l.isbn || '').replace(/[- ]/g, '').includes(_filters.keyword.replace(/[- ]/g, ''));

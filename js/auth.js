@@ -46,10 +46,8 @@ async function doAdminLogin() {
 async function aLogout() {
   adminPreviewMode = false;
   // Realtime listeners must die with the session — otherwise post-logout events
-  // keep firing adminReload() as an anonymous client and clobber the caches.
-  _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
-  _adminRealtimeChannels = [];
-  clearTimeout(_adminReloadTimer);
+  // keep firing as an anonymous client and clobber the caches. (Defined in js/admin.js.)
+  stopAdminRealtimeListeners();
   await supabaseClient.auth.signOut();
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';

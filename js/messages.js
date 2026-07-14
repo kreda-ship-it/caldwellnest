@@ -443,7 +443,7 @@ function renderListingPicker() {
   const list = DB.listings
     .filter(l => l.status === 'approved')
     .filter(l => _lpScope === 'mine' ? l.poster_id === eu.id : _lpScope === 'theirs' ? l.poster_id === sConvoActive.userId : true)
-    .filter(l => !q || l.title.toLowerCase().includes(q))
+    .filter(l => !q || (l.title || '').toLowerCase().includes(q))
     .slice(0, 30);
   const results = document.getElementById('lpResults');
   results.classList.toggle('lp-grid', _lpView === 'grid');

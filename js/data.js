@@ -98,14 +98,19 @@ async function loadListings() {
     .from('listings')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) { console.error('[loadListings]', error.message); return; } // keep stale cache over nothing
-  if (data.length === 0) return;
+  // A FAILED query and an EMPTY table are different things and must be handled differently:
+  //  - failed  → keep whatever is cached; showing stale listings beats blanking the feed.
+  //  - empty   → fall through and assign []. Bailing out here (the old behavior) left the
+  //              previous listings on screen forever, so deleting the last listing, or an
+  //              empty database, still showed a populated feed.
+  if (error) { console.error('[loadListings]', error.message); return; }
+  const rows = data || [];
 
   // Live-join poster profiles so avatar + name + trust info are a single source of truth
   // (update your picture → next load every card reflects it). Official CaldwellNest posts
   // are detected by their marker email and SKIP the join, so the real admin behind the
   // official identity is never exposed.
-  const realPosterIds = [...new Set(data
+  const realPosterIds = [...new Set(rows
     .filter(r => r.poster_id && r.poster_email !== OFFICIAL_POSTER_EMAIL)
     .map(r => r.poster_id))];
   const profMap = {};
@@ -139,7 +144,7 @@ async function loadListings() {
     rejection_reason: row.rejection_reason || null,
     photo_urls: row.photo_urls || []
   });
-  const visible = data.filter(row => !suspendedIds.has(row.poster_id));
+  const visible = rows.filter(row => !suspendedIds.has(row.poster_id));
   DB.listings = visible.filter(row => row.status !== 'pending').map(mapRow);
   DB.pending = visible.filter(row => row.status === 'pending').map(mapRow);
   // removed listings stay in DB.listings with status:'removed' — hidden from students, visible to admin

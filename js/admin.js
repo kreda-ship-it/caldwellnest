@@ -98,21 +98,54 @@ async function initAdmin() {
 // so manual refresh and live updates run the exact same path. Events are '*'
 // (INSERT/UPDATE/DELETE) so cross-admin status changes propagate too.
 function startAdminRealtimeListeners() {
-  _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
-  _adminRealtimeChannels = [];
-  ['listings', 'book_listings', 'reports', 'appeals', 'profiles', 'messages'].forEach(tbl => {
+  stopAdminRealtimeListeners();
+  // Tables whose changes really do affect the whole dashboard: queues, counts, charts.
+  ['listings', 'book_listings', 'reports', 'appeals', 'profiles'].forEach(tbl => {
     _adminRealtimeChannels.push(
       supabaseClient.channel('adm-' + tbl)
         .on('postgres_changes', { event: '*', schema: 'public', table: tbl }, scheduleAdminReload)
         .subscribe()
     );
   });
+  // `messages` is deliberately NOT on the full-reload path. It fires on every chat message
+  // any two students send to each other — and a full reload means re-fetching every listing,
+  // every book, every poster profile, all the badge counts, the school stats, the charts and
+  // the open section. All so the admin can see one number tick up. Refresh just that number,
+  // and re-render the Messages table only when it is actually the section on screen.
+  _adminRealtimeChannels.push(
+    supabaseClient.channel('adm-messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, scheduleMessageCountRefresh)
+      .subscribe()
+  );
+}
+
+// Tears down every admin realtime channel + pending timer. Called on re-subscribe and on
+// logout — a channel that outlives the session keeps firing as an anonymous client.
+function stopAdminRealtimeListeners() {
+  _adminRealtimeChannels.forEach(ch => supabaseClient.removeChannel(ch));
+  _adminRealtimeChannels = [];
+  clearTimeout(_adminReloadTimer);
+  clearTimeout(_msgCountTimer);
 }
 
 let _adminReloadTimer = null;
 function scheduleAdminReload() {
   clearTimeout(_adminReloadTimer);
   _adminReloadTimer = setTimeout(() => adminReload({ reloadCache: true }), 350);
+}
+
+// The cheap path for `messages`: one HEAD count query, plus a re-render of the Messages
+// section only if the admin is looking at it. Debounced, so a burst of chat costs one query.
+let _msgCountTimer = null;
+function scheduleMessageCountRefresh() {
+  clearTimeout(_msgCountTimer);
+  _msgCountTimer = setTimeout(async () => {
+    const { count, error } = await supabaseClient.from('messages').select('id', { count: 'exact', head: true });
+    if (error) { console.warn('[messages count]', error.message); return; }
+    const el = document.getElementById('ds-m');
+    if (el) el.textContent = count ?? '—';
+    if (document.querySelector('.a-section.active')?.id === 'asec-messages') renderAMessages();
+  }, 400);
 }
 
 // Re-renders whichever admin section is currently open, from fresh data.
