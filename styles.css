@@ -724,3 +724,26 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .m-back{display:flex;align-items:center;}
   .reply-hover{display:none;} /* touch replies via bubble swipe, not hover */
 }
+
+/* ============================================================
+   SHARED PATTERNS lifted out of JS-generated HTML (L6, 2026-07-13)
+   These replace inline style="..." strings that were being repeated
+   at many call sites — and, worse, emitted by helper functions that
+   were defined three and four times over. Declarations here are
+   byte-for-byte what the inline styles said, so nothing shifts.
+   ============================================================ */
+
+/* Small uppercase label above a group of admin filter controls.
+   (was: secHead(), defined identically in 3 places) */
+.a-field-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+
+/* A wrapping row of filter chips. (was: chipRow(), defined in 3 places) */
+.a-chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* Status pill sized to sit inside a flex row without stretching it.
+   (was: an inline font-size/flex-shrink on 2 of the 4 sPill() copies) */
+.pill-compact{font-size:11px;flex-shrink:0;}
+
+/* Uppercase label above a group of controls in the student filter drawer.
+   (was: the same inline string repeated 11 times in listings.js) */
+.df-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}

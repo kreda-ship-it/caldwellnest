@@ -349,7 +349,7 @@ function buildCatFiltersHTML(cat) {
   if (cat === 'housing') {
     html = `
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Room type</div>
+        <div class="df-label">Room type</div>
         <div class="df-chips">
           ${chip('room_type','Private Room','Private')}
           ${chip('room_type','Shared Room','Shared')}
@@ -359,7 +359,7 @@ function buildCatFiltersHTML(cat) {
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Amenities</div>
+          <div class="df-label">Amenities</div>
           <div class="df-chips">
             ${chip('furnished','yes','Furnished')}
             ${chip('petOk','yes','Pets OK')}
@@ -369,7 +369,7 @@ function buildCatFiltersHTML(cat) {
   } else if (cat === 'clothing') {
     html = `
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-label">Condition</div>
         <div class="df-chips">
           ${chip('condition','New','New')}
           ${chip('condition','Like New','Like New')}
@@ -377,13 +377,13 @@ function buildCatFiltersHTML(cat) {
         </div>
       </div>
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Size</div>
+        <div class="df-label">Size</div>
         <div class="df-chips">
           ${chip('size','XS','XS')}${chip('size','S','S')}${chip('size','M','M')}${chip('size','L','L')}${chip('size','XL','XL')}${chip('size','XXL','XXL')}
         </div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Pickup / delivery</div>
+        <div class="df-label">Pickup / delivery</div>
         <div class="df-chips">
           ${chip('delivery','Pickup only','Pickup only')}
           ${chip('delivery','Delivery available','Delivery')}
@@ -393,7 +393,7 @@ function buildCatFiltersHTML(cat) {
   } else if (cat === 'technology') {
     html = `
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-label">Condition</div>
         <div class="df-chips">
           ${chip('condition','New','New')}
           ${chip('condition','Like New','Like New')}
@@ -404,7 +404,7 @@ function buildCatFiltersHTML(cat) {
   } else if (cat === 'donation') {
     html = `
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Condition</div>
+        <div class="df-label">Condition</div>
         <div class="df-chips">
           ${chip('condition','Good','Good')}
           ${chip('condition','Fair','Fair')}
@@ -416,7 +416,7 @@ function buildCatFiltersHTML(cat) {
     const toVal   = d.eventDateTo   || '';
     html = `
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Event date</div>
+        <div class="df-label">Event date</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">
             From <input type="date" class="form-input" style="width:auto;padding:6px 10px;font-size:13px" value="${fromVal}" oninput="setDeepDate('eventDateFrom',this.value)">
@@ -430,21 +430,21 @@ function buildCatFiltersHTML(cat) {
     const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
     html = `
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Book type</div>
+        <div class="df-label">Book type</div>
         <div class="df-chips">
           ${chip('bookType','course','Textbooks')}
           ${chip('bookType','other','Other books')}
         </div>
       </div>
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Course</div>
+        <div class="df-label">Course</div>
         <div style="position:relative">
           <input class="form-input" id="dfCourseInput" placeholder="e.g. NU 301..." autocomplete="off" value="${escAttr(d.courseCode || '')}" style="margin-bottom:0">
           <div class="course-ac-list" id="dfCourseList" style="display:none"></div>
         </div>
       </div>
       ${editions.length ? `<div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Edition</div>
+        <div class="df-label">Edition</div>
         <select class="form-select" onchange="setDeepEdition(this.value)" style="margin-bottom:0;max-width:200px">
           <option value="">All editions</option>
           ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}

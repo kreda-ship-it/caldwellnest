@@ -848,6 +848,28 @@ async function aRestoreBook(id) {
 // ADMIN ALL LISTINGS
 function allListings() { return [...DB.listings.filter(l => l.status !== 'removed'), ...DB.pending.map(p => ({ ...p, poster: p.poster, status: 'pending' }))]; }
 
+// ── Shared admin UI bits ────────────────────────────────────────────────────
+// These three were each copy-pasted several times over (secHead ×3, chipRow ×3, sPill ×4),
+// every copy carrying its own inline styles. One definition each now, styled by class in
+// styles.css — change the look in one place and every admin panel follows.
+
+// Small uppercase label above a group of filter controls.
+const aFieldLabel = t => `<div class="a-field-label">${t}</div>`;
+
+// A wrapping row of filter chips. `opts` items are either a plain string or {v, l}.
+const aChipRow = (opts, active, setter) => `<div class="a-chip-row">${
+  opts.map(o => {
+    const v = typeof o === 'string' ? o : o.v;
+    const l = typeof o === 'string' ? (v === 'all' ? 'All' : v) : o.l;
+    return `<button class="filter-chip${active === v ? ' active' : ''}" onclick="${setter}('${v}')">${l}</button>`;
+  }).join('')
+}</div>`;
+
+// Moderation-status pill. `compact` is the smaller, non-shrinking variant used inside flex rows.
+const A_PILL_CLASS = { approved:'pill-approved', pinned:'pill-pinned', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
+const aStatusPill = (status, compact = false) =>
+  `<span class="pill ${A_PILL_CLASS[status] || 'pill-pending'}${compact ? ' pill-compact' : ''}">${esc(status)}</span>`;
+
 function toggleFilterPanel(panelId, btnId) {
   const panel = document.getElementById(panelId);
   const btn   = document.getElementById(btnId);
@@ -1272,14 +1294,7 @@ function _stuResultCount(n, show) {
 function buildStuFilterPanel(filterEl, schoolSlugs) {
   if (!filterEl) return;
   const toLabel = s => s === 'all' ? 'All schools' : s.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
-  const secHead = t => `<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${t}</div>`;
-  const chipRow = (opts, active, setter) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${
-    opts.map(o => {
-      const v = typeof o === 'string' ? o : o.v;
-      const l = typeof o === 'string' ? (v==='all'?'All':v) : o.l;
-      return `<button class="filter-chip${active===v?' active':''}" onclick="${setter}('${v}')">${l}</button>`;
-    }).join('')
-  }</div>`;
+  const secHead = aFieldLabel, chipRow = aChipRow; // shared — see top of the admin UI helpers
   const div = `<div style="border-top:1px solid var(--border);margin:2px 0"></div>`;
 
   const statusOpts = [
@@ -1684,10 +1699,7 @@ function setHistListingView(v) {
 
 function buildListingsPaneHtml() {
   if (!_histListings.length) return '<div class="hist-empty">No listings posted yet.</div>';
-  const sPill = s => {
-    const m = { approved:'pill-approved', pinned:'pill-pinned', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
-    return `<span class="pill ${m[s] || 'pill-pending'}" style="font-size:11px;flex-shrink:0">${s}</span>`;
-  };
+  const sPill = s => aStatusPill(s, true); // compact — shared helper
   const toolbar = `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);gap:8px">
     <span style="font-size:12px;color:var(--text-muted)">${_histListings.length} listing${_histListings.length !== 1 ? 's' : ''}</span>
     <div class="view-toggle">
@@ -1721,10 +1733,7 @@ function buildListingsPaneHtml() {
 
 function buildBooksHistoryPaneHtml() {
   if (!_histBooks.length) return '<div class="hist-empty">No books posted yet.</div>';
-  const sPill = s => {
-    const m = { approved:'pill-approved', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
-    return `<span class="pill ${m[s] || 'pill-pending'}" style="font-size:11px;flex-shrink:0">${s}</span>`;
-  };
+  const sPill = s => aStatusPill(s, true); // compact — shared helper
   return _histBooks.map(b => `
     <div class="hist-row" onclick="openBookHistoryDrawer(${b.id})">
       <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">&#128218;</div>
@@ -1741,10 +1750,7 @@ async function openBookHistoryDrawer(bookId) {
   openHDrawer('Loading…', '<div style="padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px">Loading book…</div>');
   const { data: b } = await supabaseClient.from('book_listings').select('*').eq('id', bookId).single();
   if (!b) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this book.</div>'; return; }
-  const sPill = s => {
-    const m = { approved:'pill-approved', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
-    return `<span class="pill ${m[s] || 'pill-pending'}">${s}</span>`;
-  };
+  const sPill = s => aStatusPill(s);       // shared helper
   document.getElementById('hDrawerTitle').innerHTML = `&#128218; ${esc(b.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
     ${b.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(b.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerBookGalMain' })}</div>` : ''}
@@ -1770,10 +1776,7 @@ async function openListingDrawer(listingId) {
     supabaseClient.from('reports').select('*').eq('listing_id', listingId).order('created_at', { ascending: false })
   ]);
   if (!l) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this listing.</div>'; return; }
-  const sPill = s => {
-    const m = { approved:'pill-approved', pinned:'pill-pinned', pending:'pill-pending', rejected:'pill-rejected', removed:'pill-rejected' };
-    return `<span class="pill ${m[s] || 'pill-pending'}">${s}</span>`;
-  };
+  const sPill = s => aStatusPill(s);       // shared helper
   const statusColors = { approved:'var(--success)', pinned:'#7c3aed', pending:'var(--text-muted)', rejected:'var(--danger)', removed:'var(--danger)' };
   const statusLabel = { approved:'Approved', pinned:'Pinned', pending:'Pending review', rejected:'Rejected', removed:'Removed' };
   const LISTING_EVENT_META = {
@@ -2134,8 +2137,7 @@ async function renderAReports() {
 function buildRepFilterPanel(schoolSlugs) {
   const filterEl = document.getElementById('aReportFilterPanel');
   if (!filterEl) return;
-  const secHead = t => `<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${t}</div>`;
-  const chipRow = (opts, active, setter) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${opts.map(o=>`<button class="filter-chip${active===o.v?' active':''}" onclick="${setter}('${o.v}')">${o.l}</button>`).join('')}</div>`;
+  const secHead = aFieldLabel, chipRow = aChipRow; // shared — see top of the admin UI helpers
   const div = `<div style="border-top:1px solid var(--border);margin:2px 0"></div>`;
   const toLabel = s => s==='all'?'All schools':s.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 
@@ -3650,8 +3652,7 @@ function _appealCard(a) {
 function _buildAppealFilterPanel() {
   const el = document.getElementById('appealFilterPanel');
   if (!el) return;
-  const secHead = t => `<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${t}</div>`;
-  const chipRow = (opts, active, setter) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${opts.map(o=>`<button class="filter-chip${active===o.v?' active':''}" onclick="${setter}('${o.v}')">${o.l}</button>`).join('')}</div>`;
+  const secHead = aFieldLabel, chipRow = aChipRow; // shared — see top of the admin UI helpers
   const statusOpts = [{v:'all',l:'All'},{v:'open',l:'Open'},{v:'reinstated',l:'Reinstated &#10003;'},{v:'upheld',l:'Upheld'}];
   el.innerHTML = `<div>${secHead('Status')}${chipRow(statusOpts, _appealStatusFilter, '_setAppealStatus')}</div>`;
   if (aAdminSchool) {
