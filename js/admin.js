@@ -652,7 +652,7 @@ function renderAApprovals() {
         panelRows.push(`<div style="display:flex;gap:6px;flex-wrap:wrap">${slugs.map(s=>`<button class="filter-chip${_approvalSchoolFilter===s?' active':''}" onclick="_approvalSchoolFilter='${s}';renderAApprovals()">${slabel(s)}</button>`).join('')}</div>`);
       }
     } else {
-      panelRows.push(`<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span>`);
+      panelRows.push(`<span class="school-chip">&#128274; ${aAdminSchool} only</span>`);
     }
 
     filterPanel.innerHTML = panelRows.join('');
@@ -685,7 +685,7 @@ function renderAApprovals() {
           <div>
             <div style="font-size:13px;font-weight:500">${esc(l.poster.fullName || l.poster.name)}</div>
             <div style="font-size:11px;color:var(--text-faint)">${esc(l.poster.email)}</div>
-            ${l.school ? `<span class="school-chip school-chip-s" style="display:inline-block;margin-top:3px">${esc(l.school.replace(/_/g,' '))}</span>` : ''}
+            ${l.school ? `<span class="school-chip" style="display:inline-block;margin-top:3px">${esc(l.school.replace(/_/g,' '))}</span>` : ''}
           </div>
         </div>
         <div class="arow">
@@ -1266,7 +1266,7 @@ async function renderAStudents() {
       ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${st.id}')">Reinstate</button>`
       : isProtectedAdmin(st.id) ? ''
       : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${st.id}')">Suspend</button>`;
-    const schoolBadge = st.school ? `<span class="school-chip school-chip-m">${esc(st.school)}</span>` : '—';
+    const schoolBadge = st.school ? `<span class="school-chip">${esc(st.school)}</span>` : '—';
     return `<tr>
       <td style="font-weight:500"><span class="stu-link-a" onclick="aOpenStudentHistory('${st.id}')">${esc(st.first_name)} ${esc(st.last_name)}</span></td>
       <td style="color:var(--text-muted)">${esc(st.email || '—')}</td>
@@ -1319,7 +1319,7 @@ function buildStuFilterPanel(filterEl, schoolSlugs) {
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `<div>${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `<div>${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _stuSchoolFilter, '_setStuSchool')}</div>`;
   }
@@ -1936,7 +1936,7 @@ async function renderAMessages() {
   };
   const getSchoolBadge = id => {
     const s = pMap[id]?.school;
-    return s ? `<span class="school-chip school-chip-xs" style="margin-left:4px;vertical-align:middle">${esc(s.replace(/_/g,' '))}</span>` : '';
+    return s ? `<span class="school-chip" style="margin-left:4px;vertical-align:middle">${esc(s.replace(/_/g,' '))}</span>` : '';
   };
 
   tbody.innerHTML = convos.map(c => {
@@ -2150,7 +2150,7 @@ function buildRepFilterPanel(schoolSlugs) {
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `${div}<div>${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `${div}<div>${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `${div}<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _reportSchoolFilter, '_setRepSchool')}</div>`;
   }
@@ -3570,7 +3570,7 @@ function _renderAppealGroup(g, startCollapsed) {
   const openCnt = g.appeals.filter(a => a.status === 'open').length;
   const lastDate= fmtActivityTime(g.appeals[0].created_at);
   const schoolBadge = school
-    ? `<span class="school-chip school-chip-s" style="margin-left:6px">${esc(school)}</span>`
+    ? `<span class="school-chip" style="margin-left:6px">${esc(school)}</span>`
     : '';
   const statusHint = openCnt
     ? `<span style="color:var(--danger);font-weight:600">${openCnt} open</span>`
@@ -3656,7 +3656,7 @@ function _buildAppealFilterPanel() {
   const statusOpts = [{v:'all',l:'All'},{v:'open',l:'Open'},{v:'reinstated',l:'Reinstated &#10003;'},{v:'upheld',l:'Upheld'}];
   el.innerHTML = `<div>${secHead('Status')}${chipRow(statusOpts, _appealStatusFilter, '_setAppealStatus')}</div>`;
   if (aAdminSchool) {
-    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span class="school-chip school-chip-l">&#128274; ${aAdminSchool} only</span></div>`;
+    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
   }
 }
 

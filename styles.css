@@ -11,6 +11,31 @@
   --warning:#d4860a; --warning-pale:#fff8e6;
   --success:#1a7a45; --success-pale:#e8f6ee;
   --pin:#6b21a8; --pin-pale:#f3e8ff;
+
+  /* ---- CATEGORY PALETTE — THE SINGLE SOURCE OF TRUTH ----------------------
+     Change a category colour HERE and nowhere else. Both sides read these:
+       • CSS  — the .cat-* classes below (the post-category picker buttons)
+       • JS   — CATEGORY_COLORS in js/config.js holds var(--cat-…) strings, which
+                it injects straight into listing-card style attributes.
+     They used to be two hardcoded copies of the same hexes, and they had already
+     drifted: the Books picker button was painted with the TECHNOLOGY blue.
+
+     Soft, tonal backgrounds with a deep same-hue text, all in one lightness band
+     so the set reads as one family rather than a rainbow. */
+  --cat-housing-bg:#E7F0EA;            --cat-housing-text:#1F4435;             /* sage          */
+  --cat-clothing-bg:#F6E9EC;           --cat-clothing-text:#7A3B4A;            /* dusty rose    */
+  --cat-technology-bg:#E8EEF5;         --cat-technology-text:#2C476A;          /* slate blue    */
+  --cat-donation-bg:#F7EFE1;           --cat-donation-text:#6B5128;            /* warm sand     */
+  --cat-organization_event-bg:#EFEAF6; --cat-organization_event-text:#473A6B;  /* muted lavender*/
+  --cat-books-bg:#EEF1E2;              --cat-books-text:#4F5C28;               /* moss/olive    */
+  --cat-other-bg:#EEEEEA;              --cat-other-text:#45453E;               /* warm greige   */
+
+  /* Book-TYPE colours (textbook vs other book). Same deal: js/books.js BOOK_COLORS and the
+     .btype-* classes both read these, so there is one place to change them. They deliberately
+     have their own variables rather than borrowing --cat-technology-*/--cat-donation-*, so
+     recolouring a category can never silently recolour the book-type buttons. */
+  --btype-course-bg:#E8EEF5;           --btype-course-text:#2C476A;            /* slate blue    */
+  --btype-other-bg:#F7EFE1;            --btype-other-text:#6B5128;             /* warm sand     */
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;}
@@ -777,34 +802,29 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .link-brand{color:var(--brand);cursor:pointer;}
 .btn-nowrap{white-space:nowrap;}
 
-/* Category colours — MUST stay in sync with CATEGORY_COLORS in js/config.js.
-   (Today they are duplicated: JS paints listing cards from the object, CSS paints the
-   post-category picker from these classes. Single-sourcing them is a follow-up.) */
-.cat-housing{background:#E7F0EA;color:#1F4435;}
-.cat-clothing{background:#F6E9EC;color:#7A3B4A;}
-.cat-technology{background:#E8EEF5;color:#2C476A;}
-.cat-donation{background:#F7EFE1;color:#6B5128;}
-.cat-organization_event{background:#EFEAF6;color:#473A6B;}
-.cat-books{background:#E6EFEF;color:#2F5D5A;}
-.cat-other{background:#EEEEEA;color:#45453E;}
+/* Category colours. These read the --cat-* variables in :root, which are the single
+   source of truth — js/config.js reads the same variables. Nothing is hardcoded twice. */
+.cat-housing{background:var(--cat-housing-bg);color:var(--cat-housing-text);}
+.cat-clothing{background:var(--cat-clothing-bg);color:var(--cat-clothing-text);}
+.cat-technology{background:var(--cat-technology-bg);color:var(--cat-technology-text);}
+.cat-donation{background:var(--cat-donation-bg);color:var(--cat-donation-text);}
+.cat-organization_event{background:var(--cat-organization_event-bg);color:var(--cat-organization_event-text);}
+.cat-books{background:var(--cat-books-bg);color:var(--cat-books-text);}
+.cat-other{background:var(--cat-other-bg);color:var(--cat-other-text);}
 
 /* Book-type colours — mirror BOOK_COLORS in js/books.js. */
-.btype-course{background:#E8EEF5;color:#2C476A;}
-.btype-other{background:#F7EFE1;color:#6B5128;}
+.btype-course{background:var(--btype-course-bg);color:var(--btype-course-text);}
+.btype-other{background:var(--btype-other-bg);color:var(--btype-other-text);}
 
 .tcard-flush{margin-bottom:0;}
 .note-xs{font-size:11px;color:var(--text-faint);}
 
-/* The school / brand chip. It was hand-written 18 times in 12 slightly different
-   variants across admin.js — 9/10/11/12px fonts and six different paddings — so the
-   same badge looked subtly different on every admin screen. One component now, with
-   the sizes made explicit. They almost certainly want to collapse into ONE size;
-   that is a visual change, so it needs a decision rather than a silent refactor. */
-.school-chip{background:var(--brand-pale);color:var(--brand);border-radius:20px;font-weight:500;text-transform:capitalize;}
-.school-chip-xs{font-size:9px;padding:1px 6px;}
-.school-chip-s{font-size:10px;padding:1px 7px;}
-.school-chip-m{font-size:11px;padding:2px 8px;}
-.school-chip-l{font-size:12px;padding:4px 12px;}
+/* The school / brand chip. It had been hand-written 18 times in 12 slightly different
+   variants across admin.js — 9/10/11/12px fonts and six different paddings — so the same
+   badge looked subtly different on every admin screen. It is ONE size now: 11px reads
+   cleanly inside a dense table row, and is not shouty when it stands alone in a filter
+   panel. (The old 12px crowded table cells; the old 9px was too small to read.) */
+.school-chip{background:var(--brand-pale);color:var(--brand);border-radius:20px;font-weight:500;text-transform:capitalize;font-size:11px;padding:2px 8px;}
 
 /* The "Loading…" block shown while a detail drawer fetches. */
 .drawer-loading{padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px;}

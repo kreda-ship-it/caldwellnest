@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Category palette test</title>
+<link rel="stylesheet" href="../styles.css">
+<body style="padding:24px;font:13px/1.6 monospace">
+<div id="out"></div>
+<div id="swatches" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:20px"></div>
+
+<script>
+  // Stub Supabase so config.js can load without a network.
+  const c = new Proxy(function(){}, { get: () => c, apply: () => Promise.resolve({data:[],error:null}) });
+  window.supabase = { createClient: () => c };
+</script>
+<script src="../js/config.js"></script>
+<script>
+(function () {
+  const CATS = ['housing','clothing','technology','donation','organization_event','books','other'];
+  const log = [];
+  let fail = 0;
+
+  // The whole point of single-sourcing: JS hands the browser a var(), and it must RESOLVE.
+  // If a variable name is wrong, the colour silently falls back to transparent/black — the
+  // card would render blank. So assert the COMPUTED colour, not the string we passed in.
+  const probe = document.createElement('div');
+  document.body.appendChild(probe);
+
+  for (const cat of CATS) {
+    const def = CATEGORY_COLORS[cat];
+    probe.style.background = def.bg;
+    probe.style.color = def.text;
+    const cs = getComputedStyle(probe);
+    const bg = cs.backgroundColor, fg = cs.color;
+    const bad = !bg || bg === 'rgba(0, 0, 0, 0)' || !fg;
+    if (bad) fail++;
+    log.push((bad ? 'FAIL ' : 'ok   ') + cat.padEnd(20) + 'bg ' + bg.padEnd(22) + 'text ' + fg);
+
+    const sw = document.createElement('div');
+    sw.style.cssText = 'padding:16px;border-radius:10px;font-weight:600;background:' + def.bg + ';color:' + def.text;
+    sw.textContent = cat === 'books' ? 'Books (new)' : cat;
+    document.getElementById('swatches').appendChild(sw);
+  }
+  probe.remove();
+
+  // Books must NOT be the technology colour any more — that was the original bug.
+  const p2 = document.createElement('div');
+  document.body.appendChild(p2);
+  p2.style.background = CATEGORY_COLORS.books.bg;  const bBg = getComputedStyle(p2).backgroundColor;
+  p2.style.background = CATEGORY_COLORS.technology.bg; const tBg = getComputedStyle(p2).backgroundColor;
+  p2.remove();
+  const distinct = bBg !== tBg;
+  if (!distinct) fail++;
+  log.push('');
+  log.push((distinct ? 'ok   ' : 'FAIL ') + 'books is distinct from technology  (books ' + bBg + ' vs tech ' + tBg + ')');
+  log.push('');
+  log.push(fail === 0 ? 'RESULT: PASS — every var() resolves and books has its own colour.'
+                      : 'RESULT: FAIL — ' + fail + ' problem(s).');
+  document.getElementById('out').textContent = log.join('\n');
+})();
+</script>

@@ -11,14 +11,24 @@ const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
+//
+// THE COLOURS THEMSELVES LIVE IN styles.css, in the --cat-* variables under :root.
+// That is the single source of truth — change a category colour THERE and nowhere else.
+// This object only names the variables. The values are injected whole into inline style
+// attributes (`style="background:${cat.bg}"`) and the browser resolves the var() at render
+// time. Never concatenate or slice these strings — they are not hex any more.
+//
+// Why: this used to be a second hardcoded copy of the same hexes as the CSS, and the two had
+// already drifted — the Books picker button was painted with the TECHNOLOGY blue.
+const catColor = name => ({ bg: `var(--cat-${name}-bg)`, text: `var(--cat-${name}-text)` });
 const CATEGORY_COLORS = {
-  housing:            { bg:'#E7F0EA', text:'#1F4435' }, // sage — ties to the brand green
-  clothing:           { bg:'#F6E9EC', text:'#7A3B4A' }, // dusty rose
-  technology:         { bg:'#E8EEF5', text:'#2C476A' }, // slate blue
-  donation:           { bg:'#F7EFE1', text:'#6B5128' }, // warm sand
-  organization_event: { bg:'#EFEAF6', text:'#473A6B' }, // muted lavender
-  books:              { bg:'#E6EFEF', text:'#2F5D5A' }, // muted teal
-  other:              { bg:'#EEEEEA', text:'#45453E' }  // warm greige
+  housing:            catColor('housing'),             // sage — ties to the brand green
+  clothing:           catColor('clothing'),            // dusty rose
+  technology:         catColor('technology'),          // slate blue
+  donation:           catColor('donation'),            // warm sand
+  organization_event: catColor('organization_event'),  // muted lavender
+  books:              catColor('books'),               // moss / olive
+  other:              catColor('other')                // warm greige
 };
 let _postCategory = null;
 

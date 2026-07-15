@@ -15,7 +15,13 @@ let _postBookType = null;            // 'course' | 'other' while the post form i
 let _bkSelCourse = null;             // selected course code, 'NOT_LISTED', or null
 let _bkCourseAC = null;              // post-form course typeahead instance
 
-const BOOK_COLORS = { course: { bg: '#E8EEF5', text: '#2C476A' }, other: { bg: '#F7EFE1', text: '#6B5128' } };
+// Values live in styles.css (--btype-* under :root) — the single source of truth, same as
+// CATEGORY_COLORS. These strings are injected whole into inline style attributes; the browser
+// resolves the var() at render. Do not concatenate or slice them.
+const BOOK_COLORS = {
+  course: { bg: 'var(--btype-course-bg)', text: 'var(--btype-course-text)' },
+  other:  { bg: 'var(--btype-other-bg)',  text: 'var(--btype-other-text)'  }
+};
 
 async function loadCourses() {
   const { data, error } = await supabaseClient
@@ -317,8 +323,10 @@ function resetBookForm() {
 }
 function selectBookType(t) {
   _postBookType = t;
-  document.getElementById('btypeCourse').style.outline = t === 'course' ? '2px solid #2C476A' : '';
-  document.getElementById('btypeOther').style.outline = t === 'other' ? '2px solid #6B5128' : '';
+  // The selection outline reads the same --btype-* variable the button is painted from, so it
+  // cannot drift out of sync with it (it used to repeat the hex).
+  document.getElementById('btypeCourse').style.outline = t === 'course' ? '2px solid var(--btype-course-text)' : '';
+  document.getElementById('btypeOther').style.outline = t === 'other' ? '2px solid var(--btype-other-text)' : '';
   document.getElementById('bookFormFields').style.display = 'block';
   document.getElementById('bkCourseGroup').style.display = t === 'course' ? 'block' : 'none';
   document.getElementById('bkEditionGroup').style.display = t === 'course' ? 'block' : 'none';

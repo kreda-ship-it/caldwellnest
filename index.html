@@ -1151,11 +1151,7 @@
         <button class="cat-pick-btn cat-technology" onclick="selectCategory('technology')">Technology</button>
         <button class="cat-pick-btn cat-donation" onclick="selectCategory('donation')">Donation</button>
         <button class="cat-pick-btn cat-organization_event" onclick="selectCategory('organization_event')">Org / Event</button>
-        <!-- NOT converted to .cat-books on purpose. This button is painted #E8EEF5 — the TECHNOLOGY
-             blue — while book cards in the feed render #E6EFEF (CATEGORY_COLORS.books, muted teal).
-             Almost certainly stale, from before books had their own colour. Swapping it to
-             .cat-books would fix the inconsistency but is a visual change, so it needs Kal's OK. -->
-        <button class="cat-pick-btn" onclick="closePostModal();openPostBook()" style="background:#E8EEF5;color:#2C476A">Books</button>
+        <button class="cat-pick-btn cat-books" onclick="closePostModal();openPostBook()">Books</button>
         <button class="cat-pick-btn cat-other" onclick="selectCategory('other')">Other</button>
       </div>
     </div>
