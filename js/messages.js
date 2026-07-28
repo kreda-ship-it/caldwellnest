@@ -239,9 +239,43 @@ async function refreshUnread() {
   updateMsgBadges();
 }
 
+// ---- LOADING SKELETONS -------------------------------------------------
+// Same idea as the browse feed's: rather than a blank panel while Supabase
+// answers, show placeholder shapes the real content will slot into, so the
+// layout never jumps and the app reads as loading rather than broken.
+// Shapes and the shimmer live in styles.css (.sk*).
+
+function convoSkeletonHTML(n = 5) {
+  return Array.from({ length: n }, () => `<div class="sk-convo" aria-hidden="true">
+    <div class="sk sk-convo-avatar"></div>
+    <div class="sk-convo-info"><div class="sk sk-convo-name"></div><div class="sk sk-convo-preview"></div></div>
+    <div class="sk sk-convo-time"></div>
+  </div>`).join('');
+}
+
+// Mixed sides and widths so it looks like a conversation rather than a list.
+const SK_BUBBLES = [
+  'sk-bubble-theirs sk-bubble-m', 'sk-bubble-s', 'sk-bubble-theirs sk-bubble-l',
+  'sk-bubble-m', 'sk-bubble-theirs sk-bubble-s'
+];
+
+function threadSkeletonHTML() {
+  return `<div class="sk-thread" aria-hidden="true">${
+    SK_BUBBLES.map(c => `<div class="sk sk-bubble ${c}"></div>`).join('')
+  }</div>`;
+}
+
 async function renderConvos() {
   const eu = getEffectiveUser();
   if (!eu) return;
+  // Only on the very first paint. renderConvos() also runs on every new message,
+  // and flashing grey rows over a list that is already up would be worse than no
+  // skeleton at all.
+  const listEl = document.getElementById('convoList');
+  if (listEl && !listEl.children.length) {
+    listEl.setAttribute('aria-busy', 'true');
+    listEl.innerHTML = convoSkeletonHTML();
+  }
   await refreshUnread();
   const { data: msgs } = await supabaseClient
     .from('messages')
@@ -250,7 +284,13 @@ async function renderConvos() {
     .order('created_at', { ascending: false });
 
   if (!msgs || msgs.length === 0) {
-    document.getElementById('convoList').innerHTML = '<div style="padding:20px;color:var(--text-faint);font-size:13px;text-align:center">No messages yet.<br>Find a listing and tap Message.</div>';
+    document.getElementById('convoList').innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">${ico('message', 34)}</div>
+      <div class="empty-state-title">No conversations yet</div>
+      <div class="empty-state-sub">Message someone about a listing and<br>the thread will show up here.</div>
+      <button class="empty-state-btn" onclick="showPage('listings')">Browse listings</button>
+    </div>`;
+    document.getElementById('convoList').removeAttribute('aria-busy');
     return;
   }
 
@@ -268,6 +308,7 @@ async function renderConvos() {
     sConvoCache[id] = { name: p.display_name || (p.first_name + ' ' + p.last_name), initials: p.initials, color: p.color };
   }
 
+  document.getElementById('convoList').removeAttribute('aria-busy');
   document.getElementById('convoList').innerHTML = latest.map(m => {
     const otherId = m.sender_id === eu.id ? m.receiver_id : m.sender_id;
     const p = pMap[otherId] || { display_name: null, first_name: 'User', last_name: '', initials: '?', color: '#888' };
@@ -284,6 +325,27 @@ async function renderConvos() {
 
 function filterConvos(q) { document.querySelectorAll('.convo-item').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; }); }
 
+// The whole chat pane: header, message area, composer. Extracted so the
+// loading skeleton and the finished thread are painted from ONE template —
+// the header and composer are identical in both, and two copies would drift.
+// `bodyHtml` is whatever goes in #chatMsgs: skeleton bubbles, real bubbles,
+// or the empty-thread placeholder.
+function chatShellHTML(otherUserId, info, bodyHtml) {
+  return `
+    <div class="chat-header">
+      <button class="m-back" onclick="closeConvo()" aria-label="Back to conversations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
+      <div class="convo-avatar" style="background:${escAttr(info.color)};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${esc(info.initials)}</div>
+      <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${esc(info.name)}</span></div></div>
+    </div>
+    <div class="chat-messages" id="chatMsgs">${bodyHtml}</div>
+    <div class="chat-input-area">
+      <button class="composer-plus" onclick="openListingPicker()" title="Share a listing"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
+      <button class="send-btn" onclick="sMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>`;
+}
+
 async function openConvo(otherUserId, otherInfo, listingId) {
   const info = otherInfo || sConvoCache[otherUserId];
   if (!info) return;
@@ -298,10 +360,25 @@ async function openConvo(otherUserId, otherInfo, listingId) {
 
   const eu = getEffectiveUser();
   const convKey = [eu.id, otherUserId].sort().join(':');
+
+  // Paint the shell straight away. We already know who this conversation is with,
+  // so the header and composer are real from the first frame — only the bubbles
+  // are placeholders while the messages come down.
+  document.getElementById('chatArea').innerHTML = chatShellHTML(otherUserId, info, threadSkeletonHTML());
+
   const { data: msgs } = await supabaseClient
     .from('messages').select('*')
     .eq('conversation_key', convKey)
     .order('created_at', { ascending: true });
+
+  // Bail if the user switched to a DIFFERENT conversation while this was in flight.
+  // Everything below writes shared state (sMsgCache, sLastDivLabel, #chatArea), so a
+  // late reply from the previous conversation used to paint its messages into the
+  // pane now labelled with someone else's name.
+  // Note the deliberate `sConvoActive &&`: if the chat was *closed* mid-fetch
+  // sConvoActive is null, and we let the paint finish rather than leaving the
+  // loading skeleton shimmering in the pane forever.
+  if (sConvoActive && sConvoActive.userId !== otherUserId) return;
 
   // Viewing the thread is what "reads" it — the helper checks the window is
   // actually visible/focused, so a background window can't fake a read receipt.
@@ -323,23 +400,15 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     const body = isCard ? listingCardHtml(m.listing_id) : esc(m.content); // listingCardHtml builds its own escaped HTML
     parts.push(`<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"><div class="bubble ${mine ? 'mine' : 'theirs'}${isCard ? ' bubble-listing' : ''}">${quoteHtml(m.reply_to)}${body}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`);
   }
-  const bubbles = parts.join('') || '<div style="text-align:center;color:var(--text-faint);font-size:13px;padding:40px 0">No messages yet. Say hello!</div>';
-
-  document.getElementById('chatArea').innerHTML = `
-    <div class="chat-header">
-      <button class="m-back" onclick="closeConvo()" aria-label="Back to conversations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-      <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
-      <div class="convo-avatar" style="background:${escAttr(info.color)};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${esc(info.initials)}</div>
-      <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${esc(info.name)}</span></div></div>
-    </div>
-    <div class="chat-messages" id="chatMsgs">${bubbles}</div>
-    <div class="chat-input-area">
-      <button class="composer-plus" onclick="openListingPicker()" title="Share a listing"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
-      <button class="send-btn" onclick="sMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  // Keep the words "No messages yet" — sMsg() and the realtime handlers find this
+  // placeholder by that text and remove it when the first message lands.
+  const bubbles = parts.join('') || `<div class="empty-state">
+      <div class="empty-state-title">No messages yet</div>
+      <div class="empty-state-sub">Say hello — this is the start of your conversation.</div>
     </div>`;
+
+  document.getElementById('chatArea').innerHTML = chatShellHTML(otherUserId, info, bubbles);
   scrollChat();
-  if (sConvoActive.userId !== otherUserId) return;
   sRealtimeChannel = supabaseClient.channel('msgs-' + convKey)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleRealtimeMessage)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleSeenUpdate)
@@ -447,7 +516,15 @@ function renderListingPicker() {
     .slice(0, 30);
   const results = document.getElementById('lpResults');
   results.classList.toggle('lp-grid', _lpView === 'grid');
-  if (!list.length) { results.innerHTML = '<div class="lp-none">No listings found.</div>'; return; }
+  if (!list.length) {
+    // Say WHICH of the three reasons it's empty, so the fix is obvious.
+    const why = q ? `Nothing matches “${esc(q)}”.`
+      : _lpScope === 'mine'   ? 'You haven\'t posted anything yet.'
+      : _lpScope === 'theirs' ? 'They haven\'t posted anything yet.'
+      : 'There\'s nothing to share yet.';
+    results.innerHTML = `<div class="lp-none">${why}</div>`;
+    return;
+  }
   results.innerHTML = _lpView === 'grid'
     ? list.map(l => {
       // Photo tiles carry the title below; no-photo tiles put the title INSIDE the
