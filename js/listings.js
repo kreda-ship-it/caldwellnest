@@ -462,6 +462,43 @@ function buildCatFiltersHTML(cat) {
     </div>`;
 }
 
+// ---- LOADING SKELETONS -------------------------------------------------
+// The feed's listings come from Supabase, so on a slow connection there is a gap
+// between the page appearing and the cards arriving. Without these the grid is a
+// blank white rectangle for that whole time, which reads as broken rather than
+// loading. We paint placeholder cards the moment this file loads; renderListings()
+// overwrites them when the real data lands. Shapes/shimmer live in styles.css.
+
+// Varied hero heights so the masonry columns look natural rather than a grid of
+// identical blocks. Cycled over however many cards we draw.
+const SK_HEROES = ['sk-hero-tall', 'sk-hero', 'sk-hero-short', 'sk-hero', 'sk-hero-short', 'sk-hero-tall'];
+
+function feedSkeletonHTML(n = 6) {
+  return Array.from({ length: n }, (_, i) => `<div class="sk-card" aria-hidden="true">
+    <div class="sk-head">
+      <div class="sk sk-avatar"></div>
+      <div><div class="sk sk-name"></div><div class="sk sk-sub"></div></div>
+    </div>
+    <div class="sk ${SK_HEROES[i % SK_HEROES.length]}"></div>
+    <div class="sk-body">
+      <div class="sk sk-meta"></div>
+      <div class="sk sk-title"></div>
+      <div class="sk sk-title-2"></div>
+      <div class="sk-foot"><div class="sk sk-price"></div><div class="sk sk-btn"></div></div>
+    </div>
+  </div>`).join('');
+}
+
+function showFeedSkeletons() {
+  const grid = document.getElementById('listingsGrid');
+  if (!grid || grid.children.length) return; // never clobber cards that are already up
+  grid.setAttribute('aria-busy', 'true');     // screen readers announce "busy", not the fake cards
+  grid.innerHTML = feedSkeletonHTML();
+}
+// Runs at load. Safe here because every <script> tag sits at the bottom of
+// index.html, so #listingsGrid already exists by the time this file executes.
+showFeedSkeletons();
+
 function renderListings() {
   // Keep the mobile tab highlight honest when the category changes *within* the Browse
   // page (e.g. tapping the Events chip should light up the Events tab, not Search).
@@ -573,6 +610,7 @@ function renderListings() {
 
   // Regular grid
   const grid = document.getElementById('listingsGrid');
+  grid.removeAttribute('aria-busy'); // real content from here on — skeletons are done
   if (filtered.length === 0) {
     grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
       <div style="margin-bottom:12px;color:var(--text-faint)">${approved.length === 0 ? ico('inbox', 38) : ico('search', 38)}</div>
