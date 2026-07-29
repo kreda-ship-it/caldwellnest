@@ -1074,8 +1074,6 @@
     <div class="login-error" id="loginErr"></div>
     <button class="btn-full btn-brand" onclick="doLogin()">Log in</button>
     <div class="switch-link">New here? <a onclick="switchModal('loginModal','signupModal')">Sign up</a></div>
-    <div class="divider">or</div>
-    <button class="btn-full" style="background:var(--brand-pale);color:var(--brand);border:none;padding:12px;font-size:14px;font-weight:600;cursor:pointer;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;" onclick="demoLogin()">Continue as demo student</button>
   </div></div>
 </div>
 
@@ -1092,7 +1090,7 @@
   <div class="modal"><div class="modal-header"><div class="modal-title">Edit profile</div><button class="modal-close" onclick="closeModal('editProfileModal')">&#215;</button></div>
   <div class="modal-body">
     <div class="form-group" style="display:flex;align-items:center;gap:14px">
-      <div id="epAvatarPreview" style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0"></div>
+      <div id="epAvatarPreview" class="ep-avatar-preview" title="Change photo" style="width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0" onclick="document.getElementById('epAvatarInput').click()"></div>
       <div>
         <input type="file" id="epAvatarInput" accept="image/jpeg,image/png,image/webp,image/*" style="display:none" onchange="pickAvatar(this)">
         <button type="button" class="btn-sm-a" style="border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif" onclick="document.getElementById('epAvatarInput').click()">Change photo</button>

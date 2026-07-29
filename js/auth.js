@@ -248,8 +248,8 @@ async function doLogin() {
   await enterStudentSession(profile, authData.user.id, 'Welcome back, ' + profile.first_name + '!');
 }
 
-// Shared post-authentication student setup — used by real login AND the demo login,
-// so the demo session behaves byte-for-byte like any other student.
+// Shared post-authentication student setup — everything that must happen once a
+// student is confirmed signed in, kept in one place so login and signup can't drift.
 async function enterStudentSession(profile, userId, welcomeMsg) {
   sUser = {
     id: userId, first: profile.first_name, last: profile.last_name,
@@ -354,20 +354,6 @@ function aNotifyStudent(profileId, type, message) {
   supabaseClient.from('notifications').insert({ profile_id: profileId, type, message, read: false });
 }
 
-// Demo student — a REAL, verified Supabase student account (created in the dashboard).
-// Credentials are hardcoded for one-click demos; this is a plain student with no special powers.
-const DEMO_EMAIL = 'demo@caldwell.edu';
-const DEMO_PASSWORD = 'Demoaccount2026!';
-
-async function demoLogin() {
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-  if (error) { toast('Demo login unavailable right now.'); console.error('[demo login]', error); return; }
-  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.user.id).single();
-  if (!profile) { toast('Demo profile not set up yet.'); await supabaseClient.auth.signOut(); return; }
-  closeModal('loginModal');
-  await enterStudentSession(profile, data.user.id, 'Logged in as demo student ✓');
-}
-
 function updateSNav() {
   const u = getEffectiveUser();
   document.getElementById('navGuest').style.display = u ? 'none' : 'flex';
@@ -375,8 +361,7 @@ function updateSNav() {
   nu.style.display = u ? 'flex' : 'none';
   if (u) {
     const navAv = document.getElementById('navAvatar');
-    navAv.style.background = u.color;
-    navAv.style.backgroundSize = 'cover'; navAv.style.backgroundPosition = 'center';
+    navAv.style.backgroundColor = u.color; // not the `background` shorthand — see paintAvatarEl
     paintAvatarEl(navAv, u.avatar_url, u.initials, u.color);
     const backBtn = document.getElementById('backToAdminBtn');
     if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';

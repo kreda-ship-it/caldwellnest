@@ -1099,7 +1099,10 @@ async function submitListing() {
   const title = document.getElementById('pTitle').value.trim();
   const desc = document.getElementById('pDesc').value.trim();
   if (!title) { toast('Please add a title'); return; }
-  const u = getEffectiveUser() || { name: 'Demo User', initials: 'DU', email: 'demo@caldwell.edu', color: AC[5] };
+  // No signed-in user should be able to reach this — the post modal sits behind
+  // requireAuth() — but never invent a poster identity as a fallback.
+  const u = getEffectiveUser();
+  if (!u) { toast('Please log in to post a listing.'); return; }
   const emoji = CATEGORY_EMOJI[cat];
 
   let price = null, location = '', details = {}, tags = [];

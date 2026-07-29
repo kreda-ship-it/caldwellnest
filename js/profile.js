@@ -314,6 +314,9 @@ async function saveProfile() {
 
   // Handle the avatar: upload a newly picked one, or clear it if removed.
   // avatarUrl stays undefined when nothing changed, so we don't overwrite the existing value.
+  // The OLD file is not touched here — it is deleted further down, only after the
+  // profile row has successfully been pointed away from it.
+  const oldAvatarUrl = u.avatar_url || null;
   let avatarUrl;
   if (_pendingAvatarFile) {
     try {
@@ -322,7 +325,6 @@ async function saveProfile() {
     } catch (e) { console.error('[avatar upload]', e); showErr('Could not upload photo — please try again.'); return; }
   } else if (_avatarRemoved) {
     avatarUrl = null;
-    supabaseClient.storage.from('listing-photos').remove([`${u.id}/avatar.jpg`]); // remove stored file (best-effort)
   }
 
   const updates = {
@@ -333,6 +335,11 @@ async function saveProfile() {
   if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
   const { error } = await supabaseClient.from('profiles').update(updates).eq('id', u.id);
   if (error) { showErr('Could not save — ' + error.message); return; }
+
+  // Safe to bin the previous picture now: the row already points at the new one (or at
+  // nothing). Doing it in this order means a failed save can never leave a student with
+  // a broken image, which is what the old delete-first code risked.
+  if (avatarUrl !== undefined && oldAvatarUrl) deleteAvatarFile(oldAvatarUrl);
 
   const newDisplayName = displayName || null;
   // Snapshot name kept on the listing row (used by admin surfaces + as a fallback) = preferred name or real name.
@@ -367,8 +374,7 @@ function renderProfile() {
   const u = getEffectiveUser(); if (!u) return;
 
   const profAv = document.getElementById('profileAvatar');
-  profAv.style.background = u.color;
-  profAv.style.backgroundSize = 'cover'; profAv.style.backgroundPosition = 'center';
+  profAv.style.backgroundColor = u.color; // not the `background` shorthand — see paintAvatarEl
   paintAvatarEl(profAv, u.avatar_url, u.initials, u.color);
   document.getElementById('profileName').textContent = u.display_name || u.name;
   document.getElementById('profileEmail').textContent = u.email;

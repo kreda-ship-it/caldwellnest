@@ -71,6 +71,13 @@ function photoGalleryHtml(urls, opts = {}) {
 // ---- Avatar (profile picture) helpers ----
 // Paints an existing circular element: shows the image if a url is given,
 // otherwise falls back to initials on the colour background.
+//
+// Always set backgroundCOLOR here, never the `background` shorthand. The shorthand
+// resets every other background longhand it doesn't mention — including the
+// background-size:cover that keeps an avatar filling its circle. Writing it once
+// dropped the crop back to `auto`, so the picture rendered at full natural size
+// anchored to the top-left: you saw one magnified corner of the photo instead of
+// the whole thing. The cover/center rules now live in styles.css.
 function paintAvatarEl(el, url, initials, color) {
   if (!el) return;
   if (url) {
@@ -78,19 +85,37 @@ function paintAvatarEl(el, url, initials, color) {
     el.style.backgroundImage = `url('${String(url).replace(/['"()]/g, '')}')`; // quotes/parens would break out of the CSS url()
   } else {
     el.style.backgroundImage = '';
-    el.style.background = color || el.style.background;
+    el.style.backgroundColor = color || el.style.backgroundColor;
     el.textContent = initials || '?';
   }
 }
 
+// Every upload gets its own filename. Two reasons:
+//  1. A new name is always an INSERT. Overwriting one fixed `avatar.jpg` is an
+//     UPDATE — a separate permission — and the listing-photos bucket only grants
+//     read/insert/delete. So `upsert:true` was refused on every replacement, which
+//     is why changing your picture used to need a Remove + Save round trip first.
+//  2. A unique URL can never be served from a stale browser cache, so the old
+//     `?v=${Date.now()}` cache-buster is no longer needed.
 async function uploadAvatar(blob, userId) {
-  const path = `${userId}/avatar.jpg`; // first folder must be the user id to pass the storage policy
+  const path = `${userId}/avatar-${Date.now()}.jpg`; // first folder must be the user id to pass the storage policy
   const { error } = await supabaseClient.storage
     .from('listing-photos')
-    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
   const { data } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
-  return `${data.publicUrl}?v=${Date.now()}`; // ?v= busts the browser cache so a replaced photo shows immediately
+  return data.publicUrl;
+}
+
+// Deletes the stored file behind an avatar URL. Best-effort — an orphaned file is
+// harmless, but deleting the old file BEFORE the new one is safely saved is not, so
+// callers must only reach this once the profile row already points somewhere else.
+async function deleteAvatarFile(url) {
+  if (!url) return;
+  const path = String(url).split('?')[0].split('/listing-photos/')[1]; // .split('?') drops any legacy ?v= cache-buster
+  if (!path) return;
+  const { error } = await supabaseClient.storage.from('listing-photos').remove([path]);
+  if (error) console.warn('[avatar cleanup] old file left behind:', error.message);
 }
 
 function pickAvatar(input) {
