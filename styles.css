@@ -74,6 +74,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .switch-link{text-align:center;font-size:13px;color:var(--text-muted);margin-top:14px;}
 .switch-link a{color:var(--brand);font-weight:500;cursor:pointer;}
 .login-error{background:var(--danger-pale);color:var(--danger);font-size:13px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;display:none;}
+/* A <form> wrapper that exists purely to own its input for browser-autofill purposes,
+   contributing no box of its own so the surrounding layout is unchanged. Form ownership
+   is a DOM relationship, so display:contents does not weaken it. */
+.form-shell{display:contents;}
 /* "Not you?" — the escape hatch from the welcome-back greeting. Hidden by default and
    revealed with .is-on, so only a remembered student ever sees it. It clears the stored
    hint, which matters most on a shared campus computer, so it stays legible rather than

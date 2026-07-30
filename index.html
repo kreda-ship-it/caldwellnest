@@ -181,10 +181,16 @@
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
         <div style="position:relative;flex:1;">
           <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg></span>
-          <!-- name + autocomplete="off": this app has no <form> elements, so Chrome scopes
-               credential detection to the whole page and will otherwise pair a password field
-               with the first visible unlabelled text input — which is this one. -->
-          <input class="form-input" id="listingSearch" name="listing-search" autocomplete="off" placeholder="Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;width:100%;padding-left:38px;">
+          <!-- Wrapped in its own <form> on purpose. Chrome pools every input that is NOT
+               inside a form into one synthetic page-wide form, then autofills the saved
+               credential into the first VISIBLE text field in that pool — which was this
+               box, since the login modal is display:none at page load. Owning a form takes
+               this input out of the pool. autocomplete="off" alone does not work: Chrome
+               has ignored that hint for autofill for years. Submission is suppressed, so
+               Enter here behaves exactly as before (it does nothing). -->
+          <form onsubmit="return false" autocomplete="off" class="form-shell">
+            <input class="form-input" id="listingSearch" name="listing-search" autocomplete="off" placeholder="Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;width:100%;padding-left:38px;">
+          </form>
         </div>
         <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()" aria-haspopup="dialog" aria-label="Open filters">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
@@ -1018,7 +1024,11 @@
     </div>
 
     <!-- MAIN FORM (revealed after school is picked) -->
+    <!-- Real <form> for the same two reasons as the login modal: password-manager save
+         prompts, and keeping these fields out of the synthetic page-wide form Chrome
+         assembles from form-less inputs. The school picker above stays outside it. -->
     <div id="signupMainForm" style="display:none;">
+      <form onsubmit="event.preventDefault();doSignup();return false">
       <div class="form-row-2">
         <div class="form-group"><label class="form-label">First name</label><input class="form-input" id="sFirst" placeholder="Maria"></div>
         <div class="form-group"><label class="form-label">Last name</label><input class="form-input" id="sLast" placeholder="Santos"></div>
@@ -1052,7 +1062,8 @@
         </div>
       </div>
       <div class="login-error" id="signupErr"></div>
-      <button class="btn-full btn-brand" onclick="doSignup()">Create account</button>
+      <button class="btn-full btn-brand" type="submit">Create account</button>
+      </form>
       <div class="switch-link">Already have an account? <a onclick="switchModal('signupModal','loginModal')">Log in</a></div>
     </div>
 
@@ -1063,19 +1074,27 @@
 <div class="modal-overlay" id="loginModal">
   <div class="modal"><div class="modal-header"><div class="modal-title" id="loginModalTitle">Welcome back</div><button class="modal-close" onclick="closeModal('loginModal')">&#215;</button></div>
   <div class="modal-body">
-    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="lEmail" name="username" autocomplete="username" placeholder="you@university.edu" type="email"></div>
-    <div class="form-group">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-        <label class="form-label" style="margin-bottom:0">Password</label>
-        <a onclick="forgotPassword()" style="font-size:12px;color:var(--brand);cursor:pointer;font-weight:500">Forgot password?</a>
+    <!-- A real <form> does two jobs here. It lets Chrome save and update the password
+         properly, and — because Chrome lumps every input NOT inside a form into one
+         synthetic page-wide form — it takes these credential fields out of that pool.
+         That pool is what was pairing the saved email with the listings search box.
+         onsubmit is the single entry point: the button is type="submit" rather than
+         carrying its own onclick, so Enter and clicking cannot both fire doLogin(). -->
+    <form onsubmit="event.preventDefault();doLogin();return false">
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="lEmail" name="username" autocomplete="username" placeholder="you@university.edu" type="email"></div>
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <label class="form-label" style="margin-bottom:0">Password</label>
+          <a onclick="forgotPassword()" style="font-size:12px;color:var(--brand);cursor:pointer;font-weight:500">Forgot password?</a>
+        </div>
+        <div style="position:relative">
+          <input class="form-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password" style="padding-right:60px">
+          <button type="button" onclick="togglePassword('lPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
+        </div>
       </div>
-      <div style="position:relative">
-        <input class="form-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password" style="padding-right:60px">
-        <button type="button" onclick="togglePassword('lPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
-      </div>
-    </div>
-    <div class="login-error" id="loginErr"></div>
-    <button class="btn-full btn-brand" onclick="doLogin()">Log in</button>
+      <div class="login-error" id="loginErr"></div>
+      <button class="btn-full btn-brand" type="submit">Log in</button>
+    </form>
     <div class="switch-link">New here? <a onclick="switchModal('loginModal','signupModal')">Sign up</a></div>
     <div class="login-notyou" id="lNotYou">Not you? <a onclick="signInAsSomeoneElse()">Sign in as someone else</a></div>
   </div></div>
@@ -1132,10 +1151,15 @@
   <div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Admin access</div><button class="modal-close" onclick="closeModal('adminLoginModal');document.getElementById('studentApp').style.display='block'">&#215;</button></div>
   <div class="modal-body">
     <div style="display:inline-flex;align-items:center;gap:5px;background:#1a1a2e;color:#a78bfa;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:16px;letter-spacing:.04em;">&#128274; Admin only</div>
-    <div class="form-group"><label class="form-label">Admin email</label><input class="form-input" id="aEmail" name="username" autocomplete="username" type="email" placeholder="your@email.com"></div>
-    <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="aPass" name="current-password" autocomplete="current-password" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
-    <div class="login-error" id="adminLoginErr"></div>
-    <button class="btn-full btn-brand" onclick="doAdminLogin()">Enter dashboard</button>
+    <!-- Same reasoning as the student login form above. The password field's old
+         onkeydown Enter handler is gone: the form's onsubmit now covers Enter, and
+         keeping both would have fired doAdminLogin() twice on a single keypress. -->
+    <form onsubmit="event.preventDefault();doAdminLogin();return false">
+      <div class="form-group"><label class="form-label">Admin email</label><input class="form-input" id="aEmail" name="username" autocomplete="username" type="email" placeholder="your@email.com"></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="aPass" name="current-password" autocomplete="current-password" type="password" placeholder="Your password"></div>
+      <div class="login-error" id="adminLoginErr"></div>
+      <button class="btn-full btn-brand" type="submit">Enter dashboard</button>
+    </form>
   </div></div>
 </div>
 
