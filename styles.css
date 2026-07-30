@@ -74,6 +74,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .switch-link{text-align:center;font-size:13px;color:var(--text-muted);margin-top:14px;}
 .switch-link a{color:var(--brand);font-weight:500;cursor:pointer;}
 .login-error{background:var(--danger-pale);color:var(--danger);font-size:13px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;display:none;}
+/* "Not you?" — the escape hatch from the welcome-back greeting. Hidden by default and
+   revealed with .is-on, so only a remembered student ever sees it. It clears the stored
+   hint, which matters most on a shared campus computer, so it stays legible rather than
+   being tucked away as faint small print. */
+.login-notyou{display:none;text-align:center;font-size:12.5px;color:var(--text-muted);margin-top:10px;}
+.login-notyou.is-on{display:block;}
+.login-notyou a{color:var(--text-muted);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.login-notyou a:hover{color:var(--brand);}
 
 /* ============================================================
    STUDENT INTERFACE

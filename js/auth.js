@@ -86,7 +86,12 @@ async function sLogout() {
   sUser = null;
   sessionStorage.removeItem('cn_last_convo');
   updateSNav();
-  showPage('home');
+  // The hint deliberately SURVIVES logout — this is still their device, so the way back in
+  // should greet them. Only "Not you?" forgets. A known student gets the welcome-back login
+  // over the feed; a stranger gets the Join us landing.
+  const prior = getPriorUser();
+  if (prior) { showPage('listings'); openModal('loginModal'); }
+  else showPage('home');
   toast('Logged out');
 }
 
@@ -203,6 +208,7 @@ async function doSignup() {
   }, { onConflict: 'id', ignoreDuplicates: true });
   logEvent('student_signup', { targetType: 'student', targetId: authData.user.id, targetLabel: first + ' ' + last, school: _selectedSchool.slug });
 
+  rememberUser(first, email);
   sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, username, major, year, initials, color, school: _selectedSchool.slug };
   closeModal('signupModal');
   updateSNav();
@@ -251,6 +257,7 @@ async function doLogin() {
 // Shared post-authentication student setup — everything that must happen once a
 // student is confirmed signed in, kept in one place so login and signup can't drift.
 async function enterStudentSession(profile, userId, welcomeMsg) {
+  rememberUser(profile.first_name, profile.email);
   sUser = {
     id: userId, first: profile.first_name, last: profile.last_name,
     name: profile.first_name + ' ' + profile.last_name,
@@ -352,6 +359,72 @@ function dismissNotifications() { closeModal('notifModal'); }
 
 function aNotifyStudent(profileId, type, message) {
   supabaseClient.from('notifications').insert({ profile_id: profileId, type, message, read: false });
+}
+
+// ============================================================
+// RETURNING-USER HINT
+// ============================================================
+// A DISPLAY hint and nothing more: first name + email, so a student who has signed in
+// on this device before is greeted with "Welcome back, Kal" instead of being pitched the
+// "Join us" landing they already acted on.
+//
+// This is NEVER a credential. No token, no password, no Supabase session object —
+// supabase-js persists the real session itself (under its own `sb-…` key) and must stay
+// the only thing that does. Losing or clearing this key costs a greeting, nothing else:
+// it can't sign anyone in, and every screen still checks the real session.
+const PRIOR_USER_KEY = 'cn_prior_user';
+
+function rememberUser(first, email) {
+  if (!first && !email) return;
+  try {
+    localStorage.setItem(PRIOR_USER_KEY, JSON.stringify({ first: first || null, email: email || null }));
+  } catch (e) { /* private mode / quota — a greeting is optional, never break sign-in over it */ }
+}
+
+function getPriorUser() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PRIOR_USER_KEY) || 'null');
+    return (p && (p.first || p.email)) ? p : null;
+  } catch (e) { return null; } // corrupt value behaves as "nobody known", never as an error
+}
+
+function forgetPriorUser() {
+  try { localStorage.removeItem(PRIOR_USER_KEY); } catch (e) {}
+}
+
+// Called by openModal() for every route into the login modal, so the greeting can't
+// depend on which of the eight buttons you pressed to get here.
+function prepLoginModal() {
+  const prior = getPriorUser();
+  if (prior) applyWelcomeBack(prior); else resetLoginModal();
+}
+
+function applyWelcomeBack(prior) {
+  const title = document.getElementById('loginModalTitle');
+  // textContent, not innerHTML — this string came out of storage, so it is treated as text.
+  if (title) title.textContent = prior.first ? `Welcome back, ${prior.first}` : 'Welcome back';
+  const emailInput = document.getElementById('lEmail');
+  if (emailInput && prior.email) emailInput.value = prior.email; // only the password left to type
+  document.getElementById('lNotYou')?.classList.add('is-on');
+}
+
+function resetLoginModal() {
+  const title = document.getElementById('loginModalTitle');
+  if (title) title.textContent = 'Welcome back';
+  document.getElementById('lNotYou')?.classList.remove('is-on');
+  const email = document.getElementById('lEmail'); if (email) email.value = '';
+  const pass  = document.getElementById('lPass');  if (pass)  pass.value  = '';
+  const err   = document.getElementById('loginErr');
+  if (err) { err.textContent = ''; err.style.display = 'none'; }
+}
+
+// The ONLY thing that clears the hint. Logging out deliberately keeps it, so a student on
+// their own phone is still greeted next time; this is the escape hatch for a shared campus
+// computer, or for signing in as a different person.
+function signInAsSomeoneElse() {
+  forgetPriorUser();
+  resetLoginModal();
+  document.getElementById('lEmail')?.focus();
 }
 
 function updateSNav() {

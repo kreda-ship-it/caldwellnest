@@ -22,7 +22,15 @@ function esc(s) {
 // Also covers user-influenced URLs, where a stray " would break out of the attribute.
 function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
-function openModal(id) { if (id === 'signupModal') resetSignupModal(); document.getElementById(id).classList.add('open'); }
+// prepLoginModal (auth.js) applies the "welcome back, <name>" treatment when this device
+// remembers a prior student. Hooking it here means all eight routes into the login modal
+// behave the same. Both callees live in later files, which is fine: they are only *called*
+// at runtime, never at load time.
+function openModal(id) {
+  if (id === 'signupModal') resetSignupModal();
+  if (id === 'loginModal')  prepLoginModal();
+  document.getElementById(id).classList.add('open');
+}
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
 function switchModal(from, to) { closeModal(from); setTimeout(() => openModal(to), 150); }

@@ -62,6 +62,10 @@ let currentRole = null;
 let sUser = null; // logged-in student
 let adminPreviewMode = false; // true when admin has entered student view
 let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, details: {}, schoolScope: '25mi', sort: 'newest' };
+// Home and Search both land on page-listings now, so the page alone can no longer say
+// which mobile tab should light up. This remembers which one was actually tapped.
+// Defaults to 'home' so a student booting straight into the feed sees Home selected.
+let _mTabIntent = 'home'; // 'home' | 'search'
 let _kwTimer  = null;
 let _dfPriceOpen = true;
 let _dfCatOpen   = true;

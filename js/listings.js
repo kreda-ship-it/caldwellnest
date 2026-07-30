@@ -24,11 +24,32 @@ function showPage(name) {
   if (window.innerWidth <= 768) window.scrollTo(0, 0); // app-style: each page opens at its top
 }
 
-// Highlights the mobile bottom-bar tab matching the current page. Search and Events
-// share page-listings; the active category decides which of the two lights up.
+// The Home tab. The question here is "does this device know you?" — the same question
+// boot and logout ask — NOT "are you signed in this second". A student who logged out is
+// still a student: the "Join us" landing has nothing left to tell them, so their home base
+// stays the live feed. Only a genuine stranger gets the pitch.
+//
+// Deliberately does NOT re-open the login modal. It has already been offered at logout and
+// at app open; popping it again on every Home tap reads as the app refusing to let you
+// browse. The wordmark in the top bar remains the way back to the landing page.
+function goHome() {
+  _mTabIntent = 'home';
+  const known = getEffectiveUser() || getPriorUser();
+  showPage(known ? 'listings' : 'home');
+}
+
+function goSearch() {
+  _mTabIntent = 'search';
+  showPage('listings');
+}
+
+// Highlights the mobile bottom-bar tab matching the current page. Home, Search and Events
+// all share page-listings: an active Events category wins, otherwise the tab the student
+// actually tapped (_mTabIntent) decides.
 function updateMTabbar(name) {
   const tabId = name === 'home' ? 'mtab-home'
-    : name === 'listings' ? (_filters.category === 'organization_event' ? 'mtab-events' : 'mtab-search')
+    : name === 'listings' ? (_filters.category === 'organization_event' ? 'mtab-events'
+                            : _mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')
     : name === 'messages' ? 'mtab-messages'
     : null; // profile & other pages: no tab highlighted
   document.querySelectorAll('#mTabbar .m-tab').forEach(t => t.classList.toggle('active', t.id === tabId));

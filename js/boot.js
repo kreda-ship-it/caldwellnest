@@ -18,17 +18,39 @@ _sessionReady.then(() => initStudent());
 
 // Early restore: paint the last-visited page immediately (no network wait) so a
 // browser-forced reload shows the right page instead of flashing the landing page.
+//
+// cn_last_page lives in sessionStorage, which dies with the TAB — so reloading a live tab
+// keeps it, but closing the app and reopening it does not. That is the common case, and it
+// used to land a perfectly signed-in student on the "Join us" pitch. We cannot know yet
+// whether the session is still valid (getSession() is async and may hit the network to
+// refresh), but we DO know synchronously whether this device has signed in before. If it
+// has, painting the feed is right far more often than painting the landing page; the async
+// block below corrects to the welcome-back login on the rare miss.
 if (!adminPreviewMode) {
   const _rp = sessionStorage.getItem('cn_last_page');
   if (_rp && _rp !== 'home' && document.getElementById('page-' + _rp)) showPage(_rp);
+  else if (getPriorUser()) showPage('listings');
 }
 
 (async () => {
   if (adminPreviewMode) return;
   const [, { data: { session } }] = await Promise.all([_settingsReady, _sessionReady]);
   if (!session) {
-    // Signed out: the early restore above may have painted a signed-in-only page — undo that.
-    if (!applyMaintenance() && ['messages', 'profile'].includes(sessionStorage.getItem('cn_last_page'))) showPage('home');
+    if (applyMaintenance()) return;
+    const lastPage = sessionStorage.getItem('cn_last_page');
+    const onPrivatePage = ['messages', 'profile'].includes(lastPage); // the early restore may have painted a signed-in-only page
+    const prior = getPriorUser();
+    if (prior) {
+      // STATE B — this device knows someone, but the session is gone or expired.
+      // Feed behind, welcome-back login in front. Never the "Join us" pitch: they joined.
+      if (onPrivatePage || !lastPage) showPage('listings');
+      openModal('loginModal');
+    } else if (onPrivatePage) {
+      // STATE C — nobody known here, and we're sitting on a page that needs an account.
+      showPage('home');
+    }
+    // STATE C otherwise: leave the landing page exactly as it is (or the feed, if a
+    // signed-out visitor was browsing it — that has always been allowed).
     return;
   }
 
@@ -65,7 +87,11 @@ if (!adminPreviewMode) {
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
-  // Invisible reload: return to the page the student was on before the browser reloaded the tab.
+  rememberUser(profile.first_name, profile.email || session.user.email); // keep the hint fresh
+  // STATE A — valid session. Invisible reload: return to the page the student was on before
+  // the browser reloaded the tab, and otherwise go straight to the feed. That `else` is the
+  // fix: without it, a signed-in student with no cn_last_page (i.e. anyone reopening the app
+  // rather than reloading a live tab) simply stayed on the "Join us" landing page.
   const lastPage = sessionStorage.getItem('cn_last_page');
   if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {
     showPage(lastPage);
@@ -76,6 +102,8 @@ if (!adminPreviewMode) {
         if (c && c.userId && c.ownerId === session.user.id) openConvo(c.userId, c.info, c.listingId);
       } catch (e) { /* corrupt saved value — ignore, student just sees the convo list */ }
     }
+  } else {
+    showPage('listings');
   }
   // Just clicked the email-verification link → Supabase set the session and redirected here.
   if (/[#&]type=signup/.test(window.location.hash)) {
