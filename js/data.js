@@ -204,6 +204,11 @@ async function initStudent() {
   if (applyMaintenance()) return;
   renderDeepFilters();
   renderListings();
+  // Boot restores the last-visited page in parallel with this first load, so the profile
+  // can paint BEFORE DB.listings exists. My Listings reads marketplace rows from that
+  // cache but fetches books with its own query — so the loser of that race showed the
+  // student only their books. renderListings() above repaints the feed, not the profile.
+  if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
   animNum('statListings', 0, browseItems().filter(isListingLive).length, 600);
   animNum('statStudents', 0, stuCount || 0, 800);
   if (localStorage.getItem('cn_msg_sidebar') === 'collapsed') {

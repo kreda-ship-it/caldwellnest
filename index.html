@@ -72,7 +72,7 @@
         <h2 class="home-h2">How it works</h2>
         <p class="home-lead">Three steps to your verified campus hub</p>
         <div class="hiw-grid" style="margin-top:36px;">
-          <div class="hiw-card bg-alt"><div class="hiw-icon">&#127382;</div><div class="hiw-card-title">1. Sign up with your .edu</div><div class="hiw-card-text">We verify your email and match you to your school's hub. Students only — no outsiders.</div></div>
+          <div class="hiw-card bg-alt hiw-card-link" role="button" tabindex="0" onclick="openModal('signupModal')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('signupModal')}"><div class="hiw-icon">&#127382;</div><div class="hiw-card-title">1. Sign up with your .edu</div><div class="hiw-card-text">We verify your email and match you to your school's hub. Students only — no outsiders.</div><span class="hiw-card-cta">Create your account &#8594;</span></div>
           <div class="hiw-card bg-alt"><div class="hiw-icon">&#127968;</div><div class="hiw-card-title">2. Your campus hub opens</div><div class="hiw-card-text">Housing, marketplace, free stuff, events — all verified, all in one place, all your school.</div></div>
           <div class="hiw-card bg-alt"><div class="hiw-icon">&#128172;</div><div class="hiw-card-title">3. Connect safely</div><div class="hiw-card-text">Browse, post, and message through built-in chat. No strangers, no sharing your number until you're ready.</div></div>
         </div>
@@ -244,11 +244,15 @@
     <div class="profile-wrap">
       <div class="profile-card">
         <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;">
-          <div class="profile-avatar-lg" id="profileAvatar">JD</div>
+          <!-- Identity fields start EMPTY on purpose. Boot paints this page before the
+               Supabase session is restored, and renderProfile() bails out until it has a
+               user — so any sample text here stays on screen and reads as "you are logged
+               in as someone else". styles.css gives the empty state a loading look. -->
+          <div class="profile-avatar-lg" id="profileAvatar"></div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:'DM Serif Display',serif;font-size:24px;line-height:1.2" id="profileName">Jane Doe</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:24px;line-height:1.2" id="profileName"></div>
             <div id="profileUsername" style="margin-top:3px"></div>
-            <div style="font-size:13px;color:var(--text-muted);margin-top:3px" id="profileEmail">jdoe@caldwell.edu</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:3px" id="profileEmail"></div>
             <div class="edu-badge" style="margin-top:6px">&#10003; .edu verified</div>
           </div>
           <button class="btn-sm-a btn-a-neutral" onclick="openEditProfile()" style="flex-shrink:0;margin-top:2px">&#9998; Edit</button>

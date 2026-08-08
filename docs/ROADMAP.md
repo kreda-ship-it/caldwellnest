@@ -3,7 +3,8 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-07-09
+Last updated: 2026-08-08 — see **SESSION LOG 2026-08-08**, **SESSION LOG 2026-08-07**,
+and **LAUNCH BLOCKERS** at the end of this file for the most recent work.
 
 ---
 
@@ -725,16 +726,33 @@ NOTIFY pgrst, 'reload schema';
 - ⬜ Mission & Vision — the problem solved and where it's going
 - ⬜ Contact Us — start with a simple "email us" link; a real form needs backend
 - ⬜ FAQ / How it works
-- ⬜ Links to Terms of Service + Privacy Policy
+- ✅ Links to Terms of Service + Privacy Policy (2026-08-07, `3b31971`) — landing-page
+      footer + the signup consent row. Note the footer lives inside `#page-home`, so the
+      links are **not reachable once a student logs in**; adding them to a logged-in
+      surface is still open.
 
 ---
 
 ## TIER 2 (legal/safety) — Trust, safety & legal (before real students join)
-- ⬜ **Terms of Service + Privacy Policy** — required (holds personal data).
+- 🔄 **Terms of Service + Privacy Policy** — required (holds personal data).
       Claude can draft a starting version; NEEDS real review before launch.
+      **Drafted + wired 2026-08-07 (`3b31971`)**: `terms.html` and `privacy.html` at the
+      repo root, self-contained, linked from the footer and the signup consent row.
+      Still ⬜ before launch — see LAUNCH BLOCKERS at the end of this file:
+        - 🔴 unfilled `[OPERATOR NAME]` and `[DATE]` placeholders in both files
+        - ⬜ the real legal review this line always called for
+        - ⬜ message-access disclosure (see DEFERRED → Admin access to message content)
 - ⬜ **Security basics** — safe password storage (handled by Supabase Auth),
       HTTPS, protection against common attacks
-- ⬜ **Forgot password / password reset** — placeholder UI already in login form.
+- 🔄 **Forgot password / password reset** — **code shipped 2026-08-07 (`3b31971`)**.
+      `js/boot.js` detects the return trip two ways (the `#type=recovery` hash, and the
+      `PASSWORD_RECOVERY` auth event) because supabase-js strips the hash once it consumes
+      the token — either one alone loses the race. `_recoveryMode` (in `js/config.js`) makes
+      entry routing stand down: the recovery link creates a REAL session, so without it boot
+      drops the student on the feed with their password still unchanged.
+      Still ⬜: the **Supabase Dashboard config below is unverified** — confirm the site URL
+      and the Reset Password email template are actually set, or the email never arrives.
+      Original plan notes kept for reference:
       Full flow: `auth.resetPasswordForEmail()` → Supabase sends reset email →
       student lands back on the site → `auth.updateUser({ password })`.
       No SQL needed — pure Supabase Auth. Requires a hosted URL first (the reset
@@ -977,7 +995,8 @@ profile and editing flow is partially built.
              *(superseded by listing sharing — revisit only if needed)*
        - ⬜ Typing indicator (Supabase Presence)
        - 🔒 Active now / last seen (deferred)
-14. ⬜ Forgot password — needs hosted URL first
+14. 🔄 Forgot password — code shipped 2026-08-07 (`3b31971`); Supabase Dashboard
+       config still unverified (see TIER 2 legal/safety)
 15. 🔄 Photos (Supabase Storage)
        - ✅ Stage 1 complete (2026-06-24) — see ALREADY DONE → Listing Photos
        - ⬜ Stage 2 — multiple photos, photo replacement in admin edit,
@@ -1178,7 +1197,9 @@ Average pre-beta feature: 4-6 hours of design + build + test + commit. Roughly
 - ⬜ Two-Caldwells root cause fixed
 - ⬜ Suspension hides listings (safety gap)
 - ⬜ Listings log / activity log integrated
-- ⬜ Mark-as-sold + soft-hide listing lifecycle
+- 🔄 Mark-as-sold + soft-hide listing lifecycle — built in Session C; the owner controls
+      were **silently dead from the day they shipped until 2026-08-08**, blocked by a
+      database trigger, not by the UI. See SESSION LOG 2026-08-08.
 - ✅ UI polish: masonry, no-photo cards, poster + description preview, filter redesign
       *(cards redesign `41467b4`; filter redesign `115ccda`)*
 - ⬜ Demo account removed *(note: superseded — plan is now to REPURPOSE, not delete)*
@@ -1421,3 +1442,183 @@ was actually run** before relying on replies, ticks, or listing shares.
       auto-expiry (needs decision: extend `listings` vs dedicated `events` table)
 3. ⬜ Session E — intent-driven Search redesign (if time before beta)
 4. 🔒 Post-beta: Events E2 (public share pages), E3 (org profiles)
+
+---
+
+# SESSION LOG 2026-08-07
+
+Seven commits, in the order they landed. Two themes: **closing the signup gate** and
+**making moderation explain itself to the student**.
+
+### Signup & access
+- ✅ **Enforce the .edu school-email rule at signup, not just in the hint** (`0d145a7`)
+      — `js/auth.js`, `js/profile.js`. The rule previously lived only in the oninput
+      typeahead, which paints a hint and blocks nothing; a non-.edu address, a stale ✓
+      edited inside the 400 ms debounce, or another school's email all reached
+      `auth.signUp` untouched. Now re-checked authoritatively at submit via the same
+      `validateSchoolEmail()` the hint uses, so the two can never disagree.
+      ⚠️ Still **client-side only** — the anon key is public, so a determined person can
+      call `auth.signUp` directly. Closing that needs a DB-side constraint on the
+      `profiles` insert.
+- ✅ **Route signup availability checks through RPCs; gate the feed tab behind login**
+      (`733c007`) — `index.html`, `js/auth.js`.
+
+### Legal pages + consent (this is the TIER 2.5 / TIER 2-legal work)
+- 🔄 **Password reset flow, legal pages, and signup consent checkbox** (`3b31971`)
+      — 754 insertions across 7 files. Three separate things in one commit:
+      1. **Password reset** — see TIER 2 (legal/safety) above for the mechanism.
+      2. **`terms.html` + `privacy.html`** — self-contained pages at the repo root,
+         linked from the landing footer. Their cross-links use root-absolute
+         `/terms.html` / `/privacy.html`, which resolve **only while the server root is
+         `CaldwellNest/`** (true for Live Server on `127.0.0.1:5500`). They break if the
+         parent `Amahle/` folder is opened, or on any deploy to a subpath. Two characters
+         to fix (drop the leading `/`) if it ever bites.
+      3. **Signup consent gate** — `#sAgree` checkbox ("I'm 18+ and I agree to…"), with
+         `.agree-row` in `styles.css`. Enforcement is in `doSignup()`, placed with the
+         other free checks *above* the domain lookup and the two `profiles` queries, so
+         an unchecked box costs zero network round-trips. The checkbox is only the input;
+         a checkbox alone blocks nothing.
+         ⚠️ **UI gate only** — consent is not recorded anywhere. Storing an
+         accepted-terms timestamp + version on the profile is still ⬜, and is what you'd
+         actually need to *prove* a student agreed.
+
+### Moderation transparency
+- ✅ **Ask why when an admin removes a listing, and tell the student** (`e564f85`)
+      — `js/admin.js`, `js/auth.js`, `index.html`.
+- ✅ **Show a student why their listing was rejected or removed** (`ce8a922`)
+      — `js/listings.js`, `styles.css`.
+- ✅ **Let a student appeal a rejected or removed listing** (`42efe26`)
+      — `js/listings.js`, `index.html`, `styles.css`.
+- ✅ **Show which listing an appeal is about in the admin queue** (`aad3210`)
+      — `js/admin.js`.
+
+### Schema note (verify before trusting) — appeals
+The appeal flow inserts into an **`appeals`** table with columns
+`profile_id`, `email`, `message`, `status`, `listing_id`. **No `.sql` file was committed
+for it.** Confirm the table and its RLS policies actually exist in Supabase before
+trusting appeals in production — and remember the standing rule: after any schema change
+run `NOTIFY pgrst, 'reload schema';` or the API keeps serving a cached schema and rejects
+the new columns with errors that read as if they don't exist.
+
+---
+
+# 🔴 LAUNCH BLOCKERS (opened 2026-08-07)
+
+Things that are **live and wrong**, not merely unbuilt. Clear these before real students
+join.
+
+- 🔴 **Unfilled placeholders in the published legal pages.**
+      `terms.html` — `[OPERATOR NAME]` ×3, `[DATE]` ×1.
+      `privacy.html` — `[OPERATOR NAME]` ×2, `[DATE]` ×1.
+      Anyone loading `/terms.html` today sees a highlighted `[OPERATOR NAME]` where the
+      legal name belongs, and no effective date. The limitation-of-liability and
+      indemnification clauses both name `[OPERATOR NAME]` — precisely the clauses that
+      need a real party to mean anything. Needs Kal's legal name (or the registered
+      entity, once it exists) and a real effective date.
+- 🔴 **The legal pages have never had a real legal review.** They were drafted as a
+      starting version, which is what the TIER 2 line always said they'd be.
+- 🔴 **The consent box never resets — consent persists across modal opens.**
+      `resetSignupModal()` (`js/profile.js:101`) clears every text field with
+      `el.value = ''`, but a checkbox is not cleared by `.value` — it needs
+      `.checked = false`, and `#sAgree` is not in the list. So a student who ticks the box,
+      abandons signup, and comes back later finds it **already ticked**, and creates an
+      account without ever affirmatively agreeing. That is the one thing the gate exists to
+      prevent. One-line fix: add `const ag = document.getElementById('sAgree'); if (ag)
+      ag.checked = false;` to `resetSignupModal()`.
+- ⬜ **Consent is not recorded.** The signup checkbox gates the UI but writes nothing —
+      no timestamp, no terms version. There is currently no way to show a given student
+      agreed.
+- ⬜ **Legal links are unreachable once logged in.** The footer lives inside
+      `#page-home`; no logged-in surface links to Terms or Privacy.
+- ⬜ **Supabase Dashboard config for password reset is unverified** (site URL + Reset
+      Password email template).
+- ⬜ **RLS still unverified** (carried over from the v1 audit, 2026-08-05).
+- ⬜ **`appeals` table + RLS unconfirmed** — see the schema note above.
+- ⬜ **`book_listings` may carry the same broken guard trigger** that blocked every
+      marketplace status change until 2026-08-08 — unverified. See SESSION LOG 2026-08-08.
+
+---
+
+# SESSION LOG 2026-08-08
+
+Two student-facing fixes and one database repair. Nothing in this session touched
+messages, books, admin, or posting code.
+
+### Landing page
+- ✅ **The "1. Sign up with your .edu" how-it-works card now opens signup**
+      — `index.html` (the card), `styles.css` (`.hiw-card-link`, `.hiw-card-cta`).
+      Whole card is the tap target, with a visible "Create your account →" line so it
+      reads as clickable. `role="button"` + `tabindex="0"` + an Enter/Space handler,
+      because a bare `<div onclick>` is unreachable by keyboard and silent to screen
+      readers. No JS anywhere references `.hiw-card`, and the admin live site editor
+      (`applyDBContent`) only rewrites the hero/banner — so nothing else can be affected.
+
+### Listing lifecycle — the owner controls actually work now
+- ✅ **Root cause: a database trigger, not the app.** Every owner action (mark pending
+      sale, mark sold/claimed, withdraw, set/clear deadline, renew) failed with
+      `400 — Owners may only change lifecycle fields`. That message is raised by
+      `fn_guard_owner_listing_update()` on `listings`, which allowed an owner's UPDATE to
+      change **only** `lifecycle_status` and `expires_at`. But `change_listing_status()`
+      also writes `status_changed_at` (always) and `renew_count` (on renewals) — so the
+      guard rejected the very function it was meant to let through. **The buttons had
+      never worked.** Fix: add `status_changed_at` and `renew_count` to the trigger's
+      allowlist. Everything else (title, price, moderation `status`, `poster_id`, …)
+      stays locked exactly as before.
+- ✅ **Any lifecycle state can now move to any other** — `change_listing_status()`'s
+      hard-coded transition matrix is replaced by a whitelist of legal *values*
+      (`active`, `pending_sale`, `sold`, `withdrawn`). The old matrix made **sold** and
+      **withdrawn** dead ends that could only return to active, so a seller who marked
+      something sold by mistake, or whose withdrawn item sold offline, was stuck.
+      Two side effects of that rewrite, both intended:
+        - it also closed a hole where a NULL `lifecycle_status` made the whole check
+          evaluate to NULL — which is not `true`, so the guard never fired and the update
+          passed unchecked;
+        - it now rejects nonsense status values for admins too (the old `OR v_is_admin`
+          let any string through).
+- 🔴 **Neither SQL change is in this repo.** Both were run by hand in the Supabase SQL
+      editor. Same debt as the `appeals` table: there is no migration file, so a rebuild
+      from this repo would recreate the broken trigger. A `sql/` folder holding the real
+      current definitions is worth opening.
+- ⬜ **The buttons have not caught up with the database yet.** `ownerManagePanelHtml()`
+      (`js/listings.js`) still offers **sold → active** and **withdrawn → active** only.
+      Widening it is a UI-only change now that the server permits it.
+- ⬜ **`book_listings` is unverified and may have the identical bug.** Books call the
+      same `change_listing_status()` RPC (`p_table: 'book_listings'`), which writes
+      `status_changed_at` there too. If `book_listings` carries its own copy of the guard
+      trigger, "mark pending sale" / "relist" on a book is broken in exactly the same way
+      and was **not** fixed by this session's trigger repair. To check:
+      `SELECT t.tgname, pg_get_functiondef(t.tgfoid) FROM pg_trigger t
+       WHERE t.tgrelid = 'public.book_listings'::regclass AND NOT t.tgisinternal;`
+
+### Profile page — two boot-time bugs
+- ✅ **My Listings showed only books after a reload** — `js/data.js`, one line in
+      `initStudent()`. Boot restores the last-visited page in parallel with the first data
+      load, so the profile could paint before `DB.listings` existed. That grid reads
+      marketplace rows from the cache but fetches books with its own query — so when the
+      race was lost, `mine` was `[]` and only books survived, and nothing ever repainted
+      (`initStudent()` called `renderListings()`, which repaints the feed, not the
+      profile). Now it repaints the profile too when that page is active — the same guard
+      `applyLocalLifecycleChange()` and `js/books.js` already use.
+      Note: this is a cross-file call from `data.js` into `profile.js`, which loads
+      *after* it. Legal because it runs inside a function, never at load time — the file
+      split's standing rule.
+- ✅ **Reload flashed a fake identity ("Jane Doe / jdoe@caldwell.edu")** — `index.html`,
+      `styles.css`. Those were hardcoded design placeholders. Boot paints the profile page
+      synchronously (deliberately — it avoids flashing the landing page), but
+      `renderProfile()` bails out at `if (!u) return` until the Supabase session is
+      restored, so the sample text stayed on screen and read as being logged in as someone
+      else. The fields are now empty in the markup, with a CSS-only `:empty` skeleton.
+      No JS toggle to keep in sync — and `renderProfile()` is the only writer of those
+      three elements, so the skeleton cannot get stranded.
+- ⬜ The "✓ .edu verified" badge still shows during that pre-load moment. Generic (names
+      no one), so left alone; hide it with the same `:empty` approach if it grates.
+
+### Regression caught in-session (worth remembering)
+The first version of the profile skeleton used the **`background` shorthand**, which
+resets every longhand it doesn't mention — including the `background-size: cover` and
+`background-repeat: no-repeat` that `.profile-avatar-lg` depends on. An avatar with a
+photo is also `:empty` (`paintAvatarEl` clears the initials and paints a background
+image), so real profile pictures rendered full-size from the top-left corner of a 72px
+circle and looked blank. Fixed by using `background-color`. `js/profile.js:412` already
+carried the warning *"not the `background` shorthand — see paintAvatarEl"* — it applies
+to the stylesheet just as much as to the JS.
