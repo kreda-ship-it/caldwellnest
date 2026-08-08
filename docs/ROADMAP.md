@@ -1617,12 +1617,18 @@ messages, books, admin, or posting code.
       The working version tests the **JWT role claim**
       (`current_setting('request.jwt.claims', true)::jsonb ->> 'role'`), which is
       unaffected by `SECURITY DEFINER`: empty = SQL editor, `anon` stays guarded.
-      Written up in `sql/2026-08-08_align_owner_guards.sql` — **applied 2026-08-08**;
-      ⬜ **verification block in that file still needs running.** (The first version of
-      those tests was worthless: it used `UPDATE listings SET title = title`, which changes
-      nothing, so `to_jsonb(NEW)` equalled `to_jsonb(OLD)` and the guard passed no matter
-      what it contained. Replaced with transaction-wrapped tests that impersonate each
-      caller type via `set_config('request.jwt.claims', …, true)` and roll back.)
+      Written up in `sql/2026-08-08_align_owner_guards.sql` — **applied AND verified
+      2026-08-08.** All five checks in `sql/2026-08-08_verify_owner_guards.sql` passed:
+      SQL editor allowed; signed-in non-admin refused; anonymous refused on **both**
+      tables (closing the books hole); owner's lifecycle change still allowed.
+      Two lessons kept here on purpose:
+        - the first attempt at the fix used `current_user`, which in a `SECURITY DEFINER`
+          function is the function's owner — it would have disabled both guards;
+        - the first attempt at the *tests* used `UPDATE listings SET title = title`, which
+          changes nothing, so `to_jsonb(NEW)` equalled `to_jsonb(OLD)` and the guard passed
+          no matter what it contained. A test that cannot fail proves nothing.
+      Both mistakes are the same shape: something that looks like verification but only
+      ever returns "fine".
 
 ### Profile page — two boot-time bugs
 - ✅ **My Listings showed only books after a reload** — `js/data.js`, one line in

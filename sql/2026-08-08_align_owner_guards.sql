@@ -1,8 +1,12 @@
 -- ============================================================================
 -- Align the two owner guards: trust the caller's ROLE, not a NULL user id
 -- Tables: public.listings, public.book_listings
--- STATUS: APPLIED 2026-08-08. Verification block at the bottom — see the warning
---         there about the first version of these tests, which could not fail.
+-- STATUS: APPLIED and VERIFIED 2026-08-08. All five checks in
+--         2026-08-08_verify_owner_guards.sql passed against listing 24 / book 9:
+--         SQL editor allowed; signed-in non-admin refused; anonymous refused on
+--         BOTH tables (the books hole is closed); owner's lifecycle change allowed.
+--         Prefer that file over the test block at the bottom of this one — this
+--         one needs ids pasted in by hand and its first version could not fail.
 -- ============================================================================
 --
 -- THE PROBLEM BEING FIXED
