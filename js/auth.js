@@ -102,9 +102,100 @@ function togglePassword(inputId, btn) {
   btn.textContent = showing ? 'Show' : 'Hide';
 }
 
-function forgotPassword() {
-  // Placeholder — full reset flow (Supabase auth.resetPasswordForEmail) comes after launch
-  toast('Password reset coming soon. For now, contact support if you need access.');
+// ---- Password reset ----
+// Step 1 of 3: ask Supabase to email a recovery link.
+//
+// The confirmation deliberately says "IF that address has an account". Supabase returns
+// success whether or not the email exists, precisely so this form can't be used to discover
+// who has an account — and we must not undo that by checking first and saying "no such user".
+async function forgotPassword() {
+  const emailEl = document.getElementById('lEmail');
+  const err     = document.getElementById('loginErr');
+  const showErr = msg => { if (err) { err.textContent = msg; err.style.display = 'block'; } };
+  const email = (emailEl?.value || getPriorUser()?.email || '').trim().toLowerCase();
+
+  if (!email) {
+    showErr('Enter your email address above first, then tap "Forgot password?".');
+    emailEl?.focus();
+    return;
+  }
+  if (err) { err.textContent = ''; err.style.display = 'none'; }
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  // An error here means we could not SEND (rate limit, transport) — never "no such account".
+  if (error) { console.warn('[forgotPassword]', error.message); showErr('Could not send the reset email just now. Please try again in a moment.'); return; }
+
+  const label = document.getElementById('lResetEmail');
+  if (label) label.textContent = email; // textContent, not innerHTML — this is user input
+  document.querySelector('#loginModal form')?.classList.add('is-hidden');
+  document.querySelector('#loginModal .switch-link')?.classList.add('is-hidden');
+  document.getElementById('lNotYou')?.classList.remove('is-on');
+  document.getElementById('lResetSent')?.classList.add('is-on');
+}
+
+// Returns the login modal from the "check your email" panel to the normal form.
+function backToLogin() {
+  document.getElementById('lResetSent')?.classList.remove('is-on');
+  document.querySelector('#loginModal form')?.classList.remove('is-hidden');
+  document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
+  prepLoginModal();
+}
+
+// Step 2 of 3: the student clicked the emailed link and is back here.
+//
+// supabase-js consumes the recovery token from the URL itself and creates a REAL session,
+// which means without this screen boot.js would see a valid session and route them happily
+// into the feed — password never reset. _recoveryMode stops that routing.
+function showResetScreen() {
+  if (_recoveryMode) return; // idempotent: hash check and PASSWORD_RECOVERY event can both fire
+  _recoveryMode = true;
+  document.getElementById('studentApp').style.display = 'none';
+  document.getElementById('resetPwScreen')?.classList.add('is-on');
+  // Drop the token from the address bar so a refresh doesn't replay it.
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
+function hideResetScreen() {
+  _recoveryMode = false;
+  document.getElementById('resetPwScreen')?.classList.remove('is-on');
+  document.getElementById('studentApp').style.display = '';
+  const p = document.getElementById('rpPass'); if (p) p.value = '';
+}
+
+// Step 3 of 3: set the new password. The recovery session already proves they control the
+// inbox, so on success we take them straight into the app rather than back to a login form.
+async function submitNewPassword() {
+  const pass = document.getElementById('rpPass').value;
+  const err  = document.getElementById('rpErr');
+  const btn  = document.getElementById('rpSubmitBtn');
+  const showErr = msg => { err.textContent = msg; err.style.display = 'block'; };
+  err.style.display = 'none';
+
+  if (!pass || pass.length < 6) { showErr('Password must be at least 6 characters.'); return; } // matches doSignup
+
+  btn.disabled = true; btn.textContent = 'Updating…';
+  const { error } = await supabaseClient.auth.updateUser({ password: pass });
+  btn.disabled = false; btn.textContent = 'Update password';
+  if (error) { showErr(error.message || 'Could not update your password. The link may have expired — request a new one.'); return; }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) { showErr('Your reset link has expired. Please request a new one.'); return; }
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+  if (!profile) { showErr('Account not found. Please sign up first.'); return; }
+
+  // A suspended student must not walk back in through the reset door.
+  if (profile.status === 'suspended') {
+    const { data: sh } = await supabaseClient.from('suspension_history').select('id').eq('profile_id', profile.id).eq('action', 'suspended').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    await supabaseClient.auth.signOut();
+    hideResetScreen();
+    showSuspensionScreen(profile.email || user.email, profile.id, profile.suspension_reason, sh?.id || null);
+    return;
+  }
+
+  hideResetScreen();
+  await enterStudentSession(profile, user.id, 'Password updated ✓');
 }
 
 // ---- Email verification gate ----
@@ -170,6 +261,15 @@ async function doSignup() {
   if (RESERVED_USERNAMES.has(username)) { showErr('That username is reserved. Please choose another.'); return; }
   if (!_selectedSchool) { showErr('Please select your school first.'); return; }
   if (!pass || pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+  // Consent gate. Sits with the other free checks, above the domain lookup and the two
+  // profiles queries, so an unchecked box costs zero network round-trips. Like the domain
+  // gate below, this is CLIENT-side only: it records intent in the UI, it does not prove
+  // consent server-side. Storing an accepted-terms timestamp on the profile is the real
+  // fix and is deliberately out of scope here.
+  if (!document.getElementById('sAgree').checked) {
+    showErr('Please confirm you are 18+ and agree to the Terms & Conditions and Privacy Policy.');
+    return;
+  }
 
   // THE DOMAIN GATE. Until now this rule lived only in the oninput typeahead, which paints a
   // hint and blocks nothing — so a non-.edu address, a stale ✓ edited inside the 400ms
@@ -416,6 +516,11 @@ function forgetPriorUser() {
 // Called by openModal() for every route into the login modal, so the greeting can't
 // depend on which of the eight buttons you pressed to get here.
 function prepLoginModal() {
+  // Always restore the form: reopening the modal after requesting a reset link must not
+  // leave the "check your email" panel showing with no way back to logging in.
+  document.getElementById('lResetSent')?.classList.remove('is-on');
+  document.querySelector('#loginModal form')?.classList.remove('is-hidden');
+  document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
   const prior = getPriorUser();
   if (prior) applyWelcomeBack(prior); else resetLoginModal();
 }

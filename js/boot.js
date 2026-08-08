@@ -16,6 +16,17 @@ const _settingsReady = loadPlatformSettings();
 const _sessionReady = supabaseClient.auth.getSession();
 _sessionReady.then(() => initStudent());
 
+// Password-recovery return. Two detectors on purpose, both idempotent:
+//  - the hash, if supabase-js has not yet stripped it (it removes it once it consumes the token)
+//  - the PASSWORD_RECOVERY event, which fires whether or not we won that race
+// Registered here rather than later because the event fires as soon as the client finishes
+// parsing the URL. Without this, the recovery session looks like a normal login and STATE A
+// below sends them to the feed with their password still unchanged.
+if (/[#&]type=recovery/.test(window.location.hash)) showResetScreen();
+supabaseClient.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') showResetScreen();
+});
+
 // Early restore: paint the last-visited page immediately (no network wait) so a
 // browser-forced reload shows the right page instead of flashing the landing page.
 //
@@ -26,7 +37,7 @@ _sessionReady.then(() => initStudent());
 // refresh), but we DO know synchronously whether this device has signed in before. If it
 // has, painting the feed is right far more often than painting the landing page; the async
 // block below corrects to the welcome-back login on the rare miss.
-if (!adminPreviewMode) {
+if (!adminPreviewMode && !_recoveryMode) {
   const _rp = sessionStorage.getItem('cn_last_page');
   if (_rp && _rp !== 'home' && document.getElementById('page-' + _rp)) showPage(_rp);
   else if (getPriorUser()) showPage('listings');
@@ -34,6 +45,8 @@ if (!adminPreviewMode) {
 
 (async () => {
   if (adminPreviewMode) return;
+  // Mid-reset: the session is real but the student has not set their password yet.
+  if (_recoveryMode) return;
   const [, { data: { session } }] = await Promise.all([_settingsReady, _sessionReady]);
   if (!session) {
     if (applyMaintenance()) return;

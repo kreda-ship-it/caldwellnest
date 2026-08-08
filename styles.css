@@ -74,6 +74,39 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .switch-link{text-align:center;font-size:13px;color:var(--text-muted);margin-top:14px;}
 .switch-link a{color:var(--brand);font-weight:500;cursor:pointer;}
 .login-error{background:var(--danger-pale);color:var(--danger);font-size:13px;padding:9px 12px;border-radius:var(--radius-sm);margin-bottom:12px;display:none;}
+/* Signup consent row. Deliberately NOT .check-label — that one is align-items:center for
+   single-line filter chips, which floats the box in the vertical middle once this text
+   wraps to two lines. flex-start pins it to the first line. margin-top on the input is
+   optical alignment: browsers give a checkbox no leading, so it sits ~2px high next to
+   16px-tall text. */
+.agree-row{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;color:var(--text-muted);cursor:pointer;margin-bottom:14px;}
+.agree-row input{margin:2px 0 0;flex-shrink:0;cursor:pointer;}
+.agree-row a{color:var(--brand);font-weight:500;text-decoration:underline;}
+/* Full-screen auth interstitial (set-a-new-password). Same shape as the older verify and
+   suspension screens, but built from classes rather than inline styles — new UI uses
+   styles.css. Hidden until JS adds .is-on. */
+.auth-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:600;overflow-y:auto;}
+.auth-screen.is-on{display:block;}
+.auth-screen-inner{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;}
+.auth-screen-card-wrap{max-width:440px;width:100%;}
+.auth-brand{font-family:'DM Serif Display',serif;font-size:24px;color:var(--brand);margin-bottom:32px;text-align:center;}
+.auth-brand span{color:var(--accent);}
+.auth-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:30px 28px;text-align:center;}
+.auth-card-icon{font-size:38px;margin-bottom:14px;}
+.auth-card-title{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;}
+.auth-card-body{font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 20px;}
+.auth-card-field{text-align:left;}
+
+.is-hidden{display:none !important;}
+
+/* The "check your email" panel that replaces the login form after a reset request. */
+.reset-sent{display:none;text-align:center;padding:6px 0 2px;}
+.reset-sent.is-on{display:block;}
+.reset-sent-icon{font-size:34px;margin-bottom:12px;}
+.reset-sent-title{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;}
+.reset-sent-body{font-size:13.5px;color:var(--text-muted);line-height:1.65;margin:0 0 20px;}
+.reset-sent-body span{font-weight:600;color:var(--text);word-break:break-all;}
+
 /* A <form> wrapper that exists purely to own its input for browser-autofill purposes,
    contributing no box of its own so the surrounding layout is unchanged. Form ownership
    is a DOM relationship, so display:contents does not weaken it. */

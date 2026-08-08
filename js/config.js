@@ -116,6 +116,10 @@ let _bHistFilter  = 'all';
 let _bcastCache        = {};
 let _pendingPhotoFiles = [];
 const MAX_LISTING_PHOTOS = 6;
+// True while the "set a new password" screen is up. Entry routing must stand down: the
+// recovery link gives supabase-js a REAL session, so boot would otherwise route straight
+// into the feed and the student would never get to set a password.
+let _recoveryMode = false;
 let _pendingAvatarFile = null;  // a newly picked avatar awaiting save
 let _avatarRemoved = false;     // true if the user cleared their avatar this session
 

@@ -161,7 +161,7 @@
       <div class="footer-inner">
         <span class="s-logo" style="font-size:18px;cursor:default;">Nest<span>rel</span></span>
         <div class="footer-links">
-          <a href="terms.html" target="_blank">Terms of Service</a>
+          <a href="terms.html" target="_blank">Terms &amp; Conditions</a>
           <a href="privacy.html" target="_blank">Privacy Policy</a>
           <a href="mailto:amahledigitalcreatives@gmail.com">Contact</a>
         </div>
@@ -1061,6 +1061,17 @@
           <button type="button" onclick="togglePassword('sPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
         </div>
       </div>
+      <!-- Consent gate. target="_blank" is load-bearing, not cosmetic: without it, clicking
+           Terms navigates the tab away and wipes the half-filled form. rel="noopener" is the
+           standard companion to _blank. The real enforcement is in doSignup() — this checkbox
+           is only the input; an unchecked box is caught there before any network call. -->
+      <label class="agree-row">
+        <input type="checkbox" id="sAgree">
+        <span>I'm 18+ and I agree to the
+          <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and
+          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+        </span>
+      </label>
       <div class="login-error" id="signupErr"></div>
       <button class="btn-full btn-brand" type="submit">Create account</button>
       </form>
@@ -1097,7 +1108,40 @@
     </form>
     <div class="switch-link">New here? <a onclick="switchModal('loginModal','signupModal')">Sign up</a></div>
     <div class="login-notyou" id="lNotYou">Not you? <a onclick="signInAsSomeoneElse()">Sign in as someone else</a></div>
+    <!-- Swaps in place of the form after a reset link is requested. The wording is
+         deliberately non-committal about whether the address has an account — see
+         forgotPassword() for why. -->
+    <div class="reset-sent" id="lResetSent">
+      <div class="reset-sent-icon">&#9993;&#65039;</div>
+      <div class="reset-sent-title">Check your email</div>
+      <p class="reset-sent-body">If <span id="lResetEmail"></span> has an account, we've sent a link to reset your password. It can take a minute — check your spam folder too.</p>
+      <button class="btn-full" onclick="backToLogin()">&#8592; Back to log in</button>
+    </div>
   </div></div>
+</div>
+
+<!-- SET A NEW PASSWORD — shown when a student returns from a reset email link -->
+<div class="auth-screen" id="resetPwScreen">
+  <div class="auth-screen-inner">
+    <div class="auth-screen-card-wrap">
+      <div class="auth-brand">Caldwell<span>Nest</span></div>
+      <div class="auth-card">
+        <div class="auth-card-icon">&#128273;</div>
+        <div class="auth-card-title">Set a new password</div>
+        <p class="auth-card-body">Choose a new password for your account. It needs to be at least 6 characters.</p>
+        <form onsubmit="event.preventDefault();submitNewPassword();return false">
+          <div class="form-group auth-card-field">
+            <div style="position:relative">
+              <input class="form-input" id="rpPass" name="new-password" autocomplete="new-password" placeholder="New password" type="password" style="padding-right:60px">
+              <button type="button" onclick="togglePassword('rpPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
+            </div>
+          </div>
+          <div class="login-error" id="rpErr"></div>
+          <button class="btn-full btn-brand" type="submit" id="rpSubmitBtn">Update password</button>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- PUBLIC STUDENT PROFILE -->
