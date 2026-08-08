@@ -847,7 +847,20 @@ function openDetail(id) {
 // grant on `listings`, by design — see the guard rationale in listing_lifecycle memory).
 function ownerManagePanelHtml(l) {
   const eu = getEffectiveUser();
-  if (!eu || eu.id !== l.poster_id || l.status !== 'approved') return '';
+  if (!eu || eu.id !== l.poster_id) return '';
+
+  // Moderated out of the feed — show the owner the status AND the reason. This used to
+  // return nothing at all for any non-approved listing, so a student whose post was
+  // rejected or removed watched it disappear with no explanation anywhere in the app.
+  // Book listings already did this (see books.js); marketplace listings did not.
+  if (l.status !== 'approved') {
+    const [bg, col, label] = listingLifecycleBadge(l);
+    return `<div class="owner-moderated">
+      <div>Status: <span class="pill" style="background:${bg};color:${col}">${label}</span></div>
+      ${l.rejection_reason ? `<div class="owner-moderated-reason">${esc(l.rejection_reason)}</div>` : ''}
+    </div>`;
+  }
+
   const ls = l.lifecycle_status || 'active';
   const isExpired = (ls === 'active' || ls === 'pending_sale') && l.expires_at && new Date(l.expires_at) <= new Date();
   const soldLabel = l.rent ? 'Mark as sold' : 'Mark as claimed';

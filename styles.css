@@ -99,6 +99,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 .is-hidden{display:none !important;}
 
+/* What the owner of a rejected/removed listing sees in its detail view: the status, and
+   the moderator's reason. Muted rather than alarming — it explains, it doesn't scold. */
+.owner-moderated{text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);}
+.owner-moderated-reason{margin-top:6px;font-size:12px;color:var(--danger);line-height:1.5;}
+
 /* The "check your email" panel that replaces the login form after a reset request. */
 .reset-sent{display:none;text-align:center;padding:6px 0 2px;}
 .reset-sent.is-on{display:block;}
