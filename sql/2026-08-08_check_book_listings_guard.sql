@@ -70,12 +70,16 @@ $function$;
 --      fields". auth.uid() is NULL there, so the function reads the editor as
 --      "not an admin" and blocks it.
 --
--- A better test than either would name the caller precisely instead of relying
--- on a NULL user id, e.g.:
+-- ⚠️ A first attempt at fixing this suggested:
 --
---   IF current_user IN ('postgres', 'service_role') THEN RETURN NEW; END IF;
+--       IF current_user IN ('postgres', 'service_role') THEN RETURN NEW; END IF;
 --
--- which lets the SQL editor and trusted server-side work through while still
--- guarding anonymous requests. Not applied — changing two working security
--- rules deserves its own session and its own testing, not a drive-by edit.
+--    DO NOT USE IT. Both functions are SECURITY DEFINER, so current_user is the
+--    function's OWNER (postgres), never the caller — the test is true for
+--    everyone and disables the guard completely while looking like it tightens
+--    it. session_user fails too: PostgREST SET ROLEs from one connection role,
+--    so anon and authenticated requests share a session_user.
+--
+--    The working version tests the JWT role claim instead. See
+--    sql/2026-08-08_align_owner_guards.sql.
 -- ============================================================================

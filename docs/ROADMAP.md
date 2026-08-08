@@ -1608,9 +1608,17 @@ messages, books, admin, or posting code.
           side effect, **editing a `listings` row by hand in the Supabase SQL editor or
           Table Editor fails** with "Owners may only change lifecycle fields". Worth
           knowing before you try to hand-fix a listing and conclude the database is broken.
-      A test that names the caller (`current_user IN ('postgres','service_role')`) would fix
-      both. Deliberately NOT applied as a drive-by: it changes two working security rules
-      and deserves its own session and its own testing.
+      ⚠️ **A first attempt suggested `current_user IN ('postgres','service_role')` — that
+      is WRONG, do not use it.** Both functions are `SECURITY DEFINER`, so `current_user`
+      is the function's *owner* (`postgres`), never the caller: the test is true for
+      everyone and would disable both guards completely while appearing to tighten them.
+      `session_user` fails too — PostgREST `SET ROLE`s from a single connection role, so
+      anonymous and signed-in requests share one `session_user`.
+      The working version tests the **JWT role claim**
+      (`current_setting('request.jwt.claims', true)::jsonb ->> 'role'`), which is
+      unaffected by `SECURITY DEFINER`: empty = SQL editor, `anon` stays guarded.
+      Written up with tests in `sql/2026-08-08_align_owner_guards.sql` — **proposed, not
+      yet applied.**
 
 ### Profile page — two boot-time bugs
 - ✅ **My Listings showed only books after a reload** — `js/data.js`, one line in
