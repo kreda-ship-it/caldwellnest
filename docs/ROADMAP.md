@@ -1617,8 +1617,12 @@ messages, books, admin, or posting code.
       The working version tests the **JWT role claim**
       (`current_setting('request.jwt.claims', true)::jsonb ->> 'role'`), which is
       unaffected by `SECURITY DEFINER`: empty = SQL editor, `anon` stays guarded.
-      Written up with tests in `sql/2026-08-08_align_owner_guards.sql` — **proposed, not
-      yet applied.**
+      Written up in `sql/2026-08-08_align_owner_guards.sql` — **applied 2026-08-08**;
+      ⬜ **verification block in that file still needs running.** (The first version of
+      those tests was worthless: it used `UPDATE listings SET title = title`, which changes
+      nothing, so `to_jsonb(NEW)` equalled `to_jsonb(OLD)` and the guard passed no matter
+      what it contained. Replaced with transaction-wrapped tests that impersonate each
+      caller type via `set_config('request.jwt.claims', …, true)` and roll back.)
 
 ### Profile page — two boot-time bugs
 - ✅ **My Listings showed only books after a reload** — `js/data.js`, one line in

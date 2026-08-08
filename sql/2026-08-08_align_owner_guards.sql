@@ -1,7 +1,8 @@
 -- ============================================================================
 -- Align the two owner guards: trust the caller's ROLE, not a NULL user id
 -- Tables: public.listings, public.book_listings
--- STATUS: PROPOSED — not yet applied. Run it, then run the tests at the bottom.
+-- STATUS: APPLIED 2026-08-08. Verification block at the bottom — see the warning
+--         there about the first version of these tests, which could not fail.
 -- ============================================================================
 --
 -- THE PROBLEM BEING FIXED
@@ -118,28 +119,73 @@ NOTIFY pgrst, 'reload schema';
 
 
 -- ============================================================================
--- TESTS — run all four. This changes security rules on tables holding student
--- data, so "it didn't error" is not evidence that it works.
+-- VERIFICATION
 --
---   1. In the app, as a student, on your OWN listing:
---      withdraw it, mark it sold, set a deadline. All must still succeed.
---
---   2. In the app, as a student, on a book you posted:
---      mark pending sale, then back to active. Both must still succeed.
---
---   3. In the SQL editor (this is the behavior being ADDED — it fails today):
+-- ⚠️ The first version of these tests included:
 --        UPDATE listings SET title = title WHERE id = <some id>;
---      Must now succeed instead of raising "Owners may only change lifecycle fields".
+--    which proves NOTHING. Setting a column to itself means to_jsonb(NEW) equals
+--    to_jsonb(OLD), so changed_forbidden is false and the guard passes whatever
+--    it contains — including the old, stricter version it was meant to detect.
+--    Every test below changes a value for real, then rolls back.
 --
---   4. The guard must still BITE. Confirm it did not quietly turn itself off —
---      this is the failure mode the current_user version would have caused:
---        SELECT proname, prosrc FROM pg_proc
---        WHERE proname IN ('fn_guard_owner_listing_update','fn_guard_owner_book_update');
---      and read the bodies back. Better still, have a student account attempt a
---      direct title change through the API and confirm it is refused.
+-- Pick any real listing id and any real book id first:
+--     SELECT id, title FROM listings      ORDER BY id DESC LIMIT 5;
+--     SELECT id, title FROM book_listings ORDER BY id DESC LIMIT 5;
 --
--- If test 1 or 2 fails, revert by re-running:
---   sql/2026-08-08_fix_owner_lifecycle_guard.sql             (listings)
---   sql/2026-08-08_check_book_listings_guard.sql             (books — its
---     recorded body is the pre-change version; run just the CREATE OR REPLACE)
+-- set_config(..., true) sets the value for the current TRANSACTION only, which
+-- is how the SQL editor can impersonate each kind of caller. Every block ends in
+-- ROLLBACK, so none of these tests leaves a changed row behind.
 -- ============================================================================
+
+-- TEST 1 — in the APP, as a student, on your own listing: withdraw, mark sold,
+--          set a deadline. All must still succeed. (The real regression test:
+--          this is the flow the whole session was about.)
+
+-- TEST 2 — in the APP, as a student, on a book you posted: mark pending sale,
+--          then back to active. Both must still succeed.
+
+-- TEST 3 — the SQL editor may now edit a listing. EXPECT: succeeds.
+BEGIN;
+  UPDATE listings SET title = title || '·' WHERE id = <LISTING_ID>;
+  SELECT id, title FROM listings WHERE id = <LISTING_ID>;   -- title gained a ·
+ROLLBACK;
+
+-- TEST 4 — the guard MUST still refuse a signed-in non-admin changing a
+--          non-lifecycle column. EXPECT: ERROR "Owners may only change
+--          lifecycle fields". If this SUCCEEDS, the guard is off — revert now.
+BEGIN;
+  SELECT set_config('request.jwt.claims',
+                    '{"role":"authenticated","sub":"00000000-0000-0000-0000-000000000000"}',
+                    true);
+  UPDATE listings SET title = title || '·' WHERE id = <LISTING_ID>;
+ROLLBACK;
+
+-- TEST 5 — anonymous callers must be refused too. This is the hole that existed
+--          in the books guard before this change. EXPECT: ERROR on both.
+BEGIN;
+  SELECT set_config('request.jwt.claims', '{"role":"anon"}', true);
+  UPDATE listings SET title = title || '·' WHERE id = <LISTING_ID>;
+ROLLBACK;
+
+BEGIN;
+  SELECT set_config('request.jwt.claims', '{"role":"anon"}', true);
+  UPDATE book_listings SET title = title || '·' WHERE id = <BOOK_ID>;
+ROLLBACK;
+
+-- TEST 6 — a lifecycle change by a signed-in owner must still be ALLOWED
+--          (proves the guard is discriminating, not simply refusing everything).
+--          EXPECT: succeeds. Use a listing whose poster_id you paste as "sub".
+BEGIN;
+  SELECT set_config('request.jwt.claims',
+                    '{"role":"authenticated","sub":"<POSTER_UUID>"}',
+                    true);
+  UPDATE listings SET lifecycle_status = lifecycle_status, status_changed_at = now()
+  WHERE id = <LISTING_ID>;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
+-- If TEST 1, 2 or 6 fails, revert by re-running:
+--   sql/2026-08-08_fix_owner_lifecycle_guard.sql   (listings)
+--   sql/2026-08-08_check_book_listings_guard.sql   (books — its recorded body is
+--     the pre-change version; run just its CREATE OR REPLACE FUNCTION)
+-- ---------------------------------------------------------------------------
