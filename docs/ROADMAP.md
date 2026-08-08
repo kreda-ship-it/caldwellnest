@@ -1575,10 +1575,15 @@ messages, books, admin, or posting code.
           passed unchecked;
         - it now rejects nonsense status values for admins too (the old `OR v_is_admin`
           let any string through).
-- 🔴 **Neither SQL change is in this repo.** Both were run by hand in the Supabase SQL
-      editor. Same debt as the `appeals` table: there is no migration file, so a rebuild
-      from this repo would recreate the broken trigger. A `sql/` folder holding the real
-      current definitions is worth opening.
+- ✅ **`sql/` folder opened** (2026-08-08) — both fixes are now written down as
+      `sql/2026-08-08_fix_owner_lifecycle_guard.sql` and
+      `sql/2026-08-08_change_listing_status_any_transition.sql`, plus
+      `sql/2026-08-08_check_book_listings_guard.sql` (diagnostic) and a `sql/README.md`.
+      All are `CREATE OR REPLACE`, so re-running one is harmless — that is the way to
+      settle "did I already apply this?".
+      Still ⬜ before the folder could rebuild the database: the real `CREATE TRIGGER`
+      statement for `trg_guard_owner_listing_update` (only its *function* was ever read),
+      every table definition, all RLS policies and GRANTs, and the `appeals` table.
 - ⬜ **The buttons have not caught up with the database yet.** `ownerManagePanelHtml()`
       (`js/listings.js`) still offers **sold → active** and **withdrawn → active** only.
       Widening it is a UI-only change now that the server permits it.
