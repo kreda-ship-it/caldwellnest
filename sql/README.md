@@ -37,7 +37,9 @@ that is cheaper than trying to remember.
 |---|---|
 | `2026-08-08_fix_owner_lifecycle_guard.sql` | Repairs the trigger function that blocked every owner status change on `listings`. |
 | `2026-08-08_change_listing_status_any_transition.sql` | The lifecycle RPC. Lets any status move to any other; whitelists the legal values. |
-| `2026-08-08_check_book_listings_guard.sql` | The `book_listings` owner guard as it really is. **Checked 2026-08-08: not affected, nothing to run.** Records an open decision — the two guards disagree about unauthenticated callers. |
+| `2026-08-08_check_book_listings_guard.sql` | The `book_listings` owner guard as it really is. **Checked 2026-08-08: not affected, nothing to run.** Records why `current_user` must never be used in these functions. |
+| `2026-08-08_align_owner_guards.sql` | Applied 2026-08-08. Makes both guards trust the caller's JWT role claim instead of a NULL user id. Its own test block needs ids filled in — prefer the verify file below. |
+| `2026-08-08_verify_owner_guards.sql` | **Run this to check the guards.** Self-contained: finds its own ids, impersonates each caller type, rolls everything back. Reports by raising an exception — the error message is the report. |
 
 ## Naming
 
