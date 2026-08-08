@@ -171,6 +171,27 @@ async function doSignup() {
   if (!_selectedSchool) { showErr('Please select your school first.'); return; }
   if (!pass || pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
 
+  // THE DOMAIN GATE. Until now this rule lived only in the oninput typeahead, which paints a
+  // hint and blocks nothing — so a non-.edu address, a stale ✓ edited inside the 400ms
+  // debounce, or another school's email all reached auth.signUp untouched. Re-checked here,
+  // authoritatively, at the moment of submit. Same validateSchoolEmail() the hint uses, so
+  // the two can never disagree.
+  //
+  // Note this is still CLIENT-side: the anon key is public, so a determined person can call
+  // auth.signUp directly and skip it. Closing that needs a DB-side constraint on the profiles
+  // insert. This stops ordinary misuse, not deliberate bypass.
+  const emailCheck = await validateSchoolEmail(email, _selectedSchool);
+  if (!emailCheck.ok) {
+    if (emailCheck.code === 'wrong_school') {
+      showErr(`${emailCheck.message} Pick ${emailCheck.school.name} above, or sign up with your ${_selectedSchool.name} address.`);
+    } else if (emailCheck.code === 'unknown_domain') {
+      showErr("We don't recognize that .edu domain yet — check it for a typo, or use the waitlist link on the school step.");
+    } else {
+      showErr(emailCheck.message);
+    }
+    return;
+  }
+
   const { data: takenUsername } = await supabaseClient.from('profiles').select('id').eq('username', username).maybeSingle();
   if (takenUsername) { showErr('That username is already taken. Please choose another.'); return; }
 

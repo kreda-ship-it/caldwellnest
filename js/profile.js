@@ -139,6 +139,53 @@ async function submitWaitlist() {
   }
 }
 
+// The single authoritative answer to "may this email sign up for this school?".
+//
+// Both callers use THIS: the live typeahead below for its hint, and doSignup() as the
+// actual gate. Writing the rule twice is how two copies drift apart — the same trap the
+// audit flagged between isListingLive() and the visible_listings view.
+//
+// Returns { ok, code, message, school }. Never throws, never touches the DOM — the caller
+// decides how loudly to say it. Codes: empty | malformed | not_edu | unknown_domain |
+// wrong_school | lookup_failed | ok.
+async function validateSchoolEmail(rawEmail, selectedSchool) {
+  const email = String(rawEmail || '').trim().toLowerCase();
+  if (!email) return { ok: false, code: 'empty', message: 'Please enter your university email.' };
+
+  const at = email.indexOf('@');
+  const domain = at > 0 ? email.slice(at + 1) : '';
+  // A second @ means it is not a single valid address, whatever the rest looks like.
+  if (!domain || !domain.includes('.') || email.indexOf('@', at + 1) !== -1) {
+    return { ok: false, code: 'malformed', message: 'Please enter a valid email address.' };
+  }
+  if (!domain.endsWith('.edu')) {
+    return { ok: false, code: 'not_edu', message: 'Please use your university email address (ending in .edu).' };
+  }
+
+  const { data: domainRow, error } = await supabaseClient
+    .from('school_domains')
+    .select('school_id, schools(id, slug, name)')
+    .eq('domain', domain)
+    .maybeSingle();
+
+  // Fail CLOSED. A gate that swings open whenever the database is unreachable is not a
+  // gate — and an outage is exactly when nobody is watching. The old code ignored `error`
+  // entirely, so a network blip was indistinguishable from "unrecognized domain".
+  if (error) {
+    console.warn('[validateSchoolEmail] domain lookup failed:', error.message);
+    return { ok: false, code: 'lookup_failed', message: 'Could not verify your email domain just now. Please try again.' };
+  }
+  if (!domainRow || !domainRow.schools) {
+    return { ok: false, code: 'unknown_domain', message: "We don't recognize that .edu domain yet." };
+  }
+
+  const matched = domainRow.schools;
+  if (selectedSchool && matched.slug !== selectedSchool.slug) {
+    return { ok: false, code: 'wrong_school', message: `That looks like a ${matched.name} email.`, school: matched };
+  }
+  return { ok: true, code: 'ok', school: matched };
+}
+
 async function checkEmailAvailability(raw) {
   const statusEl   = document.getElementById('emailStatus');
   const mismatchEl = document.getElementById('emailMismatch');
@@ -148,31 +195,19 @@ async function checkEmailAvailability(raw) {
   if (mismatchEl) mismatchEl.style.display = 'none';
   if (!val) return;
 
-  const hasDomain     = val.includes('@');
-  const domainPart    = hasDomain ? val.split('@')[1] : '';
-  const hasFullDomain = domainPart.includes('.');
-  const isEdu         = hasDomain && domainPart.endsWith('.edu');
-
-  if (hasDomain && hasFullDomain && !isEdu) {
-    statusEl.textContent = 'Must be a .edu email'; statusEl.style.color = 'var(--danger)'; return;
-  }
-  if (!isEdu) return;
-
-  statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
   _emailTimer = setTimeout(async () => {
-    const { data: domainRow } = await supabaseClient
-      .from('school_domains')
-      .select('school_id, schools(id, slug, name)')
-      .eq('domain', domainPart)
-      .maybeSingle();
+    statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
+    const verdict = await validateSchoolEmail(val, _selectedSchool);
 
-    if (!domainRow) {
-      statusEl.textContent = 'Unrecognized .edu domain'; statusEl.style.color = 'var(--danger)'; return;
-    }
+    // A half-typed address is not an error — it is someone still typing. Only the
+    // finished-looking failures get said out loud.
+    if (verdict.code === 'empty' || verdict.code === 'malformed') { statusEl.textContent = ''; return; }
+    if (verdict.code === 'not_edu')        { statusEl.textContent = 'Must be a .edu email';     statusEl.style.color = 'var(--danger)'; return; }
+    if (verdict.code === 'unknown_domain') { statusEl.textContent = 'Unrecognized .edu domain'; statusEl.style.color = 'var(--danger)'; return; }
+    if (verdict.code === 'lookup_failed')  { statusEl.textContent = 'Could not check just now'; statusEl.style.color = 'var(--text-muted)'; return; }
 
-    const matched = domainRow.schools;
-
-    if (_selectedSchool && matched.slug !== _selectedSchool.slug) {
+    if (verdict.code === 'wrong_school') {
+      const matched = verdict.school;
       statusEl.textContent = '';
       if (!_schoolsList.find(s => s.id === matched.id)) _schoolsList.push(matched);
       if (mismatchEl) {
