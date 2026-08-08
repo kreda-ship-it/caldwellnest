@@ -3640,6 +3640,15 @@ function _appealCard(a) {
       ${badge}
       <span style="font-size:11px;color:var(--text-faint)">${fmtActivityTime(a.created_at)}</span>
     </div>
+    ${a.listing_id ? (() => {
+      // Listing appeals reuse this queue. Title comes from the cache already in memory —
+      // DB.listings holds removed/rejected rows too — so no extra query per card.
+      const li = DB.listings.find(x => String(x.id) === String(a.listing_id));
+      return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--text-muted)">
+        <span style="font-weight:600;color:var(--text)">Listing appeal:</span> ${li ? esc(li.title) : `#${esc(String(a.listing_id))}`}
+        ${li?.rejection_reason ? `<div style="margin-top:4px">Removed for: ${esc(li.rejection_reason)}</div>` : ''}
+      </div>`;
+    })() : ''}
     ${a.suspension ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--text-muted)">
       <span style="font-weight:600;color:var(--text)">Suspension reason:</span> ${a.suspension.reason ? esc(a.suspension.reason) : '<em>No reason recorded</em>'}
       ${a.suspension.report_id ? ` &nbsp;·&nbsp; <span class="stu-link-a" onclick="openReportDrawer('${a.suspension.report_id}')">View triggering report ↗</span>` : ''}
