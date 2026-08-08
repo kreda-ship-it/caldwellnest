@@ -1409,6 +1409,19 @@
 </div>
 
 <!-- REJECT -->
+<!-- APPEAL A MODERATED LISTING (student side) -->
+<div class="modal-overlay" id="listingAppealModal">
+  <div class="modal modal-narrow"><div class="modal-header"><div class="modal-title">Appeal this decision</div><button class="modal-close" onclick="closeModal('listingAppealModal')">&#215;</button></div>
+  <div class="modal-body">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Appealing:</p>
+    <p id="laListingTitle" style="font-size:14px;font-weight:600;color:var(--text);margin:0 0 14px"></p>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Tell us why you think this was a mistake. A moderator will review it.</p>
+    <textarea class="form-textarea" id="laMessage" placeholder="Explain what happened…"></textarea>
+    <div class="login-error" id="laErr"></div>
+    <button class="btn-full btn-brand" style="margin-top:12px" id="laSubmitBtn" onclick="submitListingAppeal()">Submit appeal</button>
+  </div></div>
+</div>
+
 <div class="modal-overlay" id="rejectModal">
   <div class="modal modal-narrow"><div class="modal-header"><div class="modal-title" id="rejectModalTitle">Reject listing</div><button class="modal-close" onclick="closeModal('rejectModal')">&#215;</button></div>
   <div class="modal-body"><p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Reason (sent to student):</p>

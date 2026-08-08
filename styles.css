@@ -103,6 +103,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
    the moderator's reason. Muted rather than alarming — it explains, it doesn't scold. */
 .owner-moderated{text-align:center;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);}
 .owner-moderated-reason{margin-top:6px;font-size:12px;color:var(--danger);line-height:1.5;}
+.owner-appeal-btn{margin-top:10px;background:none;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.owner-appeal-btn:hover{border-color:var(--brand);color:var(--brand);}
 
 /* The "check your email" panel that replaces the login form after a reset request. */
 .reset-sent{display:none;text-align:center;padding:6px 0 2px;}

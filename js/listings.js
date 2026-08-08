@@ -734,6 +734,56 @@ function posterHeaderHTML(l) {
   </div>`;
 }
 
+// ---- Appealing a moderated listing ----
+// Reuses the existing appeals table and admin queue rather than building a parallel system:
+// same row shape as a suspension appeal, with listing_id set instead of suspension_history_id.
+let _appealListingId = null;
+
+function openListingAppeal(id) {
+  const eu = getEffectiveUser();
+  if (!eu) { openModal('loginModal'); return; }
+  const l = browseItems().find(x => x.id === id && !x.isBook) || DB.listings.find(x => x.id === id);
+  if (!l || l.poster_id !== eu.id) return; // only your own listing, and only if it still exists
+  _appealListingId = id;
+  document.getElementById('laListingTitle').textContent = l.title;
+  document.getElementById('laMessage').value = '';
+  const err = document.getElementById('laErr');
+  err.textContent = ''; err.style.display = 'none';
+  const btn = document.getElementById('laSubmitBtn');
+  btn.disabled = false; btn.textContent = 'Submit appeal';
+  closeModal('detailModal');
+  openModal('listingAppealModal');
+}
+
+async function submitListingAppeal() {
+  const eu = getEffectiveUser();
+  if (!eu || !_appealListingId) return;
+  const message = document.getElementById('laMessage').value.trim();
+  const err = document.getElementById('laErr');
+  const btn = document.getElementById('laSubmitBtn');
+  if (!message) { err.textContent = 'Please tell us why you are appealing.'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  const { error } = await supabaseClient.from('appeals').insert({
+    profile_id: eu.id,
+    email: eu.email || null,
+    message,
+    status: 'open',
+    listing_id: _appealListingId
+  });
+  if (error) {
+    console.error('[listing appeal]', error.message);
+    err.textContent = 'Could not submit your appeal just now. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Submit appeal';
+    return;
+  }
+  closeModal('listingAppealModal');
+  toast('Appeal submitted — a moderator will review it.');
+  _appealListingId = null;
+}
+
 // Price line — category aware (Free for donations and $0 books, Event for org posts, /mo only for housing).
 function priceLabel(l) {
   if (l.category === 'organization_event') return `<span class="lc-soft">Event</span>`;
@@ -855,9 +905,13 @@ function ownerManagePanelHtml(l) {
   // Book listings already did this (see books.js); marketplace listings did not.
   if (l.status !== 'approved') {
     const [bg, col, label] = listingLifecycleBadge(l);
+    // Appealable once a moderator has acted. Not offered for 'pending', where there is no
+    // decision to contest yet — it is simply still in the queue.
+    const canAppeal = l.status === 'removed' || l.status === 'rejected';
     return `<div class="owner-moderated">
       <div>Status: <span class="pill" style="background:${bg};color:${col}">${label}</span></div>
       ${l.rejection_reason ? `<div class="owner-moderated-reason">${esc(l.rejection_reason)}</div>` : ''}
+      ${canAppeal ? `<button class="owner-appeal-btn" onclick="openListingAppeal(${l.id})">Appeal this decision</button>` : ''}
     </div>`;
   }
 
