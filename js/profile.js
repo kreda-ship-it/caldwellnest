@@ -104,6 +104,11 @@ function resetSignupModal() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const sYear = document.getElementById('sYear'); if (sYear) sYear.value = '';
   const wRole = document.getElementById('wRole'); if (wRole) wRole.value = '';
+  // Consent must be re-given every time the form is presented fresh, so this is cleared
+  // like any other field. It is NOT in the list above because that list uses .value, and
+  // setting .value on a checkbox does nothing to its ticked state — you need .checked.
+  // Adding 'sAgree' there would look right and silently reset nothing.
+  const sAgree = document.getElementById('sAgree'); if (sAgree) sAgree.checked = false;
   const searchEl = document.getElementById('schoolSearch');
   if (searchEl) { searchEl.style.display = ''; searchEl.value = ''; }
   [['schoolDropdown','none'],['selectedSchoolBadge','none'],['signupMainForm','none'],
