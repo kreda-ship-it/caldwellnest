@@ -1517,14 +1517,14 @@ join.
       entity, once it exists) and a real effective date.
 - 🔴 **The legal pages have never had a real legal review.** They were drafted as a
       starting version, which is what the TIER 2 line always said they'd be.
-- 🔴 **The consent box never resets — consent persists across modal opens.**
-      `resetSignupModal()` (`js/profile.js:101`) clears every text field with
-      `el.value = ''`, but a checkbox is not cleared by `.value` — it needs
-      `.checked = false`, and `#sAgree` is not in the list. So a student who ticks the box,
-      abandons signup, and comes back later finds it **already ticked**, and creates an
-      account without ever affirmatively agreeing. That is the one thing the gate exists to
-      prevent. One-line fix: add `const ag = document.getElementById('sAgree'); if (ag)
-      ag.checked = false;` to `resetSignupModal()`.
+- ✅ ~~**The consent box never resets**~~ — **FIXED 2026-08-08**. `resetSignupModal()`
+      (`js/profile.js`) clears every text field with `el.value = ''`, but a checkbox is not
+      cleared by `.value` — it needs `.checked = false`, and `#sAgree` was not in the list.
+      A student who ticked the box, abandoned signup, and came back later found it **already
+      ticked**, and could create an account without ever affirmatively agreeing. Now cleared
+      explicitly. `resetSignupModal()` runs from `openModal()`, so every route into the
+      modal is covered. Note for next time: adding `'sAgree'` to the `.value` list would
+      have *looked* correct and reset nothing.
 - ⬜ **Consent is not recorded.** The signup checkbox gates the UI but writes nothing —
       no timestamp, no terms version. There is currently no way to show a given student
       agreed.
@@ -1534,8 +1534,12 @@ join.
       Password email template).
 - ⬜ **RLS still unverified** (carried over from the v1 audit, 2026-08-05).
 - ⬜ **`appeals` table + RLS unconfirmed** — see the schema note above.
-- ⬜ **`book_listings` may carry the same broken guard trigger** that blocked every
-      marketplace status change until 2026-08-08 — unverified. See SESSION LOG 2026-08-08.
+- ✅ ~~**`book_listings` may carry the same broken guard trigger** that blocked every
+      marketplace status change until 2026-08-08 — unverified.~~ **Checked 2026-08-08:
+      not affected.** Its guard already allowed `status_changed_at`. Not a blocker.
+- ⬜ **Confirm `anon` holds no UPDATE grant on `book_listings`** — its guard waves through
+      every caller with a NULL `auth.uid()`, which includes unauthenticated API requests,
+      so the grant is the only thing protecting it. See SESSION LOG 2026-08-08.
 
 ---
 
@@ -1587,13 +1591,26 @@ messages, books, admin, or posting code.
 - ⬜ **The buttons have not caught up with the database yet.** `ownerManagePanelHtml()`
       (`js/listings.js`) still offers **sold → active** and **withdrawn → active** only.
       Widening it is a UI-only change now that the server permits it.
-- ⬜ **`book_listings` is unverified and may have the identical bug.** Books call the
-      same `change_listing_status()` RPC (`p_table: 'book_listings'`), which writes
-      `status_changed_at` there too. If `book_listings` carries its own copy of the guard
-      trigger, "mark pending sale" / "relist" on a book is broken in exactly the same way
-      and was **not** fixed by this session's trigger repair. To check:
-      `SELECT t.tgname, pg_get_functiondef(t.tgfoid) FROM pg_trigger t
-       WHERE t.tgrelid = 'public.book_listings'::regclass AND NOT t.tgisinternal;`
+- ✅ **`book_listings` checked 2026-08-08 — NOT affected, no fix needed.**
+      `fn_guard_owner_book_update()` already allows `status_changed_at` (and `sold_at`),
+      so book status changes were never blocked. The `listings` guard was the odd one out.
+      Both the trigger and its function are now recorded verbatim in
+      `sql/2026-08-08_check_book_listings_guard.sql`.
+- ⬜ **NEW — the two owner guards disagree, and each is wrong in a different way.**
+      Comparing them side by side (which only became possible once both were written down):
+        - `fn_guard_owner_book_update()` opens with `IF auth.uid() IS NULL THEN RETURN NEW`,
+          commented as "SQL editor / service role". But `auth.uid()` is NULL for **any
+          unauthenticated API request**, not just the SQL editor — so the guard is disabled
+          for anonymous callers, leaving RLS and GRANTs as the only protection. Probably
+          fine (anon should hold no UPDATE grant on `book_listings`) but that is one lock
+          where there were meant to be two. **Confirm the grant.**
+        - `fn_guard_owner_listing_update()` has no such line, so it is stricter — and as a
+          side effect, **editing a `listings` row by hand in the Supabase SQL editor or
+          Table Editor fails** with "Owners may only change lifecycle fields". Worth
+          knowing before you try to hand-fix a listing and conclude the database is broken.
+      A test that names the caller (`current_user IN ('postgres','service_role')`) would fix
+      both. Deliberately NOT applied as a drive-by: it changes two working security rules
+      and deserves its own session and its own testing.
 
 ### Profile page — two boot-time bugs
 - ✅ **My Listings showed only books after a reload** — `js/data.js`, one line in

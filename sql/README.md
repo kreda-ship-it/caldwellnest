@@ -37,7 +37,7 @@ that is cheaper than trying to remember.
 |---|---|
 | `2026-08-08_fix_owner_lifecycle_guard.sql` | Repairs the trigger function that blocked every owner status change on `listings`. |
 | `2026-08-08_change_listing_status_any_transition.sql` | The lifecycle RPC. Lets any status move to any other; whitelists the legal values. |
-| `2026-08-08_check_book_listings_guard.sql` | **Diagnostic first.** Checks whether `book_listings` carries the same broken guard. Do not run its second half until you have read the output of the first. |
+| `2026-08-08_check_book_listings_guard.sql` | The `book_listings` owner guard as it really is. **Checked 2026-08-08: not affected, nothing to run.** Records an open decision — the two guards disagree about unauthenticated callers. |
 
 ## Naming
 
@@ -49,6 +49,7 @@ kept so they can be read, reviewed, and re-applied.
 
 These were never captured and are needed before this folder can rebuild the database:
 
+- ✅ The `book_listings` guard — trigger *and* function — captured 2026-08-08.
 - ⬜ The real `CREATE TRIGGER` statement for `trg_guard_owner_listing_update`. Only the
       *function* it calls was ever read. Capture it with:
       ```sql
