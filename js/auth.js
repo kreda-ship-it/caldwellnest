@@ -470,7 +470,12 @@ function showStudentNotifications(notifs) {
   const title = document.getElementById('notifModalTitle');
   const body  = document.getElementById('notifModalBody');
   if (!title || !body) return;
-  title.textContent = notifs.length === 1 ? 'Appeal update' : `${notifs.length} appeal updates`;
+  // This modal used to be appeal-only and said so unconditionally. It now also carries
+  // listing removals, so the heading follows what is actually in the batch.
+  const allAppeals = notifs.every(n => (n.type || '').startsWith('appeal'));
+  title.textContent = notifs.length === 1
+    ? (allAppeals ? 'Appeal update' : 'Update from CaldwellNest')
+    : `${notifs.length} ${allAppeals ? 'appeal updates' : 'updates'}`;
   body.innerHTML = notifs.map(n => `
     <div style="padding:12px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:13px;line-height:1.6;color:var(--text)">${n.message}</div>

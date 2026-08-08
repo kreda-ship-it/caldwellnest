@@ -724,9 +724,12 @@ async function aReturnToPending(id) {
 }
 
 let _rejectTarget = 'listing'; // 'listing' | 'book' — which confirmReject() should act on
-function aOpenReject(id) { aRejectId = id; _rejectTarget = 'listing'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject listing'; openModal('rejectModal'); }
+// One modal serves three actions; each opener must set BOTH labels, or the previous
+// action's wording leaks into the next one.
+function aOpenReject(id) { aRejectId = id; _rejectTarget = 'listing'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject listing'; document.getElementById('rejConfirmBtn').textContent = 'Confirm rejection'; openModal('rejectModal'); }
 async function confirmReject() {
   if (_rejectTarget === 'book') return confirmRejectBook();
+  if (_rejectTarget === 'removal') return confirmRemoval();
   const l = DB.pending.find(x => x.id === aRejectId); if (!l) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
   const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
@@ -806,7 +809,7 @@ async function aApproveBook(id) {
   toast('✓ Book approved — now live on the Books board');
 }
 
-function aOpenRejectBook(id) { aBookRejectId = id; _rejectTarget = 'book'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject book'; openModal('rejectModal'); }
+function aOpenRejectBook(id) { aBookRejectId = id; _rejectTarget = 'book'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject book'; document.getElementById('rejConfirmBtn').textContent = 'Confirm rejection'; openModal('rejectModal'); }
 async function confirmRejectBook() {
   const b = DB.pendingBooks.find(x => x.id === aBookRejectId); if (!b) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
@@ -972,17 +975,41 @@ function renderAListings() {
 
 function aft(id, q) { document.querySelectorAll(`#${id} tr`).forEach(r => r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'); }
 
-async function aRemoveListing(id) {
+// Taking down an already-approved listing now asks WHY. The reason is stored on the row
+// (so the student can see it), written into admin_activity_log (so the audit trail stops
+// recording null), and pushed as a notification (so they find out rather than discovering
+// the listing quietly gone).
+function aRemoveListing(id) {
+  aRejectId = id;
+  _rejectTarget = 'removal';
+  document.getElementById('rejReason').value = '';
+  document.getElementById('rejectModalTitle').textContent = 'Remove listing';
+  document.getElementById('rejConfirmBtn').textContent = 'Confirm removal';
+  openModal('rejectModal');
+}
+
+// The actual removal. Kept separate from the modal so the report-resolution flow can
+// remove a listing directly, with its own reason, without a second dialog mid-flow.
+async function performRemoveListing(id, reason) {
   const l = DB.listings.find(x => x.id === id);
   if (!l) return;
-  const { error } = await supabaseClient.from('listings').update({ status: 'removed' }).eq('id', id);
+  const r = reason || 'Did not meet guidelines.';
+  const { error } = await supabaseClient.from('listings').update({ status: 'removed', rejection_reason: r }).eq('id', id);
   if (error) { toast('Could not remove listing — please try again.'); console.error(error.message); return; }
   const prevStatus = l.status;
   l.status = 'removed';
+  l.rejection_reason = r;
   l.updated_at = new Date().toISOString();
+  if (l.poster_id) aNotifyStudent(l.poster_id, 'listing_removed', `Your listing "${l.title}" was removed by a moderator. Reason: ${r}`);
   DB.log.unshift({ type: 'remove', text: `Listing removed: "${l.title}"`, time: 'Just now', color: '#c0392b' });
-  logAdminAction('remove_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: prevStatus }, after: { status: 'removed' } });
+  logAdminAction('remove_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, reason: r, before: { status: prevStatus }, after: { status: 'removed' } });
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing removed');
+}
+
+async function confirmRemoval() {
+  const r = document.getElementById('rejReason').value.trim();
+  closeModal('rejectModal');
+  await performRemoveListing(aRejectId, r);
 }
 
 async function aRestoreListing(id) {
@@ -2231,7 +2258,9 @@ async function hideListingFromReport(reportId, listingId) {
     resolution_note: 'Listing removed by admin',
     listing_title_snapshot: listing?.title || null
   }).eq('id', reportId);
-  await aRemoveListing(listingId);
+  // Direct removal, not the modal: we're already mid-flow resolving a report, and the
+  // report itself is the reason.
+  await performRemoveListing(listingId, 'Removed following a report from another student.');
   updateReportsBadge(); renderAReports();
 }
 
