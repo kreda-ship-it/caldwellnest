@@ -292,11 +292,15 @@ async function doSignup() {
     return;
   }
 
-  const { data: takenUsername } = await supabaseClient.from('profiles').select('id').eq('username', username).maybeSingle();
-  if (takenUsername) { showErr('That username is already taken. Please choose another.'); return; }
+  // These run BEFORE signUp, so the caller is still anonymous. They used to read the
+  // profiles table directly, which only worked because anonymous SELECT was wide open —
+  // the same policy that let anyone dump every student's name and email. These RPCs are
+  // SECURITY DEFINER and answer yes/no without exposing a single row, so the policy can go.
+  const { data: usernameFree } = await supabaseClient.rpc('check_username_available', { username_to_check: username });
+  if (usernameFree === false) { showErr('That username is already taken. Please choose another.'); return; }
 
-  const { data: takenEmail } = await supabaseClient.from('profiles').select('id').eq('email', email).maybeSingle();
-  if (takenEmail) { showErr('An account already exists with that email. Try logging in instead.'); return; }
+  const { data: emailFree } = await supabaseClient.rpc('check_email_available', { email_to_check: email });
+  if (emailFree === false) { showErr('An account already exists with that email. Try logging in instead.'); return; }
 
   const initials = (first[0] + last[0]).toUpperCase();
   const color = AC[Math.floor(Math.random() * AC.length)];

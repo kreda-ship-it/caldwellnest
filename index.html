@@ -270,7 +270,11 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>Home</span>
     </button>
-    <button class="m-tab" id="mtab-search" onclick="goSearch()" aria-label="Search">
+    <!-- Gated like Messages: RLS lets only authenticated users read listings, so a
+         logged-out visitor tapping this got an empty grid reading "No listings yet — be
+         the first to post one!", which presents "not allowed to see this" as "this place
+         is empty". Prompt them to log in instead of lying about the platform. -->
+    <button class="m-tab" id="mtab-search" onclick="if(requireAuth())goSearch()" aria-label="Search">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
       <span>Search</span>
     </button>
