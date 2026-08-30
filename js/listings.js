@@ -934,9 +934,18 @@ function ownerManagePanelHtml(l) {
       <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Back to active</button>
       <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
   } else if (ls === 'sold') {
-    actions = `<button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Mark active again</button>`;
+    // Sold and withdrawn used to offer only "back to active", so every other move cost two
+    // hops. change_listing_status() now accepts any of the four states directly (see
+    // sql/2026-08-08_change_listing_status_any_transition.sql), so the buttons can match.
+    actions = `
+      <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Mark active again</button>
+      <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
   } else if (ls === 'withdrawn') {
-    actions = `<button class="btn-sm-a btn-a-success" onclick="lifecycleAction(${l.id},'listings','active')">Reactivate</button>`;
+    // Reachable directly because an item withdrawn from the feed can still sell offline —
+    // the exact case that used to strand a seller.
+    actions = `
+      <button class="btn-sm-a btn-a-success" onclick="lifecycleAction(${l.id},'listings','active')">Reactivate</button>
+      <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','sold')">${soldLabel}</button>`;
   } else {
     actions = `
       <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','pending_sale')">Mark pending sale</button>
