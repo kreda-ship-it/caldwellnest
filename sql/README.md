@@ -42,6 +42,7 @@ that is cheaper than trying to remember.
 | `2026-08-08_verify_owner_guards.sql` | **Run this to check the guards.** Self-contained: finds its own ids, impersonates each caller type, rolls everything back. Reports by raising an exception — the error message is the report. |
 | `2026-09-01_record_signup_consent.sql` | Adds `profiles.terms_accepted_at` / `terms_version` and teaches `handle_new_user` to record consent at signup. Applied 2026-09-01. |
 | `2026-09-01_guard_consent_columns.sql` | Adds the consent columns to the privileged-columns guard, so a student cannot erase their own consent record. Also captures `guard_profile_privileged_columns` in full. |
+| `2026-09-01_capture_profiles_triggers.sql` | **Capture only, no change.** The `.edu` email gate (`enforce_school_email` + its trigger), written down for the first time. |
 
 ## Naming
 
@@ -61,6 +62,8 @@ These were never captured and are needed before this folder can rebuild the data
       FROM pg_trigger t
       WHERE t.tgrelid = 'public.listings'::regclass AND NOT t.tgisinternal;
       ```
+- ✅ The three triggers on `profiles` — `enforce_school_email`,
+      `guard_profile_privileged_columns`, `handle_new_user` — captured 2026-09-01.
 - ⬜ Table definitions: `listings`, `book_listings`, `profiles`, `messages`, `appeals`,
       `user_roles`, `schools`, `activity_log`.
 - ⬜ All RLS policies and `GRANT`s. (RLS is still listed as unverified in the roadmap's
