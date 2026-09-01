@@ -264,6 +264,15 @@
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
         <button class="btn-full" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border);margin-top:16px;" onclick="sLogout()">Log out</button>
+        <!-- The only route to the legal pages once a student is signed in: the site footer
+             lives inside #page-home, which a logged-in student never sees again. Same
+             target="_blank" as the signup consent row — leaving the SPA would drop them
+             back at the entry router. -->
+        <div class="profile-legal">
+          <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+          <span aria-hidden="true">&#183;</span>
+          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+        </div>
       </div>
     </div>
   </div>

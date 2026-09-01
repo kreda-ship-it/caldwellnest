@@ -465,6 +465,12 @@ img{image-orientation:from-image;}
 /* PROFILE */
 .profile-wrap{max-width:640px;margin:0 auto;padding:36px 24px;}
 .profile-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:28px;}
+/* Fine print under Log out — deliberately quiet, but a real tap target on mobile. */
+.profile-legal{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:var(--text-faint);}
+/* Padding, not font-size, does the work here: it grows the thumb target to ~34px without
+   making the fine print look any bigger. margin-top is pulled back to compensate. */
+.profile-legal a{color:var(--text-muted);text-decoration:none;padding:10px 8px;}
+.profile-legal a:hover{color:var(--text);text-decoration:underline;}
 /* Edit-profile avatar preview: clicking the picture opens the file picker, which is
    what people try first. The "Change photo" button beside it stays the keyboard path. */
 .ep-avatar-preview{cursor:pointer;}
