@@ -21,7 +21,7 @@ const TERMS_VERSION = '2026-09-01';
 const CONSENT_LOGGING_SINCE = '2026-09-01';
 
 const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
-const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other', books:'Books' };
+const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
 //

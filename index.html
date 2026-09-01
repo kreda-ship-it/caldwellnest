@@ -202,7 +202,7 @@
         <button class="cat-tab" onclick="setListingCat('housing',this)">Housing</button>
         <button class="cat-tab" onclick="setListingCat('clothing',this)">Clothing</button>
         <button class="cat-tab" onclick="setListingCat('technology',this)">Technology</button>
-        <button class="cat-tab" onclick="setListingCat('donation',this)">Donation</button>
+        <button class="cat-tab" onclick="setListingCat('donation',this)">Free items</button>
         <button class="cat-tab" onclick="setListingCat('organization_event',this)">Events</button>
         <button class="cat-tab" onclick="setListingCat('books',this)">Books</button>
         <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
@@ -434,7 +434,7 @@
                 <button class="filter-chip"        id="aTypeChip-housing"            onclick="setAListFilter('type','housing')">&#127968; Housing</button>
                 <button class="filter-chip"        id="aTypeChip-clothing"           onclick="setAListFilter('type','clothing')">&#128085; Clothing</button>
                 <button class="filter-chip"        id="aTypeChip-technology"         onclick="setAListFilter('type','technology')">&#128187; Technology</button>
-                <button class="filter-chip"        id="aTypeChip-donation"           onclick="setAListFilter('type','donation')">&#127873; Donation</button>
+                <button class="filter-chip"        id="aTypeChip-donation"           onclick="setAListFilter('type','donation')">&#127873; Free items</button>
                 <button class="filter-chip"        id="aTypeChip-organization_event" onclick="setAListFilter('type','organization_event')">&#128227; Events</button>
                 <button class="filter-chip"        id="aTypeChip-other"              onclick="setAListFilter('type','other')">&#127991; Other</button>
               </div>
@@ -1239,7 +1239,7 @@
         <button class="cat-pick-btn cat-housing" onclick="selectCategory('housing')">Housing</button>
         <button class="cat-pick-btn cat-clothing" onclick="selectCategory('clothing')">Clothing</button>
         <button class="cat-pick-btn cat-technology" onclick="selectCategory('technology')">Technology</button>
-        <button class="cat-pick-btn cat-donation" onclick="selectCategory('donation')">Donation</button>
+        <button class="cat-pick-btn cat-donation" onclick="selectCategory('donation')">Free items</button>
         <button class="cat-pick-btn cat-organization_event" onclick="selectCategory('organization_event')">Org / Event</button>
         <button class="cat-pick-btn cat-books" onclick="closePostModal();openPostBook()">Books</button>
         <button class="cat-pick-btn cat-other" onclick="selectCategory('other')">Other</button>
@@ -1299,7 +1299,7 @@
         <div class="form-group"><label class="form-label">Brand / Model</label><input class="form-input" id="pTK_brand" placeholder="e.g. MacBook Pro 2021, Samsung Galaxy S22"></div>
       </div>
 
-      <!-- DONATION fields -->
+      <!-- FREE ITEMS fields (stored category value stays 'donation' — label only) -->
       <div id="catFields-donation" style="display:none">
         <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
         <div class="form-group"><label class="form-label">Pickup info</label><input class="form-input" id="pDN_pickup" placeholder="e.g. Caldwell dorms, contact to arrange"></div>
