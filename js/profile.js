@@ -438,6 +438,19 @@ function renderProfile() {
     `<div class="info-item"><label>Joined</label><span>${joined}</span></div>`
   ].join('');
 
+  // What this person agreed to, and when. Deliberately silent when there is no record:
+  // every account created before 2026-09-01 predates consent recording, and saying
+  // nothing is truthful where "not accepted" would be a false accusation.
+  const consentEl = document.getElementById('profileConsent');
+  if (consentEl) {
+    if (u.terms_accepted_at) {
+      const when = new Date(u.terms_accepted_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      consentEl.textContent = `You accepted these on ${when}.`;
+    } else {
+      consentEl.textContent = '';
+    }
+  }
+
   renderMyListingsGrid(u); // async — one grid, marketplace + books together
 }
 

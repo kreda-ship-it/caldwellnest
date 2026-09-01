@@ -1440,6 +1440,30 @@ function goToReportsFiltered(school) {
   if (src) { _anaNavSource = src; _reapplyAnaBreadcrumb('reports'); }
 }
 
+// What this student agreed to, and when — for the detail modal.
+//
+// The three outcomes are deliberately distinct. "No record" on an account created AFTER
+// consent logging went live means something is broken (a signup that skipped the form, or
+// a trigger that stopped firing) and is worth showing in red. The same blank on an older
+// account means only that we weren't recording yet, which is nobody's fault and shouldn't
+// look like an accusation. Collapsing the two would either hide a real fault or cry wolf
+// on every early student.
+function _consentCell(s) {
+  if (s.terms_accepted_at) {
+    const when = new Date(s.terms_accepted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const v = s.terms_version;
+    // Stale = they accepted a version of the documents that is no longer the current one.
+    // Not an error; it's the list you'd work from if you ever need re-consent.
+    const stale = v && v !== TERMS_VERSION;
+    return `${esc(when)} <span class="a-consent-v">${v ? 'v' + esc(v) : 'version unknown'}</span>`
+         + (stale ? ` <span class="a-consent-stale">outdated</span>` : '');
+  }
+  const predates = s.created_at && new Date(s.created_at) < new Date(CONSENT_LOGGING_SINCE);
+  return predates
+    ? `<span class="a-consent-v">not logged yet at signup</span>`
+    : `<span class="a-consent-none">No record</span>`;
+}
+
 async function aViewStu(id) {
   const { data: s, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
   if (error || !s) { toast('Could not load student profile.'); return; }
@@ -1459,6 +1483,7 @@ async function aViewStu(id) {
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${esc(s.year || '—')}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>0</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span></div>
+    <div class="a-kv"><label>Terms</label><span>${_consentCell(s)}</span></div>
     <div style="margin-top:14px;display:flex;gap:8px;">${actionBtn}</div>`;
   openModal('aStuModal');
 }

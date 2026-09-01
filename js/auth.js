@@ -311,7 +311,10 @@ async function doSignup() {
     email, password: pass,
     options: {
       emailRedirectTo: window.location.origin,
-      data: { first_name: first, last_name: last, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug }
+      // terms_version rides along so handle_new_user can record consent. Only the VERSION
+      // is sent — the trigger sets the timestamp itself with now(). A time supplied by the
+      // browser is a number the sender picked; a server clock isn't.
+      data: { first_name: first, last_name: last, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug, terms_version: TERMS_VERSION }
     }
   });
   if (authError) { showErr(authError.message); return; }
@@ -390,7 +393,10 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
     username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null,
     major: profile.major, year: profile.year, initials: profile.initials, color: profile.color,
     avatar_url: profile.avatar_url || null, created_at: profile.created_at || null,
-    school: profile.school || 'caldwell'
+    school: profile.school || 'caldwell',
+    // Read-only here. Nothing in the student UI ever writes these back; they exist so the
+    // profile page can show a person what they agreed to and when.
+    terms_accepted_at: profile.terms_accepted_at || null, terms_version: profile.terms_version || null
   };
   updateSNav();
   if (welcomeMsg) toast(welcomeMsg);

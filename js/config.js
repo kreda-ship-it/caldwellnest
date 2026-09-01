@@ -7,6 +7,19 @@
 // ============================================================
 
 // ── Supabase connection ──────────────────────────────────────
+// ── Legal ────────────────────────────────────────────────────
+// BUMP THIS whenever terms.html or privacy.html changes in a way that alters what a
+// student is agreeing to. It is written onto the profile at signup, so a stored value
+// of '2026-09-01' means "this person accepted the documents as they read on that date".
+// Without it, a stored timestamp would only prove SOMEONE agreed to SOMETHING.
+// Old profiles keep the version they accepted — never rewrite them to match this.
+const TERMS_VERSION = '2026-09-01';
+// The day consent recording went live. Accounts older than this have no consent record
+// because none was ever captured — which is different from an account that SHOULD have one
+// and doesn't. The admin student view uses this to tell those two apart instead of flagging
+// every early student as a problem.
+const CONSENT_LOGGING_SINCE = '2026-09-01';
+
 const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Donation', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).

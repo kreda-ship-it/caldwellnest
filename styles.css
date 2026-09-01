@@ -471,6 +471,15 @@ img{image-orientation:from-image;}
    making the fine print look any bigger. margin-top is pulled back to compensate. */
 .profile-legal a{color:var(--text-muted);text-decoration:none;padding:10px 8px;}
 .profile-legal a:hover{color:var(--text);text-decoration:underline;}
+.profile-consent{text-align:center;font-size:11px;color:var(--text-faint);}
+.profile-consent:empty{display:none;}
+/* Key/value row in admin detail modals. The rows above it in aViewStu still carry these
+   same values inline (known debt) — this is the class they should migrate to. */
+.a-kv{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-top:1px solid var(--border);}
+.a-kv label{color:var(--text-muted);}
+.a-consent-v{color:var(--text-faint);}
+.a-consent-stale{color:var(--warning);}
+.a-consent-none{color:var(--danger);font-weight:500;}
 /* Edit-profile avatar preview: clicking the picture opens the file picker, which is
    what people try first. The "Change photo" button beside it stays the keyboard path. */
 .ep-avatar-preview{cursor:pointer;}
