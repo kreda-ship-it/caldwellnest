@@ -1549,14 +1549,30 @@ join.
       page (`index.html:271`), below Log out.
 - ⬜ **Supabase Dashboard config for password reset is unverified** (site URL + Reset
       Password email template).
-- ⬜ **RLS still unverified** (carried over from the v1 audit, 2026-08-05).
-- ⬜ **`appeals` table + RLS unconfirmed** — see the schema note above.
+- ✅ ~~**RLS still unverified**~~ — **VERIFIED 2026-09-03**, and it was not clean.
+      Every policy and GRANT was read back with `sql/2026-09-03_capture_rls_and_grants.sql`.
+      **`admin_activity_log` had RLS switched OFF** while carrying three policies — which are
+      only consulted when RLS is enabled, so all three were decoration — and `authenticated`
+      held SELECT, INSERT, UPDATE, DELETE and TRUNCATE on it. Any signed-in student could
+      read the whole admin audit log, including the `before_state` / `after_state` blobs, and
+      edit or delete any row. Closed by `sql/2026-09-03_fix_rls_and_grants.sql`, which also
+      revoked dead `anon` write grants on `listings` and `reports`.
+      **Seven follow-ups remain** and are listed at the bottom of that file — none of them
+      live holes, but see SESSION LOG 2026-09-03 for the two worth doing next.
+- ✅ ~~**`appeals` table + RLS unconfirmed**~~ — **CONFIRMED 2026-09-03**. RLS is on, with
+      six policies: anon INSERT (deliberate — a suspended student may be locked out and still
+      needs to appeal) and admin SELECT/UPDATE. The anon INSERT has `with check (true)` and no
+      rate limit in front of it, which is a spam vector rather than an access hole; noted as
+      follow-up 9. Two of the six policies are exact duplicates of the other two.
 - ✅ ~~**`book_listings` may carry the same broken guard trigger** that blocked every
       marketplace status change until 2026-08-08 — unverified.~~ **Checked 2026-08-08:
       not affected.** Its guard already allowed `status_changed_at`. Not a blocker.
-- ⬜ **Confirm `anon` holds no UPDATE grant on `book_listings`** — its guard waves through
-      every caller with a NULL `auth.uid()`, which includes unauthenticated API requests,
-      so the grant is the only thing protecting it. See SESSION LOG 2026-08-08.
+- ✅ ~~**Confirm `anon` holds no UPDATE grant on `book_listings`**~~ — **CONFIRMED SAFE
+      2026-09-03**. `anon` holds only REFERENCES, TRIGGER and TRUNCATE on that table — no
+      UPDATE, and none of those three are reachable through PostgREST. The guard is also no
+      longer the only protection: since `2026-08-08_align_owner_guards.sql`,
+      `fn_guard_owner_listing_update()` reads the JWT role claim and deliberately does *not*
+      treat `anon` as trusted. Two independent reasons it is closed.
 
 ---
 
@@ -1734,9 +1750,62 @@ documents, and one bug found while writing the plans down.
       (commonly at 1000 rows) and returns a short list rather than an error. The log export
       now sets an explicit range; `students`, `convos` and `reports` still do not.
 
+### Permission audit — three launch blockers closed
+Stage 0 of the campus engagement build was to capture and verify RLS, since the whole
+engagement system is a permission system and `can_act()` would be layered on top of whatever
+was already there. `sql/2026-09-03_capture_rls_and_grants.sql` (read-only, nine queries) dumped
+every policy, GRANT, view, function and trigger. It found nine things.
+
+- 🔴 **`admin_activity_log` had RLS switched off** — the one real hole. Three policies were
+      defined on it, but policies are only consulted when RLS is *enabled*, so none of them
+      had ever run. `authenticated` held SELECT, INSERT, UPDATE, DELETE and TRUNCATE. Any
+      signed-in student could read the entire admin audit log — including the `before_state`
+      and `after_state` blobs, which carry other students' data, such as why someone was
+      suspended — and edit or delete any row, including records about themselves.
+      **Fixed 2026-09-03.** Enabling RLS activated the three existing policies unchanged; they
+      already matched what the app does. DELETE and TRUNCATE revoked outright — nothing in
+      `js/` deletes from this table.
+- 🟠 **Dead `anon` write grants** on `listings` (INSERT/UPDATE/DELETE) and `reports` (INSERT).
+      Not exploitable: RLS was on and every policy named `authenticated`, so an anonymous
+      caller matched nothing. But every other table had already had these revoked, and
+      several policies here use the `{public}` role — which in Postgres **includes** anon — so
+      one permissive `{public}` policy on either table would have made the grant live with no
+      further mistake. Revoked. `anon` keeps SELECT on `listings` deliberately: RLS already
+      returns it zero rows, and revoking the grant would turn a logged-out visitor's empty
+      feed into an error path (`js/data.js:101` treats those differently).
+- ✅ `anon` INSERT on `appeals` and `school_interest` **kept** — both have a real anon policy
+      behind them, and both are things people do before they can log in.
+- ✅ Rev 3 of the engagement plan **verified against the real definitions**: `is_super_admin()`
+      is `role_id = 'super_admin'` over `user_roles`, and `get_admin_school()` returns `text`.
+      Corrections C1 and C2 were right.
+- ✅ `favorites` is **the only table in the database with clean grants** — no anon row at all.
+      The GRANT discipline in `2026-09-01_saved_items.sql` is the standard to copy. (It is also
+      already applied, so adding `'event'` to `item_type` is now an ALTER, not an edit.)
+
+**The rule worth keeping:** a GRANT is fine when a policy stands behind it saying who may do
+what. A GRANT with no policy behind it is an unlocked door in front of a locked one — it costs
+nothing today and costs everything the day someone adds a permissive policy.
+
+### Follow-ups from the audit (none are live holes)
+- ⬜ **`visible_listings` has no SELECT grant**, so the app cannot read it. That is why the
+      rule was re-implemented by hand as `isListingLive()` in `js/data.js`, and why an earlier
+      audit caught the two drifting apart. Granting SELECT is one line, but a Postgres view
+      runs with its owner's permissions by default, so it would bypass the RLS on `listings`
+      underneath — needs `security_invoker`, not a quick GRANT. **This also blocks §4.6 of the
+      campus engagement plan**, which assumes every read path can query `visible_events`.
+- ⬜ **Three different admin checks are in use**: `user_is_admin()`, `is_super_admin()`, and an
+      inline `exists (select 1 from user_roles ...)`. They do not agree — the inline form
+      matches any role row, `is_super_admin()` requires `role_id = 'super_admin'`. This is
+      exactly the drift `can_act()` is meant to end.
+- ⬜ `user_is_admin()` is **not captured** and now gates the audit log. See `sql/README.md`.
+- ⬜ `user_roles` and `admin_roles` are readable by anon, disclosing the admin roster.
+- ⬜ ~9 duplicated policy pairs; `saved_listings` looks like a dead predecessor of `favorites`;
+      TRUNCATE/REFERENCES/TRIGGER granted broadly from an early `grant all`.
+
 ### Next
-Stage 0 of the campus engagement build is **capturing and verifying RLS** — `visible_listings`,
-`is_super_admin()`, the shape of `user_roles`, and the full policy set — into `sql/`. That
-closes the open "RLS still unverified" blocker *and* is the prerequisite for `can_act()`, since
-the entire engagement system is a permission system. It is also three of the items already
-listed as missing in `sql/README.md`.
+Stage 0 is **partly done**: the policies and GRANTs were read and acted on, but not yet written
+into `sql/` as definitions, and the table-definition dump was never captured. Finishing it means
+writing the function bodies and policy set into a capture file so this folder could rebuild the
+database — which is the whole reason `sql/` exists.
+
+After that, workstream 1 of the campus engagement plan can start on verified ground.
