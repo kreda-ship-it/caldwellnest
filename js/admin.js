@@ -3269,16 +3269,17 @@ async function sendAI() {
 // DATA EXPORT
 // ============================================================
 async function renderExports() {
-  const [{ count: stuN }, { count: msgN }, { count: repN }] = await Promise.all([
+  const [{ count: stuN }, { count: msgN }, { count: repN }, { count: logN }] = await Promise.all([
     supabaseClient.from('profiles').select('id', { count: 'exact', head: true }),
     supabaseClient.from('messages').select('id', { count: 'exact', head: true }),
     supabaseClient.from('reports').select('id',  { count: 'exact', head: true }),
+    supabaseClient.from('admin_activity_log').select('id', { count: 'exact', head: true }),
   ]);
   document.getElementById('expStudentCount').textContent = stuN ?? '—';
   document.getElementById('expListCount').textContent = DB.listings.length + DB.pending.length;
   document.getElementById('expConvoCount').textContent = msgN ?? '—';
   document.getElementById('expRepCount').textContent = repN ?? '—';
-  document.getElementById('expLogCount').textContent = DB.log.length;
+  document.getElementById('expLogCount').textContent = logN ?? '—';
 }
 
 function _downloadData(data, filename, fmt) {
@@ -3313,7 +3314,19 @@ async function expData(type, fmt) {
     const { data: rows } = await supabaseClient.from('reports').select('*').order('created_at');
     data = rows || [];
   } else if (type === 'log') {
-    data = DB.log;
+    // The real audit trail is the admin_activity_log TABLE, not the in-memory DB.log this
+    // exported until 2026-09-03. DB.log resets on every page refresh, so the downloaded
+    // "log" held only what had happened since the last page load, while the durable record
+    // sat in Supabase and was never exported at all.
+    //
+    // The explicit range is deliberate. PostgREST silently caps an unranged select (commonly
+    // at 1000 rows) — it returns a short list, not an error. An activity log is the
+    // fastest-growing table in this project, and silently truncating an audit export is the
+    // one failure this screen must not have.
+    const { data: rows } = await supabaseClient
+      .from('admin_activity_log').select('*')
+      .order('created_at', { ascending: false }).range(0, 49999);
+    data = rows || [];
   } else { data = []; }
 
   _downloadData(data, `caldwellnest-${type}`, fmt);
@@ -3324,10 +3337,13 @@ async function expData(type, fmt) {
 
 async function expFull() {
   toast('Preparing full backup…');
-  const [{ data: students }, { data: messages }, { data: reports }] = await Promise.all([
+  const [{ data: students }, { data: messages }, { data: reports }, { data: activity }] = await Promise.all([
     supabaseClient.from('profiles').select('*').order('created_at'),
     supabaseClient.from('messages').select('*').order('created_at'),
     supabaseClient.from('reports').select('*').order('created_at'),
+    // Same correction as expData('log') above — the durable table, not the in-memory DB.log.
+    supabaseClient.from('admin_activity_log').select('*')
+      .order('created_at', { ascending: false }).range(0, 49999),
   ]);
   const full = {
     exportedAt: new Date().toISOString(),
@@ -3335,7 +3351,7 @@ async function expFull() {
     listings: [...DB.listings, ...DB.pending],
     messages: messages || [],
     reports: reports || [],
-    activityLog: DB.log,
+    activityLog: activity || [],
     settings: DB.settings,
     content: DB.content
   };
