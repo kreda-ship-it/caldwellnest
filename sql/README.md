@@ -43,6 +43,9 @@ that is cheaper than trying to remember.
 | `2026-09-01_record_signup_consent.sql` | Adds `profiles.terms_accepted_at` / `terms_version` and teaches `handle_new_user` to record consent at signup. Applied 2026-09-01. |
 | `2026-09-01_guard_consent_columns.sql` | Adds the consent columns to the privileged-columns guard, so a student cannot erase their own consent record. Also captures `guard_profile_privileged_columns` in full. |
 | `2026-09-01_capture_profiles_triggers.sql` | **Capture only, no change.** The `.edu` email gate (`enforce_school_email` + its trigger), written down for the first time. |
+| `2026-09-01_saved_items.sql` | Creates the `favorites` table (private per-student saved items) with its RLS policies and GRANTs. Reads are own-rows-only by design — no admin read policy. |
+| `2026-09-03_capture_rls_and_grants.sql` | **Read only, changes nothing.** Nine numbered introspection queries that dump every policy, GRANT, view, function, trigger and column definition. Run it any time you want to re-check what the database actually enforces. |
+| `2026-09-03_fix_rls_and_grants.sql` | Applied 2026-09-03. Enables RLS on `admin_activity_log` (it was **off**, with three policies that were therefore never consulted) and revokes dead `anon` write grants on `listings` and `reports`. Lists seven remaining follow-ups. |
 
 ## Naming
 
@@ -66,6 +69,15 @@ These were never captured and are needed before this folder can rebuild the data
       `guard_profile_privileged_columns`, `handle_new_user` — captured 2026-09-01.
 - ⬜ Table definitions: `listings`, `book_listings`, `profiles`, `messages`, `appeals`,
       `user_roles`, `schools`, `activity_log`.
-- ⬜ All RLS policies and `GRANT`s. (RLS is still listed as unverified in the roadmap's
-      LAUNCH BLOCKERS — writing the policies down here is how that gets verified.)
+- 🟡 All RLS policies and `GRANT`s — **read and reviewed 2026-09-03**, but not yet written
+      down as definitions. `2026-09-03_capture_rls_and_grants.sql` reproduces the full dump
+      on demand, and `2026-09-03_fix_rls_and_grants.sql` records the two holes it found and
+      closes them. What is still missing is a capture file holding the policies themselves,
+      so this folder could rebuild them.
+- ⬜ `user_is_admin()`. Found 2026-09-03 and **not captured**. It now gates both SELECT and
+      UPDATE on `admin_activity_log`, so it is load-bearing for the audit log, and it is a
+      *third* admin check alongside `is_super_admin()` and the inline
+      `exists (select 1 from user_roles ...)` used elsewhere. The three do not agree:
+      the inline form matches any role row, `is_super_admin()` requires
+      `role_id = 'super_admin'`. Capture it, then decide which one wins.
 - ⬜ The `appeals` table, which shipped 2026-08-07 with no SQL file at all.
