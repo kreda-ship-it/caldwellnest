@@ -10,9 +10,17 @@ registration, check-in, and analytics. Six workstreams, not one session.
 
 **Revision note (rev 2)** — changed since first draft, after decisions made in planning:
 the school is now the root organization rather than a separate concept; the login model is
-resolved; two permission flags added (`can_moderate`, `can_manage_admins`); `is_super_admin`
-and its privilege-escalation risk added as a hard requirement; the permission rule is now a
-real Postgres function; bootstrap is specified. Details in §2 and §10.
+resolved; two permission flags added (`can_moderate`, `can_manage_admins`); privilege escalation
+added as a hard requirement; the permission rule is now a real Postgres function; bootstrap is
+specified. Details in §2 and §10.
+
+**Revision note (rev 3)** — audited line by line against the live database and the code that is
+deployed today. Rev 2 was written from intention, and several of its schema assumptions were
+simply wrong. Ten corrections, each with the evidence that forced it, are listed in **§12 — read
+that section before running any SQL from this document.** The three that matter most: the scope
+column is `school` (a text slug), not `school_id`; `is_super_admin` already exists as a function
+over `user_roles` and must not become a column; and the activity log is `admin_activity_log` with
+`target_type`, not `activity_log` with `entity_type`.
 
 ---
 
@@ -75,16 +83,19 @@ time Athletics wants to post as a department *and* own sub-teams.
 upward, a Caldwell school admin can act on Chess Club automatically — authority flows downward
 through ancestry, for free.
 
-**`school_id` is unchanged everywhere in the existing codebase.** The school org row carries a
-`school_id` pointing at its own school uuid; every descendant org carries the same value. Nothing
-on `listings`, `profiles`, or any existing table needs migrating.
+**The scope column is `school`, a text slug — not `school_id`.** Rev 2 had this backwards; see
+§12 C1. `profiles.school` and `listings.school` hold a slug such as `'caldwell'`, and the `schools`
+table maps slug → id/name. A `school_id` uuid exists only on `school_domains`, the `.edu` lookup
+table. So the school org row carries `school = 'caldwell'` and every descendant org carries the
+same value — which is exactly how every existing feed, filter and cross-school badge already
+compares. Nothing on `listings`, `profiles`, or any existing table needs migrating.
 
 ### 2.2 Schema
 
 ```sql
 create table public.organizations (
-  id              bigserial primary key,
-  school_id       uuid not null,
+  id              bigint generated always as identity primary key,
+  school          text not null,   -- slug, e.g. 'caldwell' — matches listings.school (§12 C1)
   parent_id       bigint references public.organizations(id),
   type            text not null check (type in ('school','department','club','office')),
   name            text not null,
@@ -102,11 +113,11 @@ create table public.organizations (
   handshake_url   text,
   created_by      uuid references public.profiles(id),
   created_at      timestamptz not null default now(),
-  unique (school_id, slug)
+  unique (school, slug)
 );
 
 create table public.org_memberships (
-  id                    bigserial primary key,
+  id                    bigint generated always as identity primary key,
   org_id                bigint not null references public.organizations(id) on delete cascade,
   user_id               uuid   references public.profiles(id) on delete cascade,
   pending_email         text,   -- set when added before the person has signed up; see A15
@@ -126,7 +137,11 @@ create table public.org_memberships (
   unique (org_id, user_id)
 );
 
-alter table public.profiles add column is_super_admin boolean not null default false;
+-- NO is_super_admin COLUMN. Rev 2 called for one; it must not be created. Super-admin already
+-- exists as the SECURITY DEFINER function public.is_super_admin(), backed by user_roles, and is
+-- already wired into login (js/auth.js:20, js/boot.js:71). A column of the same name would be a
+-- second source of truth for the same question, and would put a role column on the one table
+-- with a permissive self-UPDATE policy. See §2.9 and §12 C2.
 ```
 
 Permissions are **explicit grants**, not implied by a role name. Different departments will have
@@ -134,6 +149,23 @@ different capabilities — hardcoding `if role == 'department_admin'` guarantees
 time that is untrue.
 
 Officers are members with flags set. Plain members have all flags false. One table.
+
+**Every file creating these tables must also GRANT and reload.** Rev 2 omitted both. RLS decides
+which *rows* a role may touch; table-level `GRANT` decides whether it may touch the table at all,
+and Supabase serves a cached schema until told otherwise — the two most expensive gotchas this
+project has already paid for:
+
+```sql
+grant select, insert, update, delete on public.organizations   to authenticated;
+grant select, insert, update, delete on public.org_memberships to authenticated;
+grant select, insert, delete         on public.org_follows     to authenticated;
+notify pgrst, 'reload schema';
+```
+
+`generated always as identity` owns its sequence internally, so no `GRANT USAGE ON SEQUENCE` is
+needed. That is precisely why it replaces `bigserial` throughout this document (§12 C5) —
+`sql/2026-09-01_saved_items.sql` records the confusing insert-time permission error `bigserial`
+produces without it.
 
 ### 2.3 The president vs. operations distinction
 
@@ -153,6 +185,25 @@ and the grant model handles it directly:
 Same row shape, different flags. The president holds the one authority nobody else does: granting
 authority. Multiple school admins is the normal case, not an exception — they are simply multiple
 rows on the school org.
+
+**Why the president holds every flag, not only the strategic ones.** The flags describe
+capability, not routine. A president *does* have the authority to post an announcement or pull
+down abusive content; they simply delegate it. The permission system should not encode "usually
+doesn't."
+
+The stronger reason: `can_manage_admins` is transitively equivalent to every other flag. Anyone
+who can grant permissions can grant them to themselves. Denying the president `can_post` is not a
+wall, it is two extra clicks — and **any restriction the restricted party can lift is theater.**
+Theater in a permission system is worse than nothing, because it makes the model look stricter
+than it is.
+
+"The president shouldn't be solving easy stuff" is a real requirement, but it is two other
+systems: **notification routing** — a preference on the membership row, so the president is not
+pinged for every org message — and `can_manage_admins` doing exactly its job.
+
+This table is also two *example* configurations, not a fixed role list. Because flags live per
+membership row, an advisor can hold `can_view_analytics` alone, or a moderator `can_moderate` and
+nothing else. That flexibility is the entire reason for grants over role names.
 
 ### 2.4 Follow vs. member — do not conflate these
 
@@ -191,7 +242,7 @@ That is what makes the badge trustworthy, and it is the structural answer to fak
 
 ```
 can_act(user_id, action, org_id):
-  is_super_admin                                       → true
+  public.is_super_admin()                              → true   (existing fn, §12 C2)
   active membership on org with the matching flag      → true
   active membership on any ANCESTOR org with the flag  → true   (walk parent_id upward)
   otherwise                                            → false
@@ -213,7 +264,7 @@ Two different situations, two different answers:
 
 | Situation | Credential | Why |
 |---|---|---|
-| Nestrel operator (Kal's main admin email) | **Separate account**, `is_super_admin=true` | Genuinely a different entity — a platform operator, not a Caldwell student |
+| Nestrel operator (Kal's main admin email) | **Separate account**, holding the `user_roles` row that `is_super_admin()` recognizes | Genuinely a different entity — a platform operator, not a Caldwell student |
 | Caldwell school admin (Kal's `@caldwell.edu`) | **Same account** as the student profile | Same human wearing a hat |
 | Club officer | **Same account** as their student profile | Same human wearing a hat |
 
@@ -235,24 +286,52 @@ Three reasons the credential stays personal:
 
 ### 2.8 Bootstrap — exactly one manual step
 
-1. **In Supabase, by hand, once:** set `is_super_admin = true` on the Nestrel operator profile.
+1. **In Supabase, by hand, once:** confirm the Nestrel operator account already satisfies
+   `is_super_admin()`. It almost certainly does — that function and its `user_roles` backing
+   shipped long ago (`docs/ROADMAP.md:268`). Verify rather than assume:
+   `select public.is_super_admin();` while authenticated as that account. Nothing is created and
+   no column is added; rev 2's `is_super_admin = true` write does not apply (§12 C2).
 2. Everything after that happens through the UI: create Caldwell (school) → add the
    `@caldwell.edu` account as school admin → create Student Life (department) → create clubs.
 
 ### 2.9 Privilege escalation — hard requirement
 
-`is_super_admin` on `profiles` is a total compromise of the permission system if a user can write
-it on their own row. This is the single most common Supabase mistake: an UPDATE policy of
-`using (auth.uid() = id)` permits writing *any* column, including role columns.
+Rev 2 stated this risk correctly and then prescribed the wrong fix for this codebase. Both halves
+have now been checked against the live policies.
 
-The `profiles` UPDATE policy must explicitly exclude `is_super_admin` (and any future role column)
-from self-writes. This is not optional and gets its own test.
+**What is actually there.** `profiles` carries two UPDATE policies. The student one is
+`using (auth.uid() = id)` with **no `WITH CHECK`**. In Postgres, an UPDATE policy that omits
+`WITH CHECK` reuses its `USING` expression as the check — so the only rule enforced is "the row
+you write must still be your own row." Every other column is writable by its owner.
+
+**Why that is not a live hole today.** The defense was never the policy. It is the
+`profiles_guard_privileged` BEFORE UPDATE trigger calling `guard_profile_privileged_columns()`
+(`sql/2026-09-01_guard_consent_columns.sql`), which raises on `status`, `suspension_reason`,
+`school`, `email`, `id`, `terms_accepted_at` and `terms_version`. And roles do not live on
+`profiles` at all — they live in `user_roles`. There is no role column to escalate into.
+
+**The requirement, restated.** No role column goes on `profiles`. If one ever must, it is added to
+`guard_profile_privileged_columns()` **in the same migration that creates it** — not to a policy.
+Following rev 2 literally would have added `is_super_admin` to the one table with a permissive
+self-UPDATE policy and a guard that does not list it, opening the hole on a single line.
+
+**One trap for whoever extends that guard.** It exempts anyone holding a `user_roles` row. Under
+this plan, school admins and club officers are `org_memberships` rows, *not* `user_roles` rows, so
+they are correctly not exempted. Do not "fix" that by adding an `org_memberships` exemption — a
+club officer would then be able to rewrite their own consent record.
+
+This still gets its own test: attempt the write as an ordinary student and confirm it raises.
 
 ---
 
 ## 3. The org console
 
-A separate surface at `/org` (or `#page-org-console`). Not a separate login.
+A separate surface at `#page-org-console`. Not a separate login.
+
+CaldwellNest has **no URL router**. `showPage(name)` toggles `.active` on `#page-<name>` divs and
+records the last page in `sessionStorage` (`js/listings.js:12`). So the console is a new
+`<div id="page-org-console" class="page">` in `index.html`, reached by `showPage('org-console')` —
+not a `/org` route (§12 C7).
 
 **Sequencing note:** the console is workstream 2. Workstream 1 puts basic org management into the
 *existing* admin page so orgs can be created at all. Do not build the console early.
@@ -328,8 +407,8 @@ feel light. Luma does it well; copy the pattern.
 
 ```sql
 create table public.events (
-  id                  bigserial primary key,
-  school_id           uuid   not null,
+  id                  bigint generated always as identity primary key,
+  school              text   not null,   -- slug, matches listings.school (§12 C1)
   org_id              bigint not null references public.organizations(id),
   created_by          uuid   not null references public.profiles(id),  -- the human officer
   title               text   not null,
@@ -351,11 +430,11 @@ create table public.events (
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
-create index on public.events (school_id, starts_at);
+create index on public.events (school, starts_at);
 create index on public.events (org_id, starts_at desc);
 
 create table public.event_registrations (
-  id              bigserial primary key,
+  id              bigint generated always as identity primary key,
   event_id        bigint not null references public.events(id) on delete cascade,
   user_id         uuid   not null references public.profiles(id) on delete cascade,
   name_at_signup  text not null,          -- snapshot; profile may change later
@@ -415,6 +494,11 @@ Members-only filtering happens in RLS on top of this, since it depends on the re
 Every read path uses this view. Cancelled events are excluded here but must still be reachable by
 their registrants (§8, A1).
 
+**Do not mirror this rule in JavaScript.** `isListingLive()` in `js/data.js` is a hand-written
+copy of `visible_listings`, and the audit already flagged the two drifting apart
+(`js/profile.js:151`). Repeating that here means the feed and the database disagree about which
+events exist. Query the view; do not reimplement it.
+
 ---
 
 ## 5. Payments — the line does not move
@@ -443,7 +527,8 @@ Two requirements:
 
 Two things that always come up at a real door:
 
-- **Duplicate last names.** Show class year and first initial in the row to disambiguate.
+- **Duplicate last names.** Show `year` and first initial in the row to disambiguate. `year` is
+  nullable (§12 C4), so the row must still read correctly when it is blank.
 - **Walk-ins.** People who never registered. Needs an "Add attendee" path capturing name + email
   and recording `status='walk_in'`, so analytics can distinguish planned from actual.
 
@@ -464,9 +549,11 @@ attendee rate — the number that actually indicates a healthy club.
 
 Three constraints:
 
-1. **Class year and major come from `profiles`.** They exist. Confirm whether they are required at
-   signup — if nullable, "Unknown" is a real bucket every chart must show rather than silently
-   dropping people.
+1. **`year` and `major` come from `profiles`, and both are nullable — confirmed, not assumed.**
+   The columns are `year` and `major`; there is no `class_year` anywhere in the codebase, rev 2
+   invented it. Signup writes `major: major || null, year: year || null` (`js/auth.js:317`), and
+   both stay editable to blank afterwards (`js/profile.js:373`). **"Unknown" is therefore a real
+   bucket** every chart must show rather than silently dropping people. See §12 C4.
 2. **Suppress small buckets.** Any demographic cell under ~5 shows as "<5". Otherwise an org can
    infer "the one senior who attended was X." On a campus this size that is real re-identification.
 3. **CSV export** of the attendee list. Small to build, high value, first thing an advisor asks for.
@@ -485,15 +572,28 @@ Three constraints:
   │                                          │
   │           [ POSTER IMAGE ]               │
   │                                          │
-  │  Fall Club Fair                  ★   🎟  │
+  │  Fall Club Fair                  ★   📅  │
   │  Tue Sep 2 · 6:00 PM · Main Hall Lawn    │
   │  42 going · 18 spots left                │
   └──────────────────────────────────────────┘
 ```
 
 Org identity at top with the verified check. Poster dominant. Two icons bottom-right: **star**
-(saved, private) and **event icon** (registered). Minimal text — date, time, location, one social
-proof line. Everything else lives on the detail page.
+(saved, private) and **calendar** (registered). A calendar, not a ticket — a ticket implies payment,
+and most campus events are free, whereas "it's on my calendar" is exactly what registered means.
+Minimal text — date, time, location, one social proof line. Everything else lives on the detail page.
+
+**The star reuses `favorites`, and that table needs one migration.** Saved items live in
+`public.favorites` with `item_type` constrained to `('listing','book','service')`
+(`sql/2026-09-01_saved_items.sql`). Starring an event requires adding `'event'` to that check
+constraint. One line — but it is a cross-feature dependency, and the favorites work is still
+uncommitted, so whoever lands it first should include `'event'` rather than leaving a second
+migration against a live table (§12 C6).
+
+**Icons ship as SVG, not emoji.** The ★ and 📅 in this document are mockup shorthand only. Emoji
+render differently on iOS, Android, and desktop, and emoji in a nav row reads as unfinished.
+Implementation uses inline SVG on the existing `.m-tabbar` convention in `index.html`: 22×22,
+`viewBox="0 0 24 24"`, `stroke="currentColor"`, stroke-width 2, round caps and joins.
 
 **Detail page**: poster, org header (tappable → org profile), title, full date/time with
 add-to-calendar, location, description, audience tags, register button with capacity state, and —
@@ -508,7 +608,7 @@ Do not bury this. The star is private; this is not, and the difference has to be
 Calendar. A couple of hours, no OAuth. **Watch the timezone conversion** — Google's TEMPLATE
 parameter wants UTC, and this is the most common bug in this feature.
 
-**Profile tabs** (the TikTok-style icon row): `Listings` · `★ Saved` · `🎟 Going` · `Following`.
+**Profile tabs** (the TikTok-style icon row): `Listings` · `★ Saved` · `📅 Going` · `Following`.
 Going shows upcoming registered events first, past ones below.
 
 **Org profile page**: logo, name, verified badge, description, contact block (email, office, phone,
@@ -528,9 +628,15 @@ events are credibility, not clutter.
 | 5 | Registration, capacity, calendar-add, Going tab, follow | Needs 3 and 4 | Full session |
 | 6 | Check-in + analytics + CSV export | Needs registration data to exist | Full session |
 
-Workstream 1 stages: (1) schema + `can_act()` + RLS, run manually in Supabase; (2) `js/orgs.js`
-permissions module + bootstrap; (3) org management UI inside the **existing** admin page — not the
-console.
+Workstream 1 stages: (0) capture the three unverified objects listed in §12 into `sql/`;
+(1) schema + `can_act()` + RLS + GRANTs, **written as a dated file in `sql/` and then run** — not
+typed into the dashboard; (2) `js/orgs.js` permissions module + bootstrap; (3) org management UI
+inside the **existing** admin page — not the console.
+
+`sql/README.md` exists because every schema change before 2026-08-08 was typed straight into the
+Supabase editor and never written down — which is how the listing-lifecycle bug survived, a
+trigger and a function contradicting each other with nothing in the repo to diff. This is the
+largest schema addition the project has ever made. It does not get to be the exception (§12 C10).
 
 Recurrence slots after 5, or defers. Members-only gating rides with 5 but needs its own RLS test
 pass. Following is the cheapest thing here and could ship with 4.
@@ -590,8 +696,11 @@ own size limit, and a fixed display aspect with cover-crop so the grid never bre
 the same event has the same gradient on every render and device. A gradient that changes on refresh
 looks broken.
 
-**A12. Verification gate on registration.** Posting and messaging require `@caldwell.edu` +
-confirmed email. Does registering? Recommend yes — same gate, same enforcement layer.
+**A12. Verification gate on registration.** The gate is not `@caldwell.edu` specifically — it is
+`validateSchoolEmail()` (`js/profile.js:156`): any `.edu` domain present in the `school_domains`
+table, resolved to a school, plus a confirmed email. It is multi-school by construction and fails
+*closed* on a lookup error. Registration must call that same function rather than hardcode a
+domain (§12 C8). Recommend yes — same gate, same enforcement layer.
 
 **A13. Can students still post events at all?** After this, no — events are org-only. That removes a
 capability students currently have. Confirm, and decide what the post form says when someone looks
@@ -613,10 +722,18 @@ no date — and belongs with the services work. Flagged, not built.
 university department then uses touches student records. Not a beta blocker, but it belongs in the
 existing legal review queue alongside the marketplace disclaimer and subprocessor list.
 
-**A18. `activity_log` reuse.** Org creation, membership changes, permission-flag changes, event
-cancellation, and admin removals all write to the existing append-only `activity_log` with
-`entity_type` of `'organization'`, `'membership'`, `'event'`. Do not invent a second log. This is
-also where personal credentials pay off — the log records which officer acted.
+**A18. `admin_activity_log` reuse.** The table is `admin_activity_log`, not `activity_log`, and
+the column is `target_type`, not `entity_type` — rev 2 had both wrong (§12 C3). Write through the
+existing `logEvent()` helper (`js/admin.js:469`), which fills `actor_id`, `actor_school`,
+`action_type`, `target_type`, `target_id`, `target_label`, `school`, `category`, `before_state`,
+`after_state` and `reason`. Org creation, membership changes, permission-flag changes, event
+cancellation and admin removals all use `target_type` of `'organization'`, `'membership'`,
+`'event'`. Do not invent a second log. This is also where personal credentials pay off — the log
+records which officer acted.
+
+Note that `logEvent()` stringifies `target_id`, so bigint org and event ids land as text. That is
+existing behaviour, not a defect to fix here — but any query joining the log back to `events`
+needs the cast.
 
 **A19. Search gets harder, not easier.** Its Events section now reads `visible_events` instead of a
 `listings` filter, and must respect members-only. Fold into the search rebuild spec.
@@ -635,6 +752,67 @@ convert explicitly for the Google Calendar link. See §8.
 ## 11. Open questions
 
 1. Waitlist or hard stop at capacity (A6).
-2. Are `class_year` and `major` required at signup, or nullable (A7 / §7)?
+2. ~~Are `class_year` and `major` required at signup, or nullable?~~ **Resolved in rev 3.** The
+   columns are `year` and `major`, both nullable and both optional at signup (§7, §12 C4).
+   "Unknown" is a required bucket in every demographic chart.
 3. Confirm students can no longer post events directly (A13).
-4. Confirm registration requires student verification (A12).
+4. Confirm registration requires student verification (A12) — noting the gate is any recognized
+   `.edu` domain, not `@caldwell.edu` (§12 C8).
+
+---
+
+## 12. Rev 3 — corrections against the live database
+
+Rev 2 was written from intention. This section is what changed when each of its schema assumptions
+was checked against the running database and the code deployed today.
+
+**Do not run SQL from rev 2.** Four of these corrections produce statements that either fail
+outright, or silently create a second source of truth for something that already exists.
+
+| # | Rev 2 said | Reality | Evidence |
+|---|---|---|---|
+| C1 | `school_id uuid not null` scopes every new table | The scope column is **`school`, a text slug** (`'caldwell'`). `school_id` exists only on `school_domains`. | `js/boot.js:100`, `js/listings.js:189`, `js/data.js:134` |
+| C2 | `alter table profiles add column is_super_admin` | `is_super_admin()` already exists as a SECURITY DEFINER **function** over `user_roles`, wired into login | policy dump, `docs/ROADMAP.md:268`, `js/auth.js:20` |
+| C3 | log to `activity_log`, column `entity_type` | Table is **`admin_activity_log`**, column is **`target_type`** | `js/admin.js:469-484` |
+| C4 | `class_year` on profiles, nullability unknown | Column is **`year`**; `year` and `major` are both **nullable** | `js/auth.js:317`, `js/profile.js:373` |
+| C5 | `bigserial primary key` on four tables | Convention is now **`bigint generated always as identity`** | `sql/2026-09-01_saved_items.sql` |
+| C6 | star on an event card just works | `favorites.item_type` is checked against `('listing','book','service')` — **`'event'` is missing** | `sql/2026-09-01_saved_items.sql:26` |
+| C7 | console lives at the `/org` route | There is **no URL router**; pages are `#page-<name>` divs toggled by `showPage()` | `js/listings.js:12-18` |
+| C8 | gate is `@caldwell.edu` | Gate is `validateSchoolEmail()` — **any `.edu` in `school_domains`**, multi-school by design | `js/profile.js:156` |
+| C9 | schema blocks with no GRANTs, no schema reload | Every `sql/` file ends `notify pgrst, 'reload schema';`; GRANT is separate from RLS | `sql/README.md`, `CLAUDE.md` |
+| C10 | workstream 1 "run manually in Supabase" | Schema changes are **captured as files in `sql/`** — untracked dashboard edits are the documented cause of a past bug | `sql/README.md` |
+
+### The three that would have cost real time
+
+**C1 — `school` vs `school_id`.** Rev 2 asserted "`school_id` is unchanged everywhere in the
+existing codebase." The opposite is true: nothing outside `school_domains` has a `school_id` at
+all. Every existing feed, filter and cross-school badge compares `l.school === eu.school` against
+slugs from the `schools` table. Organizations and events keyed on a uuid would have joined to
+nothing — and it would have surfaced as an empty events feed, not an error.
+
+**C2 — the duplicate super-admin.** Adding the column would not have thrown. Login would keep
+reading `is_super_admin()`; the org console would read `profiles.is_super_admin`; the two would
+agree right up until someone changed one. That is the exact failure `CLAUDE.md` records from a
+previous session — a plan describing intention trusted over the database.
+
+**C6 — the missing `'event'`.** Small, but it sits in uncommitted work. `2026-09-01_saved_items.sql`
+is written and not yet applied, so `'event'` can be added to the check constraint before it ever
+ships, instead of becoming a follow-up migration against a live table.
+
+### Still unverified — stage 0 of workstream 1
+
+These could not be confirmed from the repository and must be checked in Supabase *before* any of
+this is built on top of them:
+
+- **The `visible_listings` view.** Referenced in comments (`js/data.js:40`) and assumed by §4.6's
+  `visible_events`, but no `sql/` file defines it, and `sql/README.md` lists every view and policy
+  as never captured.
+- **The definition of `is_super_admin()` and the shape of `user_roles`.** `can_act()` calls the
+  first and `guard_profile_privileged_columns()` tests the second, so both are load-bearing for
+  this plan and neither is written down.
+- **Whether `profiles` carries a column that `guard_profile_privileged_columns()` ought to list
+  and does not.** The permissive student UPDATE policy makes that guard the only line of defense,
+  so its coverage *is* the security model.
+
+Capturing those three into `sql/` is the correct stage 0 — it is also three of the items already
+sitting open in `sql/README.md`'s "Still missing" list.
