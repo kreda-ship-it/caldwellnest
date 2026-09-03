@@ -3,8 +3,18 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-08-08 — see **SESSION LOG 2026-08-08**, **SESSION LOG 2026-08-07**,
-and **LAUNCH BLOCKERS** at the end of this file for the most recent work.
+Last updated: 2026-09-03 — see **SESSION LOG 2026-09-03**, **SESSION LOG 2026-08-08**,
+**SESSION LOG 2026-08-07**, and **LAUNCH BLOCKERS** at the end of this file for the most
+recent work.
+
+**Architecture plans live in their own documents.** This roadmap tracks *what* ships and
+when; the plans describe *how* a feature is built, and are written before the work starts:
+
+| Plan | Covers | Status |
+|---|---|---|
+| `docs/nestrel-feature-expansion-plan.md` | The broad feature expansion — summarized in **APPENDED 2026-07-09** below | Partly shipped |
+| `docs/nestrel-listing-lifecycle-plan.md` | Listing status, expiry, favorites, admin lifecycle | Partly shipped |
+| `docs/nestrel-campus-engagement-plan.md` | Organizations, permissions, events, registration, check-in, analytics — **six workstreams, not started** | Planned (rev 3, audited against the live database 2026-09-02) |
 
 ---
 
@@ -1525,11 +1535,18 @@ join.
       explicitly. `resetSignupModal()` runs from `openModal()`, so every route into the
       modal is covered. Note for next time: adding `'sAgree'` to the `.value` list would
       have *looked* correct and reset nothing.
-- ⬜ **Consent is not recorded.** The signup checkbox gates the UI but writes nothing —
-      no timestamp, no terms version. There is currently no way to show a given student
-      agreed.
-- ⬜ **Legal links are unreachable once logged in.** The footer lives inside
-      `#page-home`; no logged-in surface links to Terms or Privacy.
+- ✅ ~~**Consent is not recorded.**~~ — **FIXED 2026-09-01** (`e78b33c`). The signup
+      checkbox gated the UI but wrote nothing — no timestamp, no terms version — so there
+      was no way to show a given student had agreed. `handle_new_user` now stamps
+      `profiles.terms_accepted_at` and `terms_version` at signup, **server-side**: a
+      timestamp sent from the browser is a claim, not a record. SQL:
+      `sql/2026-09-01_record_signup_consent.sql`, with
+      `sql/2026-09-01_guard_consent_columns.sql` adding both columns to the
+      privileged-column guard so a student cannot erase their own consent row.
+- ✅ ~~**Legal links are unreachable once logged in.**~~ — **FIXED 2026-09-01**
+      (`6806963`). The footer lived inside `#page-home`, so nothing linked to Terms or
+      Privacy once a student was signed in. Now in a `.profile-legal` block on the profile
+      page (`index.html:271`), below Log out.
 - ⬜ **Supabase Dashboard config for password reset is unverified** (site URL + Reset
       Password email template).
 - ⬜ **RLS still unverified** (carried over from the v1 audit, 2026-08-05).
@@ -1662,3 +1679,64 @@ image), so real profile pictures rendered full-size from the top-left corner of 
 circle and looked blank. Fixed by using `background-color`. `js/profile.js:412` already
 carried the warning *"not the `background` shorthand — see paintAvatarEl"* — it applies
 to the stylesheet just as much as to the JS.
+
+---
+
+# SESSION LOG 2026-09-03
+
+Covers everything since **SESSION LOG 2026-08-08**: five shipping commits, two planning
+documents, and one bug found while writing the plans down.
+
+### Shipped
+- ✅ **Owners can move a sold or withdrawn listing straight to any other state**
+      (`11afa1e`, 2026-08-30). Closes the dead-end described in SESSION LOG 2026-08-08.
+- ✅ **Signup consent is recorded** (`e78b33c`, 2026-09-01) — details under LAUNCH BLOCKERS.
+- ✅ **Terms and Privacy are reachable once signed in** (`6806963`, 2026-09-01) — details
+      under LAUNCH BLOCKERS.
+- ✅ **The `.edu` email gate captured into `sql/`** (`3a3c9e9`, 2026-09-01). Capture only,
+      no schema change: `enforce_school_email()` and its trigger written down for the first
+      time, in `sql/2026-09-01_capture_profiles_triggers.sql`.
+- ✅ **`donation` category renamed to "Free items" in the UI** (`410ac45`, 2026-09-01).
+      Label only — the stored category value is unchanged.
+
+### Written but not yet applied
+- ⬜ **`sql/2026-09-01_saved_items.sql`** creates the `favorites` table (private per-student
+      saved items) with its RLS policies and GRANTs. The file exists and is uncommitted, and
+      **no client code references `favorites` yet** — the SQL is ahead of the UI.
+      **Before running it, add `'event'` to the `item_type` check constraint.** The campus
+      engagement plan's star icon on event cards needs it, and adding it now avoids a second
+      migration against a live table.
+
+### Planning documents added
+- **`docs/nestrel-campus-engagement-plan.md`** (`9b14b35` rev 2, `2cca4c0` rev 3).
+      Organizations, permissions, the org console, the events data model, registration,
+      check-in and analytics. Six workstreams — **not started**.
+- Rev 3 audited every schema claim in rev 2 against the live database. **Ten diverged.**
+      The three that would have cost real debugging time: the scope column is `school`
+      (a text slug), not `school_id`; `is_super_admin()` already exists as a SECURITY
+      DEFINER function over `user_roles` and must not become a column; and the activity log
+      is `admin_activity_log` with `target_type`, not `activity_log` with `entity_type`.
+      All ten are listed with evidence in §12 of that document.
+- The lesson is the one already in `CLAUDE.md`: **the database is ground truth, and a plan
+      describes intention.** Rev 2 was written carefully and was still wrong in ten places.
+
+### Bug found while auditing, and fixed
+- ✅ **The admin data export shipped the wrong activity log** (`f8ae745`, 2026-09-03).
+      `expData('log')`, the row count on the export screen, and the full backup all read
+      `DB.log` — the in-memory array that resets on every page refresh. The downloaded
+      "activity log" therefore held only what had happened since the last page load, while
+      the durable `admin_activity_log` table was never exported at all. All three now read
+      the table.
+- ⬜ **`DB.log` is now written in 21 places and read in none.** Removing those writes spans
+      `js/admin.js` and `js/listings.js`, so it was deliberately left out of an admin-only
+      change. Follow-up cleanup.
+- ⬜ **All four exports share a silent row cap.** PostgREST caps an unranged `select`
+      (commonly at 1000 rows) and returns a short list rather than an error. The log export
+      now sets an explicit range; `students`, `convos` and `reports` still do not.
+
+### Next
+Stage 0 of the campus engagement build is **capturing and verifying RLS** — `visible_listings`,
+`is_super_admin()`, the shape of `user_roles`, and the full policy set — into `sql/`. That
+closes the open "RLS still unverified" blocker *and* is the prerequisite for `can_act()`, since
+the entire engagement system is a permission system. It is also three of the items already
+listed as missing in `sql/README.md`.

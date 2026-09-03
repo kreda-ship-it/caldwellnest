@@ -90,5 +90,6 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - Mobile gestures: use `touchstart/touchmove/touchend` with `preventDefault()` on a non-passive touchmove — NOT pointer events, which iOS Safari cancels silently.
 
 ## Known limitations (do NOT "fix" these silently — they're known and planned)
-- Core data (accounts, profiles, listings, messages, books) persists in Supabase. But the ADMIN side still has in-memory pieces that reset on refresh: the activity log (`DB.log`) and the live site editor content (`DB.content`). Persisting those is a future task.
+- Core data (accounts, profiles, listings, messages, books) persists in Supabase. The ADMIN side still has in-memory pieces that reset on refresh: the live site editor content (`DB.content`) and `DB.settings`. Persisting those is a future task.
+- **There are two activity logs, and only one is real.** `admin_activity_log` (a Supabase table) is the audit trail: written by `logEvent()`, read back by `fetchActivityLog()` with filtering, paging and undo. `DB.log` is a leftover in-memory array — still written in 21 places, but read by nothing since 2026-09-03. **Write new logging through `logEvent()`, never `DB.log`.** Removing the dead writes is a pending cleanup (it spans `js/admin.js` and `js/listings.js`).
 - NestBot calls the Anthropic API from the browser, so it only works inside Claude's preview, not a plain browser. A real backend will fix this later.
