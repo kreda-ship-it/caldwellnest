@@ -1836,12 +1836,31 @@ retyping them.
       a third longer than it needed to be, on the one list that has to be read to be trusted.
 - ✅ **`search_path` pinned** on `is_super_admin()`, `get_admin_school()` and
       `user_is_admin()`, and `STABLE` added to the two that lacked it.
-- ⬜ **F2 — every signed-in student can read every profile column**, `email`,
-      `status`, `suspension_reason` and consent timestamps included. **Not fixed, and not
-      fixable with a policy: RLS filters rows, never columns.** It needs a view exposing only
-      the safe columns plus changes to the eight `select('*')` calls on `profiles`. A session
-      of work. It belongs before launch — student emails and suspension reasons are exactly
-      what a campus platform should not hand to every other student who asks.
+- ✅ **F2 — every signed-in student could read every profile column** — `email`, `status`,
+      `suspension_reason` and the consent timestamps. **Closed 2026-09-04**, in three steps so
+      only the last could break anything.
+      **Not fixable with a policy: RLS filters rows, never columns.** A view is the tool that
+      does column selection. `public.public_profiles` lists the safe columns explicitly, so a
+      column added to `profiles` later is private by default and must be exposed on purpose.
+      It is intentionally a "security definer" view — Supabase's linter flags the pattern, but
+      running as its owner is exactly what lets it still read every row after the table itself
+      was restricted. **The safety comes from the view having nothing sensitive to leak, not
+      from the view being restricted.**
+      `profiles` now allows own-row reads plus school-scoped admin reads, matching the shape of
+      the existing UPDATE policy so read and write scope agree.
+      `status` was kept in the view after checking why: `loadListings()` reads it to hide
+      suspended posters' listings. It reveals *that* someone is suspended, never *why*. The
+      better answer is granting SELECT on `visible_listings` and dropping the browser-side
+      filter — still open, below.
+      Nine student-facing reads migrated across five feature files, deliberately crossing the
+      one-area rule: the policy affects every reader, so they move together or the app ships
+      half-migrated.
+      **The ninth was nearly missed** — a profile count in `initStudent()` that would have
+      silently reported 1 student instead of 10. Not an error, not a blank; a quietly wrong
+      number on the homepage. Third time this week the dangerous failure was the one that
+      looked fine, after the audit log with RLS off and `aNotifyStudent` swallowing errors.
+      ⬜ **Still untested by a student session.** An admin passes `profiles_select_admin` and
+      would see everything working whether or not it is correct.
 
 ### Also fixed
 - ✅ **`aNotifyStudent()` failed silently.** The insert was never awaited and its error never
