@@ -1,4 +1,4 @@
--- Capture the two functions the whole permission system rests on
+-- Capture the three functions the whole permission system rests on
 -- 2026-09-04
 --
 -- CAPTURE ONLY, NO CHANGE. These are reproduced exactly as the database returned them from
@@ -6,9 +6,9 @@
 -- is safe to run and safe to re-run — but it is here to be READ and to make sql/ able to
 -- rebuild the database, not because anything needs fixing.
 --
--- WHY THESE TWO FIRST
--- Every admin permission in the database routes through one of them, and neither had ever
--- been written down. is_super_admin() is also the first branch of can_act() in
+-- WHY THESE FIRST
+-- Every admin permission in the database routes through one of these three, and not one of
+-- them had ever been written down. is_super_admin() is also the first branch of can_act() in
 -- docs/nestrel-campus-engagement-plan.md §2.6 — the entire campus engagement system is
 -- planned on top of a function whose definition existed only inside the hosted database.
 --
@@ -58,6 +58,26 @@ AS $function$
 $function$;
 
 
+-- ============================================================================
+-- user_is_admin()
+-- ============================================================================
+-- Captured 2026-09-04, after this file was first written.
+-- Gates SELECT and UPDATE on admin_activity_log — so this is the function that decides who
+-- can read the audit log, now that its RLS is switched on.
+--
+-- Note STABLE, which the other two omit: it tells the planner the result cannot change
+-- within a statement, so a policy calling it per row evaluates it once. The same marking
+-- would suit is_super_admin() and get_admin_school().
+
+CREATE OR REPLACE FUNCTION public.user_is_admin()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+AS $function$
+  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid());
+$function$;
+
+
 notify pgrst, 'reload schema';
 
 
@@ -65,24 +85,28 @@ notify pgrst, 'reload schema';
 -- TWO THINGS TO KNOW ABOUT THESE, NEITHER FIXED HERE
 -- ============================================================================
 --
--- 1. THERE ARE THREE ADMIN CHECKS AND THEY DO NOT AGREE.
+-- 1. THERE ARE TWO ADMIN CHECKS, NOT THREE. (Corrected 2026-09-04.)
 --
---      is_super_admin()                              role_id = 'super_admin'  (narrow)
---      user_is_admin()                               ??? — not captured yet   (unknown)
---      exists (select 1 from user_roles
---              where user_id = auth.uid())           ANY role row             (broad)
+--    Before user_is_admin() was captured, this file recorded three possible checks. Now that
+--    its body is known, there are two — because user_is_admin() is character for character
+--    the same expression most policies inline:
 --
---    The inline form is the one used by most policies, and it treats every role row as
---    equal: a school admin passes a check that reads as "is an admin" in a policy on a
---    table that may not be theirs. is_super_admin() is stricter. user_is_admin() gates
---    SELECT and UPDATE on admin_activity_log and its body is still unknown.
+--      broad   user_is_admin()  ==  exists (select 1 from user_roles
+--                                           where user_id = auth.uid())    ANY role row
+--      narrow  is_super_admin()                              role_id = 'super_admin'
 --
---    This is precisely the drift can_act() is meant to end (§2.6). Do not add a fourth.
---    Capturing user_is_admin() and deciding which of the three wins is the next step.
+--    So this is duplication, not disagreement — a relief, but still worth closing. The named
+--    function is the better form: one definition to change when can_act() lands, instead of
+--    the same subquery pasted into roughly thirty policies.
 --
--- 2. NEITHER FUNCTION PINS ITS search_path.
+--    The distinction that does matter is broad vs narrow. The broad check treats every role
+--    row as equal, so a school admin passes a test that reads as "is an admin" on a table
+--    that may belong to another school. Most policies pair it with `school = get_admin_school()`
+--    to compensate; the ones that do not are worth a second look.
 --
---    Both are SECURITY DEFINER, meaning they run with their owner's permissions rather
+-- 2. NONE OF THE THREE PINS ITS search_path.
+--
+--    All three are SECURITY DEFINER, meaning they run with their owner's permissions rather
 --    than the caller's. A SECURITY DEFINER function that does not `SET search_path` can in
 --    principle be pointed at a different table of the same name, if the caller is able to
 --    create one somewhere earlier in the search path.
@@ -92,7 +116,7 @@ notify pgrst, 'reload schema';
 --    Supabase's own linter flags as "Function Search Path Mutable", and the two functions
 --    at the root of the permission system are the wrong ones to leave unpinned.
 --
---    The fix is one line added to each, matching what guard_profile_privileged_columns()
+--    The fix is one line added to each of the three, matching what guard_profile_privileged_columns()
 --    and enforce_school_email() already do:
 --
 --      SET search_path TO 'public'
