@@ -243,3 +243,72 @@ select table_name
 from information_schema.tables
 where table_schema = 'public'
   and table_name = 'favorites';
+
+
+-- ============================================================================
+-- 10. Generate runnable CREATE POLICY statements for every policy
+-- ============================================================================
+-- Added 2026-09-04.
+--
+-- Queries 1-9 above let you READ what the database enforces. This one makes the database
+-- write its own definitions out as SQL you can paste straight into a capture file. That
+-- matters because the alternative is a person retyping ~68 policies by hand, and a policy
+-- transcribed with one wrong operator is worse than no policy file at all — it would look
+-- authoritative and be wrong.
+--
+-- regexp_replace collapses the newlines Postgres puts inside `qual`, so each policy comes
+-- back as one clean line that survives a copy-paste out of the results grid.
+--
+-- Paste the `create_statement` column into a new sql/ capture file, in table order.
+
+select tablename,
+       'create policy ' || quote_ident(policyname) ||
+       ' on public.'    || quote_ident(tablename)  ||
+       ' as '           || lower(permissive)       ||
+       ' for '          || lower(cmd)              ||
+       ' to '           || array_to_string(roles, ', ') ||
+       coalesce(' using ('      || regexp_replace(qual,       '\s+', ' ', 'g') || ')', '') ||
+       coalesce(' with check (' || regexp_replace(with_check, '\s+', ' ', 'g') || ')', '') ||
+       ';' as create_statement
+from pg_policies
+where schemaname = 'public'
+order by tablename, policyname;
+
+
+-- ============================================================================
+-- 11. The function bodies still not captured
+-- ============================================================================
+-- Added 2026-09-04. Query 6b captured seven functions; these are the ones it missed.
+--
+-- user_is_admin() is the important one. It gates SELECT and UPDATE on admin_activity_log —
+-- the table whose RLS was switched on 2026-09-03 — so it is now load-bearing for the audit
+-- log, and it is a THIRD admin check alongside is_super_admin() and the inline
+-- `exists (select 1 from user_roles ...)`. The three do not necessarily agree. Until its
+-- body is read, nobody can say who can actually read the audit log.
+
+select p.proname                  as function_name,
+       pg_get_functiondef(p.oid)  as definition
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in (
+    'user_is_admin',
+    'check_email_available',
+    'check_username_available',
+    'guard_message_immutable',
+    'update_own_poster_name',
+    'fn_sync_listing_id',
+    'fn_guard_owner_book_update'
+  )
+order by p.proname;
+
+
+-- ============================================================================
+-- STILL OUTSTANDING after the 2026-09-03 run
+-- ============================================================================
+-- Query 7 (triggers) was cut off partway through its output, and query 8 (table column
+-- definitions) never came back at all. Both need re-running — they are unchanged above.
+--
+-- Query 8 is the one sql/README.md has listed as missing since August: the definitions of
+-- listings, book_listings, profiles, messages, appeals, user_roles and schools. Without it
+-- this folder still cannot rebuild the database from empty, which is the reason it exists.
