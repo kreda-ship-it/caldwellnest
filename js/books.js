@@ -46,7 +46,7 @@ async function loadBooks() {
   const ids = [...new Set(_books.map(b => b.poster_id).filter(Boolean))];
   _bookPosterMap = {};
   if (ids.length) {
-    const { data: profs } = await supabaseClient.from('profiles')
+    const { data: profs } = await supabaseClient.from('public_profiles')
       .select('id, display_name, first_name, last_name, initials, color, avatar_url, school, year, major, created_at')
       .in('id', ids);
     (profs || []).forEach(p => { _bookPosterMap[p.id] = p; });
@@ -235,7 +235,7 @@ async function bContact(bookId) {
   if (b.poster_id === eu.id) { toast("That's your own listing!"); return; }
   let p = _bookPosterMap[b.poster_id];
   if (!p) {
-    const { data } = await supabaseClient.from('profiles').select('display_name, first_name, last_name, initials, color').eq('id', b.poster_id).single();
+    const { data } = await supabaseClient.from('public_profiles').select('display_name, first_name, last_name, initials, color').eq('id', b.poster_id).single();
     p = data;
   }
   if (!p) { toast('Messaging not available for this listing yet.'); return; }

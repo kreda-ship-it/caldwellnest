@@ -1046,7 +1046,7 @@ async function sContact(listingId) {
   const cached = sConvoCache[l.poster_id];
   let posterInfo = cached || { name: l.poster.name, initials: l.poster.initials, color: l.poster.color };
   if (!cached) {
-    const { data: prof } = await supabaseClient.from('profiles').select('display_name, first_name, last_name, initials, color').eq('id', l.poster_id).single();
+    const { data: prof } = await supabaseClient.from('public_profiles').select('display_name, first_name, last_name, initials, color').eq('id', l.poster_id).single();
     if (prof) posterInfo = { name: prof.display_name || (prof.first_name + ' ' + prof.last_name), initials: prof.initials, color: prof.color };
   }
   showPage('messages');

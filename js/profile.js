@@ -254,7 +254,7 @@ async function viewStudentProfile(profileId) {
   openModal('pubProfileModal');
 
   const [{ data: p }, { data: listings }, { data: books }] = await Promise.all([
-    supabaseClient.from('profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
+    supabaseClient.from('public_profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
     supabaseClient.from('listings').select('id, title, price, category, details, emoji, status, lifecycle_status, expires_at, created_at, photo_urls').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false }),
     supabaseClient.from('book_listings').select('*').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
   ]);

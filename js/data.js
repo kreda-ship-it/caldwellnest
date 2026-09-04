@@ -87,7 +87,7 @@ function browseItems() {
 let _lastSuspendedIds = new Set(); // last successful "who is suspended" answer — see below
 async function loadListings() {
   const { data: suspendedProfiles, error: suspErr } = await supabaseClient
-    .from('profiles').select('id').eq('status', 'suspended');
+    .from('public_profiles').select('id').eq('status', 'suspended');
   // A transient failure here must NOT un-hide suspended posters' listings for a
   // refresh cycle — fall back to the last known suspended set, never an empty one.
   if (suspErr) console.warn('[loadListings] suspended lookup failed, using last known set:', suspErr.message);
@@ -115,7 +115,7 @@ async function loadListings() {
     .map(r => r.poster_id))];
   const profMap = {};
   if (realPosterIds.length) {
-    const { data: profs } = await supabaseClient.from('profiles')
+    const { data: profs } = await supabaseClient.from('public_profiles')
       .select('id, display_name, first_name, last_name, initials, color, avatar_url, year, major, created_at')
       .in('id', realPosterIds);
     (profs || []).forEach(p => { profMap[p.id] = p; });
@@ -198,7 +198,7 @@ async function initStudent() {
     loadBooks(), // books are part of the browse feed now — load with everything else
     loadSchools(),
     _settingsReady,
-    supabaseClient.from('profiles').select('id', { count: 'exact', head: true })
+    supabaseClient.from('public_profiles').select('id', { count: 'exact', head: true })
   ]);
   applyDBContent();
   if (applyMaintenance()) return;

@@ -301,7 +301,7 @@ async function renderConvos() {
   }
 
   const otherIds = latest.map(m => m.sender_id === eu.id ? m.receiver_id : m.sender_id);
-  const { data: profiles } = await supabaseClient.from('profiles').select('id, first_name, last_name, display_name, initials, color').in('id', otherIds);
+  const { data: profiles } = await supabaseClient.from('public_profiles').select('id, first_name, last_name, display_name, initials, color').in('id', otherIds);
   const pMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
 
   for (const [id, p] of Object.entries(pMap)) {
@@ -633,7 +633,7 @@ async function msgToastFor(msg) {
   if (document.getElementById('page-messages')?.classList.contains('active')) return;
   let info = sConvoCache[msg.sender_id];
   if (!info) {
-    const { data: p } = await supabaseClient.from('profiles').select('first_name, last_name, display_name, initials, color').eq('id', msg.sender_id).single();
+    const { data: p } = await supabaseClient.from('public_profiles').select('first_name, last_name, display_name, initials, color').eq('id', msg.sender_id).single();
     if (p) { info = { name: p.display_name || (p.first_name + ' ' + p.last_name), initials: p.initials, color: p.color }; sConvoCache[msg.sender_id] = info; }
   }
   document.getElementById('msgToast')?.remove();
