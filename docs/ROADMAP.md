@@ -1867,9 +1867,18 @@ retyping them.
 - ✅ **Bootstrap run.** Caldwell University exists as the root organization and Kal holds an
       officer membership on it. Every organization created underneath inherits his authority
       through the walk.
-- ⬜ Stages 2 and 3 remain: `js/orgs.js` (the client-side permission mirror, for hiding UI
-      only) and org management inside the **existing** admin page — not the console, which is
-      workstream 2.
+- ✅ **Stage 2 done 2026-09-04** — `js/orgs.js`, loaded before `boot.js`. Holds
+      `loadOrgContext()`, `orgCanAct()` (the client mirror of `can_act()`),
+      `orgMemberships()`, `orgIsOfficerAnywhere()` and `orgTree()`.
+      **Deliberately lazy: nothing loads at boot.** Almost every student has no memberships
+      and should not pay for a query they never use, so callers load it when they are about
+      to draw something that needs it.
+      The mirror can only be wrong in one direction: RLS may hide an organization row from the
+      browser, so the walk stops early and answers false where the database would answer true.
+      A missing button is a nuisance; a working button that should not work is the thing that
+      must never happen. It fails closed.
+- ⬜ Stage 3 remains: org management inside the **existing** admin page — not the console,
+      which is workstream 2.
 
 ### Correction worth keeping
 `2026-09-04_org_hierarchy.sql` first granted what the three new tables needed and stopped
@@ -1902,6 +1911,14 @@ not accepting the mismatch** — the check said "expect no rows" and returned ni
       `2026-08-08_verify_owner_guards.sql`. Written because `can_act()` starts with
       `is_super_admin() or ...`, so every call so far returned true on the first branch and
       the recursive walk had **never executed**.
+- ✅ **RUN 2026-09-04 — all seven tests passed.** The recursive walk works: an officer acts on
+      their own club, a school admin reaches a club two levels below, and — the test that
+      matters — a club officer is **refused** on the department above them, so authority flows
+      downward only. A plain member with all flags false is refused, an officer without
+      `can_manage_admins` cannot grant permissions, a `pending` membership grants nothing, and
+      a deliberate `parent_id` cycle returned `false` instead of hanging. `can_act()` is now
+      the only verified permission rule in the codebase, and the foundation the remaining five
+      workstreams sit on.
 
 ### Still open
 - ⬜ **F2**, above. The largest remaining privacy item.
