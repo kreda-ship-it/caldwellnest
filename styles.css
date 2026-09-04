@@ -1150,3 +1150,62 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-pick-role { font-size: 11px; color: var(--text-faint); }
 
 .oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }
+
+/* ── Org console: posts, polls, logo ───────────────────────────────────────── */
+.oc-composer { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 20px; background: var(--card, #fff); }
+.oc-composer .oc-input { margin-bottom: 8px; }
+.oc-type-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.oc-type {
+  padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 20px;
+  background: var(--bg); color: var(--text-muted);
+}
+.oc-type.active { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
+.oc-poll-fields { padding: 4px 0; }
+.oc-toggle-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 4px; }
+.oc-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+
+.oc-post { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--card, #fff); }
+/* Urgent is a left rail, not a filled card. A red block behind body text hurts to read, and
+   an urgent post is the one people most need to actually read. */
+.oc-post-urgent { border-left: 3px solid #c0392b; }
+.oc-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.oc-post-date { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.oc-post-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+.oc-post-body { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+.oc-post-actions { display: flex; gap: 6px; margin-top: 11px; }
+.oc-chip {
+  padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
+  background: var(--bg); color: var(--text-muted); border: 1px solid var(--border);
+}
+.oc-chip-pin    { background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border-color: transparent; }
+.oc-chip-urgent { background: #fdecec; color: #c0392b; border-color: transparent; }
+
+.oc-poll { margin-top: 11px; }
+.oc-opt-vote {
+  display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 10px 12px;
+  font-size: 13px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg); color: var(--text); cursor: pointer;
+}
+.oc-opt-vote:hover { border-color: var(--brand, #3B5BA5); background: var(--brand-pale, #eef3ff); }
+/* The bar sits behind the label rather than beside it, so the option text stays at a
+   consistent position however the vote splits. */
+.oc-opt-result {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px; padding: 10px 12px; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}
+.oc-opt-result.mine { border-color: var(--brand, #3B5BA5); }
+.oc-opt-bar { position: absolute; inset: 0 auto 0 0; background: var(--brand-pale, #eef3ff); }
+.oc-opt-label { position: relative; flex: 1; color: var(--text); }
+.oc-opt-count { position: relative; font-weight: 600; color: var(--text-muted); }
+
+.oc-logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.oc-logo {
+  width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-pale, #eef3ff); border: 1px solid var(--border);
+}
+.oc-logo img { width: 100%; height: 100%; object-fit: cover; }
+.oc-logo-empty { font-size: 20px; font-weight: 700; color: var(--brand, #3B5BA5); }
+.oc-logo-btn { cursor: pointer; }

@@ -398,7 +398,7 @@ async function orgRemoveMember(membershipId, orgId) {
 // of an organization and that should never be ambiguous.
 
 let _ocOrgId   = null;      // organization currently being operated as
-let _ocSection = 'profile';
+let _ocSection = 'posts';
 
 // The entry point. Drawn into #orgConsoleEntry on the profile page, and drawn as nothing at
 // all for the overwhelming majority of students, who are officers of nothing.
@@ -429,7 +429,7 @@ async function orgConsoleOpen(orgId) {
   else if (mine.length === 1) _ocOrgId = mine[0].org_id;
   else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
 
-  _ocSection = 'profile';
+  _ocSection = 'posts';
   showPage('org-console');
   renderOrgConsole();
 }
@@ -456,7 +456,9 @@ function orgConsoleSwitch() {
 // from orgCanAct() rather than from the org's type. A department officer and a club officer
 // see different consoles because they hold different flags, not because of what the row says.
 function orgConsoleSections() {
-  const s = [{ id: 'profile', label: 'Org profile' }];
+  const s = [];
+  if (orgCanAct('post', _ocOrgId)) s.push({ id: 'posts', label: 'Posts' });
+  s.push({ id: 'profile', label: 'Org profile' });
   if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
   // Events, Registrations, Check-in and Analytics arrive with workstreams 3 and 6. They are
   // listed so the shape of the console is visible, and disabled so nothing pretends to work.
@@ -479,8 +481,9 @@ function renderOrgConsole() {
       : `<button class="oc-tab${_ocSection === s.id ? ' active' : ''}" onclick="orgConsoleGo('${s.id}')">${s.label}</button>`
   ).join('');
 
-  if (_ocSection === 'members') renderOcMembers();
-  else                          renderOcProfile();
+  if      (_ocSection === 'members') renderOcMembers();
+  else if (_ocSection === 'profile') renderOcProfile();
+  else                               renderOcPosts();
 }
 
 function orgConsoleGo(section) { _ocSection = section; renderOrgConsole(); }
@@ -503,6 +506,14 @@ function renderOcProfile() {
   const canEdit = orgCanAct('manage_members', _ocOrgId);
 
   document.getElementById('ocBody').innerHTML = `
+    <div class="oc-logo-row">
+      <div class="oc-logo">${org.logo_url
+        ? `<img src="${escAttr(org.logo_url)}" alt="${escAttr(org.name)}">`
+        : `<span class="oc-logo-empty">${esc((org.name || '?').slice(0, 2).toUpperCase())}</span>`}</div>
+      ${canEdit ? `<label class="org-btn oc-logo-btn">Change logo
+        <input type="file" accept="image/*" hidden onchange="ocPickLogo(this)">
+      </label>` : ''}
+    </div>
     <div class="oc-meta">
       <span class="org-badge ${org.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${org.is_verified ? 'verified' : 'unverified'}</span>
       <span class="oc-meta-type">${esc(org.type)}</span>
@@ -605,4 +616,245 @@ async function ocRemove(membershipId) {
   clearOrgContext();
   await loadOrgContext();
   renderOcMembers();
+}
+
+
+// ============================================================
+// CONSOLE: POSTS — announcements and polls
+// ============================================================
+let _ocPosts = [];   // [{post, options:[], votes:[], myVote}]
+
+async function renderOcPosts() {
+  const body = document.getElementById('ocBody');
+  body.innerHTML = '<div class="oc-note">Loading posts…</div>';
+
+  const { data: posts, error } = await supabaseClient
+    .from('org_posts')
+    .select('id, type, title, body, is_pinned, is_urgent, members_only, status, poll_closes_at, created_at')
+    .eq('org_id', _ocOrgId)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) { body.innerHTML = '<div class="oc-note">Could not load posts.</div>'; console.error('[renderOcPosts]', error); return; }
+
+  const pollIds = (posts || []).filter(p => p.type === 'poll').map(p => p.id);
+  let options = [], votes = [];
+  if (pollIds.length) {
+    // RLS decides what comes back from poll_votes: your own always, everyone's only once you
+    // have voted, plus officers holding can_view_analytics. So an empty tally here is the
+    // gate working, not a failed query.
+    const [o, v] = await Promise.all([
+      supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
+      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+    ]);
+    options = o.data || []; votes = v.data || [];
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  _ocPosts = (posts || []).map(p => ({
+    post: p,
+    options: options.filter(o => o.post_id === p.id),
+    votes:   votes.filter(v => v.post_id === p.id),
+    myVote:  votes.find(v => v.post_id === p.id && v.user_id === user?.id) || null,
+  }));
+
+  body.innerHTML = ocComposerHTML() + (_ocPosts.length
+    ? _ocPosts.map(ocPostCardHTML).join('')
+    : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>');
+}
+
+function ocComposerHTML() {
+  return `
+    <div class="oc-composer">
+      <div class="oc-type-row">
+        <button class="oc-type active" id="oc-t-announcement" onclick="ocSetType('announcement')">Announcement</button>
+        <button class="oc-type" id="oc-t-poll" onclick="ocSetType('poll')">Poll</button>
+      </div>
+      <input class="oc-input" id="ocTitle" placeholder="Title" autocomplete="off">
+      <textarea class="oc-input" id="ocBodyText" rows="3" placeholder="Say more (optional)"></textarea>
+      <div id="ocPollFields" class="oc-poll-fields" hidden>
+        <input class="oc-input" id="ocOpt1" placeholder="Option 1" autocomplete="off">
+        <input class="oc-input" id="ocOpt2" placeholder="Option 2" autocomplete="off">
+        <input class="oc-input" id="ocOpt3" placeholder="Option 3 (optional)" autocomplete="off">
+        <input class="oc-input" id="ocOpt4" placeholder="Option 4 (optional)" autocomplete="off">
+        <div class="oc-note">Members see the results once they have voted. Early results skew later votes, so the tally stays hidden until someone has committed to an answer.</div>
+      </div>
+      <div class="oc-toggle-row">
+        <label class="oc-toggle"><input type="checkbox" id="ocPinned"> Pin to top</label>
+        <label class="oc-toggle"><input type="checkbox" id="ocMembersOnly"> Members only</label>
+        <label class="oc-toggle"><input type="checkbox" id="ocUrgent"> Mark urgent</label>
+      </div>
+      <div class="oc-note">Pinning replaces whatever is currently pinned — one per organization, so the pin keeps meaning something.
+        “Urgent” shows a red marker to students who open the app; it does <strong>not</strong> email or notify anyone yet.</div>
+      <button class="btn-full oc-save" onclick="ocCreatePost()">Post</button>
+    </div>`;
+}
+
+let _ocType = 'announcement';
+function ocSetType(t) {
+  _ocType = t;
+  document.getElementById('oc-t-announcement').classList.toggle('active', t === 'announcement');
+  document.getElementById('oc-t-poll').classList.toggle('active', t === 'poll');
+  document.getElementById('ocPollFields').hidden = (t !== 'poll');
+}
+
+function ocPostCardHTML(x) {
+  const p = x.post;
+  const canManage = orgCanAct('post', _ocOrgId);
+  // The tally is shown only when this browser is actually allowed to have it — you voted, or
+  // you hold analytics. It mirrors the RLS rather than deciding anything: if the mirror said
+  // yes and the database said no, `votes` would simply be empty and the bars would read zero.
+  const canSeeResults = !!x.myVote || orgCanAct('view_analytics', _ocOrgId);
+  const total = x.votes.length;
+
+  const poll = p.type !== 'poll' ? '' : `
+    <div class="oc-poll">
+      ${x.options.map(o => {
+        const n = x.votes.filter(v => v.option_id === o.id).length;
+        const pct = total ? Math.round(n / total * 100) : 0;
+        const mine = x.myVote && x.myVote.option_id === o.id;
+        return canSeeResults
+          ? `<div class="oc-opt-result${mine ? ' mine' : ''}">
+               <div class="oc-opt-bar" style="width:${pct}%"></div>
+               <span class="oc-opt-label">${esc(o.label)}</span>
+               <span class="oc-opt-count">${n}</span>
+             </div>`
+          : `<button class="oc-opt-vote" onclick="ocVote(${p.id}, ${o.id})">${esc(o.label)}</button>`;
+      }).join('')}
+      <div class="oc-note">${canSeeResults
+        ? `${total} vote${total === 1 ? '' : 's'}${x.myVote ? ' · you voted' : ''}`
+        : 'Vote to see the results.'}</div>
+    </div>`;
+
+  return `
+    <div class="oc-post${p.is_urgent ? ' oc-post-urgent' : ''}">
+      <div class="oc-post-head">
+        ${p.is_pinned ? '<span class="oc-chip oc-chip-pin">Pinned</span>' : ''}
+        ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
+        ${p.members_only ? '<span class="oc-chip">Members only</span>' : ''}
+        ${p.status !== 'published' ? `<span class="oc-chip">${esc(p.status)}</span>` : ''}
+        <span class="oc-post-date">${fmtDate(p.created_at)}</span>
+      </div>
+      <div class="oc-post-title">${esc(p.title)}</div>
+      ${p.body ? `<div class="oc-post-body">${esc(p.body)}</div>` : ''}
+      ${poll}
+      ${canManage ? `<div class="oc-post-actions">
+        <button class="org-btn" onclick="ocTogglePin(${p.id}, ${!p.is_pinned})">${p.is_pinned ? 'Unpin' : 'Pin'}</button>
+        <button class="org-btn org-btn-warn" onclick="ocDeletePost(${p.id})">Delete</button>
+      </div>` : ''}
+    </div>`;
+}
+
+async function ocCreatePost() {
+  const title = document.getElementById('ocTitle').value.trim();
+  if (!title) { toast('A post needs a title'); return; }
+
+  const opts = _ocType === 'poll'
+    ? [1,2,3,4].map(i => document.getElementById('ocOpt' + i).value.trim()).filter(Boolean)
+    : [];
+  if (_ocType === 'poll' && opts.length < 2) { toast('A poll needs at least two options'); return; }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const wantPin = document.getElementById('ocPinned').checked;
+
+  // One pinned post per org is a partial unique index, so pinning a second one is refused by
+  // the database rather than silently allowed. Unpin the incumbent first — that is what
+  // "pinning replaces" means, and doing it here keeps the promise the composer makes.
+  if (wantPin) await supabaseClient.from('org_posts').update({ is_pinned: false }).eq('org_id', _ocOrgId).eq('is_pinned', true);
+
+  const { data: post, error } = await supabaseClient.from('org_posts').insert({
+    org_id: _ocOrgId,
+    school: _orgCtx.orgs.get(_ocOrgId)?.school,   // overwritten by the trigger; sent to satisfy NOT NULL
+    type: _ocType,
+    title,
+    body: document.getElementById('ocBodyText').value.trim() || null,
+    is_pinned: wantPin,
+    is_urgent: document.getElementById('ocUrgent').checked,
+    members_only: document.getElementById('ocMembersOnly').checked,
+    created_by: user?.id || null,
+  }).select('id').single();
+
+  if (error) { toast('Could not post: ' + error.message); console.error('[ocCreatePost]', error); return; }
+
+  if (opts.length) {
+    const { error: oe } = await supabaseClient.from('poll_options')
+      .insert(opts.map((label, i) => ({ post_id: post.id, label, position: i })));
+    // A poll with no options is worse than no poll: it renders as an unanswerable question.
+    // Removing the post is the honest recovery, since the options insert is the second half
+    // of one action and Supabase gives us no transaction across two calls.
+    if (oe) {
+      await supabaseClient.from('org_posts').delete().eq('id', post.id);
+      toast('Could not save the poll options — nothing was posted');
+      console.error('[ocCreatePost options]', oe);
+      return;
+    }
+  }
+
+  logEvent('org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
+                                 school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType } });
+  toast('✓ Posted');
+  renderOcPosts();
+}
+
+async function ocVote(postId, optionId) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  // upsert on the (post_id, user_id) primary key: voting again changes your answer rather
+  // than adding a second vote.
+  const { error } = await supabaseClient.from('poll_votes')
+    .upsert({ post_id: postId, option_id: optionId, user_id: user.id }, { onConflict: 'post_id,user_id' });
+  if (error) { toast('Could not record your vote: ' + error.message); console.error('[ocVote]', error); return; }
+  renderOcPosts();
+}
+
+async function ocTogglePin(postId, pin) {
+  if (pin) await supabaseClient.from('org_posts').update({ is_pinned: false }).eq('org_id', _ocOrgId).eq('is_pinned', true);
+  const { error } = await supabaseClient.from('org_posts').update({ is_pinned: pin }).eq('id', postId);
+  if (error) { toast('Could not update: ' + error.message); console.error('[ocTogglePin]', error); return; }
+  renderOcPosts();
+}
+
+async function ocDeletePost(postId) {
+  if (!confirm('Delete this post? Any votes on it go with it.')) return;
+  const { error } = await supabaseClient.from('org_posts').delete().eq('id', postId);
+  if (error) { toast('Could not delete: ' + error.message); console.error('[ocDeletePost]', error); return; }
+  logEvent('org_post_deleted', { targetType: 'organization', targetId: _ocOrgId });
+  toast('✓ Deleted');
+  renderOcPosts();
+}
+
+
+// ============================================================
+// CONSOLE: ORG LOGO
+// ============================================================
+// Reuses the listing-photos bucket and resizeImage() from js/media.js rather than adding a
+// bucket. NOTE THE PATH: uploadAvatar() records that the first folder must be the uploader's
+// user id to pass the storage policy, so an org logo filed under `org-5/` would be rejected.
+// It goes under the officer's own id with the org in the filename.
+async function ocPickLogo(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('That image is over 10 MB'); return; }
+
+  toast('Uploading…');
+  try {
+    const blob = await resizeImage(file);
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const path = `${user.id}/orglogo-${_ocOrgId}-${Date.now()}.jpg`;
+    const { error: ue } = await supabaseClient.storage
+      .from('listing-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+    if (ue) throw ue;
+    const { data: pub } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+
+    const { error } = await supabaseClient.from('organizations')
+      .update({ logo_url: pub.publicUrl }).eq('id', _ocOrgId);
+    if (error) throw error;
+
+    toast('✓ Logo updated');
+    await loadOrgContext(true);
+    renderOrgConsole();
+  } catch (e) {
+    toast('Could not upload: ' + (e.message || e));
+    console.error('[ocPickLogo]', e);
+  }
 }
