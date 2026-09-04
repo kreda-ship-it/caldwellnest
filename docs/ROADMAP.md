@@ -2033,10 +2033,15 @@ of them **silently**.
 - ✅ **Proved by trying to break it.** `insert ... school = 'Caldwell'` now returns
       `Key (school)=(Caldwell) is not present in table "schools"`. Yesterday that insert
       succeeded.
-- 🟡 `sql/2026-09-04_slug_format.sql` adds the companion check: a foreign key answers "does
-      this refer to something real", a check answers "is this the right shape", and the first
-      does not cover the second. A school added as `'Rutgers'` would be a valid foreign-key
-      target that still breaks every lowercase comparison. Written; run separately.
+- ✅ **Applied 2026-09-04** — `sql/2026-09-04_slug_format.sql`. `schools.slug` and
+      `organizations.slug` now match `^[a-z0-9]+(-[a-z0-9]+)*$`. The companion to the foreign
+      keys: a foreign key answers "does this refer to something real", a check answers "is this
+      the right shape", and **the first does not cover the second**. A school added as
+      `'Rutgers'` would have been a valid foreign-key target that still broke every lowercase
+      comparison in the app. `organizations.slug` gets it too, since it is half of
+      `unique (school, slug)` — `'Chess-Club'` and `'chess-club'` would be two organizations
+      that read as one.
+      Neither catches `'caldwel'`. Shape rules find typos of form, never of fact.
 - ⬜ Same gap remains on `school_domains.domain`, which is what `validateSchoolEmail()`
       actually looks up. A row stored as `'Caldwell.EDU'` would never match, because the gate
       lowercases before querying — so every student at that school would be told their domain
