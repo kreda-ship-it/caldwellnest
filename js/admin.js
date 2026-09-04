@@ -703,7 +703,6 @@ async function aApprove(id) {
   if (error) { toast('Could not approve listing — please try again.'); console.error(error.message); return; }
   DB.listings.unshift({ id, title: l.title, category: l.category, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags, poster: l.poster, posted: 'Just now', created_at: l.created_at || new Date().toISOString(), emoji: l.emoji, status: 'approved', lifecycle_status: l.lifecycle_status || 'active', expires_at: l.expires_at || null, pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
-  DB.log.unshift({ type: 'approve', text: `Listing approved: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'pending' }, after: { status: 'approved' } });
   updateAdminBadges(); renderAApprovals(); renderListings();
   toast('✓ Listing approved — now live on student board');
@@ -716,7 +715,6 @@ async function aReturnToPending(id) {
   if (error) { toast('Could not return listing to pending.'); console.error(error.message); return; }
   DB.listings.splice(DB.listings.findIndex(x => x.id === id), 1);
   DB.pending.unshift({ ...l, status: 'pending' });
-  DB.log.unshift({ type: 'return_pending', text: `Listing returned to pending: "${l.title}"`, time: 'Just now', color: '#d4860a' });
   logAdminAction('return_to_pending', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'approved' }, after: { status: 'pending' } });
   updateAdminBadges(); renderAApprovals(); renderAListings(); renderListings();
   renderAdminDashLog();
@@ -736,7 +734,6 @@ async function confirmReject() {
   if (error) { toast('Could not reject listing — please try again.'); console.error(error.message); return; }
   DB.listings.unshift({ id: aRejectId, title: l.title, type: l.type, rent: l.rent, location: l.location, desc: l.desc, tags: l.tags || [], poster: l.poster, posted: 'Just now', emoji: l.emoji, status: 'rejected', pinned: false, photo_urls: l.photo_urls || [], school: l.school });
   DB.pending.splice(DB.pending.findIndex(x => x.id === aRejectId), 1);
-  DB.log.unshift({ type: 'reject', text: `Listing rejected: "${l.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('reject_listing', { targetType: 'listing', targetId: aRejectId, targetLabel: l.title, school: l.school, category: l.category, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
   updateAdminBadges(); closeModal('rejectModal'); renderAApprovals(); toast('Listing rejected');
 }
@@ -802,7 +799,6 @@ async function aApproveBook(id) {
   if (error) { toast('Could not approve book — please try again.'); console.error(error.message); return; }
   DB.adminBooks.unshift({ ...b, status: 'approved' });
   DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === id), 1);
-  DB.log.unshift({ type: 'book', text: `Book approved: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('approve_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
   updateAdminBadges(); renderAApprovals();
   await loadBooks(); renderListings(); // refresh the merged feed so the approval is visible without a reload
@@ -817,7 +813,6 @@ async function confirmRejectBook() {
   if (error) { toast('Could not reject book — please try again.'); console.error(error.message); return; }
   DB.adminBooks.unshift({ ...b, status: 'rejected', rejection_reason: r });
   DB.pendingBooks.splice(DB.pendingBooks.findIndex(x => x.id === aBookRejectId), 1);
-  DB.log.unshift({ type: 'book', text: `Book rejected: "${b.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('reject_book', { targetType: 'book_listing', targetId: aBookRejectId, targetLabel: b.title, reason: r, before: { status: 'pending' }, after: { status: 'rejected' } });
   updateAdminBadges(); closeModal('rejectModal'); renderAApprovals();
   toast('Book rejected');
@@ -829,7 +824,6 @@ async function aRemoveBook(id) {
   const { error } = await supabaseClient.from('book_listings').update({ status: 'removed' }).eq('id', id);
   if (error) { toast('Could not remove book — please try again.'); console.error(error.message); return; }
   b.status = 'removed';
-  DB.log.unshift({ type: 'book', text: `Book removed: "${b.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('remove_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: prevStatus }, after: { status: 'removed' } });
   renderAApprovals(); updateAdminBadges();
   await loadBooks(); renderListings();
@@ -841,7 +835,6 @@ async function aRestoreBook(id) {
   const { error } = await supabaseClient.from('book_listings').update({ status: 'approved' }).eq('id', id);
   if (error) { toast('Could not restore book — please try again.'); console.error(error.message); return; }
   b.status = 'approved';
-  DB.log.unshift({ type: 'book', text: `Book restored: "${b.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('restore_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'removed' }, after: { status: 'approved' } });
   renderAApprovals(); updateAdminBadges();
   await loadBooks(); renderListings();
@@ -1001,7 +994,6 @@ async function performRemoveListing(id, reason) {
   l.rejection_reason = r;
   l.updated_at = new Date().toISOString();
   if (l.poster_id) aNotifyStudent(l.poster_id, 'listing_removed', `Your listing "${l.title}" was removed by a moderator. Reason: ${r}`);
-  DB.log.unshift({ type: 'remove', text: `Listing removed: "${l.title}"`, time: 'Just now', color: '#c0392b' });
   logAdminAction('remove_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, reason: r, before: { status: prevStatus }, after: { status: 'removed' } });
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing removed');
 }
@@ -1018,7 +1010,6 @@ async function aRestoreListing(id) {
   const { error } = await supabaseClient.from('listings').update({ status: 'approved' }).eq('id', id);
   if (error) { toast('Could not restore listing — please try again.'); console.error(error.message); return; }
   l.status = 'approved';
-  DB.log.unshift({ type: 'restore', text: `Listing restored: "${l.title}"`, time: 'Just now', color: '#1a7a45' });
   logAdminAction('restore_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'removed' }, after: { status: 'approved' } });
   renderAListings(); renderListings(); updateAdminBadges(); toast('Listing restored');
 }
@@ -1042,7 +1033,6 @@ async function aTogglePin(id) {
   const { error } = await supabaseClient.from('listings').update({ pinned: newPinned }).eq('id', id);
   if (error) { toast('Could not update pin — please try again.'); console.error(error.message); return; }
   l.pinned = newPinned;
-  DB.log.unshift({ type: 'pin', text: `Listing ${l.pinned ? 'pinned' : 'unpinned'}: "${l.title}"`, time: 'Just now', color: '#6b21a8' });
   logAdminAction(newPinned ? 'pin_listing' : 'unpin_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { pinned: !newPinned }, after: { pinned: newPinned } });
   renderAListings(); renderAPinned(); renderListings(); updateAdminBadges();
   toast(l.pinned ? '&#128204; Listing pinned — visible on student board' : 'Listing unpinned');
@@ -1097,7 +1087,6 @@ async function saveAEdit() {
     DB.pending.splice(DB.pending.findIndex(x => x.id === aEditId), 1);
     DB.listings.unshift(src);
   }
-  DB.log.unshift({ type: 'edit', text: `Listing edited: "${newTitle}"`, time: 'Just now', color: '#3B5BA5' });
   logAdminAction('edit_listing', { targetType: 'listing', targetId: aEditId, targetLabel: newTitle, school: src.school, category: src.category, reason: newStatus === 'rejected' ? newRejReason : null, before: { status: oldStatus, title: oldTitle, price: oldPrice, location: oldLoc, description: oldDesc }, after: { status: newStatus, title: newTitle, price: newRent, location: newLoc, description: newDesc } });
   closeModal('aEditModal');
   renderAApprovals(); renderAListings(); renderListings(); updateAdminBadges();
@@ -1513,7 +1502,6 @@ async function confirmSuspend() {
     updateReportsBadge(); renderAReports();
   }
   const stuName = stuProfile ? `${stuProfile.first_name || ''} ${stuProfile.last_name || ''}`.trim() || 'Student' : 'Student';
-  DB.log.unshift({ type: 'suspend', text: 'Student suspended', time: 'Just now', color: '#c0392b' });
   logAdminAction('suspend_student', { targetType: 'student', targetId: aSuspendId, targetLabel: stuName, school: stuProfile?.school, reason, reportId: capturedReportId });
   closeModal('suspendModal'); renderAStudents(); toast('Student suspended');
 }
@@ -1536,7 +1524,6 @@ async function aReinstate(profileId, appealId = null) {
     aNotifyStudent(profileId, 'appeal_resolved', 'Your appeal has been reviewed. Decision: Reinstated — your account has been restored. Welcome back!');
   }
   const stuName = stuProfile ? `${stuProfile.first_name || ''} ${stuProfile.last_name || ''}`.trim() || 'Student' : 'Student';
-  DB.log.unshift({ type: 'reinstate', text: 'Student reinstated', time: 'Just now', color: '#1a7a45' });
   logAdminAction('reinstate_student', { targetType: 'student', targetId: profileId, targetLabel: stuName, school: stuProfile?.school, appealId });
   await loadListings(); renderListings(); renderAStudents();
   updateAppealsBadge(); renderAppeals();
@@ -2484,7 +2471,6 @@ function applyColors() {
   r.style.setProperty('--accent', curColors.accent);
   r.style.setProperty('--bg', curColors.bg);
   r.style.setProperty('--surface', curColors.surface);
-  DB.log.unshift({ type: 'edit', text: 'Platform colors updated', time: 'Just now', color: '#3B5BA5' });
   logAdminAction('color_edit', { targetType: 'system', meta: { section: 'colors' } });
   toast('✓ Colors applied to student platform!');
 }
@@ -2519,7 +2505,6 @@ function applyContent() {
   DB.content.listTitle = document.getElementById('txtLT').value;
   DB.content.listSub = document.getElementById('txtLS').value;
   applyDBContent();
-  DB.log.unshift({ type: 'edit', text: 'Site content updated', time: 'Just now', color: '#3B5BA5' });
   logAdminAction('content_edit', { targetType: 'system', meta: { section: 'content' } });
   toast('✓ Content applied to student platform!');
 }
@@ -2536,7 +2521,6 @@ function applyLayout() {
   applyDBContent();
   document.getElementById('pvBanner').style.display = (bt && bon) ? 'block' : 'none';
   document.getElementById('pvBanner').textContent = bt;
-  DB.log.unshift({ type: 'edit', text: 'Layout updated', time: 'Just now', color: '#3B5BA5' });
   logAdminAction('content_edit', { targetType: 'system', meta: { section: 'layout' } });
   toast('✓ Layout applied!');
 }
@@ -3176,7 +3160,6 @@ async function togClick(el, key) {
     toast('Could not save setting — please try again.');
     return;
   }
-  DB.log.unshift({ type: 'setting', text: `Setting "${key}" ${!on ? 'enabled' : 'disabled'}`, time: 'Just now', color: '#3B5BA5' });
   logAdminAction('setting_change', { targetType: 'system', meta: { setting: key, enabled: !on } });
   toast('Setting saved');
 }
@@ -3330,7 +3313,6 @@ async function expData(type, fmt) {
   } else { data = []; }
 
   _downloadData(data, `caldwellnest-${type}`, fmt);
-  DB.log.unshift({ type: 'export', text: `${type} exported as ${fmt.toUpperCase()}`, time: 'Just now', color: '#117A65' });
   logAdminAction('export', { targetType: 'system', meta: { export_type: type, format: fmt } });
   toast(`✓ ${type} exported as ${fmt.toUpperCase()}`);
 }
@@ -3357,7 +3339,6 @@ async function expFull() {
   };
   _downloadData(full, 'caldwellnest-full-backup', 'json');
   localStorage.setItem('cn_last_backup', new Date().toISOString());
-  DB.log.unshift({ type: 'export', text: 'Full platform backup exported', time: 'Just now', color: '#117A65' });
   logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_backup', format: 'json' } });
   toast('✓ Full backup downloaded');
 }

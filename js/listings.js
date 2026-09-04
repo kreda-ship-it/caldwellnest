@@ -1295,10 +1295,8 @@ async function submitListing() {
   };
   if (initialStatus === 'pending') {
     DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'pending', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
-    DB.log.unshift({ type: 'listing', text: `New listing submitted: "${title}"`, time: 'Just now', color: '#d4860a' });
   } else {
     DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'approved', lifecycle_status: 'active', expires_at: null, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
-    DB.log.unshift({ type: 'listing', text: `New listing posted (auto-approved): "${title}"`, time: 'Just now', color: '#1a7a45' });
     renderListings();
   }
   closePostModal();
