@@ -93,7 +93,8 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - **`TRUNCATE` is the one that matters on a table**, because **RLS does not apply to it**: it is a table-level operation, so one statement ignores every policy above it. On a view it is unreachable and the revoke is only consistency.
 
 ## Browser cache (hard-learned 2026-09-04)
-- The `<script src="js/...">` tags carry no version marker, so after editing a JS file the browser will happily keep serving the old one. `index.html` often refreshes when the JS does not, which produces **new markup calling into old code** — a convincing fake bug.
+- **Every local asset carries a `?v=` marker** — `js/*.js` and `styles.css` in `index.html`. **Bump it whenever you change a JS or CSS file**, or the browser serves the old one and you debug code that isn't running. The value is a date plus a letter (`2026-09-04a`) because more than one change can land in a day. It only has to differ from last time.
+- Before this existed, the tags were bare, so after editing a JS file the browser kept serving the old one. `index.html` often refreshed when the JS did not, which produced **new markup calling into old code** — a convincing fake bug.
 - **A change that appears to have had no effect at all is a cache symptom more often than a logic one.** Before debugging, hard refresh: `Cmd+Shift+R` / `Ctrl+Shift+F5`.
 - The tell on 2026-09-04: a new admin tab appeared but rendered blank, *and* its heading showed the raw section name. Two unrelated edits in the same file both missing points at the file being stale, not at either edit.
 - Not to be confused with `Uncaught SyntaxError: Unexpected token '<'`. On a real `.js` file that means the server returned an HTML page (usually a 404) where JavaScript was expected. Prefixed `VM###` instead, it just means something was pasted into the console.
