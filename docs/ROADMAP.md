@@ -2006,6 +2006,41 @@ not accepting the mismatch** — the check said "expect no rows" and returned ni
       `js/listings.js`.
 - ⬜ `'event'` still needs adding to `favorites.item_type` before an event can be starred.
 
+### Referential integrity on `school` — added and verified 2026-09-04
+The constraint capture found that **nothing anywhere constrained `school`**. Six tables carried
+it as free text while `schools.slug` was UNIQUE and available as a foreign key nobody had
+added. Nothing prevented a typo creating a listing in a school that did not exist.
+
+That is what made `profiles.school DEFAULT 'Caldwell'` — capital C — dangerous rather than
+untidy. Every comparison in the project is exact (`school = get_admin_school()` in the
+policies, `l.school === eu.school` in the browser), so a row carrying it would have failed all
+of them **silently**.
+
+- ✅ Six foreign keys to `schools(slug)`, `ON UPDATE CASCADE` because a slug is a natural key
+      that may be renamed; delete left at RESTRICT. `sql/2026-09-04_school_foreign_keys.sql`.
+- ✅ The default **dropped**, not corrected. A default only applies when a column is omitted,
+      and the column is NOT NULL — so an insert that forgets the school now fails loudly
+      instead of quietly deciding the student attends Caldwell. Right trade for a platform
+      meant to serve more than one school.
+- ✅ **`admin_activity_log` deliberately excluded**, though its data is clean. An audit log
+      records what was true *at the time*: CASCADE would rewrite history on a rename, RESTRICT
+      would block ever removing a school the log remembers. **Constrain the tables that
+      describe what IS; leave the ones that describe what HAPPENED.** Same reasoning as the log
+      storing `target_label` and `before_state` as snapshots rather than joining live rows.
+- ✅ Audited before writing: every non-null value across all six tables was already
+      `'caldwell'`, so nothing needed repairing. Not luck — the audit ran first *because* a
+      foreign key refuses to be created when one existing row violates it.
+- ✅ **Proved by trying to break it.** `insert ... school = 'Caldwell'` now returns
+      `Key (school)=(Caldwell) is not present in table "schools"`. Yesterday that insert
+      succeeded.
+- 🟡 `sql/2026-09-04_slug_format.sql` adds the companion check: a foreign key answers "does
+      this refer to something real", a check answers "is this the right shape", and the first
+      does not cover the second. A school added as `'Rutgers'` would be a valid foreign-key
+      target that still breaks every lowercase comparison. Written; run separately.
+- ⬜ Same gap remains on `school_domains.domain`, which is what `validateSchoolEmail()`
+      actually looks up. A row stored as `'Caldwell.EDU'` would never match, because the gate
+      lowercases before querying — so every student at that school would be told their domain
+      is unrecognized while the row looked correct.
+
 ### Next
-Workstream 1 stages 2 and 3 — `js/orgs.js` and org management in the existing admin page.
-That is the point where the hierarchy stops being invisible and becomes something to click.
+Email delivery (the other half of notifications), or workstream 2 — the org console.
