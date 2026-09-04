@@ -1934,9 +1934,29 @@ retyping them.
       and titled with the raw section name (stale `admin.js`), which looked like broken code
       and was not. Recorded in CLAUDE.md under "Browser cache". The script tags carry no
       version marker, so this will recur on every JS change until they do.
-- ⬜ **Workstream 1 is now complete.** Next is workstream 2: the org console at
-      `#page-org-console`, with the "Switch to org console" entry gated on
-      `orgIsOfficerAnywhere()`.
+- ✅ **Workstream 1 complete.**
+- ✅ **Workstream 2 — org console shell, context switcher and org profile CRUD, 2026-09-04.**
+      `#page-org-console`, rendered entirely by `js/orgs.js`, styled by classes in `styles.css`.
+      **A separate surface, not a separate login** (§2.7): the officer signs in as themselves
+      and switches into an org identity, so there is no shared club password to rotate when a
+      president graduates and `admin_activity_log` records which human acted.
+      The entry point lives on the student's own profile page and is drawn as **nothing at all**
+      for anyone who is not an officer somewhere — gated on `orgIsOfficerAnywhere()`, the
+      function written in stage 2 and unused until now. An officer of one org goes straight in;
+      an officer of several gets a picker, which the plan is explicit is the normal case.
+      The identity bar is sticky, because every action here is taken on behalf of an
+      organization and §3 requires that never be ambiguous.
+      Sections are built from `orgCanAct()` rather than from the org's type, so a department
+      officer and a club officer see different consoles because they hold different flags.
+      Events and Analytics are listed but disabled, labelled with the workstream that brings
+      them — the shape is visible, nothing pretends to work.
+      Members is included beyond the §9 scope for a real reason: a club officer who is not a
+      platform admin cannot reach the admin page at all, so without it the console could not
+      manage a roster. It reads names from `public_profiles`, since after the F2 change a
+      non-admin can only read their own row from `profiles` and a roster of one is not a roster.
+      `boot.js` deliberately does NOT restore into the console on reload: the markup is an empty
+      shell until `orgConsoleOpen()` has chosen an org, and a blank console reads as broken.
+- ⬜ Next: workstream 3 — the `events` table, the migration off `listings`, and the post form.
 
 ### Correction worth keeping
 `2026-09-04_org_hierarchy.sql` first granted what the three new tables needed and stopped

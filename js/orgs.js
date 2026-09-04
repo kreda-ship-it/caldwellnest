@@ -384,3 +384,225 @@ async function orgRemoveMember(membershipId, orgId) {
   _orgOpenPanel = null;
   orgTogglePanel(orgId);
 }
+
+
+// ============================================================
+// ORG CONSOLE — workstream 2
+// ============================================================
+// A separate SURFACE, not a separate login (plan §2.7). The officer signs in as themselves and
+// switches into an org identity; there is no shared club password to rotate when a president
+// graduates, and admin_activity_log records which human acted rather than "Chess Club".
+//
+// Reached by showPage('org-console'), which the app's router resolves to #page-org-console.
+// The header states the identity at all times, because an action taken here is taken ON BEHALF
+// of an organization and that should never be ambiguous.
+
+let _ocOrgId   = null;      // organization currently being operated as
+let _ocSection = 'profile';
+
+// The entry point. Drawn into #orgConsoleEntry on the profile page, and drawn as nothing at
+// all for the overwhelming majority of students, who are officers of nothing.
+async function renderOrgConsoleEntry() {
+  const host = document.getElementById('orgConsoleEntry');
+  if (!host) return;
+  host.innerHTML = '';
+  if (!getEffectiveUser()) return;
+
+  await loadOrgContext();
+  if (!orgIsOfficerAnywhere()) return;      // students never see it
+
+  const mine = orgMemberships().filter(m => m.role === 'officer');
+  const label = mine.length === 1
+    ? `Switch to ${esc(mine[0].org.name)} console`
+    : `Switch to org console (${mine.length})`;
+  host.innerHTML = `<button class="btn-full oc-entry" onclick="orgConsoleOpen()">${label}</button>`;
+}
+
+// Officers in exactly one org go straight in. Officers in several get a picker — the plan is
+// explicit that this is the normal case, not an edge case (§2.3).
+async function orgConsoleOpen(orgId) {
+  await loadOrgContext(true);
+  const mine = orgMemberships().filter(m => m.role === 'officer');
+  if (!mine.length) { toast('You are not an officer of any organization'); return; }
+
+  if (orgId) _ocOrgId = orgId;
+  else if (mine.length === 1) _ocOrgId = mine[0].org_id;
+  else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
+
+  _ocSection = 'profile';
+  showPage('org-console');
+  renderOrgConsole();
+}
+
+function orgConsolePick(mine) {
+  showPage('org-console');
+  document.getElementById('ocIdentity').textContent = 'Choose an organization';
+  document.getElementById('ocNav').innerHTML = '';
+  document.getElementById('ocBody').innerHTML =
+    '<div class="oc-pick">' + mine.map(m => `
+      <button class="oc-pick-row" onclick="orgConsoleOpen(${m.org_id})">
+        <span class="oc-pick-name">${esc(m.org.name)}</span>
+        <span class="oc-pick-role">${esc(m.title || m.role)}</span>
+      </button>`).join('') + '</div>';
+}
+
+function orgConsoleSwitch() {
+  const mine = orgMemberships().filter(m => m.role === 'officer');
+  if (mine.length < 2) { toast('You are only an officer of one organization'); return; }
+  orgConsolePick(mine);
+}
+
+// Which sections exist depends on what this officer can actually do here, so the nav is built
+// from orgCanAct() rather than from the org's type. A department officer and a club officer
+// see different consoles because they hold different flags, not because of what the row says.
+function orgConsoleSections() {
+  const s = [{ id: 'profile', label: 'Org profile' }];
+  if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
+  // Events, Registrations, Check-in and Analytics arrive with workstreams 3 and 6. They are
+  // listed so the shape of the console is visible, and disabled so nothing pretends to work.
+  s.push({ id: 'events',    label: 'Events',    soon: 'workstream 3' });
+  s.push({ id: 'analytics', label: 'Analytics', soon: 'workstream 6' });
+  return s;
+}
+
+function renderOrgConsole() {
+  const org = _orgCtx?.orgs.get(_ocOrgId);
+  if (!org) { toast('That organization is no longer available'); showPage('listings'); return; }
+
+  const me = _orgCtx.grants.get(_ocOrgId);
+  document.getElementById('ocIdentity').innerHTML =
+    `${esc(org.name)} <span class="oc-sep">·</span> <span class="oc-role">${esc(me?.title || me?.role || 'Administrator')}</span>`;
+
+  document.getElementById('ocNav').innerHTML = orgConsoleSections().map(s =>
+    s.soon
+      ? `<button class="oc-tab oc-tab-soon" disabled title="Arrives with ${s.soon}">${s.label}</button>`
+      : `<button class="oc-tab${_ocSection === s.id ? ' active' : ''}" onclick="orgConsoleGo('${s.id}')">${s.label}</button>`
+  ).join('');
+
+  if (_ocSection === 'members') renderOcMembers();
+  else                          renderOcProfile();
+}
+
+function orgConsoleGo(section) { _ocSection = section; renderOrgConsole(); }
+
+// ---------- Org profile ----------
+const OC_FIELDS = [
+  ['name',            'Name',            'text'],
+  ['description',     'Description',     'textarea'],
+  ['logo_url',        'Logo URL',        'url'],
+  ['contact_email',   'Contact email',   'email'],
+  ['office_location', 'Office',          'text'],
+  ['phone',           'Phone',           'tel'],
+  ['instagram',       'Instagram handle','text'],
+  ['website',         'Website',         'url'],
+  ['handshake_url',   'Handshake link',  'url'],
+];
+
+function renderOcProfile() {
+  const org = _orgCtx.orgs.get(_ocOrgId);
+  const canEdit = orgCanAct('manage_members', _ocOrgId);
+
+  document.getElementById('ocBody').innerHTML = `
+    <div class="oc-meta">
+      <span class="org-badge ${org.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${org.is_verified ? 'verified' : 'unverified'}</span>
+      <span class="oc-meta-type">${esc(org.type)}</span>
+      <span class="oc-meta-slug">/${esc(org.slug)}</span>
+    </div>
+    ${OC_FIELDS.map(([k, label, type]) => `
+      <label class="oc-field">
+        <span class="oc-label">${label}</span>
+        ${type === 'textarea'
+          ? `<textarea class="oc-input" id="oc-${k}" rows="3" ${canEdit ? '' : 'disabled'}>${esc(org[k] || '')}</textarea>`
+          : `<input class="oc-input" id="oc-${k}" type="${type}" value="${escAttr(org[k] || '')}" autocomplete="off" ${canEdit ? '' : 'disabled'}>`}
+      </label>`).join('')}
+    ${canEdit
+      ? '<button class="btn-full oc-save" onclick="saveOcProfile()">Save changes</button>'
+      : '<div class="oc-note">You can see this organization but not edit it. Editing needs the “manage members” permission.</div>'}
+    <div class="oc-note">The name is what students see. The slug is fixed once created — it is half of the organization’s address and changing it would break every link to it.</div>`;
+}
+
+async function saveOcProfile() {
+  const patch = {};
+  OC_FIELDS.forEach(([k]) => {
+    const el = document.getElementById('oc-' + k);
+    if (el) patch[k] = el.value.trim() || null;
+  });
+  if (!patch.name) { toast('An organization needs a name'); return; }
+
+  const before = _orgCtx.orgs.get(_ocOrgId);
+  const { error } = await supabaseClient.from('organizations').update(patch).eq('id', _ocOrgId);
+  if (error) {
+    // RLS refusing here is the system working: the client mirror said yes, the database is the
+    // one that decides. Say so plainly rather than showing a raw Postgres string.
+    toast(error.code === '42501' ? 'You do not have permission to edit this organization' : 'Could not save: ' + error.message);
+    console.error('[saveOcProfile]', error);
+    return;
+  }
+  logEvent('org_profile_updated', { targetType: 'organization', targetId: _ocOrgId,
+                                    targetLabel: patch.name, school: before?.school,
+                                    before: { name: before?.name }, after: { name: patch.name } });
+  toast('✓ Saved');
+  await loadOrgContext(true);
+  renderOrgConsole();
+}
+
+// ---------- Members ----------
+// The roster an officer can reach without the admin dashboard, which they have no access to.
+async function renderOcMembers() {
+  const body = document.getElementById('ocBody');
+  body.innerHTML = '<div class="oc-note">Loading roster…</div>';
+
+  const { data, error } = await supabaseClient
+    .from('org_memberships')
+    .select('id, user_id, pending_email, role, title, status')
+    .eq('org_id', _ocOrgId);
+  if (error) { body.innerHTML = '<div class="oc-note">Could not load the roster.</div>'; console.error('[renderOcMembers]', error); return; }
+
+  const ids = (data || []).map(m => m.user_id).filter(Boolean);
+  const names = {};
+  if (ids.length) {
+    // public_profiles, not profiles: after the F2 change an officer who is not an admin can
+    // only read their own row from the table, and a roster of one person is not a roster.
+    const { data: profs } = await supabaseClient.from('public_profiles')
+      .select('id, first_name, last_name').in('id', ids);
+    (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim());
+  }
+
+  const pending = (data || []).filter(m => m.status === 'pending');
+  const active  = (data || []).filter(m => m.status !== 'pending');
+  const row = m => `
+    <div class="oc-member">
+      <span class="oc-member-who">${esc(m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)'))}</span>
+      <span class="oc-member-role">${esc(m.title || m.role)}</span>
+      ${m.status === 'pending'
+        ? `<button class="org-btn" onclick="ocApprove(${m.id})">Approve</button>`
+        : ''}
+      <button class="org-btn org-btn-warn" onclick="ocRemove(${m.id})">Remove</button>
+    </div>`;
+
+  body.innerHTML =
+    (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>` + pending.map(row).join('') : '') +
+    `<div class="oc-subhead">Members (${active.length})</div>` +
+    (active.length ? active.map(row).join('') : '<div class="oc-note">No members yet.</div>') +
+    `<div class="oc-note">Adding officers and changing permissions needs the “manage admins” permission, and is done from the admin page for now.</div>`;
+}
+
+async function ocApprove(membershipId) {
+  const { error } = await supabaseClient.from('org_memberships')
+    .update({ status: 'active' }).eq('id', membershipId);
+  if (error) { toast('Could not approve: ' + error.message); console.error('[ocApprove]', error); return; }
+  logEvent('org_member_approved', { targetType: 'membership', targetId: membershipId });
+  toast('✓ Approved');
+  renderOcMembers();
+}
+
+async function ocRemove(membershipId) {
+  if (!confirm('Remove this person from the organization?')) return;
+  const { error } = await supabaseClient.from('org_memberships').delete().eq('id', membershipId);
+  if (error) { toast('Could not remove: ' + error.message); console.error('[ocRemove]', error); return; }
+  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId });
+  toast('✓ Removed');
+  clearOrgContext();
+  await loadOrgContext();
+  renderOcMembers();
+}

@@ -1084,3 +1084,69 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   padding-left: 10px; margin-left: -13px;
 }
 .notif-empty { padding: 20px 0; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* ── Org console (workstream 2) ────────────────────────────────────────────── */
+/* The identity bar is sticky on purpose. Every action taken in here is taken ON
+   BEHALF of an organization, and the plan (§3) is explicit that it must never be
+   ambiguous which one — so it stays on screen while the body scrolls. */
+.oc-bar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; margin-bottom: 4px;
+  background: var(--brand, #3B5BA5); color: #fff;
+}
+.oc-identity { flex: 1; font-size: 15px; font-weight: 600; min-width: 180px; }
+.oc-sep  { opacity: .5; margin: 0 2px; }
+.oc-role { font-weight: 400; opacity: .85; }
+.oc-bar-actions { display: flex; gap: 8px; }
+.oc-bar .org-btn { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); color: #fff; }
+.oc-bar .org-btn:hover { background: rgba(255,255,255,.24); border-color: #fff; }
+
+.oc-nav { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 18px; border-bottom: 1px solid var(--border); }
+.oc-tab {
+  padding: 10px 14px; font-size: 13px; font-weight: 500;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); cursor: pointer;
+}
+.oc-tab:hover { color: var(--text); }
+.oc-tab.active { color: var(--brand, #3B5BA5); border-bottom-color: var(--brand, #3B5BA5); }
+/* Listed so the shape of the console is visible, disabled so nothing pretends to work. */
+.oc-tab-soon { opacity: .4; cursor: not-allowed; }
+
+.oc-body { padding: 18px; max-width: 620px; }
+.oc-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
+.oc-meta-slug { font-size: 12px; color: var(--text-faint); font-family: ui-monospace, monospace; }
+
+.oc-field { display: block; margin-bottom: 14px; }
+.oc-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+.oc-input {
+  width: 100%; padding: 9px 11px; font: inherit; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card, #fff); color: var(--text);
+}
+.oc-input:disabled { background: var(--bg); color: var(--text-muted); cursor: not-allowed; }
+.oc-save { margin-top: 6px; }
+.oc-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 12px; }
+.oc-subhead {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); margin: 18px 0 8px;
+}
+
+.oc-member { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.oc-member:last-of-type { border-bottom: none; }
+.oc-member-who  { flex: 1; font-size: 13px; color: var(--text); }
+.oc-member-role { font-size: 11px; color: var(--text-faint); }
+
+.oc-pick { padding: 18px; max-width: 480px; }
+.oc-pick-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; margin-bottom: 8px; padding: 14px;
+  border: 1px solid var(--border); border-radius: 9px;
+  background: var(--card, #fff); cursor: pointer; text-align: left;
+}
+.oc-pick-row:hover { border-color: var(--brand, #3B5BA5); background: var(--brand-pale, #eef3ff); }
+.oc-pick-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.oc-pick-role { font-size: 11px; color: var(--text-faint); }
+
+.oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }

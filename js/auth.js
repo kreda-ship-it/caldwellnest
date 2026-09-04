@@ -647,6 +647,9 @@ function updateSNav() {
     paintAvatarEl(navAv, u.avatar_url, u.initials, u.color);
     const backBtn = document.getElementById('backToAdminBtn');
     if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';
+    // Officers get a route into the org console from their own profile. Not awaited: it is a
+    // button, and updateSNav() is called from synchronous paths that must not block on a query.
+    renderOrgConsoleEntry();
   }
 }
 
