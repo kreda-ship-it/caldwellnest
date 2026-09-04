@@ -17,10 +17,10 @@
 --
 --     PRIMARY KEY        FOREIGN KEY        UNIQUE        CHECK        INDEXES
 --
--- Running these statements on an empty database would give you tables that accept anything:
--- duplicate ids, orphan rows, `status` values that are not real statuses. **This file is a
--- large step toward a rebuild, not a rebuild.** The query that finishes the job is at the
--- bottom.
+-- ** RESOLVED 2026-09-04: the constraints are now in PART 2 at the bottom of this file. **
+-- Run PART 1 (the tables) and then PART 2 (the keys), in that order — a foreign key cannot
+-- reference a table that does not exist yet. Indexes that are not constraint-backed are still
+-- uncaptured; the query for those is at the very bottom.
 --
 -- Two things were inferred rather than read, and both should be confirmed by that query:
 --   * `ARRAY` is how information_schema reports any array type without saying which. Every
@@ -386,21 +386,11 @@ create table if not exists public.user_roles (
 
 
 -- ############################################################################
--- WHAT IS STILL MISSING, AND THE QUERY THAT GETS IT
+-- PART 2 — KEYS AND CONSTRAINTS
 -- ############################################################################
--- Run this and the result completes the rebuild: every primary key, foreign key, unique and
--- check constraint, as a runnable ALTER TABLE.
-
-select conrelid::regclass::text as table_name,
-       'alter table public.' || conrelid::regclass::text
-         || ' add constraint ' || quote_ident(conname)
-         || ' ' || pg_get_constraintdef(oid) || ';' as statement
-from pg_constraint
-where connamespace = 'public'::regnamespace
-order by conrelid::regclass::text, conname;
-
--- And for indexes that are not constraint-backed:
---   select indexdef || ';' from pg_indexes where schemaname = 'public' order by tablename;
+-- Emitted by pg_get_constraintdef(), not retyped. Run AFTER part 1: a foreign key cannot
+-- reference a table that does not exist yet.
+-- 99 constraints across 25 tables.
 
 
 -- ############################################################################
@@ -439,3 +429,202 @@ order by conrelid::regclass::text, conname;
 --    Neither appears anywhere in js/. Both are correctly absent from the public_profiles
 --    view created the same day; noting them so their absence is a decision on record rather
 --    than an oversight to be "fixed" later.
+
+-- ---------- admin_activity_log ----------
+alter table public.admin_activity_log add constraint admin_activity_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
+alter table public.admin_activity_log add constraint admin_activity_log_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL;
+alter table public.admin_activity_log add constraint admin_activity_log_pkey PRIMARY KEY (id);
+alter table public.admin_activity_log add constraint admin_activity_log_reverts_id_fkey FOREIGN KEY (reverts_id) REFERENCES admin_activity_log(id);
+alter table public.admin_activity_log add constraint admin_activity_log_undone_by_fkey FOREIGN KEY (undone_by) REFERENCES auth.users(id);
+
+-- ---------- admin_roles ----------
+alter table public.admin_roles add constraint admin_roles_pkey PRIMARY KEY (id);
+
+-- ---------- appeal_audit_log ----------
+alter table public.appeal_audit_log add constraint appeal_audit_log_actioned_by_fkey FOREIGN KEY (actioned_by) REFERENCES auth.users(id);
+alter table public.appeal_audit_log add constraint appeal_audit_log_appeal_id_fkey FOREIGN KEY (appeal_id) REFERENCES appeals(id) ON DELETE CASCADE;
+alter table public.appeal_audit_log add constraint appeal_audit_log_pkey PRIMARY KEY (id);
+
+-- ---------- appeals ----------
+alter table public.appeals add constraint appeals_decision_edited_by_fkey FOREIGN KEY (decision_edited_by) REFERENCES auth.users(id);
+alter table public.appeals add constraint appeals_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL;
+alter table public.appeals add constraint appeals_message_check CHECK ((char_length(message) <= 1000));
+alter table public.appeals add constraint appeals_pkey PRIMARY KEY (id);
+alter table public.appeals add constraint appeals_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE;
+alter table public.appeals add constraint appeals_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id);
+alter table public.appeals add constraint appeals_status_check CHECK ((status = ANY (ARRAY['open'::text, 'resolved_reinstated'::text, 'resolved_upheld'::text])));
+alter table public.appeals add constraint appeals_suspension_history_id_fkey FOREIGN KEY (suspension_history_id) REFERENCES suspension_history(id) ON DELETE SET NULL;
+
+-- ---------- book_listings ----------
+alter table public.book_listings add constraint book_listings_book_type_check CHECK ((book_type = ANY (ARRAY['course'::text, 'other'::text])));
+alter table public.book_listings add constraint book_listings_check CHECK (((book_type = 'course'::text) OR (course_code IS NULL)));
+alter table public.book_listings add constraint book_listings_condition_check CHECK ((condition = ANY (ARRAY['New'::text, 'Like New'::text, 'Good'::text, 'Fair'::text, 'Worn'::text])));
+alter table public.book_listings add constraint book_listings_course_code_fkey FOREIGN KEY (course_code) REFERENCES courses(code) ON DELETE RESTRICT;
+alter table public.book_listings add constraint book_listings_lifecycle_status_check CHECK ((lifecycle_status = ANY (ARRAY['active'::text, 'sold'::text, 'withdrawn'::text])));
+alter table public.book_listings add constraint book_listings_pkey PRIMARY KEY (id);
+alter table public.book_listings add constraint book_listings_poster_id_fkey FOREIGN KEY (poster_id) REFERENCES profiles(id);
+alter table public.book_listings add constraint book_listings_price_check CHECK ((price >= (0)::numeric));
+alter table public.book_listings add constraint book_listings_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'removed'::text])));
+
+-- ---------- broadcasts ----------
+alter table public.broadcasts add constraint broadcasts_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
+alter table public.broadcasts add constraint broadcasts_pkey PRIMARY KEY (id);
+
+-- ---------- courses ----------
+alter table public.courses add constraint courses_pkey PRIMARY KEY (code);
+
+-- ---------- favorites ----------
+alter table public.favorites add constraint favorites_item_type_check CHECK ((item_type = ANY (ARRAY['listing'::text, 'book'::text, 'service'::text])));
+alter table public.favorites add constraint favorites_pkey PRIMARY KEY (id);
+alter table public.favorites add constraint favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+alter table public.favorites add constraint favorites_user_id_item_type_item_id_key UNIQUE (user_id, item_type, item_id);
+
+-- ---------- listing_status_history ----------
+alter table public.listing_status_history add constraint listing_status_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES auth.users(id);
+alter table public.listing_status_history add constraint listing_status_history_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE;
+alter table public.listing_status_history add constraint listing_status_history_pkey PRIMARY KEY (id);
+
+-- ---------- listings ----------
+alter table public.listings add constraint listings_pkey PRIMARY KEY (id);
+alter table public.listings add constraint listings_poster_id_fkey FOREIGN KEY (poster_id) REFERENCES auth.users(id);
+
+-- ---------- messages ----------
+alter table public.messages add constraint messages_book_id_fkey FOREIGN KEY (book_id) REFERENCES book_listings(id);
+alter table public.messages add constraint messages_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL;
+alter table public.messages add constraint messages_pkey PRIMARY KEY (id);
+alter table public.messages add constraint messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+alter table public.messages add constraint messages_reply_to_fkey FOREIGN KEY (reply_to) REFERENCES messages(id);
+alter table public.messages add constraint messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- ---------- notifications ----------
+alter table public.notifications add constraint notifications_pkey PRIMARY KEY (id);
+alter table public.notifications add constraint notifications_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
+-- ---------- org_follows ----------
+alter table public.org_follows add constraint org_follows_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE;
+alter table public.org_follows add constraint org_follows_pkey PRIMARY KEY (user_id, org_id);
+alter table public.org_follows add constraint org_follows_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
+-- ---------- org_memberships ----------
+alter table public.org_memberships add constraint org_memberships_added_by_fkey FOREIGN KEY (added_by) REFERENCES profiles(id);
+alter table public.org_memberships add constraint org_memberships_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE;
+alter table public.org_memberships add constraint org_memberships_org_id_user_id_key UNIQUE (org_id, user_id);
+alter table public.org_memberships add constraint org_memberships_pkey PRIMARY KEY (id);
+alter table public.org_memberships add constraint org_memberships_role_check CHECK ((role = ANY (ARRAY['member'::text, 'officer'::text])));
+alter table public.org_memberships add constraint org_memberships_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'removed'::text])));
+alter table public.org_memberships add constraint org_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
+-- ---------- organizations ----------
+alter table public.organizations add constraint organizations_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id);
+alter table public.organizations add constraint organizations_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES organizations(id);
+alter table public.organizations add constraint organizations_pkey PRIMARY KEY (id);
+alter table public.organizations add constraint organizations_school_slug_key UNIQUE (school, slug);
+alter table public.organizations add constraint organizations_type_check CHECK ((type = ANY (ARRAY['school'::text, 'department'::text, 'club'::text, 'office'::text])));
+
+-- ---------- platform_settings ----------
+alter table public.platform_settings add constraint platform_settings_pkey PRIMARY KEY (key);
+alter table public.platform_settings add constraint platform_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id);
+
+-- ---------- profiles ----------
+alter table public.profiles add constraint bio_length CHECK (((bio IS NULL) OR (char_length(bio) <= 150)));
+alter table public.profiles add constraint profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+alter table public.profiles add constraint profiles_pkey PRIMARY KEY (id);
+alter table public.profiles add constraint profiles_status_check CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text])));
+alter table public.profiles add constraint username_format CHECK (((username IS NULL) OR (username ~ '^[a-z0-9][a-z0-9_]{2,19}$'::text)));
+
+-- ---------- reports ----------
+alter table public.reports add constraint reports_category_check CHECK ((category = ANY (ARRAY['scam_or_fraud'::text, 'not_a_student'::text, 'wrong_price'::text, 'duplicate_listing'::text, 'inappropriate_content'::text, 'suspicious'::text, 'other'::text])));
+alter table public.reports add constraint reports_details_check CHECK ((char_length(details) <= 500));
+alter table public.reports add constraint reports_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL;
+alter table public.reports add constraint reports_listing_id_reporter_id_key UNIQUE (listing_id, reporter_id);
+alter table public.reports add constraint reports_pkey PRIMARY KEY (id);
+alter table public.reports add constraint reports_reporter_id_fkey FOREIGN KEY (reporter_id) REFERENCES profiles(id) ON DELETE CASCADE;
+alter table public.reports add constraint reports_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES profiles(id);
+alter table public.reports add constraint reports_status_check CHECK ((status = ANY (ARRAY['open'::text, 'dismissed'::text, 'actioned'::text])));
+
+-- ---------- role_permissions ----------
+alter table public.role_permissions add constraint role_permissions_pkey PRIMARY KEY (role_id, permission_key);
+alter table public.role_permissions add constraint role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES admin_roles(id) ON DELETE CASCADE;
+
+-- ---------- saved_listings ----------
+alter table public.saved_listings add constraint saved_listings_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id);
+alter table public.saved_listings add constraint saved_listings_pkey PRIMARY KEY (id);
+alter table public.saved_listings add constraint saved_listings_student_id_fkey FOREIGN KEY (student_id) REFERENCES profiles(id);
+alter table public.saved_listings add constraint saved_listings_student_id_listing_id_key UNIQUE (student_id, listing_id);
+
+-- ---------- school_domains ----------
+alter table public.school_domains add constraint school_domains_domain_key UNIQUE (domain);
+alter table public.school_domains add constraint school_domains_pkey PRIMARY KEY (id);
+alter table public.school_domains add constraint school_domains_school_id_fkey FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE;
+
+-- ---------- school_interest ----------
+alter table public.school_interest add constraint school_interest_pkey PRIMARY KEY (id);
+
+-- ---------- schools ----------
+alter table public.schools add constraint schools_email_domain_key UNIQUE (email_domain);
+alter table public.schools add constraint schools_pkey PRIMARY KEY (id);
+alter table public.schools add constraint schools_slug_key UNIQUE (slug);
+
+-- ---------- suspension_history ----------
+alter table public.suspension_history add constraint suspension_history_action_check CHECK ((action = ANY (ARRAY['suspended'::text, 'reinstated'::text])));
+alter table public.suspension_history add constraint suspension_history_actioned_by_fkey FOREIGN KEY (actioned_by) REFERENCES profiles(id);
+alter table public.suspension_history add constraint suspension_history_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL;
+alter table public.suspension_history add constraint suspension_history_pkey PRIMARY KEY (id);
+alter table public.suspension_history add constraint suspension_history_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE;
+alter table public.suspension_history add constraint suspension_history_report_id_fkey FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE SET NULL;
+
+-- ---------- user_roles ----------
+alter table public.user_roles add constraint user_roles_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES profiles(id) ON DELETE SET NULL;
+alter table public.user_roles add constraint user_roles_pkey PRIMARY KEY (user_id, role_id);
+alter table public.user_roles add constraint user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES admin_roles(id) ON DELETE CASCADE;
+alter table public.user_roles add constraint user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+
+
+-- ############################################################################
+-- STILL UNCAPTURED: non-constraint indexes
+-- ############################################################################
+--   select indexdef || ';' from pg_indexes where schemaname = 'public' order by tablename;
+-- Those are performance, not correctness — a rebuild without them is CORRECT and slow, where
+-- a rebuild without the constraints above would be fast and wrong.
+
+
+-- ############################################################################
+-- WHAT THE CONSTRAINTS REVEALED
+-- ############################################################################
+--
+-- 6. TWO TABLES POINT AT auth.users WHERE THE REST POINT AT profiles.
+--      listings.poster_id  -> auth.users(id)      (no ON DELETE)
+--      book_listings.poster_id -> profiles(id)    (no ON DELETE)
+--      messages.sender_id / receiver_id -> auth.users(id) ON DELETE CASCADE
+--      reports.reporter_id -> profiles(id) ON DELETE CASCADE
+--    Both targets "work", because profiles.id is itself a foreign key to auth.users(id).
+--    But they are not the same thing when a row is deleted, and the same concept -- "the
+--    student who posted this" -- is modelled two ways one table apart. Worth converging on
+--    profiles, which is the row the app actually reads.
+--
+-- 7. NO FOREIGN KEY ANYWHERE ON `school`.
+--    organizations.school, listings.school, profiles.school, user_roles.school,
+--    suspension_history.school and broadcasts.school are all free text. schools.slug is
+--    UNIQUE, so a foreign key is available and simply was never added. Nothing in the
+--    database prevents a typo creating an org in a school that does not exist -- and this is
+--    exactly why the `profiles.school DEFAULT 'Caldwell'` mismatch in observation 1 is a
+--    landmine rather than a curiosity. A constraint would have caught it on the first insert.
+--
+-- 8. favorites.item_type IS STILL ('listing','book','service').
+--    Confirmed from the live check constraint. 'event' has to be added before an event can be
+--    starred -- section 12 C6 of docs/nestrel-campus-engagement-plan.md. Now an ALTER, since
+--    the table is live:
+--      alter table public.favorites drop constraint favorites_item_type_check;
+--      alter table public.favorites add constraint favorites_item_type_check
+--        check (item_type in ('listing','book','service','event'));
+--
+-- 9. saved_listings is fully built -- primary key, two foreign keys, a unique pair -- and
+--    completely unreachable, because it holds no DML grants. It is not a half-finished table;
+--    it is a finished table that was replaced by favorites and never removed.
+--
+-- 10. profiles carries real input validation that the client should match:
+--       username_format  ^[a-z0-9][a-z0-9_]{2,19}$
+--       bio_length       <= 150 characters
+--       status           only 'active' or 'suspended'
+--     If the signup form's rules and this regex ever disagree, the database wins and the
+--     student sees a raw constraint error.
