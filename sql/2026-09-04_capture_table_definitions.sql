@@ -581,11 +581,48 @@ alter table public.user_roles add constraint user_roles_user_id_fkey FOREIGN KEY
 
 
 -- ############################################################################
--- STILL UNCAPTURED: non-constraint indexes
+-- PART 3 — INDEXES
 -- ############################################################################
---   select indexdef || ';' from pg_indexes where schemaname = 'public' order by tablename;
--- Those are performance, not correctness — a rebuild without them is CORRECT and slow, where
--- a rebuild without the constraints above would be fast and wrong.
+-- Captured 2026-09-04. Only the indexes NOT already created by a constraint in part 2 are
+-- listed: Postgres builds an index for every PRIMARY KEY and UNIQUE constraint automatically,
+-- so repeating those here would try to create each one twice.
+--
+-- ** ONE OF THESE IS NOT PERFORMANCE. ** profiles_username_unique is a unique INDEX rather
+-- than a unique CONSTRAINT, so pg_constraint never returned it and part 2 does not contain
+-- it. Username uniqueness is enforced by this line and nothing else. A rebuild that skipped
+-- "just the indexes" as an optimisation would have produced a database where two students can
+-- take the same username — which is a correctness bug wearing a performance costume.
+--
+-- The others are genuinely performance: a rebuild without them is correct and slow.
+
+CREATE INDEX idx_aal_category ON public.admin_activity_log USING btree (category);
+CREATE INDEX idx_aal_listing_id ON public.admin_activity_log USING btree (listing_id);
+CREATE INDEX idx_activity_log_actor ON public.admin_activity_log USING btree (actor_id);
+CREATE INDEX idx_activity_log_created ON public.admin_activity_log USING btree (created_at DESC);
+CREATE INDEX idx_activity_log_school ON public.admin_activity_log USING btree (school);
+CREATE INDEX idx_activity_log_target ON public.admin_activity_log USING btree (target_type, target_id);
+CREATE INDEX messages_conversation_key_idx ON public.messages USING btree (conversation_key);
+CREATE INDEX messages_created_at_idx ON public.messages USING btree (created_at);
+CREATE INDEX org_memberships_org_idx ON public.org_memberships USING btree (org_id, status);
+CREATE INDEX org_memberships_user_idx ON public.org_memberships USING btree (user_id, status);
+CREATE UNIQUE INDEX org_posts_one_pinned ON public.org_posts USING btree (org_id) WHERE is_pinned;
+CREATE INDEX org_posts_org_idx ON public.org_posts USING btree (org_id, created_at DESC);
+CREATE INDEX organizations_parent_idx ON public.organizations USING btree (parent_id);
+CREATE INDEX organizations_school_idx ON public.organizations USING btree (school, is_active);
+CREATE INDEX poll_options_post_idx ON public.poll_options USING btree (post_id, "position");
+CREATE INDEX poll_votes_option_idx ON public.poll_votes USING btree (option_id);
+CREATE UNIQUE INDEX profiles_username_unique ON public.profiles USING btree (username);
+CREATE INDEX idx_school_domains_domain ON public.school_domains USING btree (domain);
+
+-- ---------- Observations ----------
+-- * idx_school_domains_domain duplicates school_domains_domain_key. The UNIQUE constraint
+--   already builds an index on that column, so this second one is written on every insert and
+--   read by nothing. Safe to drop; left alone here because a capture records what IS.
+-- * `notifications` has no index on profile_id, which is the only column the app ever filters
+--   it by (js/auth.js loadNotifications). Irrelevant at ten students, and the first thing to
+--   add when that stops being true.
+-- * `listings` has no index on school, status or lifecycle_status — the three columns
+--   visible_listings filters on. Same note: fine now, first to hurt later.
 
 
 -- ############################################################################
