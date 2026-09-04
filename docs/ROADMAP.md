@@ -2042,10 +2042,21 @@ of them **silently**.
       `unique (school, slug)` — `'Chess-Club'` and `'chess-club'` would be two organizations
       that read as one.
       Neither catches `'caldwel'`. Shape rules find typos of form, never of fact.
-- ⬜ Same gap remains on `school_domains.domain`, which is what `validateSchoolEmail()`
-      actually looks up. A row stored as `'Caldwell.EDU'` would never match, because the gate
-      lowercases before querying — so every student at that school would be told their domain
-      is unrecognized while the row looked correct.
+- ✅ **Closed 2026-09-04, and better than planned** — `sql/2026-09-04_normalise_identifiers.sql`.
+      The plan was a check constraint refusing `'Caldwell.EDU'`. Kal pushed back: that and
+      `caldwell.edu` are the **same domain**, so refusing one is as wrong as storing both.
+      He was right, and it is specification rather than preference — domain names are
+      case-insensitive per RFC 4343. Three BEFORE triggers now lowercase
+      `school_domains.domain`, `schools.slug`, `schools.email_domain` and
+      `organizations.slug` on write, and existing rows were repaired in the same file.
+      **Identifiers only, never names.** Case carries no meaning in a domain or slug; it *is*
+      the content in 'Caldwell University', 'McKenna' and 'de Souza'. Lowercasing a surname to
+      make matching easier destroys something that belongs to a person. `courses.code` is left
+      alone as the exception that proves it: 'CS101' is an identifier whose canonical form is
+      uppercase.
+      Layered with the format checks rather than replacing them — **the trigger fixes what is
+      meaningless (case), the check refuses what is genuinely malformed (a space).**
+      `'Chess Club'` lowercases to `'chess club'` and is still correctly rejected.
 
 ### Next
 Email delivery (the other half of notifications), or workstream 2 — the org console.
