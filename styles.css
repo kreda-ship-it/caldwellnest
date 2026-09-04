@@ -1046,3 +1046,37 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   background: var(--card, #fff); color: var(--text);
 }
 .org-empty { padding: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* ── Notification bell + history (2026-09-04) ──────────────────────────────── */
+/* Deliberately NOT .nav-btn. The mobile rule `#navUser .nav-btn{display:none}`
+   hides those below 768px, and a campus app is read mostly on phones — the bell
+   has to survive there, so it sits beside .nav-avatar, which also survives. */
+.nav-bell {
+  position: relative; background: none; border: none; cursor: pointer;
+  font-size: 17px; line-height: 1; padding: 4px 6px;
+  opacity: .85; transition: opacity .15s;
+}
+.nav-bell:hover { opacity: 1; }
+
+.notif-badge {
+  display: none;                 /* .show is added only when the count is > 0 */
+  position: absolute; top: -2px; right: -2px;
+  min-width: 16px; padding: 0 4px;
+  background: #c0392b; color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 16px;
+  border-radius: 9px; text-align: center;
+}
+.notif-badge.show { display: block; }
+
+.notif-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.notif-row:last-child { border-bottom: none; }
+.notif-msg  { font-size: 13px; line-height: 1.6; color: var(--text); }
+.notif-time { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+
+/* Unread gets a brand-coloured rail rather than a background wash, so a long
+   list of unread items stays readable instead of turning into a block of colour. */
+.notif-unread {
+  border-left: 3px solid var(--brand, #3B5BA5);
+  padding-left: 10px; margin-left: -13px;
+}
+.notif-empty { padding: 20px 0; font-size: 13px; color: var(--text-muted); line-height: 1.6; }

@@ -462,33 +462,94 @@ function dismissBcast(id) {
   if (el) el.remove();
 }
 
-async function checkStudentNotifications(userId) {
-  const { data: notifs } = await supabaseClient
+// ── Notifications ────────────────────────────────────────────────────────────
+// Rewritten 2026-09-04. The old version fetched ONLY unread rows, showed them, and marked
+// them read in the same breath. So a student who got the pop-up and dismissed it without
+// reading had permanently lost the notice that their listing was removed: there was no bell,
+// no history, and the next fetch asked for unread rows only, of which there were now none.
+//
+// Now the recent list is kept whatever its read state, a bell in the nav carries the unread
+// count, and "read" is applied AFTER rendering rather than as a side effect of it. Marking
+// read on display is fine once the history is reachable — nothing is destroyed, only dimmed.
+//
+// Delivery is still passive: a student who never opens the app is still never told. That is
+// A1 in docs/nestrel-campus-engagement-plan.md and it needs an email layer, which needs a
+// backend this project does not have yet.
+let _notifCache = [];
+
+async function loadNotifications(userId) {
+  const id = userId || getEffectiveUser()?.id;
+  if (!id) { _notifCache = []; updateNotifBadge(); return; }
+  const { data, error } = await supabaseClient
     .from('notifications')
-    .select('id, message, type, created_at')
-    .eq('profile_id', userId)
-    .eq('read', false)
-    .order('created_at', { ascending: false });
-  if (notifs && notifs.length > 0) showStudentNotifications(notifs);
+    .select('id, message, type, read, created_at')
+    .eq('profile_id', id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  // A failed load and an empty inbox are different things. Leaving the cache alone on error
+  // keeps the badge showing what was last known true rather than silently reading zero.
+  if (error) { console.error('[loadNotifications]', error.message); return; }
+  _notifCache = data || [];
+  updateNotifBadge();
 }
 
-function showStudentNotifications(notifs) {
+function updateNotifBadge() {
+  const el = document.getElementById('notifBadge');
+  if (!el) return;
+  const n = _notifCache.filter(x => !x.read).length;
+  el.textContent = n > 9 ? '9+' : String(n);
+  el.classList.toggle('show', n > 0);
+}
+
+function renderNotifications() {
   const title = document.getElementById('notifModalTitle');
   const body  = document.getElementById('notifModalBody');
   if (!title || !body) return;
-  // This modal used to be appeal-only and said so unconditionally. It now also carries
-  // listing removals, so the heading follows what is actually in the batch.
-  const allAppeals = notifs.every(n => (n.type || '').startsWith('appeal'));
-  title.textContent = notifs.length === 1
-    ? (allAppeals ? 'Appeal update' : 'Update from CaldwellNest')
-    : `${notifs.length} ${allAppeals ? 'appeal updates' : 'updates'}`;
-  body.innerHTML = notifs.map(n => `
-    <div style="padding:12px 0;border-bottom:1px solid var(--border)">
-      <div style="font-size:13px;line-height:1.6;color:var(--text)">${n.message}</div>
-      <div style="font-size:11px;color:var(--text-faint);margin-top:4px">${fmtDate(n.created_at)}</div>
-    </div>`).join('');
+
+  const unread = _notifCache.filter(n => !n.read).length;
+  title.textContent = unread ? `Notifications · ${unread} new` : 'Notifications';
+
+  // esc() on the message, which the old version omitted. These messages embed listing titles
+  // -- `Your listing "${l.title}" was removed` in js/admin.js -- and a listing title is
+  // student-authored text. Only the poster receives their own title back, so this was
+  // self-inflicted at worst, but rendering user input as HTML is not a habit worth keeping
+  // anywhere. See tests/xss-test.html.
+  body.innerHTML = _notifCache.length
+    ? _notifCache.map(n => `
+        <div class="notif-row${n.read ? '' : ' notif-unread'}">
+          <div class="notif-msg">${esc(n.message)}</div>
+          <div class="notif-time">${fmtDate(n.created_at)}</div>
+        </div>`).join('')
+    : '<div class="notif-empty">Nothing yet. Updates about your listings and appeals appear here.</div>';
+}
+
+async function markNotificationsRead() {
+  const ids = _notifCache.filter(n => !n.read).map(n => n.id);
+  if (!ids.length) return;
+  const { error } = await supabaseClient.from('notifications').update({ read: true }).in('id', ids);
+  if (error) { console.error('[markNotificationsRead]', error.message); return; }
+  _notifCache.forEach(n => { n.read = true; });
+  updateNotifBadge();
+}
+
+// The bell. Always opens, even with nothing unread — that is the whole point of having a
+// history rather than a pop-up.
+async function openNotifications() {
+  await loadNotifications();
+  renderNotifications();
   openModal('notifModal');
-  supabaseClient.from('notifications').update({ read: true }).in('id', notifs.map(n => n.id));
+  await markNotificationsRead();
+  renderNotifications();   // repaint so the "new" highlight clears while it is still open
+}
+
+// Called at boot and after login. Pops up only when something is genuinely unread; otherwise
+// it just refreshes the badge and stays out of the way.
+async function checkStudentNotifications(userId) {
+  await loadNotifications(userId);
+  if (!_notifCache.some(n => !n.read)) return;
+  renderNotifications();
+  openModal('notifModal');
+  await markNotificationsRead();
 }
 
 function dismissNotifications() { closeModal('notifModal'); }

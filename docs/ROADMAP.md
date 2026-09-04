@@ -1984,10 +1984,24 @@ not accepting the mismatch** — the check said "expect no rows" and returned ni
       `sql/` restores the rules but not the tables they sit on.
 - ⬜ **GRANTs are not captured.** The audit read them and fixed what was wrong, but no file
       records the intended grant per table.
-- ⬜ **No notification delivery.** A student only ever learns anything by opening the app —
+- 🟡 **Notification delivery.** A student only ever learns anything by opening the app —
       noticed 2026-09-04 while testing the listing-removal path. This is A1 of the engagement
       plan, written there about cancelled events; it is true of every notice the platform
       sends.
+      **In-app half done 2026-09-04.** Building it surfaced a worse bug than the missing
+      email: `showStudentNotifications()` fetched only unread rows, displayed them, and marked
+      them read in the same breath. A student who got the pop-up and dismissed it without
+      reading had **permanently lost** the notice — no bell, no history, and the next fetch
+      asked for unread rows of which there were now none. Now there is a bell with an unread
+      count, a 50-item history whatever its read state, and read is applied *after* rendering.
+      Marking read on display is fine once the history is reachable: nothing is destroyed,
+      only dimmed.
+      Also added `esc()` on the message, which the old renderer omitted. Those messages embed
+      listing titles, and a listing title is student-authored text.
+      ⬜ **Still passive.** A student who never opens the app is still never told. That needs
+      email, which needs a backend this project does not have — no `supabase/functions`, and
+      Supabase Auth's templates only cover auth flows. Decided 2026-09-04 to do the in-app
+      centre first and leave the email layer as its own piece of work.
 - ⬜ `DB.log` is written in 21 places and read in none. Cleanup spans `js/admin.js` and
       `js/listings.js`.
 - ⬜ `'event'` still needs adding to `favorites.item_type` before an event can be starred.
