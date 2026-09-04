@@ -2168,3 +2168,120 @@ of them **silently**.
 
 ### Next
 Email delivery (the other half of notifications), or workstream 2 — the org console.
+
+---
+
+## Engagement build Phase 0 — the flag set, frozen. 2026-09-05
+
+Phase 0 of `docs/nestrel-engagement-build.md`. Nothing student-facing shipped; this was the
+last cheap moment to change the permission flag set, and it was spent on that plus two things
+found while looking.
+
+**The flag set is now eight and frozen.** `sql/2026-09-05_flag_set.sql`.
+- **Dropped `can_moderate`.** Nothing read it — not a policy, not a function, not a line of
+  code beyond the mirror map that listed it. The build document's rule was: keep it if the
+  roadmap can name the session that reads it. It could not. It goes back in the day post
+  replies exist and something actually asks the question.
+- **Added `can_manage_events`** (Phase 3) and **`can_check_in`** (Phase 4). `can_check_in` is
+  deliberately narrow so a president can hand it to a first-year working the door for one
+  evening without also handing over the ability to post as the club.
+- The set is written down in **five places** that must agree and are checked by nothing: the
+  columns, the `CASE` in `can_act()`, both flag lists in the guard trigger, the pinned-false
+  list in the insert policy, and `ORG_ACTIONS` plus the `.select()` in `js/orgs.js`. That
+  count is the argument for freezing it rather than growing it.
+
+**The escalation fix had no test, and now does.** `sql/2026-09-05_verify_flag_guard.sql`.
+The 2026-09-04 privilege escalation was recorded as "closed and re-checked". The file re-run
+was `verify_can_act.sql`, which **cannot see that trigger at all** — every membership row it
+inserts during setup goes in with no JWT, which lands in the guard's break-glass branch and
+walks straight past it. So the most security-critical object in the org system had been
+untested the whole time.
+
+Ten properties now, and the two that matter most are the ones asserting the guard **permits**
+a legitimate roster change. A guard broken shut passes every "was it refused" test perfectly.
+
+**`verify_can_act.sql` had been unrunnable for a day.** It used `school = '__verify__'`;
+`2026-09-04_school_foreign_keys.sql` constrained `organizations.school` to `schools(slug)`
+two hours after it was written, and from then on it failed on its first INSERT before running
+a single test. Repaired to insert a throwaway school row, and extended from seven properties
+to eleven. **The general lesson is in `sql/README.md`: re-run every verification file after
+any schema change, not only the one for the thing you changed.**
+
+**Dev fixtures.** `sql/2026-09-05_seed_dev_org.sql` — a Dev Chess Club with an officer, a
+plain member and an outsider, plus a public post, a members-only post and a poll. Supabase
+auth accounts cannot honestly be created from SQL, so the three accounts are made through the
+real signup form and the file only wires up the organization rows around them. It has the
+runbook and a teardown.
+
+### The admin Organizations page — three fixes, same session
+
+Prompted by a real bug: adding an officer and then opening the console reported **"You are not
+an officer of any organization"** to a school administrator whose membership row was present,
+active and correct.
+
+**The message was a lie, and that was the actual defect.** `js/orgs.js` had been updated to ask
+PostgREST for `can_manage_events` and `can_check_in` before the migration creating them had
+run. PostgREST rejects the *whole* query when one column is unknown, so `loadOrgContext()`
+returned null, `orgMemberships()` returned `[]`, and the console rendered an empty list and a
+refusal identically. The reader was sent to inspect their permissions, which were fine.
+
+- ✅ **A failed load no longer renders as an empty one.** `_orgCtxError` holds the reason and
+      the console reports it. **When you cannot answer a question, say so — do not return the
+      answer you would have given if the answer were no.** That principle is the fix; the
+      column mismatch was only what exposed it.
+- ✅ **Three discarded errors, checked.** `orgAddOfficer` looked a student up by email and
+      threw the error away, so "the database refused me this read" and "nobody has that
+      address" arrived identically as null — and the code took the second branch for both,
+      writing a membership row with a null `user_id`. Under the restricted profiles policy
+      that is what a school admin outside their own school would have got. The roster's name
+      lookup had the same shape and printed **raw uuids** where names belong.
+- ✅ **No more orphan rows.** `pending_email` exists for plan A15 — add an e-board before they
+      have accounts, resolve at signup — and **the resolution was never built.** Nothing in
+      `handle_new_user`, the signup path or any `sql/` file links one to a new account, so the
+      row read "(invited)" forever and its subject was told they were an officer of nothing.
+      Adding someone without an account is now refused with a reason. **A comment described
+      this as working for four months.** When A15 is real, that branch is where it goes.
+- ✅ **Removal is a status change, not a delete.** `'removed'` had been legal in the check
+      constraint since the table was created and nothing ever set it. `can_act()` requires
+      `status = 'active'`, so a removed row grants nothing — keeping it costs no authority and
+      preserves what Phase 5's involvement record is built from. Restore added on the admin
+      side. **Both** removal paths changed: leaving `ocRemove()` deleting would have given one
+      table two opposite semantics, and the console is the path a club president actually uses.
+- ✅ **"Add me as an officer here"** — the BOOTSTRAP block of `2026-09-04_org_hierarchy.sql` as
+      a button. §2.7 is explicit that platform operator and officer are two identities sharing
+      one login; skipping that block leaves you governing every org through `is_super_admin()`
+      while the console says you are an officer of nothing. **Super admins only** — for anyone
+      else it would be a way to grant themselves `can_create_child_orgs`, which is the exact
+      escalation shape the flag guard exists to prevent.
+
+**Deliberately not done, and why.** A per-flag permission editor is the thing that would let a
+department head be created through the UI at all — today the only path is a hand-written SQL
+insert, which is a bigger hole than decision A assumed. It is left for Phase 2, because Phase 2
+moves roster management into the console and adds `title`, `joined_at`, `ended_at` and
+`accepted_at`; building the editor now means building it twice.
+
+### What the next session starts with
+
+**Run the files, in this order, then do the two checks by hand.** Nothing above has touched
+the database yet — there is no `psql` or Supabase CLI in this repo, so every file is run in
+the SQL editor by hand:
+
+1. `sql/2026-09-05_flag_set.sql`
+2. `sql/2026-09-05_verify_flag_guard.sql` — expect ten PASS
+3. `sql/2026-09-04_verify_can_act.sql` — expect eleven PASS
+4. `sql/2026-08-08_verify_owner_guards.sql` — unrelated, re-run because the rule above says so
+5. `sql/2026-09-05_seed_dev_org.sql`, after signing up the three accounts
+
+⚠️ **`js/orgs.js` and the migration must land together.** The file now asks PostgREST for
+`can_manage_events` and `can_check_in`. Ask for a column that does not exist and PostgREST
+rejects the whole query — `loadOrgContext()` returns null and every officer's console goes
+empty. Run the SQL first, then hard refresh (assets are at `?v=2026-09-05a`).
+
+Then Phase 1 — the student-facing organization layer: directory, org profile page, follow
+button, home feed. No new schema; `org_follows` has existed with RLS and grants and no user
+interface since 2026-09-04. It is the phase that finally exercises members-only visibility
+against a real non-member, which is what the outsider account exists for.
+
+**Still open from this session:** the two "Untested" rows on the status page stay Untested
+until the two hand checks are actually done. They are Kal's to run, and they are the entire
+point of Phase 0.

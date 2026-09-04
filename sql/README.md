@@ -49,7 +49,7 @@ that is cheaper than trying to remember.
 | `2026-09-04_capture_permission_functions.sql` | **Capture only.** `is_super_admin()`, `get_admin_school()` and `user_is_admin()` — every admin permission routes through one of the three, and none had been written down. |
 | `2026-09-04_capture_rls_policies.sql` | **Capture.** All 67 RLS policies, emitted by the database itself rather than retyped. Records reality including its duplicates, and lists five findings — notably that both `notifications` INSERT policies check `true`. |
 | `2026-09-04_harden_policies.sql` | Closes four of those five findings: notification forgery, the world-readable admin roster, nine duplicate policies, and unpinned `search_path` on the three permission functions. Explains why the fifth (profile columns) needs code, not a policy. |
-| `2026-09-04_fix_membership_insert_guard.sql` | Closes a privilege-escalation gap in `2026-09-04_org_hierarchy.sql`: the flag guard was BEFORE UPDATE only, so `can_manage_members` was enough to INSERT a new membership carrying every flag. Now BEFORE INSERT OR UPDATE, with the SQL-editor break-glass the other guards use. |
+| `2026-09-04_fix_membership_insert_guard.sql` | Closes a privilege-escalation gap in `2026-09-04_org_hierarchy.sql`: the flag guard was BEFORE UPDATE only, so `can_manage_members` was enough to INSERT a new membership carrying every flag. Now BEFORE INSERT OR UPDATE, with the SQL-editor break-glass the other guards use. **Superseded 2026-09-05 by `2026-09-05_flag_set.sql`** — do not run this one afterwards, it would restore the old flag set. |
 | `2026-09-04_public_profiles_view.sql` | **STEP 1 of the F2 fix, additive.** Creates `public_profiles`, a view of the safe profile columns — no email, no `suspension_reason`, no consent columns. Protects nothing on its own. |
 | `2026-09-04_restrict_profiles_select.sql` | **STEP 2 of the F2 fix — the one that can break things.** Replaces the `using (true)` read policy on `profiles` with own-row plus school-scoped admin. Run only after step 1 and after the app has been tested. |
 | `2026-09-04_slug_format.sql` | Check constraints giving `schools.slug` and `organizations.slug` a shape — lowercase, digits, single hyphens. A foreign key answers "is this real"; this answers "is this the right shape". |
@@ -60,7 +60,10 @@ that is cheaper than trying to remember.
 | `2026-09-04_drop_saved_listings.sql` | **The only destructive file here.** Drops `saved_listings`, the empty and ungranted predecessor of `favorites`. Four preconditions checked before writing it. |
 | `2026-09-04_school_foreign_keys.sql` | Constrains `school` to a real row in `schools` on six tables, and drops the `profiles.school DEFAULT 'Caldwell'` that disagreed with every comparison in the project. `admin_activity_log` is deliberately excluded — an audit log records what was true then, not what is true now. |
 | `2026-09-04_capture_table_definitions.sql` | **Capture only — do not run against the live database.** All 25 tables in `public`: part 1 the columns, part 2 all 99 keys and constraints. The rebuild reference. Records ten observations, including that nothing anywhere constrains `school`. |
-| `2026-09-04_verify_can_act.sql` | **Run this to check `can_act()`.** Self-contained: builds a throwaway three-level hierarchy, impersonates a club officer / school admin / plain member, checks seven properties, rolls everything back. Reports by raising an exception — the error message is the report. Needs two non-admin profiles. |
+| `2026-09-04_verify_can_act.sql` | **Run this to check `can_act()`.** Self-contained: builds a throwaway three-level hierarchy, impersonates a club officer / school admin / plain member, rolls everything back. Reports by raising an exception — the error message is the report. Needs two non-admin profiles, three for full coverage. **Repaired and extended 2026-09-05:** it had been unrunnable since `2026-09-04_school_foreign_keys.sql` constrained `organizations.school` — the first INSERT failed on the foreign key before any test ran. Now eleven properties, including the two new flags. |
+| `2026-09-05_flag_set.sql` | **Freezes the permission flag set at eight.** Drops `can_moderate` (nothing read it), adds `can_manage_events` and `can_check_in`. Touches all five places the set is written down: the columns, the `CASE` in `can_act()`, both flag lists in the guard trigger, and the pinned-false list in the insert policy. Phase 0 of the engagement build. |
+| `2026-09-05_verify_flag_guard.sql` | **Run this to check the flag guard.** The trigger had no test at all until now — `verify_can_act.sql` inserts its setup rows with no JWT, which lands in the guard's break-glass branch and walks straight past it. Ten properties, including the two that catch a flag added to the table and forgotten in the guard. Tests the trigger only; RLS is bypassed in the SQL editor. |
+| `2026-09-05_seed_dev_org.sql` | **DEV ONLY, and the only file here that leaves rows behind.** Wires three signed-up test accounts into a Dev Chess Club as officer / plain member / outsider, with a public post, a members-only post and a poll — the fixtures needed to check the poll-results gate and members-only visibility by hand. Has a runbook for creating the accounts and a teardown. |
 | `2026-09-04_org_hierarchy.sql` | Campus engagement workstream 1 stage 1: `organizations`, `org_memberships`, `org_follows`, the `can_act()` permission rule, a flag guard trigger, RLS and GRANTs. Creates no rows — see its BOOTSTRAP section. **Run after the hardening file.** |
 
 ## Naming
@@ -104,3 +107,21 @@ These were never captured and are needed before this folder can rebuild the data
       `guard_message_immutable` and `fn_guard_owner_book_update` were read 2026-09-04 and
       still need writing down.
 - ⬜ The `appeals` table, which shipped 2026-08-07 with no SQL file at all.
+- ⬜ `2026-09-04_capture_table_definitions.sql` is now **one day stale for `org_memberships`**:
+      `2026-09-05_flag_set.sql` dropped `can_moderate` and added `can_manage_events` and
+      `can_check_in`. A capture file is a photograph, so it goes out of date the moment
+      anything changes — the fix is to re-run part 1 of that file and paste the result back,
+      not to hand-edit it. Left for the next session that touches the schema.
+
+## A rule the 2026-09-05 session learned the hard way
+
+**A verification file is code, and a constraint added elsewhere can break it.**
+`2026-09-04_verify_can_act.sql` was written at 15:28 using `school = '__verify__'` as a value
+that could never collide with real data. At 17:20 the same day,
+`2026-09-04_school_foreign_keys.sql` constrained `organizations.school` to `schools(slug)` —
+and from that moment the verification file failed on its first INSERT, before running a single
+test. Nobody noticed for a day, and the status page went on describing `can_act()` as proven
+seven ways by a file that could not execute.
+
+So: **re-run every verification file after any schema change**, not just the one for the thing
+you changed. A green test you did not re-run is not evidence; it is a memory.

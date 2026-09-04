@@ -33,6 +33,18 @@
 // re-querying on every render.
 let _orgCtx = null;
 
+// WHY the last load failed, or null. This exists because of a real bug on 2026-09-05: the
+// column list below was updated to ask for two new flags before the migration that creates
+// them had been run. PostgREST rejects the WHOLE query when one column is unknown, so
+// loadOrgContext() returned null, orgMemberships() returned [], and the console told a
+// school administrator "You are not an officer of any organization" — which was false, and
+// sent the reader looking at their membership row instead of at the failed request.
+//
+// An empty result and a failed request must never render the same way. When you cannot
+// answer a question, say that, rather than returning the answer you would give if the
+// answer were no.
+let _orgCtxError = null;
+
 // Mirrors the CASE expression inside can_act(). If a flag is ever added to org_memberships,
 // it goes here AND in the SQL function, and the two must agree. They are checked against each
 // other by nothing — that is the cost of a mirror, and the reason this map is small.
@@ -42,9 +54,20 @@ const ORG_ACTIONS = {
   view_analytics:    'can_view_analytics',
   message:           'can_message',
   create_child_orgs: 'can_create_child_orgs',
-  moderate:          'can_moderate',
   manage_admins:     'can_manage_admins',
+  manage_events:     'can_manage_events',   // read by events (Phase 3)
+  check_in:          'can_check_in',        // read by attendance (Phase 4)
 };
+
+// FROZEN 2026-09-05 by sql/2026-09-05_flag_set.sql, and the freeze is the point. Eight
+// flags, and adding a ninth is not one column: it is a column, a branch in can_act(), two
+// lists inside the guard trigger, a list inside the insert policy, and the two places in
+// this file. Six edits that must agree, checked by nothing.
+//
+// can_moderate was dropped in that migration. Nothing read it — no policy, no function, no
+// line of code but this map — and a flag nothing checks is not protection, it is a column
+// every future reader has to think about and then discover means nothing. It goes back in
+// the day post replies exist and something actually asks the question.
 
 // Same cap as the SQL. A parent_id cycle would spin forever; in Postgres that holds a
 // connection from a small pool, and here it freezes the tab. Ten is far more than
@@ -62,13 +85,17 @@ async function loadOrgContext(force = false) {
   if (_orgCtx && !force) return _orgCtx;
 
   const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) { _orgCtx = { isSuper: false, parents: new Map(), orgs: new Map(), grants: new Map() }; return _orgCtx; }
+  if (!user) { _orgCtx = { userId: null, isSuper: false, parents: new Map(), orgs: new Map(), grants: new Map() }; return _orgCtx; }
 
   const [orgRes, memRes, roleRes] = await Promise.all([
     supabaseClient.from('organizations')
       .select('id, parent_id, school, type, name, slug, logo_url, is_active, is_verified'),
     supabaseClient.from('org_memberships')
-      .select('org_id, role, title, status, can_post, can_manage_members, can_view_analytics, can_message, can_create_child_orgs, can_moderate, can_manage_admins')
+      // These column names must match ORG_ACTIONS above and the columns on the table. Asking
+      // for a column that does not exist is not a silent miss — PostgREST rejects the whole
+      // query, loadOrgContext() returns null, and every officer's console goes empty. Which
+      // is why this file and sql/2026-09-05_flag_set.sql have to land together.
+      .select('org_id, role, title, status, can_post, can_manage_members, can_view_analytics, can_message, can_create_child_orgs, can_manage_admins, can_manage_events, can_check_in')
       .eq('user_id', user.id),
     // "Users can read own roles" allows this; it is how the super-admin branch of the mirror
     // is answered without depending on globals another file happens to have set.
@@ -79,10 +106,12 @@ async function loadOrgContext(force = false) {
   // "you have no permissions" would silently hide an officer's entire console, so the error
   // is surfaced and the cache is left unset so the next call retries.
   if (orgRes.error || memRes.error || roleRes.error) {
-    console.error('[loadOrgContext] load failed:',
-      orgRes.error?.message || memRes.error?.message || roleRes.error?.message);
+    _orgCtxError = orgRes.error?.message || memRes.error?.message || roleRes.error?.message
+                   || 'unknown error';
+    console.error('[loadOrgContext] load failed:', _orgCtxError);
     return null;
   }
+  _orgCtxError = null;
 
   const orgs    = new Map();
   const parents = new Map();
@@ -92,6 +121,7 @@ async function loadOrgContext(force = false) {
   (memRes.data || []).forEach(m => grants.set(m.org_id, m));
 
   _orgCtx = {
+    userId: user.id,          // needed to find your OWN row in a roster you are managing
     isSuper: (roleRes.data || []).some(r => r.role_id === 'super_admin'),
     orgs, parents, grants,
     loadedAt: Date.now(),
@@ -102,7 +132,7 @@ async function loadOrgContext(force = false) {
 // Call after anything that changes memberships or organizations, and on logout. A stale
 // cache here shows an ex-officer their old buttons — which the database will refuse, but
 // which reads as a bug to the person looking at it.
-function clearOrgContext() { _orgCtx = null; }
+function clearOrgContext() { _orgCtx = null; _orgCtxError = null; }
 
 
 // ------------------------------------------------------------
@@ -313,29 +343,66 @@ async function orgTogglePanel(orgId) {
   // join, because the join would need a foreign-key relationship PostgREST can see and this
   // is a handful of rows.
   const ids = (data || []).map(m => m.user_id).filter(Boolean);
-  let names = {};
+  let names = {}, namesFailed = false;
   if (ids.length) {
-    const { data: profs } = await supabaseClient.from('profiles')
+    const { data: profs, error: profErr } = await supabaseClient.from('profiles')
       .select('id, first_name, last_name, email').in('id', ids);
+    // The read policy on profiles is own-row plus school-scoped admin. A school admin
+    // outside that school, or any future tightening, gets nothing back — and the old code
+    // then printed raw uuids into the roster as though they were names. Distinguish the two.
+    if (profErr) { namesFailed = true; console.error('[orgTogglePanel] name lookup failed:', profErr.message); }
     (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim() + ` · ${p.email}`);
   }
+  const who = m => m.user_id
+    ? (names[m.user_id] || (namesFailed ? 'Name unavailable — no permission to read it' : 'Unknown student'))
+    : (m.pending_email + ' (invited — see below)');
 
   const canGrant = orgCanAct('manage_admins', orgId);
-  const rows = (data || []).length
-    ? data.map(m => `
-        <div class="org-roster-row">
-          <span class="org-roster-who">${esc(m.user_id ? (names[m.user_id] || m.user_id) : (m.pending_email + ' (invited)'))}</span>
+
+  // Active first, then everyone who has left. A removed row is history rather than a member,
+  // so it is dimmed and offers Restore instead of Remove.
+  const sorted = (data || []).slice().sort((a, b) =>
+    (a.status === 'removed' ? 1 : 0) - (b.status === 'removed' ? 1 : 0));
+
+  const rows = sorted.length
+    ? sorted.map(m => {
+        const gone = m.status === 'removed';
+        return `
+        <div class="org-roster-row${gone ? ' org-roster-row-off' : ''}">
+          <span class="org-roster-who">${esc(who(m))}</span>
           <span class="org-roster-role">${esc(m.title || m.role)}${m.status !== 'active' ? ' · ' + esc(m.status) : ''}</span>
-          <button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>
-        </div>`).join('')
+          ${gone
+            ? `<button class="org-btn" onclick="orgRestoreMember(${m.id}, ${orgId})">Restore</button>`
+            : `<button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>`}
+        </div>`; }).join('')
     : '<div class="org-empty">No members yet.</div>';
 
-  el.innerHTML = rows + (canGrant ? `
+  // "Add me as an officer here" — the BOOTSTRAP block of sql/2026-09-04_org_hierarchy.sql,
+  // without the SQL editor. §2.7 is explicit that platform operator and officer are two
+  // identities sharing one login: can_act() answers true for a super admin everywhere, but
+  // orgMemberships() lists real rows only, so a super admin with no row is told they are an
+  // officer of nothing. True, and useless. This is the button that fixes it.
+  //
+  // SUPER ADMINS ONLY, deliberately. Someone holding can_manage_admins on one club could
+  // otherwise use this to grant themselves can_create_child_orgs — a flag they were never
+  // given — which is the escalation shape the whole flag guard exists to prevent. A super
+  // admin already holds every authority through is_super_admin(), so the row they create
+  // here adds identity, not power.
+  const myRow = (data || []).find(m => m.user_id === _orgCtx?.userId);
+  const selfBtn = (_orgCtx?.isSuper && (!myRow || myRow.status !== 'active'))
+    ? `<div class="org-form">
+         <button class="org-btn" onclick="orgAddSelf(${orgId})">Add me as an officer here</button>
+       </div>`
+    : '';
+
+  el.innerHTML = rows + selfBtn + (canGrant ? `
     <div class="org-form">
       <input class="org-input" id="org-add-${orgId}" type="email" placeholder="officer@caldwell.edu" autocomplete="off">
       <button class="org-btn" onclick="orgAddOfficer(${orgId})">Add officer</button>
-    </div>`
-    : '<div class="org-empty">Adding officers needs the “manage admins” permission.</div>');
+    </div>
+    <div class="org-note">They must already have a Nestrel account. Adding someone who has not
+    signed up yet is not supported — the invite would never resolve into a real membership.</div>`
+    : '<div class="org-empty">Adding officers needs the \u201Cmanage admins\u201D permission.</div>');
 }
 
 async function orgAddOfficer(orgId) {
@@ -343,23 +410,69 @@ async function orgAddOfficer(orgId) {
   const email = (input?.value || '').trim().toLowerCase();
   if (!email) return;
 
-  // Look the person up. If they have not signed up yet, the membership is stored against
-  // pending_email and resolved to a user_id when they do — plan A15. Without that, onboarding
-  // an organization would require its whole e-board to sign up first, in order.
-  const { data: prof } = await supabaseClient.from('profiles').select('id').eq('email', email).maybeSingle();
+  // Look the person up. THE ERROR MATTERS AS MUCH AS THE RESULT, and until 2026-09-05 this
+  // line discarded it — so "the database refused me this read" and "nobody has that address"
+  // came back identically as null, and the code took the second branch for both.
+  //
+  // That is not theoretical. The read policy on profiles is own-row plus school-scoped admin
+  // (sql/2026-09-04_restrict_profiles_select.sql), so a school admin outside that school gets
+  // a refusal here, and the old code responded by writing a membership row with a null
+  // user_id — a person who appears on the roster and can never log in as themselves.
+  const { data: prof, error: lookupErr } = await supabaseClient
+    .from('profiles').select('id').eq('email', email).maybeSingle();
 
-  const { error } = await supabaseClient.from('org_memberships').insert({
-    org_id: orgId,
-    user_id: prof?.id || null,
-    pending_email: prof ? null : email,
+  if (lookupErr) {
+    toast('Could not look that address up: ' + lookupErr.message);
+    console.error('[orgAddOfficer] lookup failed:', lookupErr);
+    return;
+  }
+
+  // NO ORPHAN ROWS. pending_email exists on the table for plan A15 — add an e-board before
+  // they have accounts, resolve it at signup — but THE RESOLUTION WAS NEVER BUILT. Nothing
+  // in handle_new_user, the signup path or any sql/ file links a pending_email to a new
+  // account. So a row written that way sits on the roster reading "(invited)" forever, and
+  // the person it names is told they are an officer of nothing when they log in.
+  //
+  // Refusing is the honest answer while that is true. Writing a row that can never become
+  // real is worse than declining to write one. When A15 is actually built, this branch is
+  // where it goes.
+  if (!prof) {
+    toast(email + ' has no Nestrel account yet — ask them to sign up first, then add them');
+    return;
+  }
+
+  // A removed member keeps their row, because org_memberships is unique on (org_id, user_id)
+  // and removal is now a status change rather than a delete. So re-adding somebody is an
+  // UPDATE. Without this branch it fails on the unique constraint with a duplicate-key
+  // message that names neither the person nor the reason.
+  const { data: existing, error: existErr } = await supabaseClient
+    .from('org_memberships').select('id, status')
+    .eq('org_id', orgId).eq('user_id', prof.id).maybeSingle();
+
+  if (existErr) {
+    toast('Could not check the roster: ' + existErr.message);
+    console.error('[orgAddOfficer] roster check failed:', existErr);
+    return;
+  }
+
+  const grant = {
     role: 'officer',
     title: 'Officer',
     status: 'active',
     // A deliberate default, not a full set: post, manage the roster, read analytics, reply to
-    // messages. NOT create_child_orgs, NOT moderate, and NOT manage_admins — granting
-    // authority is the one thing that should never be handed out by default.
+    // messages. NOT create_child_orgs and NOT manage_admins — granting authority is the one
+    // thing that should never be handed out by default.
+    //
+    // Also not can_manage_events or can_check_in, which is correct only until Phase 3 ships:
+    // nothing reads them yet, but the day events exist, an officer added here will not be
+    // able to create one. Whether the default officer grant should include them is a Phase 3
+    // decision, and this comment is the reminder to make it deliberately.
     can_post: true, can_manage_members: true, can_view_analytics: true, can_message: true,
-  });
+  };
+
+  const { error } = existing
+    ? await supabaseClient.from('org_memberships').update(grant).eq('id', existing.id)
+    : await supabaseClient.from('org_memberships').insert({ org_id: orgId, user_id: prof.id, ...grant });
 
   if (error) {
     toast(error.code === '23505' ? 'That person is already on this roster' : 'Could not add: ' + error.message);
@@ -374,12 +487,102 @@ async function orgAddOfficer(orgId) {
   orgTogglePanel(orgId); orgTogglePanel(orgId);   // close + reopen to repaint
 }
 
+// Removal is a STATUS CHANGE, not a delete. Changed 2026-09-05.
+//
+// 'removed' has been a legal value in the status check constraint since the table was
+// created and nothing ever set it. Meanwhile this function deleted the row outright, which
+// is the one thing the rest of the project never does — listings are soft-stated,
+// organizations are deactivated rather than dropped, and the audit log keeps snapshots.
+//
+// It matters beyond consistency. can_act() requires status = 'active', so a removed row
+// grants exactly nothing; keeping it costs no authority. And the involvement record (Phase 5)
+// is built from membership history — a president who served last year should be able to
+// prove it, and every delete run before today destroyed that evidence permanently.
+//
+// The flags are deliberately left as they were rather than being zeroed. The row now records
+// what this person held while they served, which is what history means.
 async function orgRemoveMember(membershipId, orgId) {
-  if (!confirm('Remove this person from the organization? Events they created stay with the organization.')) return;
-  const { error } = await supabaseClient.from('org_memberships').delete().eq('id', membershipId);
+  if (!confirm('Remove this person from the organization?\n\nThey keep no permissions once removed. The record that they served stays, and you can restore them.')) return;
+  const { error } = await supabaseClient.from('org_memberships')
+    .update({ status: 'removed' }).eq('id', membershipId);
   if (error) { toast('Could not remove: ' + error.message); console.error('[orgRemoveMember]', error); return; }
-  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId });
+  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
+                                   before: { status: 'active' }, after: { status: 'removed' } });
   toast('✓ Removed');
+  clearOrgContext();
+  _orgOpenPanel = null;
+  orgTogglePanel(orgId);
+}
+
+// The other half of soft removal. Restoring returns the flags the row already carried — it
+// does not grant anything new, so the flag guard does not fire (it compares flags, and none
+// of them change here).
+//
+// Worth knowing for Phase 2: that means can_manage_members alone is enough to restore
+// somebody who held can_manage_admins. It is not an escalation — the same officer could
+// simply not have removed them — but once accepted_at and ended_at exist, restoring should
+// probably require the grantee to accept again rather than silently reviving old authority.
+async function orgRestoreMember(membershipId, orgId) {
+  const { error } = await supabaseClient.from('org_memberships')
+    .update({ status: 'active' }).eq('id', membershipId);
+  if (error) { toast('Could not restore: ' + error.message); console.error('[orgRestoreMember]', error); return; }
+  logEvent('org_member_restored', { targetType: 'membership', targetId: membershipId,
+                                    before: { status: 'removed' }, after: { status: 'active' } });
+  toast('✓ Restored');
+  clearOrgContext();
+  _orgOpenPanel = null;
+  orgTogglePanel(orgId);
+}
+
+// ---------- put yourself on a roster you already govern ----------
+// The BOOTSTRAP block of sql/2026-09-04_org_hierarchy.sql, as a button. That block is
+// commented out and easy to skip, and skipping it produces a confusing state: you administer
+// every organization on campus through is_super_admin(), and the console tells you that you
+// are an officer of nothing — because orgMemberships() lists membership rows, and you have
+// none.
+//
+// Super admins only. See the note where the button is drawn: for anyone else this would be a
+// way to grant themselves flags they were never given.
+async function orgAddSelf(orgId) {
+  const org = _orgCtx?.orgs.get(orgId);
+  if (!org) return;
+  if (!_orgCtx?.isSuper) { toast('Only a platform administrator can do that'); return; }
+  if (!_orgCtx?.userId)  { toast('Could not identify your account — try signing in again'); return; }
+  if (!confirm(`Add yourself as an officer of ${org.name}?\n\nThis does not change what you are allowed to do — you already administer every organization. It makes you appear on this roster and lets you open this organization's console.`)) return;
+
+  const { data: existing, error: existErr } = await supabaseClient
+    .from('org_memberships').select('id')
+    .eq('org_id', orgId).eq('user_id', _orgCtx.userId).maybeSingle();
+
+  if (existErr) {
+    toast('Could not check the roster: ' + existErr.message);
+    console.error('[orgAddSelf] roster check failed:', existErr);
+    return;
+  }
+
+  // The full set, matching the bootstrap row in sql/2026-09-04_org_hierarchy.sql. It grants
+  // no authority a super admin did not already hold — can_act() short-circuits on
+  // is_super_admin() before it ever looks at a membership — so this row is about identity.
+  //
+  // can_manage_events and can_check_in are included, which means this needs
+  // sql/2026-09-05_flag_set.sql to have been run. Same dependency as the column list in
+  // loadOrgContext(); they land together or neither works.
+  const grant = {
+    role: 'officer', title: 'Administrator', status: 'active',
+    can_post: true, can_manage_members: true, can_view_analytics: true, can_message: true,
+    can_create_child_orgs: true, can_manage_admins: true,
+    can_manage_events: true, can_check_in: true,
+  };
+
+  const { error } = existing
+    ? await supabaseClient.from('org_memberships').update(grant).eq('id', existing.id)
+    : await supabaseClient.from('org_memberships').insert({ org_id: orgId, user_id: _orgCtx.userId, ...grant });
+
+  if (error) { toast('Could not add you: ' + error.message); console.error('[orgAddSelf]', error); return; }
+
+  logEvent('org_self_added', { targetType: 'membership', targetId: orgId, targetLabel: org.name,
+                               school: org.school, after: { role: 'officer', title: 'Administrator' } });
+  toast('✓ You are now an officer of ' + org.name);
   clearOrgContext();
   _orgOpenPanel = null;
   orgTogglePanel(orgId);
@@ -428,7 +631,11 @@ async function renderOrgConsoleEntry() {
 // Officers in exactly one org go straight in. Officers in several get a picker — the plan is
 // explicit that this is the normal case, not an edge case (§2.3).
 async function orgConsoleOpen(orgId) {
-  await loadOrgContext(true);
+  const ctx = await loadOrgContext(true);
+  // A failed load is not an empty roster. Saying "you are not an officer" when the request
+  // never completed sends the reader to look at their permissions, which are fine.
+  if (!ctx) { toast('Could not load your organizations: ' + (_orgCtxError || 'unknown error')); return; }
+
   const mine = orgMemberships().filter(m => m.role === 'officer');
   if (!mine.length) { toast('You are not an officer of any organization'); return; }
 
@@ -603,13 +810,16 @@ async function renderOcMembers() {
   if (ids.length) {
     // public_profiles, not profiles: after the F2 change an officer who is not an admin can
     // only read their own row from the table, and a roster of one person is not a roster.
-    const { data: profs } = await supabaseClient.from('public_profiles')
+    const { data: profs, error: profErr } = await supabaseClient.from('public_profiles')
       .select('id, first_name, last_name').in('id', ids);
+    if (profErr) console.error('[renderOcMembers] name lookup failed:', profErr.message);
     (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim());
   }
 
+  // Explicitly 'active', not "not pending". Removal became a status change on 2026-09-05,
+  // so a not-pending filter would list everyone who has ever left as a current member.
   const pending = (data || []).filter(m => m.status === 'pending');
-  const active  = (data || []).filter(m => m.status !== 'pending');
+  const active  = (data || []).filter(m => m.status === 'active');
   const row = m => `
     <div class="oc-member">
       <span class="oc-member-who">${esc(m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)'))}</span>
@@ -624,7 +834,7 @@ async function renderOcMembers() {
     (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>` + pending.map(row).join('') : '') +
     `<div class="oc-subhead">Members (${active.length})</div>` +
     (active.length ? active.map(row).join('') : '<div class="oc-note">No members yet.</div>') +
-    `<div class="oc-note">Adding officers and changing permissions needs the “manage admins” permission, and is done from the admin page for now.</div>`;
+    `<div class="oc-note">Adding officers and changing permissions needs the \u201Cmanage admins\u201D permission, and is done from the admin page for now. Removing someone keeps a record that they served \u2014 they can be restored from the admin page.</div>`;
 }
 
 async function ocApprove(membershipId) {
@@ -636,11 +846,17 @@ async function ocApprove(membershipId) {
   renderOcMembers();
 }
 
+// Soft, matching orgRemoveMember() on the admin page. Changed 2026-09-05 in the same pass,
+// deliberately crossing the one-area-per-change rule: leaving this one deleting would give
+// the same table two opposite removal semantics, and THIS is the path a club president
+// actually uses — so the history the admin page preserves would be destroyed here instead.
 async function ocRemove(membershipId) {
-  if (!confirm('Remove this person from the organization?')) return;
-  const { error } = await supabaseClient.from('org_memberships').delete().eq('id', membershipId);
+  if (!confirm('Remove this person from the organization?\n\nThey lose every permission immediately. The record that they served is kept.')) return;
+  const { error } = await supabaseClient.from('org_memberships')
+    .update({ status: 'removed' }).eq('id', membershipId);
   if (error) { toast('Could not remove: ' + error.message); console.error('[ocRemove]', error); return; }
-  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId });
+  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
+                                   before: { status: 'active' }, after: { status: 'removed' } });
   toast('✓ Removed');
   clearOrgContext();
   await loadOrgContext();

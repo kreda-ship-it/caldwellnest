@@ -38,6 +38,16 @@
 --     TEST 6  pending member-> post on their own club   -> must be FALSE  (status must be active)
 --     TEST 7  a parent_id cycle                         -> must RETURN, not hang
 --
+--   Added 2026-09-05 with the frozen flag set (sql/2026-09-05_flag_set.sql):
+--     TEST 8  club officer  -> manage_events on own club -> must be TRUE
+--     TEST 9  club officer  -> check_in on own club      -> must be FALSE (flag not held)
+--     TEST 10 school admin  -> check_in on the club below-> must be TRUE   (the walk up)
+--     TEST 11 anyone        -> the DROPPED flag          -> must be FALSE, not an error
+--
+--   Tests 8 and 9 are a pair on purpose. A positive alone would pass against a can_act()
+--   whose CASE fell through to something permissive; a negative alone would pass against
+--   one that had never heard of the flag. Neither proves the branch on its own.
+--
 --   TEST 3 is the one that matters most. It is the only test that can catch the
 --   walk running the wrong way — a rule that searched DOWNWARD instead of up
 --   would pass tests 1 and 2 cheerfully and hand every club officer authority
@@ -54,6 +64,7 @@
 
 DO $verify$
 DECLARE
+  v_school     text;
   v_school_org bigint;
   v_dept_org   bigint;
   v_club_org   bigint;
@@ -95,27 +106,53 @@ BEGIN
                    v_admin, v_officer, coalesce(v_member::text, 'none — TEST 4 will be skipped'));
 
   -- ---------- build a throwaway hierarchy ----------
-  -- school = '__verify__' so it can never collide with 'caldwell'. Everything
-  -- here is discarded by the RAISE at the end.
+  -- Everything here is discarded by the RAISE at the end.
+  --
+  -- REPAIRED 2026-09-05. This file originally used school = '__verify__' as a value that
+  -- could never collide with 'caldwell'. Later the same day
+  -- 2026-09-04_school_foreign_keys.sql constrained organizations.school to schools(slug),
+  -- and from that moment this file could not run at all: the first INSERT below failed on
+  -- the foreign key before a single test executed. The status page went on describing
+  -- can_act() as proven seven ways by a file that errored on its first statement.
+  --
+  -- Nor can the old placeholder simply be registered as a school. 2026-09-04_slug_format.sql
+  -- gives schools.slug a check constraint permitting only lowercase letters, digits and
+  -- single hyphens, so '__verify__' is now unrepresentable there too. Hence a legal-looking
+  -- slug on a reserved .invalid domain, inserted and rolled back with everything else.
+  --
+  -- The lesson is worth more than the fix: a verification file is code, and a constraint
+  -- added elsewhere can break it as easily as it breaks the app. Re-running every prior
+  -- verification after a schema change is §6.4 of the build document, and this is what it
+  -- is for.
+  INSERT INTO public.schools (name, slug, email_domain)
+  VALUES ('Verify School', 'verify-canact', 'verify-canact.invalid')
+  RETURNING slug INTO v_school;
+
   INSERT INTO public.organizations (school, parent_id, type, name, slug)
-  VALUES ('__verify__', NULL, 'school', 'Verify School', 'vschool')
+  VALUES (v_school, NULL, 'school', 'Verify School', 'vschool')
   RETURNING id INTO v_school_org;
 
   INSERT INTO public.organizations (school, parent_id, type, name, slug)
-  VALUES ('__verify__', v_school_org, 'department', 'Verify Dept', 'vdept')
+  VALUES (v_school, v_school_org, 'department', 'Verify Dept', 'vdept')
   RETURNING id INTO v_dept_org;
 
   INSERT INTO public.organizations (school, parent_id, type, name, slug)
-  VALUES ('__verify__', v_dept_org, 'club', 'Verify Club', 'vclub')
+  VALUES (v_school, v_dept_org, 'club', 'Verify Club', 'vclub')
   RETURNING id INTO v_club_org;
 
-  -- School admin: can_post on the ROOT. Tests 2 depends on this reaching the club.
-  INSERT INTO public.org_memberships (org_id, user_id, role, title, status, can_post, can_manage_admins)
-  VALUES (v_school_org, v_admin, 'officer', 'Administrator', 'active', true, true);
+  -- School admin: can_post on the ROOT. Test 2 depends on this reaching the club.
+  -- can_check_in is held HERE and nowhere else, so test 10 can only pass by walking upward.
+  INSERT INTO public.org_memberships (
+    org_id, user_id, role, title, status, can_post, can_manage_admins, can_check_in)
+  VALUES (v_school_org, v_admin, 'officer', 'Administrator', 'active', true, true, true);
 
-  -- Club officer: can_post on the CLUB only, and deliberately NOT can_manage_admins.
-  INSERT INTO public.org_memberships (org_id, user_id, role, title, status, can_post, can_manage_admins)
-  VALUES (v_club_org, v_officer, 'officer', 'President', 'active', true, false);
+  -- Club officer: can_post and can_manage_events on the CLUB only. Deliberately NOT
+  -- can_manage_admins (test 5) and deliberately NOT can_check_in (test 9) — the two new
+  -- flags are split across the two people so that each one's test can only be satisfied
+  -- one way.
+  INSERT INTO public.org_memberships (
+    org_id, user_id, role, title, status, can_post, can_manage_admins, can_manage_events)
+  VALUES (v_club_org, v_officer, 'officer', 'President', 'active', true, false, true);
 
   IF v_member IS NOT NULL THEN
     INSERT INTO public.org_memberships (org_id, user_id, role, status)
@@ -208,9 +245,9 @@ BEGIN
   -- If this test never returns and the editor times out, THAT IS THE RESULT:
   -- the depth cap is broken. Everything above is rolled back either way.
   INSERT INTO public.organizations (school, parent_id, type, name, slug)
-  VALUES ('__verify__', NULL, 'club', 'Cycle A', 'vcyca') RETURNING id INTO v_cycle_a;
+  VALUES (v_school, NULL, 'club', 'Cycle A', 'vcyca') RETURNING id INTO v_cycle_a;
   INSERT INTO public.organizations (school, parent_id, type, name, slug)
-  VALUES ('__verify__', v_cycle_a, 'club', 'Cycle B', 'vcycb') RETURNING id INTO v_cycle_b;
+  VALUES (v_school, v_cycle_a, 'club', 'Cycle B', 'vcycb') RETURNING id INTO v_cycle_b;
   UPDATE public.organizations SET parent_id = v_cycle_b WHERE id = v_cycle_a;
 
   BEGIN
@@ -218,6 +255,66 @@ BEGIN
     r := r || format(E'TEST 7  parent_id cycle terminates ............... PASS (returned %s, did not hang)\n', v_got);
   EXCEPTION WHEN others THEN
     r := r || format(E'TEST 7  parent_id cycle terminates ............... FAIL — errored: %s\n', SQLERRM);
+    pass_all := false;
+  END;
+
+  -- ---------- TEST 8 — the officer holds can_manage_events. Must be TRUE. ----------
+  -- The positive half of the new-flag pair. Read by Phase 3, where creating, editing,
+  -- publishing and cancelling an event all route through this one answer.
+  PERFORM set_config('request.jwt.claims',
+    format('{"role":"authenticated","sub":"%s"}', v_officer), true);
+  v_got := public.can_act('manage_events', v_club_org);
+  IF v_got THEN
+    r := r || E'TEST 8  officer manages events in own club ....... PASS (allowed)\n';
+  ELSE
+    r := r || E'TEST 8  officer manages events in own club ....... *** FAIL — REFUSED, FLAG NOT WIRED ***\n';
+    pass_all := false;
+  END IF;
+
+  -- ---------- TEST 9 — the officer does NOT hold can_check_in. Must be FALSE. ----------
+  -- The negative half. This is the test that would catch a CASE branch mapping check_in to
+  -- the wrong column, or to a column that is true for this officer for some other reason.
+  v_got := public.can_act('check_in', v_club_org);
+  IF v_got THEN
+    r := r || E'TEST 9  officer checks in without the flag ....... *** FAIL — ALLOWED WITHOUT THE FLAG ***\n';
+    pass_all := false;
+  ELSE
+    r := r || E'TEST 9  officer checks in without the flag ....... PASS (refused)\n';
+  END IF;
+
+  -- ---------- TEST 10 — the school admin's can_check_in reaches the club. Must be TRUE. ----------
+  -- Same shape as test 2, on a new flag. It matters separately because the walk is written
+  -- once but the CASE is written per flag: a flag can be present in the column and absent
+  -- from the CASE, and then it works for nobody at any level.
+  PERFORM set_config('request.jwt.claims',
+    format('{"role":"authenticated","sub":"%s"}', v_admin), true);
+  v_got := public.can_act('check_in', v_club_org);
+  IF v_got THEN
+    r := r || E'TEST 10 school admin checks in two levels down ... PASS (allowed)\n';
+  ELSE
+    r := r || E'TEST 10 school admin checks in two levels down ... *** FAIL — REFUSED ***\n';
+    pass_all := false;
+  END IF;
+
+  -- ---------- TEST 11 — the dropped flag is inert, not an error. Must be FALSE. ----------
+  -- can_moderate was removed by 2026-09-05_flag_set.sql. The CASE ends in `else false`, so a
+  -- request for a flag that no longer exists is REFUSED rather than raising — which is the
+  -- right direction for a permission function, and is also why a misspelled action name
+  -- fails silently rather than loudly. Asserted here so the behaviour is a decision on the
+  -- record rather than an accident nobody checked.
+  --
+  -- The school admin is the caller deliberately: they hold the most authority available, so
+  -- if anything could make a dead flag answer true, it would be them.
+  BEGIN
+    v_got := public.can_act('moderate', v_club_org);
+    IF v_got THEN
+      r := r || E'TEST 11 the dropped flag stays refused .......... *** FAIL — ALLOWED ***\n';
+      pass_all := false;
+    ELSE
+      r := r || E'TEST 11 the dropped flag stays refused .......... PASS (refused, no error)\n';
+    END IF;
+  EXCEPTION WHEN others THEN
+    r := r || format(E'TEST 11 the dropped flag stays refused .......... FAIL — raised instead: %s\n', SQLERRM);
     pass_all := false;
   END;
 

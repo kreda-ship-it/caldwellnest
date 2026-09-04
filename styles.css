@@ -1047,6 +1047,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .org-empty { padding: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 
+/* A removed member is history, not a member. Dimmed rather than hidden, so an officer can
+   see who used to serve and restore them — and so removal never looks like deletion. The
+   name stays legible on purpose: this is a record, and a record you cannot read is not one. */
+.org-roster-row-off .org-roster-who  { color: var(--text-muted); text-decoration: line-through; }
+.org-roster-row-off .org-roster-role { font-style: italic; }
+
+/* Sits under the add-officer form. Explains a limit rather than labelling a control, so it
+   is quieter than .org-empty and indented to read as a footnote to the field above it. */
+.org-note {
+  margin-top: 6px; padding: 0 2px;
+  font-size: 12px; line-height: 1.5; color: var(--text-faint);
+}
+
 /* ── Notification bell + history (2026-09-04) ──────────────────────────────── */
 /* Deliberately NOT .nav-btn. The mobile rule `#navUser .nav-btn{display:none}`
    hides those below 768px, and a campus app is read mostly on phones — the bell
