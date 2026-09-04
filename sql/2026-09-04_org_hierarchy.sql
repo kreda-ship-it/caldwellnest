@@ -355,6 +355,30 @@ grant select, insert, update         on public.organizations   to authenticated;
 grant select, insert, update, delete on public.org_memberships to authenticated;
 grant select, insert, delete         on public.org_follows     to authenticated;
 
+-- AND TAKE BACK WHAT SUPABASE HANDED OUT ON ITS OWN.
+-- Corrected 2026-09-04: the first version of this file granted what these tables need and
+-- stopped there, which was wrong. Supabase sets project-wide DEFAULT PRIVILEGES on the public
+-- schema, so a brand-new table arrives already carrying REFERENCES, TRIGGER and TRUNCATE for
+-- both roles before any grant of ours runs. Verified on these three tables the moment they
+-- were created: anon held all three.
+--
+-- TRUNCATE is the one that matters, and it is the reason this is not merely tidiness:
+-- **RLS does not apply to TRUNCATE.** It is a table-level operation, so a single statement
+-- would empty every membership row regardless of every policy above it. PostgREST will not
+-- issue a TRUNCATE, so this was never an open door — but a permission that RLS cannot govern
+-- has no business sitting on the table that decides who is an officer.
+--
+-- sql/2026-09-01_saved_items.sql found and documented this first, on `favorites`. That is why
+-- favorites is the only table in the database with no anon grant at all.
+
+revoke truncate, references, trigger on public.organizations   from authenticated;
+revoke truncate, references, trigger on public.org_memberships from authenticated;
+revoke truncate, references, trigger on public.org_follows     from authenticated;
+
+revoke all on public.organizations   from anon;
+revoke all on public.org_memberships from anon;
+revoke all on public.org_follows     from anon;
+
 
 commit;
 
