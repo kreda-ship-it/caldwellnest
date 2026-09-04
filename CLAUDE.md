@@ -89,6 +89,12 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - When code and database disagree about a column name, the DATABASE is ground truth. Verify what actually exists (Table Editor, or `information_schema.columns`) before renaming anything in code. Plans/roadmap notes describe intentions, not reality. (A session once renamed working code to match a stale ROADMAP note — don't repeat that.)
 - Mobile gestures: use `touchstart/touchmove/touchend` with `preventDefault()` on a non-passive touchmove — NOT pointer events, which iOS Safari cancels silently.
 
+## Browser cache (hard-learned 2026-09-04)
+- The `<script src="js/...">` tags carry no version marker, so after editing a JS file the browser will happily keep serving the old one. `index.html` often refreshes when the JS does not, which produces **new markup calling into old code** — a convincing fake bug.
+- **A change that appears to have had no effect at all is a cache symptom more often than a logic one.** Before debugging, hard refresh: `Cmd+Shift+R` / `Ctrl+Shift+F5`.
+- The tell on 2026-09-04: a new admin tab appeared but rendered blank, *and* its heading showed the raw section name. Two unrelated edits in the same file both missing points at the file being stale, not at either edit.
+- Not to be confused with `Uncaught SyntaxError: Unexpected token '<'`. On a real `.js` file that means the server returned an HTML page (usually a 404) where JavaScript was expected. Prefixed `VM###` instead, it just means something was pasted into the console.
+
 ## Known limitations (do NOT "fix" these silently — they're known and planned)
 - Core data (accounts, profiles, listings, messages, books) persists in Supabase. The ADMIN side still has in-memory pieces that reset on refresh: the live site editor content (`DB.content`) and `DB.settings`. Persisting those is a future task.
 - **There are two activity logs, and only one is real.** `admin_activity_log` (a Supabase table) is the audit trail: written by `logEvent()`, read back by `fetchActivityLog()` with filtering, paging and undo. `DB.log` is a leftover in-memory array — still written in 21 places, but read by nothing since 2026-09-03. **Write new logging through `logEvent()`, never `DB.log`.** Removing the dead writes is a pending cleanup (it spans `js/admin.js` and `js/listings.js`).

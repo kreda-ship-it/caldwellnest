@@ -1910,6 +1910,11 @@ retyping them.
       whole admin file down with a ReferenceError. The existing `exports:` entry uses the same
       form for the same reason. **This is the cross-file hoisting rule in CLAUDE.md, hit for
       real.**
+- ✅ **Confirmed in the browser 2026-09-04.** The tab renders. Getting there cost several
+      exchanges to a stale `js/admin.js`: the tab appeared (fresh `index.html`) but was blank
+      and titled with the raw section name (stale `admin.js`), which looked like broken code
+      and was not. Recorded in CLAUDE.md under "Browser cache". The script tags carry no
+      version marker, so this will recur on every JS change until they do.
 - ⬜ **Workstream 1 is now complete.** Next is workstream 2: the org console at
       `#page-org-console`, with the "Switch to org console" entry gated on
       `orgIsOfficerAnywhere()`.
