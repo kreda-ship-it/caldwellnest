@@ -1877,8 +1877,23 @@ retyping them.
       browser, so the walk stops early and answers false where the database would answer true.
       A missing button is a nuisance; a working button that should not work is the thing that
       must never happen. It fails closed.
+- 🔴 **Gap found in stage 1, fix written 2026-09-04, NOT YET APPLIED** —
+      `sql/2026-09-04_fix_membership_insert_guard.sql`. `guard_org_membership_flags()` was
+      created BEFORE UPDATE only. It stopped someone with `can_manage_members` from raising an
+      existing member's permissions, but nothing guarded INSERT — and the insert policy asks
+      only for `can_manage_members`. So a club officer could create a **new** membership row
+      carrying every flag including `can_manage_admins`: they could not raise their own row,
+      but they could hand full authority to a second account and reach the same place one step
+      later. Found while building stage 3, which is the first code that inserts an officer row.
+      The same lesson as A0 from the other direction — ask what a write can **create**, not
+      only what it can change.
 - ⬜ Stage 3 remains: org management inside the **existing** admin page — not the console,
-      which is workstream 2.
+      which is workstream 2. Blocked on the guard fix above, since the UI inserts officer rows.
+      Placement decided 2026-09-04: **a new tab** in the admin sidebar, `asec-orgs`, registered
+      in `_agoMap` as `orgs: () => renderOrgs()` — the deferred-arrow form, because `_agoMap` is
+      built at load time in `js/admin.js` and `renderOrgs` lives in `js/orgs.js`, which loads
+      after it. A bare reference would be undefined and break the whole admin file. The
+      existing `exports:` entry already uses this form for the same reason.
 
 ### Correction worth keeping
 `2026-09-04_org_hierarchy.sql` first granted what the three new tables needed and stopped
