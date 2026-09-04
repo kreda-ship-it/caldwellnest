@@ -493,8 +493,15 @@ function showStudentNotifications(notifs) {
 
 function dismissNotifications() { closeModal('notifModal'); }
 
-function aNotifyStudent(profileId, type, message) {
-  supabaseClient.from('notifications').insert({ profile_id: profileId, type, message, read: false });
+async function aNotifyStudent(profileId, type, message) {
+  const { error } = await supabaseClient.from('notifications')
+    .insert({ profile_id: profileId, type, message, read: false });
+  // Fire-and-forget until 2026-09-04: this insert was never awaited and its error never
+  // read, so a rejected write failed in total silence -- the student simply never heard
+  // that their listing was removed, and nothing anywhere said why. That is the one thing
+  // this path must not do, because the student cannot tell "nothing happened" from
+  // "nobody told me". Callers still do not await; the point is the console line.
+  if (error) console.error('[aNotifyStudent] insert failed:', error.message, { profileId, type });
 }
 
 // ============================================================
