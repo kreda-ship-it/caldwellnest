@@ -1519,13 +1519,13 @@ Nothing here is broken or unsafe; each is a rough edge someone will otherwise re
 scratch. Add to this list whenever one turns up. Ordered roughly by how much time each will
 cost if left.
 
-- ⬜ **Script tags carry no version marker.** `<script src="js/admin.js">` never changes, so a
+- ✅ **DONE 2026-09-04 (`f99d569`).** ~~Script tags carry no version marker.~~ All twelve `js/` tags and `styles.css` now carry `?v=`, which must be **bumped when a JS or CSS file changes** — the rule is in CLAUDE.md. Originally: `<script src="js/admin.js">` never changes, so a
       browser will happily serve yesterday's copy. On 2026-09-04 this produced a convincing
       fake bug — a new admin tab that appeared (fresh `index.html`) and rendered blank (stale
       `admin.js`) — and cost several exchanges before the cache was suspected. Fix is
       `?v=2026-09-04` on each of the twelve tags, at the cost of remembering to bump it.
       Recorded in CLAUDE.md under "Browser cache".
-- ⬜ **`DB.log` is written in 21 places and read in none** since the export fix (`f8ae745`).
+- ✅ **DONE 2026-09-04 (`0fae40d`).** ~~Dead `DB.log` writes.~~ All 21 removed along with the `log:[]` store property, after checking each was a standalone statement so deleting the line could not orphan an `if`. Originally: written in 21 places and read in none since the export fix (`f8ae745`).
       Dead writes across `js/admin.js` and `js/listings.js`. Harmless, but every one of them
       looks like working code to the next reader.
 - ⬜ **`visible_listings` and `visible_book_listings` have no SELECT grant**, so the app cannot
@@ -1537,7 +1537,7 @@ cost if left.
       key, two foreign keys and a unique pair, and no DML grants at all, so nothing can read or
       write it. Confirm it is empty, then drop. Two tables for saved items is how a future
       session picks the wrong one.
-- ⬜ **`favorites.item_type` is still `('listing','book','service')`.** `'event'` has to be
+- ✅ **DONE 2026-09-04 (`6a47257`).** ~~`favorites.item_type` missing `'event'`.~~ `sql/2026-09-04_favorites_allow_event.sql`, done before workstream 3 rather than discovered while building the event card. Originally: `'event'` has to be
       added before an event can be starred. Now an ALTER against a live table; the statement is
       written out in `sql/2026-09-04_capture_table_definitions.sql`.
 - ⬜ **Non-constraint indexes are still uncaptured.** `sql/` can rebuild the database correct
@@ -1545,14 +1545,28 @@ cost if left.
 - ⬜ **`listings.poster_id` references `auth.users` while `book_listings.poster_id` references
       `profiles`.** Both work, since `profiles.id` is itself a key to `auth.users`, but they
       differ on delete and model the same idea two ways one table apart.
-- ⬜ **"Switch org" is always visible in the console**, and toasts "you are only an officer of
+- ✅ **DONE 2026-09-04 (`6a47257`).** ~~"Switch org" always visible.~~ Hidden unless there is somewhere to switch to — a control whose usual answer is "no" should not be on screen. Originally: always visible, and toasts "you are only an officer of
       one organization" for the common case. It should hide itself unless there is somewhere to
       switch to.
-- ⬜ **The org console has one entrance**, on the profile page. An officer who is deep in the
+- ✅ **DONE 2026-09-04 (`6a47257`).** ~~One console entrance.~~ A nav shortcut beside the bell, hidden for non-officers, using the bell's class because the mobile rule would hide a `.nav-btn`. Originally: one entrance on the profile page. An officer who is deep in the
       app has to go back to their profile to reach it.
 - ⬜ **`profiles.verification_status` and `profiles.preferences` exist and are unused** —
       nothing in `js/` reads either. Either wire them up or drop them; a column that is neither
-      is a question every future reader has to ask and answer.
+      is a question every future reader has to ask and answer. **Needs a decision**: dropping a
+      column is irreversible and `verification_status` sounds like something the `.edu` gate was
+      meant to use.
+
+### Still open, and why each is not just "do it"
+The five above were mechanical. These are not, and each is blocked on something specific rather
+than on effort:
+
+| Papercut | Blocked on |
+|---|---|
+| `visible_listings` has no SELECT grant | **A design decision.** A view runs with its owner's permissions by default, so granting SELECT would bypass the RLS on `listings` underneath. Needs `security_invoker` thought through, not a quick GRANT. |
+| `saved_listings` is dead | **One query** — confirm it is empty before dropping a table. |
+| Indexes uncaptured | **One query**, at the bottom of the capture file. |
+| Mixed `poster_id` FK targets | **A judgement call.** Changing a foreign key on a live table for consistency alone, with no bug attached, may not be worth the risk. |
+| Unused `profiles` columns | **A decision** — see above. |
 
 ---
 
