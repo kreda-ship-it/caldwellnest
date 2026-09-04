@@ -1956,6 +1956,36 @@ retyping them.
       non-admin can only read their own row from `profiles` and a roster of one is not a roster.
       `boot.js` deliberately does NOT restore into the console on reload: the markup is an empty
       shell until `orgConsoleOpen()` has chosen an org, and a blank console reads as broken.
+- ✅ **Console extended beyond the plan 2026-09-04 — announcements, polls, logo.** Kal asked
+      for a richer console than §3 describes, and for the design to follow how professional
+      products do it. Researched first: [Anthology Engage](https://www.anthology.com/material/anthology-engage)
+      and [CampusGroups](https://colleges.icommunify.com/blog/campusgroups-vs-anthology-engage-what-student-affairs-teams-should-compare)
+      hang registration and attendance off an event; [Facebook Groups](https://www.facebook.com/help/1395974820512040)
+      and [Discord forum channels](https://support.discord.com/hc/en-us/articles/6208479917079-Forum-Channels-FAQ)
+      have one post entity plus pinning; a [Slack poll](https://slack.com/help/articles/229002507-Create-a-poll-in-Slack)
+      is an ordinary message carrying structured options.
+      **They all split the same way: events are their own entity, everything else is a post.**
+      So `org_posts` (announcement | poll), `poll_options` and `poll_votes` — and `events`
+      stays as designed. §4.1 already made this argument when moving events off `listings`;
+      putting them on a generic posts table would be the same mistake with a new name.
+      **Poll results are visible only after you vote**, enforced in RLS rather than hidden in
+      the browser — the rule is "you cannot see the votes", not "we will not show them". That
+      needs `has_voted()` as SECURITY DEFINER: the natural policy would query `poll_votes` from
+      a policy on `poll_votes` and Postgres would raise infinite recursion. No officer write
+      policy exists on votes, so nobody can vote on someone's behalf.
+      **One pinned post per org**, as a partial unique index. Discord allows exactly one for
+      the same reason: if everything is pinned, nothing is.
+      **`is_urgent` is stored and does nothing yet, and says so in the composer.** In every
+      product that has it, urgent is a *delivery* decision — Remind sends SMS, Slack pushes to
+      everyone. With no delivery layer it is a red rail seen only by students already looking.
+      The column is right and the email layer will read it; a flag nothing acts on is theater,
+      the same shape as a permission its holder can lift.
+      Logo upload reuses the `listing-photos` bucket and files under the **officer's own user
+      id** — `uploadAvatar()` records that the first folder must be the uploader's id to pass
+      the storage policy, so a logo under `org-5/` would have been rejected.
+      ⬜ **The poll gate is untested.** It needs two accounts: results must be invisible to a
+      student who has not voted. A single session cannot prove it, the same reason
+      `verify_can_act.sql` impersonates three different students.
 - ⬜ Next: workstream 3 — the `events` table, the migration off `listings`, and the post form.
 
 ### Correction worth keeping
