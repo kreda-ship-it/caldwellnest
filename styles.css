@@ -1051,12 +1051,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* Deliberately NOT .nav-btn. The mobile rule `#navUser .nav-btn{display:none}`
    hides those below 768px, and a campus app is read mostly on phones — the bell
    has to survive there, so it sits beside .nav-avatar, which also survives. */
+/* Line-art to match ico() and the mobile tab bar, not an emoji. listings.js:657
+   says it outright: "use these app-wide, not emojis". `currentColor` is what makes
+   it inherit the nav's white, the way every other icon in the app does. */
 .nav-bell {
-  position: relative; background: none; border: none; cursor: pointer;
-  font-size: 17px; line-height: 1; padding: 4px 6px;
-  opacity: .85; transition: opacity .15s;
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; padding: 4px 6px;
+  color: rgba(255,255,255,0.8);
+  transition: color .15s;
 }
-.nav-bell:hover { opacity: 1; }
+.nav-bell:hover { color: #fff; }
 
 .notif-badge {
   display: none;                 /* .show is added only when the count is > 0 */
