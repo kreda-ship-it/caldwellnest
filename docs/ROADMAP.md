@@ -1512,6 +1512,50 @@ the new columns with errors that read as if they don't exist.
 
 ---
 
+# 🩹 PAPERCUTS (opened 2026-09-04)
+
+Small, known, and individually not worth a session — which is exactly why they get lost.
+Nothing here is broken or unsafe; each is a rough edge someone will otherwise rediscover from
+scratch. Add to this list whenever one turns up. Ordered roughly by how much time each will
+cost if left.
+
+- ⬜ **Script tags carry no version marker.** `<script src="js/admin.js">` never changes, so a
+      browser will happily serve yesterday's copy. On 2026-09-04 this produced a convincing
+      fake bug — a new admin tab that appeared (fresh `index.html`) and rendered blank (stale
+      `admin.js`) — and cost several exchanges before the cache was suspected. Fix is
+      `?v=2026-09-04` on each of the twelve tags, at the cost of remembering to bump it.
+      Recorded in CLAUDE.md under "Browser cache".
+- ⬜ **`DB.log` is written in 21 places and read in none** since the export fix (`f8ae745`).
+      Dead writes across `js/admin.js` and `js/listings.js`. Harmless, but every one of them
+      looks like working code to the next reader.
+- ⬜ **`visible_listings` and `visible_book_listings` have no SELECT grant**, so the app cannot
+      read them and `isListingLive()` in `js/data.js` is a hand-copy of the rule that has
+      already drifted once (`js/profile.js:151`). Granting SELECT is one line, but a view runs
+      with its owner's permissions by default, so it needs `security_invoker` thought through
+      rather than a quick GRANT. Also blocks §4.6 of the engagement plan.
+- ⬜ **`saved_listings` is a dead predecessor of `favorites`** — fully built, with a primary
+      key, two foreign keys and a unique pair, and no DML grants at all, so nothing can read or
+      write it. Confirm it is empty, then drop. Two tables for saved items is how a future
+      session picks the wrong one.
+- ⬜ **`favorites.item_type` is still `('listing','book','service')`.** `'event'` has to be
+      added before an event can be starred. Now an ALTER against a live table; the statement is
+      written out in `sql/2026-09-04_capture_table_definitions.sql`.
+- ⬜ **Non-constraint indexes are still uncaptured.** `sql/` can rebuild the database correct
+      and slow. One query, at the bottom of the capture file.
+- ⬜ **`listings.poster_id` references `auth.users` while `book_listings.poster_id` references
+      `profiles`.** Both work, since `profiles.id` is itself a key to `auth.users`, but they
+      differ on delete and model the same idea two ways one table apart.
+- ⬜ **"Switch org" is always visible in the console**, and toasts "you are only an officer of
+      one organization" for the common case. It should hide itself unless there is somewhere to
+      switch to.
+- ⬜ **The org console has one entrance**, on the profile page. An officer who is deep in the
+      app has to go back to their profile to reach it.
+- ⬜ **`profiles.verification_status` and `profiles.preferences` exist and are unused** —
+      nothing in `js/` reads either. Either wire them up or drop them; a column that is neither
+      is a question every future reader has to ask and answer.
+
+---
+
 # 🔴 LAUNCH BLOCKERS (opened 2026-08-07)
 
 Things that are **live and wrong**, not merely unbuilt. Clear these before real students

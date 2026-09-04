@@ -430,8 +430,24 @@ async function orgConsoleOpen(orgId) {
   else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
 
   _ocSection = 'posts';
+  // Remembered so a refresh returns here rather than to the feed. showPage() already stores
+  // 'org-console' as the last page; on its own that is not enough, because the console markup
+  // is an empty shell until an organization has been chosen.
+  try { sessionStorage.setItem('cn_oc_org', String(_ocOrgId)); } catch (e) { /* private mode */ }
   showPage('org-console');
   renderOrgConsole();
+}
+
+// Called by boot.js when the remembered page is the console. Falls back to the feed rather
+// than to a blank shell if the stored org is gone — deactivated, or the officer removed from
+// it while the tab was closed.
+async function orgConsoleRestore() {
+  let id = null;
+  try { id = parseInt(sessionStorage.getItem('cn_oc_org'), 10) || null; } catch (e) { /* private mode */ }
+  await loadOrgContext(true);
+  const stillMine = id && orgMemberships().some(m => m.role === 'officer' && m.org_id === id);
+  if (stillMine) { orgConsoleOpen(id); return; }
+  showPage('listings');
 }
 
 function orgConsolePick(mine) {

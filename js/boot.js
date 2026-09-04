@@ -106,10 +106,12 @@ if (!adminPreviewMode && !_recoveryMode) {
   // fix: without it, a signed-in student with no cn_last_page (i.e. anyone reopening the app
   // rather than reloading a live tab) simply stayed on the "Join us" landing page.
   const lastPage = sessionStorage.getItem('cn_last_page');
-  // 'org-console' is excluded deliberately: its markup is an empty shell that only means
-  // anything after orgConsoleOpen() has chosen an organization and rendered into it. Restoring
-  // it directly would show a blank console, which reads as broken rather than as signed-out.
-  if (lastPage && lastPage !== 'home' && lastPage !== 'org-console' && document.getElementById('page-' + lastPage)) {
+  // The console cannot be restored with a bare showPage(): its markup is an empty shell until
+  // orgConsoleOpen() has chosen an organization and rendered into it. It gets its own restore,
+  // which re-reads the remembered org and checks the officer still holds it.
+  if (lastPage === 'org-console') {
+    orgConsoleRestore();
+  } else if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {
     showPage(lastPage);
     if (lastPage === 'messages') {
       try {
