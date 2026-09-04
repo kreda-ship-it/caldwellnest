@@ -409,6 +409,13 @@ async function renderOrgConsoleEntry() {
   if (!getEffectiveUser()) return;
 
   await loadOrgContext();
+
+  // The nav shortcut, so an officer deep in the app does not have to walk back to their
+  // profile to reach the console. Same class as the bell deliberately: the mobile rule
+  // `#navUser .nav-btn{display:none}` would hide a .nav-btn, and officers use phones too.
+  const navBtn = document.getElementById('navConsoleBtn');
+  if (navBtn) navBtn.hidden = !orgIsOfficerAnywhere();
+
   if (!orgIsOfficerAnywhere()) return;      // students never see it
 
   const mine = orgMemberships().filter(m => m.role === 'officer');
@@ -490,6 +497,12 @@ function renderOrgConsole() {
   const me = _orgCtx.grants.get(_ocOrgId);
   document.getElementById('ocIdentity').innerHTML =
     `${esc(org.name)} <span class="oc-sep">·</span> <span class="oc-role">${esc(me?.title || me?.role || 'Administrator')}</span>`;
+
+  // Nothing to switch to is not a button. It used to render always and toast "you are only an
+  // officer of one organization", which is the common case — a control whose usual answer is
+  // "no" should not be on screen.
+  const swBtn = document.getElementById('ocSwitchBtn');
+  if (swBtn) swBtn.hidden = orgMemberships().filter(m => m.role === 'officer').length < 2;
 
   document.getElementById('ocNav').innerHTML = orgConsoleSections().map(s =>
     s.soon
