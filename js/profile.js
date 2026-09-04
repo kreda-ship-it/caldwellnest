@@ -251,7 +251,16 @@ async function viewStudentProfile(profileId) {
 
   const body = document.getElementById('pubProfileBody');
   body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">Loading…</div>';
-  openModal('pubProfileModal');
+  // The listing detail has to close first, or the profile opens UNDERNEATH it. Both are
+  // .modal-overlay with z-index 500, and when z-index ties the winner is whichever comes
+  // later in the HTML -- #detailModal sits at index.html:1344 and #pubProfileModal at 1172,
+  // so the listing always paints over the profile no matter which was opened last. The bug
+  // looked like "tapping the avatar does nothing"; the modal was open the whole time.
+  //
+  // The branch a few lines above already does this when you tap your OWN avatar. This is the
+  // same thing for everyone else. closeModal() on an already-closed modal is a no-op, so this
+  // stays correct when the profile is opened from somewhere other than a listing.
+  switchModal('detailModal', 'pubProfileModal');
 
   const [{ data: p }, { data: listings }, { data: books }] = await Promise.all([
     supabaseClient.from('public_profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
