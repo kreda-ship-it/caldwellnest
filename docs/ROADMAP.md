@@ -1887,13 +1887,27 @@ retyping them.
       later. Found while building stage 3, which is the first code that inserts an officer row.
       The same lesson as A0 from the other direction — ask what a write can **create**, not
       only what it can change.
-- ⬜ Stage 3 remains: org management inside the **existing** admin page — not the console,
-      which is workstream 2. Blocked on the guard fix above, since the UI inserts officer rows.
-      Placement decided 2026-09-04: **a new tab** in the admin sidebar, `asec-orgs`, registered
-      in `_agoMap` as `orgs: () => renderOrgs()` — the deferred-arrow form, because `_agoMap` is
-      built at load time in `js/admin.js` and `renderOrgs` lives in `js/orgs.js`, which loads
-      after it. A bare reference would be undefined and break the whole admin file. The
-      existing `exports:` entry already uses this form for the same reason.
+- ✅ **Stage 3 done 2026-09-04** — org management as its own tab in the existing admin page.
+      An **Organizations** entry in the admin sidebar, `asec-orgs` rendered entirely by
+      `renderOrgs()` in `js/orgs.js`, styled by classes in `styles.css` (no new inline styles).
+      Shows the hierarchy as an indented tree, and offers, each gated by `orgCanAct()`:
+      create a child organization (`+ department` under a school, `+ club` under a department),
+      deactivate and reactivate, and an officer panel with the roster, add-by-email and remove.
+      Slugs are derived from the name rather than typed, since `unique (school, slug)` would
+      otherwise let two clubs differ by one capital letter. New officers get a deliberate
+      partial default — post, manage members, view analytics, message — and **not**
+      `create_child_orgs`, `moderate` or `manage_admins`, because granting authority should
+      never be handed out by default. Adding someone who has not signed up yet stores
+      `pending_email` (plan A15).
+      Registered in `_agoMap` as `orgs: () => renderOrgs()` — the deferred-arrow form, because
+      `_agoMap` is built at load time in `js/admin.js` while `renderOrgs` lives in `js/orgs.js`,
+      which loads after it. A bare reference would be `undefined` at that moment and take the
+      whole admin file down with a ReferenceError. The existing `exports:` entry uses the same
+      form for the same reason. **This is the cross-file hoisting rule in CLAUDE.md, hit for
+      real.**
+- ⬜ **Workstream 1 is now complete.** Next is workstream 2: the org console at
+      `#page-org-console`, with the "Switch to org console" entry gated on
+      `orgIsOfficerAnywhere()`.
 
 ### Correction worth keeping
 `2026-09-04_org_hierarchy.sql` first granted what the three new tables needed and stopped

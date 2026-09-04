@@ -284,7 +284,7 @@ async function buildMultiSchoolStats() {
     </div>`;
 }
 
-const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
+const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
 // ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
 // (There used to be a second, earlier definition here. It never ran: two function declarations
 // with the same name in one script scope means the LAST one wins for the whole scope, so this
@@ -3890,6 +3890,11 @@ const _agoMap = {
   students: renderAStudents, messages: renderAMessages, reports: renderAReports,
   activity: renderAActivity, analytics: buildAnalytics,
   exports: () => { renderExports(); },
+  // Deferred on purpose. renderOrgs() lives in js/orgs.js, which loads AFTER this file, so a
+  // bare `orgs: renderOrgs` would evaluate to undefined while this object literal is being
+  // built and take the whole admin file down with a ReferenceError. The arrow defers the
+  // lookup to call time, by which point orgs.js has defined it. Same reason as `exports`.
+  orgs: () => renderOrgs(),
   health: renderHealth,
   appeals: renderAppeals,
 };

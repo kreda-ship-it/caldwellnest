@@ -337,6 +337,7 @@
         <button class="a-nav-item" onclick="ago('pinned',this)" data-tooltip="Pinned / Featured"><span class="n-icon">&#128204;</span><span class="n-label">Pinned / Featured</span></button>
         <div class="a-sec-label">People</div>
         <button class="a-nav-item" onclick="ago('students',this)" data-tooltip="Students"><span class="n-icon">&#128101;</span><span class="n-label">Students</span></button>
+        <button class="a-nav-item" onclick="ago('orgs',this)" data-tooltip="Organizations"><span class="n-icon">&#127979;</span><span class="n-label">Organizations</span></button>
         <button class="a-nav-item" onclick="ago('messages',this)" data-tooltip="Messages"><span class="n-icon">&#128172;</span><span class="n-label">Messages</span></button>
         <button class="a-nav-item" onclick="ago('reports',this)" data-tooltip="Reports"><span class="n-icon">&#128681;</span><span class="n-label">Reports</span><span class="n-badge red" id="reportsBadge" style="display:none">0</span></button>
         <button class="a-nav-item" onclick="ago('appeals',this)" data-tooltip="Appeals"><span class="n-icon">&#128140;</span><span class="n-label">Appeals</span><span class="n-badge red" id="appealsBadge" style="display:none">0</span></button>
@@ -512,6 +513,9 @@
         </div>
 
         <!-- MESSAGES (admin view) -->
+        <!-- Rendered entirely by renderOrgs() in js/orgs.js, like asec-appeals. -->
+        <div class="a-section" id="asec-orgs"></div>
+
         <div class="a-section" id="asec-messages">
           <div style="margin-bottom:12px;padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);border:1px solid #f5c977;">&#9888; Message logs visible to admins only. Governed by privacy policy.</div>
           <div class="tcard">

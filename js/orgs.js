@@ -174,3 +174,213 @@ function orgTree(school) {
   roots.sort(byName); roots.forEach(sortRec);
   return roots;
 }
+
+
+// ============================================================
+// ADMIN UI — workstream 1 stage 3
+// ============================================================
+// Lives in the EXISTING admin page as its own tab, not in the org console. The console is
+// workstream 2 and the plan is explicit about not building it early: this tab exists so that
+// organizations can be created at all, which everything later depends on.
+//
+// Every action below is gated twice. orgCanAct() decides whether the button is drawn; RLS
+// decides whether the write succeeds. The second one is the real one. If you ever find a
+// button here that works when it should not, the bug is in the SQL, not in this file.
+
+let _orgOpenPanel = null;   // org id whose officer panel is expanded, or null
+
+async function renderOrgs() {
+  const host = document.getElementById('asec-orgs');
+  if (!host) return;
+  host.innerHTML = '<div class="org-empty">Loading organizations…</div>';
+
+  const ctx = await loadOrgContext(true);
+  if (!ctx) { host.innerHTML = '<div class="org-empty">Could not load organizations. Check the console.</div>'; return; }
+
+  const roots = orgTree();
+  if (!roots.length) {
+    // The school row is created by the bootstrap in sql/2026-09-04_org_hierarchy.sql, and
+    // only a super admin can create a root organization — that is what makes verification
+    // provenance rather than a checkbox. So an empty tree means bootstrap has not been run,
+    // not that something is broken.
+    host.innerHTML = '<div class="org-empty"><strong>No organizations yet.</strong><br>'
+      + 'The school organization is created once, by hand, in the SQL editor — see the '
+      + 'BOOTSTRAP section of <code>sql/2026-09-04_org_hierarchy.sql</code>.</div>';
+    return;
+  }
+
+  host.innerHTML = '<div class="org-tree">' + roots.map(n => _orgNodeHtml(n, 0)).join('') + '</div>';
+}
+
+function _orgNodeHtml(node, depth) {
+  const canChild  = orgCanAct('create_child_orgs', node.id);
+  const canManage = orgCanAct('manage_members', node.id);
+  // school -> department -> club. An org that cannot have children offers no add button.
+  const childType = node.type === 'school' ? 'department' : (node.type === 'department' ? 'club' : null);
+
+  let actions = '';
+  if (canChild && childType) {
+    actions += `<button class="org-btn" onclick="orgCreateChild(${node.id}, '${childType}')">+ ${childType}</button>`;
+  }
+  if (canManage) {
+    actions += `<button class="org-btn" onclick="orgTogglePanel(${node.id})">Officers</button>`;
+    actions += node.is_active
+      ? `<button class="org-btn org-btn-warn" onclick="orgSetActive(${node.id}, false)">Deactivate</button>`
+      : `<button class="org-btn" onclick="orgSetActive(${node.id}, true)">Reactivate</button>`;
+  }
+
+  const badges = (node.is_verified ? '<span class="org-badge org-badge-ok">verified</span>' : '')
+               + (node.is_active ? '' : '<span class="org-badge org-badge-off">inactive</span>');
+
+  return `
+    <div class="org-node org-depth-${Math.min(depth, 3)}">
+      <div class="org-row${node.is_active ? '' : ' org-row-off'}">
+        <div class="org-name">${esc(node.name)} ${badges}</div>
+        <div class="org-type">${esc(node.type)}</div>
+        <div class="org-actions">${actions}</div>
+      </div>
+      <div class="org-panel" id="org-panel-${node.id}"></div>
+      ${(node.children || []).map(c => _orgNodeHtml(c, depth + 1)).join('')}
+    </div>`;
+}
+
+// ---------- create a child organization ----------
+async function orgCreateChild(parentId, type) {
+  const name = prompt(`Name of the new ${type}?`);
+  if (!name || !name.trim()) return;
+
+  const parent = _orgCtx?.orgs.get(parentId);
+  if (!parent) return;
+
+  // The slug is derived, never typed. It is half of `unique (school, slug)`, so letting a
+  // person enter it invites two clubs that differ only by a capital letter.
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) { toast('That name has no letters or numbers in it'); return; }
+
+  const { error } = await supabaseClient.from('organizations').insert({
+    school: parent.school,          // inherited, never chosen — a child cannot change schools
+    parent_id: parentId,
+    type, name: name.trim(), slug,
+    created_by: (await supabaseClient.auth.getUser()).data.user?.id || null,
+  });
+
+  if (error) {
+    // 23505 is unique_violation. Saying which constraint failed is the difference between
+    // "something went wrong" and "you already have one of these".
+    toast(error.code === '23505' ? `A ${type} with that name already exists` : 'Could not create: ' + error.message);
+    console.error('[orgCreateChild]', error);
+    return;
+  }
+  logEvent('org_created', { targetType: 'organization', targetLabel: name.trim(), school: parent.school,
+                            after: { type, parent_id: parentId } });
+  toast(`✓ ${name.trim()} created`);
+  renderOrgs();
+}
+
+// ---------- deactivate / reactivate ----------
+async function orgSetActive(orgId, active) {
+  const org = _orgCtx?.orgs.get(orgId);
+  if (!org) return;
+  if (!active && !confirm(`Deactivate ${org.name}? It disappears from the directory and its future events stop showing. Past events stay as history.`)) return;
+
+  const { error } = await supabaseClient.from('organizations').update({ is_active: active }).eq('id', orgId);
+  if (error) { toast('Could not update: ' + error.message); console.error('[orgSetActive]', error); return; }
+
+  logEvent(active ? 'org_reactivated' : 'org_deactivated',
+    { targetType: 'organization', targetId: orgId, targetLabel: org.name, school: org.school,
+      before: { is_active: !active }, after: { is_active: active } });
+  toast(active ? '✓ Reactivated' : '✓ Deactivated');
+  renderOrgs();
+}
+
+// ---------- the officer panel ----------
+async function orgTogglePanel(orgId) {
+  const el = document.getElementById('org-panel-' + orgId);
+  if (!el) return;
+  if (_orgOpenPanel === orgId) { el.innerHTML = ''; _orgOpenPanel = null; return; }
+
+  document.querySelectorAll('.org-panel').forEach(p => p.innerHTML = '');
+  _orgOpenPanel = orgId;
+  el.innerHTML = '<div class="org-empty">Loading roster…</div>';
+
+  const { data, error } = await supabaseClient
+    .from('org_memberships')
+    .select('id, user_id, pending_email, role, title, status, can_post, can_manage_members, can_manage_admins')
+    .eq('org_id', orgId);
+  if (error) { el.innerHTML = '<div class="org-empty">Could not load the roster.</div>'; console.error('[orgTogglePanel]', error); return; }
+
+  // The roster stores user_id; the names live on profiles. One extra query rather than a
+  // join, because the join would need a foreign-key relationship PostgREST can see and this
+  // is a handful of rows.
+  const ids = (data || []).map(m => m.user_id).filter(Boolean);
+  let names = {};
+  if (ids.length) {
+    const { data: profs } = await supabaseClient.from('profiles')
+      .select('id, first_name, last_name, email').in('id', ids);
+    (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim() + ` · ${p.email}`);
+  }
+
+  const canGrant = orgCanAct('manage_admins', orgId);
+  const rows = (data || []).length
+    ? data.map(m => `
+        <div class="org-roster-row">
+          <span class="org-roster-who">${esc(m.user_id ? (names[m.user_id] || m.user_id) : (m.pending_email + ' (invited)'))}</span>
+          <span class="org-roster-role">${esc(m.title || m.role)}${m.status !== 'active' ? ' · ' + esc(m.status) : ''}</span>
+          <button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>
+        </div>`).join('')
+    : '<div class="org-empty">No members yet.</div>';
+
+  el.innerHTML = rows + (canGrant ? `
+    <div class="org-form">
+      <input class="org-input" id="org-add-${orgId}" type="email" placeholder="officer@caldwell.edu" autocomplete="off">
+      <button class="org-btn" onclick="orgAddOfficer(${orgId})">Add officer</button>
+    </div>`
+    : '<div class="org-empty">Adding officers needs the “manage admins” permission.</div>');
+}
+
+async function orgAddOfficer(orgId) {
+  const input = document.getElementById('org-add-' + orgId);
+  const email = (input?.value || '').trim().toLowerCase();
+  if (!email) return;
+
+  // Look the person up. If they have not signed up yet, the membership is stored against
+  // pending_email and resolved to a user_id when they do — plan A15. Without that, onboarding
+  // an organization would require its whole e-board to sign up first, in order.
+  const { data: prof } = await supabaseClient.from('profiles').select('id').eq('email', email).maybeSingle();
+
+  const { error } = await supabaseClient.from('org_memberships').insert({
+    org_id: orgId,
+    user_id: prof?.id || null,
+    pending_email: prof ? null : email,
+    role: 'officer',
+    title: 'Officer',
+    status: 'active',
+    // A deliberate default, not a full set: post, manage the roster, read analytics, reply to
+    // messages. NOT create_child_orgs, NOT moderate, and NOT manage_admins — granting
+    // authority is the one thing that should never be handed out by default.
+    can_post: true, can_manage_members: true, can_view_analytics: true, can_message: true,
+  });
+
+  if (error) {
+    toast(error.code === '23505' ? 'That person is already on this roster' : 'Could not add: ' + error.message);
+    console.error('[orgAddOfficer]', error);
+    return;
+  }
+  const org = _orgCtx?.orgs.get(orgId);
+  logEvent('org_officer_added', { targetType: 'membership', targetId: orgId, targetLabel: email,
+                                  school: org?.school, after: { role: 'officer' } });
+  toast('✓ Officer added');
+  clearOrgContext();
+  orgTogglePanel(orgId); orgTogglePanel(orgId);   // close + reopen to repaint
+}
+
+async function orgRemoveMember(membershipId, orgId) {
+  if (!confirm('Remove this person from the organization? Events they created stay with the organization.')) return;
+  const { error } = await supabaseClient.from('org_memberships').delete().eq('id', membershipId);
+  if (error) { toast('Could not remove: ' + error.message); console.error('[orgRemoveMember]', error); return; }
+  logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId });
+  toast('✓ Removed');
+  clearOrgContext();
+  _orgOpenPanel = null;
+  orgTogglePanel(orgId);
+}

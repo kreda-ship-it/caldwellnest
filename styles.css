@@ -986,3 +986,63 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* The "Loading…" block shown while a detail drawer fetches. */
 .drawer-loading{padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px;}
+
+/* ── Admin: organizations tab (workstream 1 stage 3) ───────────────────────── */
+/* Indentation carries the hierarchy, so the depth classes are the whole layout.
+   Capped at 3 in the JS: school -> department -> club is the real shape, and a
+   runaway nesting bug should look cramped rather than scroll off the screen. */
+.org-tree { display: flex; flex-direction: column; gap: 2px; }
+.org-depth-1 { margin-left: 24px; }
+.org-depth-2 { margin-left: 48px; }
+.org-depth-3 { margin-left: 72px; }
+
+.org-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card, #fff);
+}
+.org-row-off { opacity: .55; }
+
+.org-name { flex: 1; font-weight: 600; font-size: 14px; color: var(--text); }
+.org-type {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-faint); min-width: 80px;
+}
+.org-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.org-badge {
+  display: inline-block; margin-left: 6px; padding: 2px 7px;
+  border-radius: 20px; font-size: 10px; font-weight: 600; vertical-align: middle;
+}
+.org-badge-ok  { background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); }
+.org-badge-off { background: #f3f4f6; color: #6b7280; }
+
+.org-btn {
+  padding: 6px 11px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text); cursor: pointer;
+}
+.org-btn:hover { background: var(--brand-pale, #eef3ff); border-color: var(--brand, #3B5BA5); }
+.org-btn-warn:hover { background: #fdecec; border-color: #c0392b; color: #c0392b; }
+
+.org-panel:not(:empty) {
+  margin: 4px 0 8px 24px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+}
+.org-roster-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.org-roster-row:last-of-type { border-bottom: none; }
+.org-roster-who  { flex: 1; font-size: 13px; color: var(--text); }
+.org-roster-role { font-size: 11px; color: var(--text-faint); }
+
+.org-form { display: flex; gap: 8px; margin-top: 10px; }
+.org-input {
+  flex: 1; padding: 7px 10px; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card, #fff); color: var(--text);
+}
+.org-empty { padding: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
