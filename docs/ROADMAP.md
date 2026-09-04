@@ -3,9 +3,9 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-09-03 — see **SESSION LOG 2026-09-03**, **SESSION LOG 2026-08-08**,
-**SESSION LOG 2026-08-07**, and **LAUNCH BLOCKERS** at the end of this file for the most
-recent work.
+Last updated: 2026-09-04 — see **SESSION LOG 2026-09-04**, **SESSION LOG 2026-09-03**,
+**SESSION LOG 2026-08-08**, **SESSION LOG 2026-08-07**, and **LAUNCH BLOCKERS** at the end of
+this file for the most recent work.
 
 **Architecture plans live in their own documents.** This roadmap tracks *what* ships and
 when; the plans describe *how* a feature is built, and are written before the work starts:
@@ -1809,3 +1809,114 @@ writing the function bodies and policy set into a capture file so this folder co
 database — which is the whole reason `sql/` exists.
 
 After that, workstream 1 of the campus engagement plan can start on verified ground.
+
+---
+
+# SESSION LOG 2026-09-04
+
+The day after the permission audit. Four policy findings closed, one silent-failure bug
+fixed, and **the first schema of the campus engagement system now exists in the database**.
+
+### Security — four of five findings closed
+All five came out of `sql/2026-09-04_capture_rls_policies.sql`, which captured all 67 RLS
+policies by having the database emit its own `CREATE POLICY` statements rather than anyone
+retyping them.
+
+- ✅ **Any student could forge a notification to any other student.** Both INSERT policies on
+      `notifications` were `to authenticated with check (true)`. The names said "Admin";
+      nothing tested for one, and `profile_id` was never tied to `auth.uid()`. A student could
+      write *"Your listing was removed"* into someone else's feed. Reads were never affected.
+      Verified first that `aNotifyStudent()` is only ever called from `js/admin.js`, so
+      requiring an admin removed nothing. Fixed in `2026-09-04_harden_policies.sql`.
+- ✅ **The admin roster was world-readable.** `user_roles` and `admin_roles` both carried
+      `to public using (true)`, so an anonymous visitor could list every administrator.
+      Verified both app reads filter to the caller's own row before changing it.
+- ✅ **Nine duplicate policies removed.** Exact twins differing only in name capitalisation.
+      They granted nothing extra — permissive policies OR together — but made the policy list
+      a third longer than it needed to be, on the one list that has to be read to be trusted.
+- ✅ **`search_path` pinned** on `is_super_admin()`, `get_admin_school()` and
+      `user_is_admin()`, and `STABLE` added to the two that lacked it.
+- ⬜ **F2 — every signed-in student can read every profile column**, `email`,
+      `status`, `suspension_reason` and consent timestamps included. **Not fixed, and not
+      fixable with a policy: RLS filters rows, never columns.** It needs a view exposing only
+      the safe columns plus changes to the eight `select('*')` calls on `profiles`. A session
+      of work. It belongs before launch — student emails and suspension reasons are exactly
+      what a campus platform should not hand to every other student who asks.
+
+### Also fixed
+- ✅ **`aNotifyStudent()` failed silently.** The insert was never awaited and its error never
+      read, so a rejected write meant a student simply never heard that their listing was
+      removed — with nothing anywhere saying why. That is the one path where silence costs
+      most, and the notifications policy had just changed, which is exactly the kind of
+      regression a silent insert hides. Now logs. Callers still do not await.
+
+### Campus engagement — workstream 1 stage 1 is DONE
+`sql/2026-09-04_org_hierarchy.sql`, applied and bootstrapped 2026-09-04.
+
+- ✅ `organizations`, `org_memberships`, `org_follows` created, with RLS and GRANTs.
+- ✅ `can_act()` written — one permission rule, walking `parent_id` upward so authority flows
+      downward for free. Depth-capped, because a `parent_id` cycle in a recursive query would
+      hold a connection open from a small pool.
+- ✅ A guard trigger on membership permission flags. Changing someone's flags needs
+      `can_manage_admins`, not merely `can_manage_members` — and **that distinction cannot be
+      an RLS policy**, for the same reason F2 above cannot be: a policy governs rows, not
+      columns. Same shape as `guard_profile_privileged_columns()` on `profiles`. That pattern
+      now appears twice in this database; expect to reach for it again.
+- ✅ The join-request branch of the insert policy pins every permission flag to `false`.
+      Without that, "request to join" would be "grant yourself officer."
+- ✅ **Bootstrap run.** Caldwell University exists as the root organization and Kal holds an
+      officer membership on it. Every organization created underneath inherits his authority
+      through the walk.
+- ⬜ Stages 2 and 3 remain: `js/orgs.js` (the client-side permission mirror, for hiding UI
+      only) and org management inside the **existing** admin page — not the console, which is
+      workstream 2.
+
+### Correction worth keeping
+`2026-09-04_org_hierarchy.sql` first granted what the three new tables needed and stopped
+there. **Supabase sets project-wide DEFAULT PRIVILEGES on the public schema**, so every new
+table arrives already holding `REFERENCES`, `TRIGGER` and `TRUNCATE` for both `anon` and
+`authenticated` before any grant of ours runs. A `grant` only ever adds; the extras have to be
+revoked explicitly.
+
+`TRUNCATE` is the one that matters, and the reason generalises: **RLS does not apply to
+TRUNCATE.** It is a table-level operation, so one statement would empty every membership row
+regardless of the policies above it. Nothing was reachable — PostgREST never issues a TRUNCATE
+— but a permission RLS cannot govern has no business on the table that decides who is an
+officer.
+
+`sql/2026-09-01_saved_items.sql` had already found and documented this on `favorites`, which
+is why favorites is the only table in the database with no anon grant at all. The pattern was
+there to copy and was half-copied. **Caught by running the file's own verification query and
+not accepting the mismatch** — the check said "expect no rows" and returned nine.
+
+### Captured (sql/ can now rebuild more of the database)
+- ✅ All 67 RLS policies — `2026-09-04_capture_rls_policies.sql`.
+- ✅ `is_super_admin()`, `get_admin_school()`, `user_is_admin()` —
+      `2026-09-04_capture_permission_functions.sql`.
+- ✅ `user_is_admin()` turned out to be **character for character** the inline
+      `exists (select 1 from user_roles ...)` that ~30 policies repeat. So there are **two**
+      admin checks, not three: broad (any role row) and narrow (`is_super_admin()`).
+      Duplication, not disagreement — but the named function is the better form, and replacing
+      the inlined copies is what makes `can_act()`'s "one rule, one place" real.
+- ✅ `2026-09-04_verify_can_act.sql` — self-contained test of `can_act()`, on the pattern of
+      `2026-08-08_verify_owner_guards.sql`. Written because `can_act()` starts with
+      `is_super_admin() or ...`, so every call so far returned true on the first branch and
+      the recursive walk had **never executed**.
+
+### Still open
+- ⬜ **F2**, above. The largest remaining privacy item.
+- ⬜ **Table definitions** (query 8 of the capture script) still never captured. Without them
+      `sql/` restores the rules but not the tables they sit on.
+- ⬜ **GRANTs are not captured.** The audit read them and fixed what was wrong, but no file
+      records the intended grant per table.
+- ⬜ **No notification delivery.** A student only ever learns anything by opening the app —
+      noticed 2026-09-04 while testing the listing-removal path. This is A1 of the engagement
+      plan, written there about cancelled events; it is true of every notice the platform
+      sends.
+- ⬜ `DB.log` is written in 21 places and read in none. Cleanup spans `js/admin.js` and
+      `js/listings.js`.
+- ⬜ `'event'` still needs adding to `favorites.item_type` before an event can be starred.
+
+### Next
+Workstream 1 stages 2 and 3 — `js/orgs.js` and org management in the existing admin page.
+That is the point where the hierarchy stops being invisible and becomes something to click.

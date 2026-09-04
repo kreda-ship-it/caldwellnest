@@ -621,7 +621,7 @@ events are credibility, not clutter.
 
 | # | Workstream | Why here | Size |
 |---|---|---|---|
-| 1 | Organizations, memberships, `can_act()`, RLS, **org management in the existing admin page** | Nothing else is safe first. Nobody can post until this exists. | Full session, 3 stages |
+| 1 | Organizations, memberships, `can_act()`, RLS, **org management in the existing admin page** | Nothing else is safe first. Nobody can post until this exists. | Full session, 3 stages — **stage 1 shipped 2026-09-04** (`sql/2026-09-04_org_hierarchy.sql`, bootstrapped; stages 2–3 open) |
 | 2 | Org console shell + org profile CRUD + context switcher entry | The surface everything else hangs on | Full session |
 | 3 | `events` table, migration, post form with progressive disclosure | Data layer before UI | Full session |
 | 4 | Student browse + detail + org profile page | The visible payoff | Full session |
