@@ -274,7 +274,20 @@ where table_schema='public' and grantee in ('anon','public')
 select indexname, indexdef from pg_indexes
 where schemaname='public' and indexname = 'org_posts_one_pinned';
 
--- Expected: false (you have voted in nothing), and true (you are a super admin).
+-- Expected: false, false.
+--
+-- Both false is the CORRECT answer and worth understanding, because the obvious guess is that
+-- is_org_member() returns true for a super admin. It does not — not here.
+--
+-- **In the SQL editor there is no JWT, so auth.uid() is NULL.** You are not the super admin
+-- in this window; you are nobody. is_super_admin() looks for a user_roles row matching a null
+-- id, finds none, and answers false, so is_org_member() falls through to its membership check
+-- and answers false too.
+--
+-- This is the same fact that every guard in sql/ carries a break-glass clause for, and the
+-- reason 2026-09-04_verify_can_act.sql has to impersonate students with set_config() rather
+-- than simply calling can_act() and reading the result. A permission function tested from the
+-- SQL editor tells you almost nothing: it answers for a caller who does not exist.
 select public.has_voted(0) as have_i_voted, public.is_org_member(0) as am_i_a_member;
 
 

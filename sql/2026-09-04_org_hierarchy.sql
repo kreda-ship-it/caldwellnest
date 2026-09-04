@@ -406,9 +406,17 @@ where table_schema = 'public'
   and grantee in ('anon','public')
   and table_name in ('organizations','org_memberships','org_follows');
 
--- Expected: false. You hold no membership yet, and this asks about an org that does not
--- exist — the honest answer for a super admin is still true, so run it as a student to see
--- false. (As the super admin it returns true, which is itself a useful check.)
+-- Expected: false.
+--
+-- Corrected 2026-09-04: an earlier version of this comment claimed it would return TRUE
+-- because you are a super admin. It does not. **In the SQL editor there is no JWT, so
+-- auth.uid() is NULL** — you are not the super admin in this window, you are nobody, and
+-- is_super_admin() finds no user_roles row for a null id.
+--
+-- Which means this query proves very little on its own. A permission function called from the
+-- SQL editor answers for a caller who does not exist. Testing it properly is what
+-- 2026-09-04_verify_can_act.sql is for: it impersonates real students with set_config() and
+-- checks what each of them can and cannot do.
 select public.can_act('post', 1) as can_i_post_in_org_1;
 
 
