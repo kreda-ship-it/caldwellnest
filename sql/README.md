@@ -48,6 +48,8 @@ that is cheaper than trying to remember.
 | `2026-09-03_fix_rls_and_grants.sql` | Applied 2026-09-03. Enables RLS on `admin_activity_log` (it was **off**, with three policies that were therefore never consulted) and revokes dead `anon` write grants on `listings` and `reports`. Lists seven remaining follow-ups. |
 | `2026-09-04_capture_permission_functions.sql` | **Capture only.** `is_super_admin()`, `get_admin_school()` and `user_is_admin()` — every admin permission routes through one of the three, and none had been written down. |
 | `2026-09-04_capture_rls_policies.sql` | **Capture.** All 67 RLS policies, emitted by the database itself rather than retyped. Records reality including its duplicates, and lists five findings — notably that both `notifications` INSERT policies check `true`. |
+| `2026-09-04_harden_policies.sql` | Closes four of those five findings: notification forgery, the world-readable admin roster, nine duplicate policies, and unpinned `search_path` on the three permission functions. Explains why the fifth (profile columns) needs code, not a policy. |
+| `2026-09-04_org_hierarchy.sql` | Campus engagement workstream 1 stage 1: `organizations`, `org_memberships`, `org_follows`, the `can_act()` permission rule, a flag guard trigger, RLS and GRANTs. Creates no rows — see its BOOTSTRAP section. **Run after the hardening file.** |
 
 ## Naming
 
