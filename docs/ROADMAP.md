@@ -1877,8 +1877,13 @@ retyping them.
       browser, so the walk stops early and answers false where the database would answer true.
       A missing button is a nuisance; a working button that should not work is the thing that
       must never happen. It fails closed.
-- 🔴 **Gap found in stage 1, fix written 2026-09-04, NOT YET APPLIED** —
-      `sql/2026-09-04_fix_membership_insert_guard.sql`. `guard_org_membership_flags()` was
+- ✅ **Gap found in stage 1, fixed and verified 2026-09-04** —
+      `sql/2026-09-04_fix_membership_insert_guard.sql`, applied; trigger confirmed as
+      `BEFORE INSERT OR UPDATE`, and `verify_can_act.sql` re-run with all seven tests still
+      passing. That re-run is the part that matters: its setup inserts officer rows from the
+      SQL editor, so it exercises both the new INSERT branch and the break-glass. A guard that
+      refused everything would also have "passed" a trigger-definition check — only the
+      re-run shows it is discriminating. `guard_org_membership_flags()` was
       created BEFORE UPDATE only. It stopped someone with `can_manage_members` from raising an
       existing member's permissions, but nothing guarded INSERT — and the insert policy asks
       only for `can_manage_members`. So a club officer could create a **new** membership row
