@@ -452,10 +452,22 @@ them in over an event's life:
    in.*
 2. **Registrations** — the list, capacity state, CSV export.
 3. **Door** — §5. Only inside the check-in window, and only for a holder of `can_check_in`.
-4. **Recap** — after the event: upload recap photos, and the feedback summary.
+4. **Recap** — after the event: upload recap photos (`can_manage_events`), and the feedback
+   summary (**`can_view_analytics`** — a different flag, see below).
 
 The permission split frozen into the flag set pays off exactly here: `can_manage_events` gets 1, 2
-and 4; `can_check_in` alone gets 3 and nothing else. A first-year working the door for one evening
+and the photo half of 4; `can_check_in` alone gets 3 and nothing else.
+
+**The Recap section is split across two flags, and that is deliberate.** Rev 2 gave the whole of
+Recap to `can_manage_events` while §2 guarded `get_event_feedback()` with `view_analytics` — a
+contradiction the E1 verification file found on its second run, as an officer holding
+`manage_events` being refused their own event's feedback. The resolution is that the function is
+right: **the feedback summary is analytics, the recap photos are not.** Students are told their
+rating is shared with the organizers, not with anyone who can edit the event — and authority flows
+down, so a school admin can edit every club's events. If editing implied reading the comments,
+"private to the org" would quietly mean "private to everyone above you." An officer without
+`view_analytics` sees the photo uploader and, in place of the summary, one line: *feedback is
+visible to officers with analytics access.* Never a tab that errors when it opens. A first-year working the door for one evening
 receives the door and cannot post as the club. That separation is why the flag is narrow, and this
 is the first screen where it becomes visible.
 

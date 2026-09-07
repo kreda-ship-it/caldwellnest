@@ -109,9 +109,17 @@ BEGIN
   -- Officer A gets BOTH events flags. Officer B gets manage_events on club B only.
   -- Neither is a school admin: TEST 3 needs authority that flows DOWN from the school row,
   -- so officer B is promoted onto the school org later in its own test.
+  -- can_view_analytics is here because get_event_feedback() requires it, NOT because a
+  -- president needs every flag. The first run of this file failed on exactly this: the
+  -- fixture gave officer A manage_events and check_in and the function refused them. That
+  -- refusal was correct, and it exposed a contradiction in the plan — §3.2 put the feedback
+  -- summary inside the Recap section and gave Recap to can_manage_events, while §2 guards
+  -- the function with view_analytics. TEST 9c below now pins the resolution: the summary is
+  -- analytics, the photos are not.
   INSERT INTO public.org_memberships
-         (org_id, user_id, role, title, status, can_post, can_manage_events, can_check_in)
-  VALUES (v_club_a, v_officer_a, 'officer', 'President', 'active', true, true, true);
+         (org_id, user_id, role, title, status, can_post, can_manage_events, can_check_in,
+          can_view_analytics)
+  VALUES (v_club_a, v_officer_a, 'officer', 'President', 'active', true, true, true, true);
 
   INSERT INTO public.org_memberships
          (org_id, user_id, role, title, status, can_post, can_manage_events)
@@ -440,6 +448,25 @@ BEGIN
     r := r || E'TEST 3  school admin edits a club event ......... *** FAIL — REFUSED ***\n';
     pass_all := false;
   END IF;
+
+
+  -- ---------- TEST 9c — manage_events is NOT enough to read feedback ----------
+  -- Officer B now holds can_manage_events on the SCHOOL organization, so TEST 3 proved they
+  -- can edit club A's event. They hold no can_view_analytics anywhere. If authority flowing
+  -- down also handed them the comments, "private to the org" would mean "private to whoever
+  -- can edit anything above you", which is not what a student is told when they leave one.
+  BEGIN
+    PERFORM public.get_event_feedback(v_ev_rate);
+    r := r || E'TEST 9c manage_events alone cannot read feedback *** FAIL — RETURNED IT ***\n';
+    pass_all := false;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM LIKE '%Not authorized%' THEN
+      r := r || E'TEST 9c manage_events alone cannot read feedback PASS (refused)\n';
+    ELSE
+      r := r || format(E'TEST 9c manage_events alone cannot read feedback *** FAIL — WRONG ERROR: %s ***\n', SQLERRM);
+      pass_all := false;
+    END IF;
+  END;
 
 
   -- ======================================================================
