@@ -42,15 +42,34 @@ async function loadBooks() {
     .in('lifecycle_status', ['active', 'pending_sale'])
     .order('created_at', { ascending: false });
   if (error) { console.error('[books]', error.message); return; }
-  _books = data || [];
-  const ids = [...new Set(_books.map(b => b.poster_id).filter(Boolean))];
+  const rows = data || [];
+  const ids = [...new Set(rows.map(b => b.poster_id).filter(Boolean))];
   _bookPosterMap = {};
+  let profErr = null;
   if (ids.length) {
-    const { data: profs } = await supabaseClient.from('public_profiles')
-      .select('id, display_name, first_name, last_name, initials, color, avatar_url, school, year, major, created_at')
+    // `status` is fetched for the suspended check below, not for display. Without it this
+    // query returned everything needed to DRAW a poster and nothing needed to JUDGE one,
+    // which is why the missing filter was invisible for so long.
+    const { data: profs, error: pErr } = await supabaseClient.from('public_profiles')
+      .select('id, display_name, first_name, last_name, initials, color, avatar_url, school, year, major, created_at, status')
       .in('id', ids);
+    profErr = pErr;
+    if (pErr) console.warn('[books] poster lookup failed, keeping cached books:', pErr.message);
     (profs || []).forEach(p => { _bookPosterMap[p.id] = p; });
   }
+
+  // Suspending a student must hide their books, not just their listings. The rule already
+  // exists in the `visible_book_listings` view (`p.status <> 'suspended'`) and nothing on
+  // this path implemented it, so a suspended poster's books stayed in the feed while their
+  // listings vanished — a moderation action that half-worked, silently. Found 2026-09-06
+  // during E0; see sql/2026-09-06_capture_views.sql.
+  //
+  // On a FAILED poster lookup we keep the previously cached books rather than publishing
+  // an unfiltered set. Same principle as loadListings(): a transient failure must never
+  // un-hide a suspended poster, and stale beats leaking. Books with no poster_id have no
+  // poster to be suspended, so they stay.
+  if (profErr) return;
+  _books = rows.filter(b => !b.poster_id || _bookPosterMap[b.poster_id]?.status !== 'suspended');
 }
 
 function courseByCode(code) { return (_courses || []).find(c => c.code === code); }
