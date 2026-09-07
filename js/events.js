@@ -28,7 +28,7 @@ async function renderEvents() {
     .from('visible_events')
     .select('id, org_id, title, description, event_type, starts_at, ends_at, location, ' +
             'poster_url, status, registration_open, capacity, cancelled_reason, ' +
-            'has_ended, is_browsable, effective_ends_at, going_count, seats_left')
+            'has_ended, is_browsable, effective_ends_at, going_count, seats_left, checkin_is_open')
     .eq('school', eu?.school || 'caldwell')
     .order('starts_at', { ascending: true });
 
@@ -345,13 +345,47 @@ function evRegisterBlockHTML(e) {
   if (!e.registration_open) {
     return '<div class="evd-note">No sign-up needed — just turn up.</div>';
   }
+  // Already through the door. Nothing to offer and nothing to undo — a student who wants out
+  // after arriving is talking to the officer, not to a button.
+  if (mine && (mine.status === 'checked_in' || mine.status === 'walk_in')) {
+    return '<div class="evd-here">You are checked in &#10003;</div>';
+  }
+
+  // PERSISTENT, not a toast. The student tapped a button and now has to stand there while
+  // somebody finds them on a list; a message that fades after three seconds leaves them
+  // wondering whether the tap landed at all, and tapping again is the natural response.
+  if (mine && mine.status === 'self_reported') {
+    return `
+      <div class="evd-waiting">
+        <strong>Waiting for the organizer to confirm you</strong>
+        <div>Show them this screen if there is a queue.</div>
+      </div>`;
+  }
+
   if (mine) {
     return `
+      ${e.checkin_is_open ? `
+        <div class="evd-reg">
+          <button class="evd-btn evd-btn-go" onclick="evImHere()">I'm here</button>
+        </div>
+        <p class="evd-privacy">Tell the organizers you have arrived. They confirm it at the door.</p>` : ''}
       <div class="evd-reg">
         <div class="evd-going">You are going &#10003;</div>
         <button class="evd-btn evd-btn-ghost" onclick="evUnregister()">Cancel my place</button>
       </div>
       ${evPrivacyLine()}`;
+  }
+
+  // Not registered, but standing at the door. This is the walk-up-and-scan case and it is most
+  // of the value of the QR: one tap registers AND reports arrival, because somebody at the
+  // door should not have to do two things in the right order to get in.
+  if (e.checkin_is_open && e.seats_left !== 0) {
+    return `
+      <div class="evd-reg">
+        <button class="evd-btn evd-btn-go" onclick="evImHere()">I'm here</button>
+      </div>
+      <p class="evd-privacy">This signs you up and tells the organizers you have arrived.
+         They will see your name and email.</p>`;
   }
   if (e.seats_left === 0) {
     return `<div class="evd-reg"><button class="evd-btn" disabled>Full</button></div>
@@ -398,6 +432,34 @@ async function evRegister() {
     return;
   }
   toast('✓ You are going');
+  await evRefreshDetail();
+  renderEvents();
+}
+
+// One RPC for all three outcomes, because from the student's side it is one tap. The function
+// decides: trusted event -> checked in; normal event -> waiting for an officer; not registered
+// -> registers first, then either of those.
+//
+// The window is checked in the database, not here. The button is only OFFERED when
+// checkin_is_open says so, but a phone with a wrong clock, a page left open since yesterday,
+// or anyone reading the network tab all reach the same refusal.
+async function evImHere() {
+  const e = _evDetail;
+  if (!getEffectiveUser()) { requireAuth(); return; }
+  const btn = document.querySelector('.evd-btn-go');
+  if (btn) { btn.disabled = true; btn.textContent = 'Telling them…'; }
+
+  const { data, error } = await supabaseClient.rpc('self_report_arrival', { p_event_id: e.id });
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = "I'm here"; }
+    toast(error.message.includes('full') ? 'Sorry — that filled up'
+        : error.message.includes('not open') ? 'Check-in is not open yet'
+        : 'Could not check you in: ' + error.message);
+    console.error('[evImHere]', error);
+    await evRefreshDetail();
+    return;
+  }
+  toast(data === 'checked_in' ? '✓ You are checked in' : '✓ They know you are here');
   await evRefreshDetail();
   renderEvents();
 }

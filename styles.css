@@ -1750,3 +1750,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .evd-note { margin-top: 20px; padding: 12px 14px; border-radius: 10px;
             background: var(--surface-2, #f4f4f7); font-size: 13px; color: var(--text-muted);
             line-height: 1.6; }
+
+/* Both of these are STATES, not messages. A toast would fade while the student is still
+   standing at the door wondering whether their tap landed — and tapping again is the natural
+   response to a screen that shows nothing. */
+.evd-waiting { margin-top: 22px; padding: 16px; border-radius: 12px;
+               background: var(--warning-pale, #fdf6e3); color: var(--warning, #8a6d1f);
+               font-size: 14px; line-height: 1.6; }
+.evd-waiting strong { display: block; margin-bottom: 4px; }
+.evd-here { margin-top: 22px; padding: 18px; border-radius: 12px; text-align: center;
+            background: var(--success-pale, #eaf6ef); color: var(--success, #2e7d52);
+            font-size: 16px; font-weight: 600; }
