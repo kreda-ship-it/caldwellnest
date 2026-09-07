@@ -1010,16 +1010,177 @@ async function renderOcEvents() {
   const past     = _ocEvents.filter(e =>  e._past);
 
   body.innerHTML = `
-    <div class="oc-composer">
-      <div class="oc-post-title">Events</div>
-      <div class="oc-note">Creating and editing events arrives in the next change. This list is
-        live — anything already in the database for this organization is shown below.</div>
-    </div>
+    ${ocEventFormHTML()}
     ${upcoming.length ? `<div class="oc-note">Upcoming · ${upcoming.length}</div>
       ${upcoming.map(ocEventCardHTML).join('')}` : ''}
     ${past.length ? `<div class="oc-note">Past · ${past.length}</div>
       ${past.map(ocEventCardHTML).join('')}` : ''}
-    ${_ocEvents.length ? '' : `<div class="oc-note">No events yet.</div>`}`;
+    ${_ocEvents.length ? '' : `<div class="oc-note">Nothing scheduled yet.</div>`}`;
+}
+
+// The seven from §4.2 of the plan. Slug stored, label shown — the slug is what the student
+// events search filters on later, so it must not be the display string.
+const EVENT_TYPES = [
+  ['social', 'Social'], ['academic', 'Academic'], ['sports', 'Sports'],
+  ['service', 'Service'], ['career', 'Career'], ['arts', 'Arts'], ['meeting', 'Meeting'],
+];
+
+// Which disclosure panels are open. Module-level rather than read off the DOM, so a re-render
+// after a failed submit does not silently collapse a panel the officer had filled in.
+let _ocEvOpen = {};
+function ocEvToggle(key) {
+  _ocEvOpen[key] = !_ocEvOpen[key];
+  const el = document.getElementById('ocEvPanel-' + key);
+  const btn = document.getElementById('ocEvToggle-' + key);
+  if (el) el.hidden = !_ocEvOpen[key];
+  if (btn) btn.classList.toggle('active', !!_ocEvOpen[key]);
+}
+
+function ocEventFormHTML() {
+  // Progressive disclosure, per §3.1: a short required block, then panels that stay shut.
+  // Every required field is a reason somebody abandons the form, so the visible part is the
+  // five things an event cannot exist without.
+  //
+  // NOT offered here, and both absences are deliberate:
+  //   * Members only — the gating is deferred from V1, so a members_only row would be
+  //     invisible to everyone including its own members. Offering a switch that hides your
+  //     event from the whole campus is worse than not offering it.
+  //   * Repeat — duplicate-an-event covers it until recurrence is built.
+  return `
+    <div class="oc-composer">
+      <div class="oc-post-title">New event</div>
+
+      <input class="oc-input" id="ocEvTitle" placeholder="Event title" autocomplete="off">
+
+      <div class="oc-ev-row">
+        <input class="oc-input" id="ocEvDate" type="date" autocomplete="off">
+        <input class="oc-input" id="ocEvStart" type="time" autocomplete="off">
+        <input class="oc-input" id="ocEvEnd" type="time" autocomplete="off">
+      </div>
+      <div class="oc-note">Start and end. Leave the end blank and it is treated as about three
+        hours — long enough that the event does not disappear from the feed while it is still
+        happening.</div>
+
+      <input class="oc-input" id="ocEvLoc" placeholder="Location — e.g. Main Hall Lawn" autocomplete="off">
+
+      <select class="oc-input" id="ocEvType">
+        <option value="">What kind of event?</option>
+        ${EVENT_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+      </select>
+
+      <textarea class="oc-input" id="ocEvDesc" rows="3" placeholder="Description (optional)"></textarea>
+
+      <div class="oc-type-row">
+        <button class="oc-type" id="ocEvToggle-reg" onclick="ocEvToggle('reg')">Add registration</button>
+      </div>
+      <div id="ocEvPanel-reg" hidden>
+        <label class="oc-toggle"><input type="checkbox" id="ocEvRegOpen" checked> Let students register</label>
+        <input class="oc-input" id="ocEvCapacity" type="number" min="1" placeholder="Capacity (leave blank for unlimited)" autocomplete="off">
+        <div class="oc-note">Capacity is enforced by the database, not the browser, so the last
+          seat cannot be taken twice. Students who register are visible to you by name and
+          email — they are told that before they tap.</div>
+      </div>
+
+      <button class="btn-full oc-save" onclick="ocCreateEvent()">Publish event</button>
+    </div>`;
+}
+
+// 'YYYY-MM-DD' plus 'HH:MM' with no timezone suffix parses as LOCAL time, which is what the
+// officer typed on their own clock. toISOString() then converts to UTC for storage.
+//
+// Appending 'Z' instead — or assembling the string by hand — is the classic bug in this
+// feature: it stores 6pm as 6pm UTC, and a New Jersey club fair shows up at 2pm.
+function ocEvLocalToISO(dateStr, timeStr) {
+  const d = new Date(`${dateStr}T${timeStr}`);
+  return isNaN(d) ? null : d.toISOString();
+}
+
+async function ocCreateEvent() {
+  const title = document.getElementById('ocEvTitle').value.trim();
+  const date  = document.getElementById('ocEvDate').value;
+  const start = document.getElementById('ocEvStart').value;
+  const end   = document.getElementById('ocEvEnd').value;
+  const loc   = document.getElementById('ocEvLoc').value.trim();
+  const type  = document.getElementById('ocEvType').value;
+
+  if (!title) { toast('An event needs a title'); return; }
+  if (!date || !start) { toast('An event needs a date and a start time'); return; }
+  if (!loc)  { toast('An event needs a location'); return; }
+  if (!type) { toast('Choose what kind of event this is'); return; }
+
+  const startsAt = ocEvLocalToISO(date, start);
+  if (!startsAt) { toast('That date and time did not make sense'); return; }
+
+  let endsAt = null;
+  if (end) {
+    let e = new Date(`${date}T${end}`);
+    // An end earlier than the start means the event crosses midnight — a 10pm to 1am party is
+    // an ordinary thing to schedule. The table has a check constraint requiring
+    // ends_at > starts_at, so without this the officer gets a raw constraint error for a
+    // perfectly reasonable event.
+    if (e <= new Date(`${date}T${start}`)) e = new Date(e.getTime() + 864e5);
+    endsAt = e.toISOString();
+  }
+
+  const capRaw = document.getElementById('ocEvCapacity').value;
+  const capacity = capRaw === '' ? null : parseInt(capRaw, 10);
+  if (capacity !== null && (isNaN(capacity) || capacity < 1)) {
+    toast('Capacity has to be a whole number, or blank for unlimited'); return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const btn = document.querySelector('.oc-composer .oc-save');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+
+  const { data: ev, error } = await supabaseClient.from('events').insert({
+    org_id: _ocOrgId,
+    school: _orgCtx.orgs.get(_ocOrgId)?.school,  // overwritten by events_set_school; sent to satisfy NOT NULL
+    created_by: user?.id,
+    title,
+    description: document.getElementById('ocEvDesc').value.trim() || null,
+    event_type: type,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    location: loc,
+    registration_open: document.getElementById('ocEvRegOpen').checked,
+    capacity,
+  }).select('id').single();
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Publish event'; }
+  if (error) {
+    // The likeliest refusal here is RLS: can_act('manage_events') walked the tree and found
+    // nothing. Saying so is more useful than the raw message, which reads as a database fault.
+    toast('Could not publish: ' + error.message);
+    console.error('[ocCreateEvent]', error); return;
+  }
+
+  logEvent('event_created', {
+    targetType: 'event', targetId: ev.id, targetLabel: title,
+    school: _orgCtx.orgs.get(_ocOrgId)?.school,
+    after: { starts_at: startsAt, location: loc, event_type: type },
+  });
+  _ocEvOpen = {};
+  toast('✓ Event published');
+  renderOcEvents();
+}
+
+// Cancellation goes through the RPC, never a bare UPDATE, because the RPC writes the
+// admin_activity_log row in the same transaction and enforces the reason a second time.
+//
+// The reason is required in three places — this prompt, the function, and a check constraint
+// on the table — and that is not redundancy for its own sake. §6 makes the reason the ENTIRE
+// mitigation for having no notification layer: nobody is emailed, so the only thing a
+// registrant ever learns is what they read on the banner.
+async function ocCancelEvent(id) {
+  const ev = _ocEvents.find(e => e.id === id);
+  const reason = prompt(`Cancel "${ev ? ev.title : 'this event'}"?\n\nEveryone registered will see this reason, and it is the only way they find out — nobody is emailed yet.`);
+  if (reason === null) return;
+  if (!reason.trim()) { toast('A cancellation needs a reason'); return; }
+
+  const { error } = await supabaseClient.rpc('cancel_event', { p_event_id: id, p_reason: reason.trim() });
+  if (error) { toast('Could not cancel: ' + error.message); console.error('[ocCancelEvent]', error); return; }
+  toast('✓ Event cancelled');
+  renderOcEvents();
 }
 
 function ocEventCardHTML(e) {
@@ -1054,6 +1215,9 @@ function ocEventCardHTML(e) {
       <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}</div>
       ${e.status === 'cancelled' && e.cancelled_reason
         ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
+      ${e.status !== 'cancelled' && !e._past ? `<div class="oc-post-actions">
+        <button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel event</button>
+      </div>` : ''}
     </div>`;
 }
 

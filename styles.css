@@ -1145,6 +1145,11 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-input:disabled { background: var(--bg); color: var(--text-muted); cursor: not-allowed; }
 .oc-save { margin-top: 6px; }
 .oc-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 12px; }
+/* Date, start and end on one line. They are read together — "Tuesday, 6 to 8" is one
+   thought — and stacking them makes the officer scroll to answer a single question.
+   Wraps on a narrow phone rather than shrinking three controls until none is tappable. */
+.oc-ev-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.oc-ev-row .oc-input { flex: 1 1 130px; margin-top: 0; }
 .oc-subhead {
   font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
   color: var(--text-muted); margin: 18px 0 8px;
