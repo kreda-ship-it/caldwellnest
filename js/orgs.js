@@ -367,13 +367,24 @@ async function orgTogglePanel(orgId) {
   const rows = sorted.length
     ? sorted.map(m => {
         const gone = m.status === 'removed';
+        // No Remove control on your own row. The database refuses it anyway
+        // (guard_org_self_removal), and a button whose only outcome is an error message is
+        // worse than no button — this is the mirror, and the mirror should not offer what
+        // the server will refuse.
+        //
+        // Anyone who can see this roster holds can_manage_members, so "my own row" and "a
+        // row the guard protects" are the same row here.
+        const mine = m.user_id && m.user_id === _orgCtx?.userId;
+        const action = mine
+          ? '<span class="org-roster-self">You</span>'
+          : gone
+            ? `<button class="org-btn" onclick="orgRestoreMember(${m.id}, ${orgId})">Restore</button>`
+            : `<button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>`;
         return `
         <div class="org-roster-row${gone ? ' org-roster-row-off' : ''}">
           <span class="org-roster-who">${esc(who(m))}</span>
           <span class="org-roster-role">${esc(m.title || m.role)}${m.status !== 'active' ? ' · ' + esc(m.status) : ''}</span>
-          ${gone
-            ? `<button class="org-btn" onclick="orgRestoreMember(${m.id}, ${orgId})">Restore</button>`
-            : `<button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>`}
+          ${action}
         </div>`; }).join('')
     : '<div class="org-empty">No members yet.</div>';
 
@@ -401,7 +412,9 @@ async function orgTogglePanel(orgId) {
       <button class="org-btn" onclick="orgAddOfficer(${orgId})">Add officer</button>
     </div>
     <div class="org-note">They must already have a Nestrel account. Adding someone who has not
-    signed up yet is not supported — the invite would never resolve into a real membership.</div>`
+    signed up yet is not supported — the invite would never resolve into a real membership.<br>
+    You cannot remove your own officer role: another officer, or someone in the organization
+    above this one, has to do it.</div>`
     : '<div class="org-empty">Adding officers needs the \u201Cmanage admins\u201D permission.</div>');
 }
 
@@ -820,21 +833,28 @@ async function renderOcMembers() {
   // so a not-pending filter would list everyone who has ever left as a current member.
   const pending = (data || []).filter(m => m.status === 'pending');
   const active  = (data || []).filter(m => m.status === 'active');
-  const row = m => `
+  // Same rule as the admin panel: your own row carries no Remove control, because
+  // guard_org_self_removal() refuses it and a button that can only produce an error is not
+  // a feature. See sql/2026-09-06_guard_self_removal.sql.
+  const row = m => {
+    const mine = m.user_id && m.user_id === _orgCtx?.userId;
+    return `
     <div class="oc-member">
       <span class="oc-member-who">${esc(m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)'))}</span>
       <span class="oc-member-role">${esc(m.title || m.role)}</span>
       ${m.status === 'pending'
         ? `<button class="org-btn" onclick="ocApprove(${m.id})">Approve</button>`
         : ''}
-      <button class="org-btn org-btn-warn" onclick="ocRemove(${m.id})">Remove</button>
-    </div>`;
+      ${mine
+        ? '<span class="org-roster-self">You</span>'
+        : `<button class="org-btn org-btn-warn" onclick="ocRemove(${m.id})">Remove</button>`}
+    </div>`; };
 
   body.innerHTML =
     (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>` + pending.map(row).join('') : '') +
     `<div class="oc-subhead">Members (${active.length})</div>` +
     (active.length ? active.map(row).join('') : '<div class="oc-note">No members yet.</div>') +
-    `<div class="oc-note">Adding officers and changing permissions needs the \u201Cmanage admins\u201D permission, and is done from the admin page for now. Removing someone keeps a record that they served \u2014 they can be restored from the admin page.</div>`;
+    `<div class="oc-note">Adding officers and changing permissions needs the \u201Cmanage admins\u201D permission, and is done from the admin page for now. Removing someone keeps a record that they served \u2014 they can be restored from the admin page. You cannot remove your own officer role; another officer, or someone in the organization above this one, has to do it.</div>`;
 }
 
 async function ocApprove(membershipId) {

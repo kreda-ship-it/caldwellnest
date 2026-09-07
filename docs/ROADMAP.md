@@ -2363,6 +2363,55 @@ buttons. The directory would have had exactly the same hazard, so both are now c
 `sLogout()` and `aLogout()`. **A cache added without its invalidation is a bug shipped on
 purpose.**
 
+### The hierarchy stopped being hypothetical — 2026-09-06
+Five organizations, three levels, two branches:
+
+```
+Caldwell University                          1 member, 1 follower
+├── International Students Office            0
+│   └── Multi-Cultural club                  0
+└── Students Engagement                      0
+    └── Investment Club                      0
+```
+
+**The four organizations below the root have no members at all, and are all fully
+manageable.** `can_act()` walks up from each club, through its department, to the membership
+on the school row. Authority flowing downward stopped being a claim in a rolled-back test
+transaction and became the reason the admin tree works on live data. The "Thin" row on the
+status page can finally move.
+
+### An officer could remove themselves — closed 2026-09-06
+Found by Kal, in the interface, on real data. Two policies, both correct-looking:
+
+```sql
+org_memberships_delete   using (user_id = auth.uid() or can_act('manage_members', org_id))
+org_memberships_update   using (can_act('manage_members', org_id))
+```
+
+The delete policy's own comment says *"A student may always leave. An officer may remove
+someone."* — the right principle for a member and the wrong one for an officer, with nothing
+distinguishing them. The update policy was quieter and worse: a manager may update any row on
+the org, and their own row is one of those. `guard_org_membership_flags()` fires on neither —
+it compares flags and role, and `status` is neither.
+
+**Why it barely matters low down and matters absolutely at the root.** `can_act()` walks
+parent_id upward, so a club that loses its last officer is still managed by the department
+above it. The school organization has no parent: if its one membership removes itself, no
+membership row anywhere reaches anything. On this database that is not hypothetical — the root
+has exactly one member, and that account holds no `user_roles` row.
+
+- ✅ `sql/2026-09-06_guard_self_removal.sql`. **If your membership carries
+      `can_manage_members`, you cannot be the one who takes it away.** A plain member holds no
+      flags, never reaches the exception, and leaves freely — *"a student may always leave"*
+      survives intact.
+- ✅ Covers all three routes: delete the row, set `status` away from `active`, **and drop your
+      own `can_manage_members`** — without the third, the rule is avoidable in two steps.
+- ✅ Six properties in `sql/2026-09-06_verify_self_removal.sql`, and **three of them assert a
+      removal succeeds**. A guard that refused everything would pass the other three and make
+      a club a room nobody could ever leave.
+- ✅ The Remove button is gone from your own row in both rosters, replaced by a quiet "You".
+      A control whose only outcome is an error message is worse than no control.
+
 ### What the next session starts with
 Run `sql/2026-09-06_org_public_views.sql`, then `sql/2026-09-06_verify_org_visibility.sql`
 (expect eleven PASS). **Run the SQL before deploying the code** — the Clubs page queries a

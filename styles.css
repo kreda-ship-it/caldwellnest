@@ -1364,3 +1364,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .profile-row-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .profile-row-sub   { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
 .profile-row-chev  { color: var(--text-faint); font-size: 20px; line-height: 1; flex-shrink: 0; }
+
+/* "You" where a Remove button would be, on your own roster row. A label rather than a
+   disabled button: guard_org_self_removal() refuses the write, so a control here could only
+   ever produce an error message. Sized to sit on the same baseline as the buttons it
+   replaces so the column does not jump. */
+.org-roster-self {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  color: var(--text-faint); letter-spacing: .04em; text-transform: uppercase;
+  padding: 6px 10px; flex-shrink: 0;
+}
