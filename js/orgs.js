@@ -986,11 +986,14 @@ async function renderOcEvents() {
   // that drifts the first time a registration is written by anything other than the one code
   // path that remembers to increment it.
   const ids = (events || []).map(e => e.id);
-  let regs = [];
+  let regs = [], media = [];
   if (ids.length) {
-    const { data } = await supabaseClient
-      .from('event_registrations').select('event_id, status').in('event_id', ids);
-    regs = data || [];
+    const [r, m] = await Promise.all([
+      supabaseClient.from('event_registrations').select('event_id, status').in('event_id', ids),
+      supabaseClient.from('event_media').select('id, event_id, kind, url, phase, sort_order')
+        .in('event_id', ids).order('sort_order'),
+    ]);
+    regs = r.data || []; media = m.data || [];
   }
 
   const now = new Date();
@@ -998,6 +1001,7 @@ async function renderOcEvents() {
     const mine = regs.filter(r => r.event_id === e.id);
     return {
       ...e,
+      _media:   media.filter(m => m.event_id === e.id),
       _past:    eventEndsAt(e) < now,
       _going:   mine.filter(r => ['registered', 'self_reported', 'checked_in', 'walk_in'].includes(r.status)).length,
       _checked: mine.filter(r => ['checked_in', 'walk_in'].includes(r.status)).length,
@@ -1016,6 +1020,11 @@ async function renderOcEvents() {
     ${past.length ? `<div class="oc-note">Past · ${past.length}</div>
       ${past.map(ocEventCardHTML).join('')}` : ''}
     ${_ocEvents.length ? '' : `<div class="oc-note">Nothing scheduled yet.</div>`}`;
+
+  // The strip is filled after innerHTML rather than inside the template, because the previews
+  // are object URLs held in memory and the existing media comes from the loaded rows — two
+  // sources that only the painter knows how to merge.
+  ocEvPaintPhotos();
 }
 
 // The seven from §4.2 of the plan. Slug stored, label shown — the slug is what the student
@@ -1045,6 +1054,7 @@ function ocEventFormHTML() {
   const en = ocEvISOToLocal(p.ends_at);
   const editing = !!_ocEvEditId;
   const va = v => (v == null ? '' : escAttr(String(v)));
+  if ((p._media || []).length) _ocEvOpen.media = true;
   // Progressive disclosure, per §3.1: a short required block, then panels that stay shut.
   // Every required field is a reason somebody abandons the form, so the visible part is the
   // five things an event cannot exist without.
@@ -1084,6 +1094,7 @@ function ocEventFormHTML() {
 
       <div class="oc-type-row">
         <button class="oc-type" id="ocEvToggle-reg" onclick="ocEvToggle('reg')">Add registration</button>
+        <button class="oc-type" id="ocEvToggle-media" onclick="ocEvToggle('media')">Add photos</button>
       </div>
       <div id="ocEvPanel-reg" ${(_ocEvOpen.reg || src) ? '' : 'hidden'}>
         <label class="oc-toggle"><input type="checkbox" id="ocEvRegOpen" ${(src ? p.registration_open : true) ? 'checked' : ''}> Let students register</label>
@@ -1093,12 +1104,32 @@ function ocEventFormHTML() {
           email — they are told that before they tap.</div>
       </div>
 
+      <div id="ocEvPanel-media" ${_ocEvOpen.media ? '' : 'hidden'}>
+        <label for="ocEvPhotoInput" class="oc-ev-drop">Tap to choose photos<br>
+          <span class="note-xs">JPEG · PNG · WebP · resized before upload</span></label>
+        <input type="file" id="ocEvPhotoInput" accept="image/jpeg,image/png,image/webp,image/*"
+               multiple style="display:none" onchange="ocEvPickPhotos(this)">
+        <div class="oc-ev-strip" id="ocEvPhotoStrip"></div>
+        <div class="oc-note">The first photo is the card image. Without one the card draws a
+          colour generated from the event itself — the same colour every time, never blank.</div>
+
+        <input class="oc-input" id="ocEvVideo" placeholder="Video link (Instagram, YouTube, TikTok)"
+               autocomplete="off" value="${va((p._media || []).find(m => m.kind === 'video_link')?.url)}">
+        <div class="oc-note">A link, not an upload. Hosting video would cost more bandwidth than
+          the whole marketplace has used, and an iPhone .mov often will not play on Android.</div>
+      </div>
+
       <button class="btn-full oc-save" onclick="ocSaveEvent()">${editing ? 'Save changes' : 'Publish event'}</button>
       ${src ? `<button class="org-btn" onclick="ocEvClearForm()">${editing ? 'Stop editing' : 'Discard this copy'}</button>` : ''}
     </div>`;
 }
 
-function ocEvClearForm() { _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; renderOcEvents(); }
+function ocEvClearForm() {
+  _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
+  _ocEvPhotos = []; _ocEvRemoved = [];
+  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
+  renderOcEvents();
+}
 
 function ocEvEdit(id) {
   _ocEvEditId = id; _ocEvDraft = null;
@@ -1119,6 +1150,104 @@ function ocEvDuplicate(id) {
   _ocEvDraft = { ...e, id: undefined, starts_at: start.toISOString(),
                  ends_at: ends ? ends.toISOString() : null, status: 'published', cancelled_reason: null };
   renderOcEvents().then(() => document.getElementById('ocEvForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+// ---------- Poster fallback ----------
+// A deterministic gradient from the event id. Deterministic matters: the same event must look
+// the same on every device and every reload, or a student scrolling back cannot recognise the
+// card they saw this morning. Math.random() here would be a different poster every paint.
+//
+// The id is a bigint, so the hash is trivial — spread it across the hue circle and take a
+// second, offset hue for the other end of the gradient. Saturation and lightness are fixed so
+// no event ever draws unreadable white text on a pale block.
+function eventGradient(id) {
+  const h1 = (Number(id) * 137) % 360;          // 137° ≈ the golden angle: consecutive ids
+  const h2 = (h1 + 40) % 360;                   // land far apart instead of in a run
+  return `linear-gradient(135deg, hsl(${h1} 62% 46%), hsl(${h2} 58% 34%))`;
+}
+
+// ---------- Photos and video ----------
+// Files chosen but not yet uploaded, and media already on the event being edited.
+let _ocEvPhotos = [];      // [{ blob, preview }]
+let _ocEvRemoved = [];     // urls of existing media the officer removed while editing
+
+// Instagram, YouTube and TikTok, and nothing that takes money. The payment rejection is not
+// squeamishness: an event page is a place students trust, and a "pay here" link on one is the
+// single most effective scam surface this app could offer. Same posture as the ticket URL.
+const VIDEO_HOSTS = ['instagram.com', 'youtube.com', 'youtu.be', 'tiktok.com'];
+const PAYMENT_HOSTS = ['venmo.com', 'cash.app', 'cashapp.com', 'zelle.com', 'paypal.me', 'paypal.com'];
+function ocEvCheckVideo(raw) {
+  const url = raw.trim();
+  if (!url) return { ok: true, value: null };
+  let u;
+  try { u = new URL(url.startsWith('http') ? url : 'https://' + url); }
+  catch { return { ok: false, why: 'That does not look like a link.' }; }
+  const host = u.hostname.replace(/^www\./, '').toLowerCase();
+  if (PAYMENT_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
+    return { ok: false, why: 'Payment links are not allowed on an event. Students are told this page is safe, and a payment link is what makes it not.' };
+  }
+  if (!VIDEO_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
+    return { ok: false, why: 'Video links can be Instagram, YouTube or TikTok. Other sites are not accepted yet.' };
+  }
+  return { ok: true, value: u.href };
+}
+
+async function ocEvPickPhotos(input) {
+  const files = [...input.files];
+  input.value = '';
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) { toast('Skipped a file that is not an image'); continue; }
+    if (f.size > 10 * 1024 * 1024)   { toast('Skipped an image over 10 MB'); continue; }
+    try {
+      const blob = await resizeImage(f);
+      _ocEvPhotos.push({ blob, preview: URL.createObjectURL(blob) });
+    } catch (e) { console.error('[ocEvPickPhotos]', e); toast('Could not read one of those images'); }
+  }
+  ocEvPaintPhotos();
+}
+
+function ocEvRemoveNew(i) {
+  URL.revokeObjectURL(_ocEvPhotos[i].preview);
+  _ocEvPhotos.splice(i, 1);
+  ocEvPaintPhotos();
+}
+
+// "Make cover" rather than drag-to-reorder. The only ordering decision that changes anything
+// a student sees is WHICH image is the card, and a one-tap answer to that works standing up
+// on a phone, where dragging a thumbnail into position does not.
+function ocEvMakeCover(i) {
+  _ocEvPhotos.unshift(..._ocEvPhotos.splice(i, 1));
+  ocEvPaintPhotos();
+}
+
+function ocEvRemoveExisting(url) {
+  _ocEvRemoved.push(url);
+  ocEvPaintPhotos();
+}
+
+function ocEvExistingMedia() {
+  const ev = _ocEvEditId ? _ocEvents.find(e => e.id === _ocEvEditId) : null;
+  return (ev?._media || []).filter(m => m.kind === 'image' && !_ocEvRemoved.includes(m.url));
+}
+
+function ocEvPaintPhotos() {
+  const el = document.getElementById('ocEvPhotoStrip');
+  if (!el) return;
+  const existing = ocEvExistingMedia();
+  el.innerHTML =
+    existing.map((m, i) => `
+      <div class="oc-ev-thumb">
+        <img src="${escAttr(m.url)}" alt="">
+        ${i === 0 && !_ocEvPhotos.length ? '<span class="oc-ev-cover">Cover</span>' : ''}
+        <button class="oc-ev-x" onclick="ocEvRemoveExisting('${escAttr(m.url)}')" title="Remove">&times;</button>
+      </div>`).join('') +
+    _ocEvPhotos.map((p, i) => `
+      <div class="oc-ev-thumb">
+        <img src="${escAttr(p.preview)}" alt="">
+        ${i === 0 && !existing.length ? '<span class="oc-ev-cover">Cover</span>'
+          : `<button class="oc-ev-cover oc-ev-cover-btn" onclick="ocEvMakeCover(${i})">Make cover</button>`}
+        <button class="oc-ev-x" onclick="ocEvRemoveNew(${i})" title="Remove">&times;</button>
+      </div>`).join('');
 }
 
 // The event being edited, or null when the form is creating a new one. A draft carried in
@@ -1179,6 +1308,9 @@ async function ocSaveEvent() {
     endsAt = e.toISOString();
   }
 
+  const vid = ocEvCheckVideo(document.getElementById('ocEvVideo').value);
+  if (!vid.ok) { toast(vid.why); return; }
+
   const capRaw = document.getElementById('ocEvCapacity').value;
   const capacity = capRaw === '' ? null : parseInt(capRaw, 10);
   if (capacity !== null && (isNaN(capacity) || capacity < 1)) {
@@ -1222,13 +1354,60 @@ async function ocSaveEvent() {
         created_by: user?.id,
       }).select('id').single();
 
+  // Uploaded BEFORE the event row, because the bucket folders by organization rather than by
+  // event: nothing here needs an event id. That ordering is what makes the failure recoverable
+  // in the right direction — a failed row leaves files we can delete, where a failed upload
+  // after a successful insert would leave an event whose poster silently never appears.
+  let uploaded = [];
+  try {
+    for (const ph of _ocEvPhotos) uploaded.push(await uploadListingPhoto(ph.blob, _ocOrgId, 'event-media'));
+  } catch (upErr) {
+    if (uploaded.length) await deleteListingPhotos(uploaded, 'event-media');
+    if (btn) { btn.disabled = false; btn.textContent = editing ? 'Save changes' : 'Publish event'; }
+    toast('Could not upload the photos: ' + (upErr.message || upErr));
+    console.error('[ocSaveEvent upload]', upErr); return;
+  }
+
+  const keptExisting = ocEvExistingMedia().map(m => m.url);
+  const cover = keptExisting[0] || uploaded[0] || null;
+  if (cover) row.poster_url = cover;
+  else if (editing) row.poster_url = null;   // every photo removed: fall back to the gradient
+
   if (btn) { btn.disabled = false; btn.textContent = editing ? 'Save changes' : 'Publish event'; }
   if (error) {
+    if (uploaded.length) await deleteListingPhotos(uploaded, 'event-media');
     // The likeliest refusal here is RLS: can_act('manage_events') walked the tree and found
     // nothing. The raw message reads as a database fault, so it is shown alongside plainer
     // words rather than instead of them.
     toast(`Could not ${editing ? 'save' : 'publish'}: ` + error.message);
     console.error('[ocSaveEvent]', error); return;
+  }
+
+  // Media rows are a second write with no transaction around it, the same shape as a post and
+  // its poll options. The recovery is different, though, and deliberately so: a poll with no
+  // options is unanswerable, so ocCreatePost() deletes the post. An event with no poster is
+  // fine — it draws its gradient — so a failure here keeps the event and says what is missing.
+  const mediaRows = [
+    ...uploaded.map((url, i) => ({ event_id: ev.id, kind: 'image', url,
+                                   sort_order: keptExisting.length + i, phase: 'promo',
+                                   created_by: user?.id })),
+  ];
+  if (vid.value) mediaRows.push({ event_id: ev.id, kind: 'video_link', url: vid.value,
+                                  sort_order: 0, phase: 'promo', created_by: user?.id });
+
+  if (_ocEvRemoved.length) {
+    await supabaseClient.from('event_media').delete().eq('event_id', ev.id).in('url', _ocEvRemoved);
+    await deleteListingPhotos(_ocEvRemoved, 'event-media');
+  }
+  // One video link per event: the old row goes unconditionally, then the new one is inserted
+  // above if there is one. Replace rather than accumulate — editing the link twice would
+  // otherwise leave two cards pointing at different videos with no way to tell which is
+  // current — and an emptied field has to actually remove the link, not just stop updating it.
+  await supabaseClient.from('event_media').delete().eq('event_id', ev.id).eq('kind', 'video_link');
+
+  if (mediaRows.length) {
+    const { error: me } = await supabaseClient.from('event_media').insert(mediaRows);
+    if (me) { toast('Event saved, but the photos did not attach: ' + me.message); console.error('[ocSaveEvent media]', me); }
   }
 
   logEvent(editing ? 'event_edited' : 'event_created', {
@@ -1237,9 +1416,87 @@ async function ocSaveEvent() {
     before: before ? { starts_at: before.starts_at, location: before.location, title: before.title } : undefined,
     after: { starts_at: startsAt, location: loc, event_type: type },
   });
+  _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
+  _ocEvPhotos = []; _ocEvRemoved = [];
   _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
   toast(editing ? '✓ Event updated' : '✓ Event published');
   renderOcEvents();
+}
+
+// ---------- The QR ----------
+// The deep link the QR encodes. Taken from window.location.origin at the moment the officer
+// clicks, NOT from a constant somebody has to remember to change at deploy: a QR generated on
+// the live site encodes the live site, forever, with no code change. A QR generated on
+// localhost would encode localhost, which is why that case refuses instead of printing.
+//
+// The #/event/:id ROUTE does not exist yet — it arrives with E3. A QR printed today therefore
+// opens the app rather than the event. That is fine for testing the sheet and not fine for a
+// real door, so the button says so.
+function ocEvDeepLink(id) { return `${window.location.origin}${window.location.pathname}#/event/${id}`; }
+
+async function ocEvDownloadQR(id) {
+  const e = _ocEvents.find(x => x.id === id);
+  if (!e) return;
+
+  if (location.protocol === 'file:' || /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname)) {
+    toast('Publish the site first — a QR made here only works on this computer.');
+    return;
+  }
+  if (typeof QRCode === 'undefined') { toast('The QR library did not load — check the connection and reload.'); return; }
+
+  // qrcodejs renders into a DOM node rather than returning anything, so it gets a detached
+  // div to fill and we read the canvas back out of it.
+  const holder = document.createElement('div');
+  new QRCode(holder, { text: ocEvDeepLink(id), width: 640, height: 640, correctLevel: QRCode.CorrectLevel.M });
+  const src = holder.querySelector('canvas');
+  if (!src) { toast('Could not draw the QR code'); return; }
+
+  // Drawn on our own canvas rather than assembled as HTML, so the result is one PNG an officer
+  // can hand to a printer. The event POSTER is deliberately not on the sheet: it is loaded
+  // cross-origin from Supabase storage, and drawing a cross-origin image taints the canvas so
+  // toDataURL throws. A sheet that silently fails to download is worse than a plainer sheet.
+  const W = 820, H = 1120;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+
+  x.fillStyle = '#111111';
+  x.textAlign = 'center';
+  x.font = 'bold 54px Georgia, serif';
+  wrapText(x, e.title, W / 2, 110, W - 120, 62);
+
+  const when = new Date(e.starts_at).toLocaleString(undefined,
+    { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  x.fillStyle = '#444444';
+  x.font = '30px Helvetica, Arial, sans-serif';
+  x.fillText(when, W / 2, 250);
+  x.fillText(e.location || '', W / 2, 296);
+
+  x.drawImage(src, (W - 640) / 2, 350, 640, 640);
+
+  x.fillStyle = '#111111';
+  x.font = 'bold 34px Helvetica, Arial, sans-serif';
+  x.fillText('Scan to sign up or check in', W / 2, 1055);
+
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = `qr-${String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'event'}.png`;
+  a.click();
+  toast('✓ QR sheet downloaded');
+}
+
+// Canvas has no line wrapping. A long event title would otherwise run off both edges of the
+// sheet, which is only discovered after it is printed.
+function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
+  const words = String(text || '').split(/\s+/);
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) { ctx.fillText(line, cx, y); y += lineHeight; line = w; }
+    else line = test;
+  }
+  if (line) ctx.fillText(line, cx, y);
 }
 
 // Cancellation goes through the RPC, never a bare UPDATE, because the RPC writes the
@@ -1282,21 +1539,27 @@ function ocEventCardHTML(e) {
     ? 'Registration closed'
     : `${e._going} going${left == null ? '' : ` · ${left} spot${left === 1 ? '' : 's'} left`}`;
 
+  const shots = (e._media || []).filter(m => m.kind === 'image').length;
+
   return `
     <div class="oc-post${e.status === 'cancelled' ? ' oc-post-urgent' : ''}">
+      <div class="oc-ev-poster"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
+        ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="">` : ''}
+      </div>
       <div class="oc-post-head">
         ${chips}
         <span class="oc-post-date">${esc(whenTxt)}</span>
       </div>
       <div class="oc-post-title">${esc(e.title)}</div>
       <div class="oc-post-body">${esc(e.location)}</div>
-      <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}</div>
+      <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}${shots ? ` · ${shots} photo${shots === 1 ? '' : 's'}` : ''}</div>
       ${e.status === 'cancelled' && e.cancelled_reason
         ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
       <div class="oc-post-actions">
         ${e.status !== 'cancelled' && !e._past
           ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
         <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
+        <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">Download QR</button>
         ${e.status !== 'cancelled' && !e._past
           ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel event</button>` : ''}
       </div>
