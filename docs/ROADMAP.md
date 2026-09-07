@@ -1528,6 +1528,19 @@ cost if left.
 - ✅ **DONE 2026-09-04 (`0fae40d`).** ~~Dead `DB.log` writes.~~ All 21 removed along with the `log:[]` store property, after checking each was a standalone statement so deleting the line could not orphan an `if`. Originally: written in 21 places and read in none since the export fix (`f8ae745`).
       Dead writes across `js/admin.js` and `js/listings.js`. Harmless, but every one of them
       looks like working code to the next reader.
+- ⬜ **`guard_org_self_removal()` may never have been applied.** Found 2026-09-07 re-running
+      every verification file after E1. `2026-09-06_verify_self_removal.sql` fails tests 1, 2
+      and 3 (the refusals) and passes 4, 5 and 6 (the permissions) — the signature of the
+      trigger being ABSENT, not broken; a broken guard refuses everything and fails the other
+      three instead. Nothing in E1 touches `org_memberships`, and `verify_flag_guard` passes
+      all ten, which proves triggers on that same table do fire. So it is this one trigger.
+      Most likely `sql/2026-09-06_guard_self_removal.sql` (commit `4a61d1a`) was written and
+      committed but never run against the database. **A file in `sql/` is not a rule in
+      Postgres, and only the verification tells them apart.** Diagnose with:
+      ```sql
+      select tgname, tgenabled from pg_trigger
+      where tgrelid = 'public.org_memberships'::regclass and not tgisinternal;
+      ```
 - ⬜ **Suspending a student does not hide their books.** Found 2026-09-06 during E0
       (`sql/2026-09-06_capture_views.sql`). `visible_book_listings` carries
       `p.status <> 'suspended'`, and on the books path nothing else implements it:
