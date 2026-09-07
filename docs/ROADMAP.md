@@ -1528,6 +1528,18 @@ cost if left.
 - ✅ **DONE 2026-09-04 (`0fae40d`).** ~~Dead `DB.log` writes.~~ All 21 removed along with the `log:[]` store property, after checking each was a standalone statement so deleting the line could not orphan an `if`. Originally: written in 21 places and read in none since the export fix (`f8ae745`).
       Dead writes across `js/admin.js` and `js/listings.js`. Harmless, but every one of them
       looks like working code to the next reader.
+- ⬜ **Suspending a student does not hide their books.** Found 2026-09-06 during E0
+      (`sql/2026-09-06_capture_views.sql`). `visible_book_listings` carries
+      `p.status <> 'suspended'`, and on the books path nothing else implements it:
+      `loadBooks()` (`js/books.js:40`) selects from `book_listings` directly, and the
+      `public_profiles` fetch beside it (`js/books.js:48`) does not even select `status`,
+      so the data needed to filter is not in hand. Listings are fine — the same rule is
+      done separately in `loadListings()` (`js/data.js:89-95`, `147`) with a fallback that
+      cannot un-hide on a transient failure. So the moderation action half-works, and the
+      half that fails is silent. Fix is either the missing filter in `loadBooks()` or the
+      SELECT grant below plus reading through the view; the second is better and larger.
+      **Confirm with a live test before fixing** — suspend a test account that has posted a
+      book and check the books feed.
 - ⬜ **`visible_listings` and `visible_book_listings` have no SELECT grant**, so the app cannot
       read them and `isListingLive()` in `js/data.js` is a hand-copy of the rule that has
       already drifted once (`js/profile.js:151`). Granting SELECT is one line, but a view runs

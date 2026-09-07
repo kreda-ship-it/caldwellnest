@@ -347,7 +347,12 @@ create index if not exists event_feedback_event_idx on public.event_feedback (ev
 -- One rule, one place. Pastness is computed here and nowhere else. Members-only is
 -- deferred from V1 (§6), so the view ships without it and gains the clause later —
 -- which is exactly why every read must go through the view rather than the table.
-create or replace view public.visible_events as
+-- `with (security_invoker = true)` is NOT optional. A plain view runs with its
+-- OWNER's permissions, so RLS on `events` would not apply to the caller and every
+-- student would receive every published row. For a public-only V1 that is nearly
+-- the intended answer, which is what makes it dangerous: it looks correct now and
+-- silently exposes everything the day members_only gating is added.
+create or replace view public.visible_events with (security_invoker = true) as
   select e.*
   from public.events e
   where e.status = 'published'
@@ -687,7 +692,7 @@ restore point.
 
 | # | Session | Done when |
 |---|---|---|
-| **E0** | Capture stage 0 | `visible_listings`, `is_super_admin()` and the `user_roles` shape exist as files in `sql/`. Three items already open in `sql/README.md`. Everything below builds on all three and none is written down. |
+| **E0** | Capture stage 0 | ✅ **Done 2026-09-06** — `sql/2026-09-06_capture_views.sql`. Two of the three were already captured on 2026-09-04 (`is_super_admin()`, `user_roles`); only the views were missing. `visible_listings` exists and is correct. Two findings came out of it: books have no suspended-poster filter (logged to ROADMAP), and `visible_events` needs `security_invoker`. |
 | **E1** | Schema, visibility, RPCs | The §2 script is a file in `sql/`, has run, and `information_schema` matches it. `visible_events` returns rows. `sql/2026-09-XX_verify_events.sql` passes its 10 assertions. Every other file in `sql/` re-run and reported. |
 | **E2** | Officer: create, edit, media, QR | An officer creates an event with a poster from the console and it appears in the database. Cancel without a reason is refused. QR downloads and a phone camera opens the event URL. |
 | **E2.5** | **Section scaffold + marketplace extraction** | `page-events` exists and both entry points reach it. All nine call sites in §4.0 are moved. Home feed, saved, profile listings and chat listing-cards render identically to before. **Own commit, nothing else in it.** |
@@ -799,6 +804,9 @@ Assert at minimum:
 10. A cancelled event is excluded from visible_events but is still readable
     by a registrant.
 11. anon has no privilege at all on any of the five new objects.
+12. visible_events RESPECTS RLS: a student who cannot SELECT an events row
+    directly cannot see it through the view either. This is what
+    security_invoker buys and it must be proven, not assumed.
 
 THEN re-run every other verification file in sql/ and report the results.
 A green test not re-run is a memory, not evidence.
