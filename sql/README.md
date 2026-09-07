@@ -122,6 +122,17 @@ These were never captured and are needed before this folder can rebuild the data
       anything changes — the fix is to re-run part 1 of that file and paste the result back,
       not to hand-edit it. Left for the next session that touches the schema.
 
+## A rule the 2026-09-07 session learned the hard way
+
+**A view's `WHERE` clause is a permission statement. Presentation belongs in computed
+columns.** `visible_events` first filtered out unpublished and past events in its `WHERE`,
+which read as tidy and was two separate mistakes. The status test restated a rule
+`events_select` already enforced, so the same rule lived in two places that could drift. The
+time test made every surface that legitimately wants a past event — the Past chip, the Recap
+section, the attendance record — go around the view to get one, which is exactly how
+`book_listings` came to bypass `visible_listings`. Both are now columns (`has_ended`,
+`is_browsable`) and the `WHERE` carries only `organizations.is_active`.
+
 ## A rule the 2026-09-05 session learned the hard way
 
 **A verification file is code, and a constraint added elsewhere can break it.**

@@ -106,9 +106,23 @@ Consequences, all of which fall out of that one sentence:
 
 - Sort is `starts_at` ascending. There is no relevance ranking, no "recommended," no engagement
   ordering. Chronology is the product.
-- Pastness is **computed from the clock, never stored**. No cron job flips a flag. `visible_events`
-  compares `ends_at` to `now()`. Same discipline as `visible_listings`, right for the same reason:
-  one rule, one place.
+- Pastness is **computed from the clock, never stored**. No cron job flips a flag, and no status
+  value records it — `'completed'` was dropped from the check constraint on 2026-09-07 for the
+  same reason `'expired'` is not settable on a listing.
+- **A view's `WHERE` clause carries only facts about publication and permission. Anything that is
+  a presentation choice is a computed column, so no calling surface writes its own comparison.**
+  `visible_events` therefore does not filter out past events. It exposes `effective_ends_at`,
+  `has_ended` and `is_browsable`, and each surface picks: browse surfaces filter on
+  `is_browsable`, past surfaces on `has_ended`, and detail, Recap, door and registration branch
+  on `status`, because they are allowed to show a cancelled event.
+- **This is where events differ from listings, and the difference is the reason.**
+  `visible_listings` excludes expired rows and is right to: **a past listing is gone.** The sofa
+  sold; no surface wants it. **A past event is a surface.** It holds the recap photos, it is what
+  makes an org look alive to a student deciding whether to join, it is the row a rating hangs off,
+  and it is the attendance record an advisor asks about six months later. The Past chip in §4.1
+  exists to show it. One view has to serve both questions, and a column is the only way to do
+  that without a second query path around the view — which is exactly how `book_listings` ended
+  up bypassing `visible_listings`.
 - The feed is **not** shown inside the marketplace feed, and marketplace listings are not shown in
   the events feed.
 
@@ -284,7 +298,7 @@ create table if not exists public.events (
   ends_at             timestamptz,
   location            text   not null,
   status              text   not null default 'published'
-                        check (status in ('draft','published','cancelled','completed')),
+                        check (status in ('draft','published','cancelled')),
   registration_open   boolean not null default false,
   capacity            integer,                               -- null = unlimited
   external_ticket_url text,
@@ -352,19 +366,30 @@ create table if not exists public.event_feedback (
 create index if not exists event_feedback_event_idx on public.event_feedback (event_id);
 
 -- ── visibility ───────────────────────────────────────────────────────────────
--- One rule, one place. Pastness is computed here and nowhere else. Members-only is
--- deferred from V1 (§6), so the view ships without it and gains the clause later —
--- which is exactly why every read must go through the view rather than the table.
--- `with (security_invoker = true)` is NOT optional. A plain view runs with its
--- OWNER's permissions, so RLS on `events` would not apply to the caller and every
--- student would receive every published row. For a public-only V1 that is nearly
--- the intended answer, which is what makes it dangerous: it looks correct now and
--- silently exposes everything the day members_only gating is added.
-create or replace view public.visible_events with (security_invoker = true) as
-  select e.*
+-- REVISED 2026-09-07 by sql/2026-09-07_events_visibility_rule.sql. The WHERE carries
+-- publication facts only; everything a surface might filter on is a column.
+--
+-- `with (security_invoker = true)` is NOT optional. A plain view runs with its OWNER's
+-- permissions, so RLS on `events` would not apply to the caller and every student would
+-- receive every row. That is also what makes the WHERE below safe to be so short.
+--
+-- `status` is NOT in the WHERE. events_select already refuses a student any row that is
+-- not published, so repeating it here made a second copy of a rule that could drift. Its
+-- removal is what keeps cancelled events IN the view — §6's "still reachable by its
+-- registrants", kept by the view rather than by a query that goes around it — and what
+-- lets an officer see their own drafts, because RLS already lets them.
+--
+-- `members_only` is not in the WHERE either, for the same reason: when the gating is
+-- built it belongs in the policy, not in two places.
+create view public.visible_events with (security_invoker = true) as
+  select e.*,
+         public.event_effective_end(e.starts_at, e.ends_at) as effective_ends_at,
+         public.event_effective_end(e.starts_at, e.ends_at) <= now() as has_ended,
+         (e.status = 'published'
+          and public.event_effective_end(e.starts_at, e.ends_at) > now()) as is_browsable
   from public.events e
-  where e.status = 'published'
-    and e.members_only = false;
+  join public.organizations o on o.id = e.org_id
+  where o.is_active = true;
 
 -- ── grants, then the revokes Supabase makes necessary ────────────────────────
 -- Supabase attaches DEFAULT PRIVILEGES to every new object in public BEFORE any
@@ -700,7 +725,9 @@ link still reaches the reset screen after the router exists.
 **The one deferral with a sharp edge.** Cancellation has no delivery path. An event is cancelled
 and a registrant who does not open the app finds out at the door. The V1 mitigation is passive and
 **must be built**: required reason, red banner on detail, cancelled state in Going, and the event
-stays reachable by its registrants. That is not adequate, it is merely honest, and a cancellation
+stays reachable by its registrants — which since 2026-09-07 is the view's job rather than a
+separate query's: cancelled rows are in `visible_events`, and RLS decides who may read them.
+That is not adequate, it is merely honest, and a cancellation
 email is the first thing the notification layer must carry.
 
 ---

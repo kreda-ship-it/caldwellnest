@@ -419,7 +419,7 @@ create table public.events (
   ends_at             timestamptz,
   location            text   not null,
   status              text   not null default 'published'
-                        check (status in ('draft','published','cancelled','completed')),
+                        check (status in ('draft','published','cancelled')),   -- 'completed' dropped 2026-09-07
   registration_open   boolean not null default false,
   capacity            integer,            -- null = unlimited
   external_ticket_url text,
@@ -480,19 +480,36 @@ merely fail to register. This is the hardest RLS policy in the app and needs its
 
 Same discipline as `visible_listings` — define it once:
 
+**Superseded 2026-09-07.** The sketch below was written before the view existed; it filtered
+past events out in the `WHERE` and used a two-hour fallback. The real definition, applied by
+`sql/2026-09-07_events_visibility_rule.sql`, is:
+
 ```sql
-create view public.visible_events as
-select e.* from public.events e
+create view public.visible_events with (security_invoker = true) as
+select e.*,
+       public.event_effective_end(e.starts_at, e.ends_at) as effective_ends_at,
+       public.event_effective_end(e.starts_at, e.ends_at) <= now() as has_ended,
+       (e.status = 'published'
+        and public.event_effective_end(e.starts_at, e.ends_at) > now()) as is_browsable
+from public.events e
 join public.organizations o on o.id = e.org_id
-where e.status = 'published'
-  and o.is_active = true
-  and coalesce(e.ends_at, e.starts_at + interval '2 hours') > now();
+where o.is_active = true;
 ```
 
-Members-only filtering happens in RLS on top of this, since it depends on the requesting user.
+Three corrections to the sketch, each with a reason:
 
-Every read path uses this view. Cancelled events are excluded here but must still be reachable by
-their registrants (§8, A1).
+- **`status` is not in the `WHERE`.** `events_select` already refuses a student any unpublished
+  row, so the sketch's version was a second copy of an existing rule. Its removal is also what
+  keeps cancelled events reachable by their registrants — the sketch excluded them here and then
+  required a separate path to satisfy §8/A1, which is the bypass this whole discipline exists to
+  prevent.
+- **Past events are not filtered out; they are flagged.** A past listing is gone, a past event is
+  a surface — recap photos, ratings, attendance. See §1.1 of the events plan.
+- **The fallback is three hours, not two, and lives in `event_effective_end()`.** One function,
+  used by the view and by `self_report_arrival()`. It is a forgiving fallback for a missing end
+  time, not a guess at how long events last and not a suggestion made to the officer.
+
+Members-only filtering happens in RLS on top of this, since it depends on the requesting user.
 
 **Do not mirror this rule in JavaScript.** `isListingLive()` in `js/data.js` is a hand-written
 copy of `visible_listings`, and the audit already flagged the two drifting apart

@@ -954,27 +954,31 @@ async function renderOcPosts() {
 
 let _ocEvents = [];
 
-// An event's effective end. ends_at is nullable on purpose — an officer posting "club fair,
-// Tuesday 6pm" should not be blocked on deciding when it stops — but §1.1 makes pastness a
-// comparison against the end, so a null end would mean the event is never past and sits at
-// the top of a chronological list forever.
+// There is deliberately no pastness helper here any more. It used to be EVENT_ASSUMED_HOURS
+// plus an eventEndsAt() that reimplemented the SQL coalesce in JavaScript — a third copy of a
+// three-hour constant that also lived in the view and in self_report_arrival().
 //
-// Three hours is the same guess visible_events makes in SQL. It is written twice, which is
-// once too many: if it ever changes, both must change. The SQL one is authoritative because
-// it is the one students' feeds obey.
-const EVENT_ASSUMED_HOURS = 3;
-function eventEndsAt(e) {
-  return new Date(e.ends_at || (new Date(e.starts_at).getTime() + EVENT_ASSUMED_HOURS * 3600e3));
-}
+// visible_events now answers it as a column. The browser reads `has_ended` and holds no
+// opinion about when an event finishes, which means the console and a student's feed cannot
+// disagree about whether something is over.
 
 async function renderOcEvents() {
   const body = document.getElementById('ocBody');
   body.innerHTML = '<div class="oc-note">Loading events…</div>';
 
+  // Reads the VIEW, not the table, and that is the point of this query changing.
+  //
+  // The view's WHERE carries no status test, so RLS decides what comes back: an officer sees
+  // their own drafts and cancellations because events_select lets them, and a student never
+  // would. Nothing here filters by status, and nothing here compares a time to now() — the
+  // view answers both as columns.
+  //
+  // Writes still go to `events`; only reads come through the view.
   const { data: events, error } = await supabaseClient
-    .from('events')
+    .from('visible_events')
     .select('id, title, event_type, starts_at, ends_at, location, status, poster_url, ' +
-            'registration_open, capacity, cancelled_reason, members_only')
+            'registration_open, capacity, cancelled_reason, members_only, ' +
+            'has_ended, is_browsable, effective_ends_at')
     .eq('org_id', _ocOrgId)
     .order('starts_at', { ascending: false });
   if (error) {
@@ -996,13 +1000,12 @@ async function renderOcEvents() {
     regs = r.data || []; media = m.data || [];
   }
 
-  const now = new Date();
   _ocEvents = (events || []).map(e => {
     const mine = regs.filter(r => r.event_id === e.id);
     return {
       ...e,
       _media:   media.filter(m => m.event_id === e.id),
-      _past:    eventEndsAt(e) < now,
+      _past:    e.has_ended,
       _going:   mine.filter(r => ['registered', 'self_reported', 'checked_in', 'walk_in'].includes(r.status)).length,
       _checked: mine.filter(r => ['checked_in', 'walk_in'].includes(r.status)).length,
     };
