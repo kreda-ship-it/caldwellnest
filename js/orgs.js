@@ -1119,9 +1119,36 @@ function ocEventFormHTML() {
           the whole marketplace has used, and an iPhone .mov often will not play on Android.</div>
       </div>
 
-      <button class="btn-full oc-save" onclick="ocSaveEvent()">${editing ? 'Save changes' : 'Publish event'}</button>
+      <button class="btn-full oc-save" onclick="ocSaveEvent('published')">${
+        editing && p.status === 'published' ? 'Save changes' : 'Publish event'}</button>
+      ${p.status !== 'published' ? `<button class="org-btn" onclick="ocSaveEvent('draft')">${
+        editing ? 'Save draft' : 'Save as draft'}</button>` : ''}
       ${src ? `<button class="org-btn" onclick="ocEvClearForm()">${editing ? 'Stop editing' : 'Discard this copy'}</button>` : ''}
+      ${p.status !== 'published' ? `<div class="oc-note">A draft is finished enough to save and not
+        ready to be seen. It stays in this list, is invisible to students, and takes no
+        registrations until you publish it.</div>` : ''}
     </div>`;
+}
+
+// Publishing from the card rather than only through the form, because that is the shape of
+// the actual task: a draft written on Monday is published on Thursday without changing a word
+// of it, and reopening a form to press a different button is friction with no purpose.
+async function ocEvPublish(id) {
+  const e = _ocEvents.find(x => x.id === id);
+  if (!e) return;
+  if (!confirm(`Publish "${e.title}"?\n\nIt becomes visible to students and starts taking registrations if you enabled them.`)) return;
+
+  const { error } = await supabaseClient.from('events')
+    .update({ status: 'published', updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Could not publish: ' + error.message); console.error('[ocEvPublish]', error); return; }
+
+  logEvent('event_published', {
+    targetType: 'event', targetId: id, targetLabel: e.title,
+    school: _orgCtx.orgs.get(_ocOrgId)?.school,
+    before: { status: 'draft' }, after: { status: 'published' },
+  });
+  toast('✓ Published');
+  renderOcEvents();
 }
 
 function ocEvClearForm() {
@@ -1147,8 +1174,12 @@ function ocEvDuplicate(id) {
   const start = new Date(new Date(e.starts_at).getTime() + 7 * 864e5);
   const ends  = e.ends_at ? new Date(new Date(e.ends_at).getTime() + 7 * 864e5) : null;
   _ocEvEditId = null;
+  // The copy carries status 'draft' so the form offers both buttons. A duplicate is a form,
+  // not an event: it has not been published, and the officer has to look at the new date
+  // before it should be. Carrying 'published' over would have hidden the draft option on the
+  // one screen where it is most useful.
   _ocEvDraft = { ...e, id: undefined, starts_at: start.toISOString(),
-                 ends_at: ends ? ends.toISOString() : null, status: 'published', cancelled_reason: null };
+                 ends_at: ends ? ends.toISOString() : null, status: 'draft', cancelled_reason: null };
   renderOcEvents().then(() => document.getElementById('ocEvForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
@@ -1281,7 +1312,11 @@ function ocEvLocalToISO(dateStr, timeStr) {
   return isNaN(d) ? null : d.toISOString();
 }
 
-async function ocSaveEvent() {
+// `status` is 'published' or 'draft'. The one transition NOT offered anywhere is
+// published -> draft: un-publishing an event hides it from people who already registered,
+// who would simply watch it vanish with no explanation. A published event is cancelled, with
+// a reason, or it is edited. It is never quietly withdrawn.
+async function ocSaveEvent(status = 'published') {
   const title = document.getElementById('ocEvTitle').value.trim();
   const date  = document.getElementById('ocEvDate').value;
   const start = document.getElementById('ocEvStart').value;
@@ -1325,12 +1360,16 @@ async function ocSaveEvent() {
   if (before && before.status === 'cancelled') {
     toast('A cancelled event cannot be edited. Duplicate it instead.'); return;
   }
+  if (before && before.status === 'published' && status === 'draft') {
+    toast('A published event cannot go back to a draft. Cancel it with a reason instead.'); return;
+  }
 
   const { data: { user } } = await supabaseClient.auth.getUser();
   const btn = document.querySelector('.oc-composer .oc-save');
-  if (btn) { btn.disabled = true; btn.textContent = editing ? 'Saving…' : 'Publishing…'; }
+  if (btn) { btn.disabled = true; btn.textContent = status === 'draft' ? 'Saving…' : (editing ? 'Saving…' : 'Publishing…'); }
 
   const row = {
+    status,
     title,
     description: document.getElementById('ocEvDesc').value.trim() || null,
     event_type: type,
@@ -1410,7 +1449,7 @@ async function ocSaveEvent() {
     if (me) { toast('Event saved, but the photos did not attach: ' + me.message); console.error('[ocSaveEvent media]', me); }
   }
 
-  logEvent(editing ? 'event_edited' : 'event_created', {
+  logEvent(editing ? 'event_edited' : (status === 'draft' ? 'event_drafted' : 'event_created'), {
     targetType: 'event', targetId: ev.id, targetLabel: title,
     school: _orgCtx.orgs.get(_ocOrgId)?.school,
     before: before ? { starts_at: before.starts_at, location: before.location, title: before.title } : undefined,
@@ -1419,7 +1458,7 @@ async function ocSaveEvent() {
   _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
   _ocEvPhotos = []; _ocEvRemoved = [];
   _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
-  toast(editing ? '✓ Event updated' : '✓ Event published');
+  toast(status === 'draft' ? '✓ Draft saved' : (editing ? '✓ Event updated' : '✓ Event published'));
   renderOcEvents();
 }
 
@@ -1556,6 +1595,7 @@ function ocEventCardHTML(e) {
       ${e.status === 'cancelled' && e.cancelled_reason
         ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
       <div class="oc-post-actions">
+        ${e.status === 'draft' ? `<button class="org-btn" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
         ${e.status !== 'cancelled' && !e._past
           ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
         <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
