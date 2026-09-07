@@ -411,7 +411,11 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
   if (welcomeMsg) toast(welcomeMsg);
   if (applyMaintenance()) return;
   await loadListings();
-  showPage('listings');
+  // Return-to-intent. A student who scanned a poster while signed out was sent to login;
+  // this is where they get sent back to THAT EVENT rather than dumped on the home feed,
+  // which is the single most likely thing to make a QR feel broken at a real door.
+  // Placed in enterStudentSession() because it is the one path login and signup share.
+  if (!evResumeIntent()) showPage('listings');
   checkStudentNotifications(userId);
   startGlobalMsgListener(userId);
   startNotifListener(userId);

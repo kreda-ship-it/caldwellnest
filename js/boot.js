@@ -50,6 +50,15 @@ if (!adminPreviewMode && !_recoveryMode) {
   const [, { data: { session } }] = await Promise.all([_settingsReady, _sessionReady]);
   if (!session) {
     if (applyMaintenance()) return;
+    // A deep link with no session is the walk-up-and-scan case, and it is the one most likely
+    // to be got wrong: dropping the intent here means the student logs in and lands on the
+    // home feed with no idea what happened to the poster they scanned. evHandleColdRoute()
+    // stores the route BEFORE showing the login, and enterStudentSession() picks it back up.
+    //
+    // An unresolved session and an absent session must not render the same way — this branch
+    // only runs once _sessionReady has resolved, so by here "no session" is a fact rather
+    // than a race.
+    if (evHandleColdRoute(false)) return;
     const lastPage = sessionStorage.getItem('cn_last_page');
     const onPrivatePage = ['messages', 'profile', 'orgs'].includes(lastPage); // the early restore may have painted a signed-in-only page
     const prior = getPriorUser();
@@ -109,7 +118,12 @@ if (!adminPreviewMode && !_recoveryMode) {
   // The console cannot be restored with a bare showPage(): its markup is an empty shell until
   // orgConsoleOpen() has chosen an organization and rendered into it. It gets its own restore,
   // which re-reads the remembered org and checks the officer still holds it.
-  if (lastPage === 'org-console') {
+  // A deep link beats the remembered page. Someone who just scanned a poster is asking for
+  // one specific thing, and restoring wherever they happened to be last would ignore it.
+  // evHandleColdRoute() returns true when it has taken the screen, so nothing paints twice.
+  if (evHandleColdRoute(true)) {
+    /* the event modal has the screen */
+  } else if (lastPage === 'org-console') {
     orgConsoleRestore();
   } else if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {
     showPage(lastPage);

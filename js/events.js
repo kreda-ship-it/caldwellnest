@@ -462,3 +462,106 @@ function evDownloadIcs() {
 function evIcsEscape(t) {
   return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
+
+
+// ============================================================
+// THE DEEP LINK  —  #/event/:id
+// ============================================================
+// A QR on a poster encodes this URL. The phone's own camera is the scanner, so the entire
+// scanning half of the feature is free — but only if the URL actually resolves, cold, in a
+// tab that has never opened the app.
+//
+// ############################################################
+// THE HASH IS NOT FREE. READ THIS BEFORE CHANGING evRouteFromHash().
+// ############################################################
+// Supabase returns auth tokens in the fragment, and js/boot.js already reads them:
+//     boot.js:25   if (/[#&]type=recovery/.test(location.hash)) showResetScreen();
+//     boot.js:132  if (/[#&]type=signup/.test(location.hash))  … verified toast
+//
+// A real reset link arrives looking like:
+//     #access_token=ey…&refresh_token=…&expires_in=3600&type=recovery
+//
+// A router that treats the whole fragment as its own would swallow that, and password reset —
+// still the last unverified item on the v1 launch-blocker list — would break in a way that
+// looks like Supabase's fault. So the rule is narrow and it is enforced twice:
+//
+//   1. A hash is a ROUTE only if it starts with `#/`. Supabase's never does; it starts with
+//      the token name.
+//   2. Even then, a hash carrying any auth marker is refused outright. Belt and braces,
+//      because rule 1 is a prefix test and prefixes are easy to loosen by accident later.
+//
+// If a future route needs a different shape, it still has to pass BOTH.
+const AUTH_HASH_MARKERS = /access_token|refresh_token|type=recovery|type=signup|error_code|error_description/;
+
+function evRouteFromHash() {
+  const h = window.location.hash || '';
+  if (!h.startsWith('#/')) return null;          // rule 1
+  if (AUTH_HASH_MARKERS.test(h)) return null;    // rule 2
+  const m = h.match(/^#\/event\/(\d+)\b/);
+  return m ? { name: 'event', id: Number(m[1]) } : null;
+}
+
+// Where a signed-out visitor's destination is kept while they log in. sessionStorage rather
+// than a variable: the login flow can involve a page load, and a variable does not survive one.
+const EV_INTENT_KEY = 'cn_pending_route';
+
+function evStoreIntent() {
+  const route = evRouteFromHash();
+  if (!route) return false;
+  try { sessionStorage.setItem(EV_INTENT_KEY, JSON.stringify(route)); } catch (e) { /* private mode */ }
+  return true;
+}
+
+// Called from enterStudentSession(), the one place login and signup share. A student who
+// scanned a poster, hit the login screen and signed in lands on THAT EVENT — not on the home
+// feed, which is the single most likely thing to make a QR feel broken at a real door.
+function evResumeIntent() {
+  let route = null;
+  try {
+    const raw = sessionStorage.getItem(EV_INTENT_KEY);
+    if (raw) route = JSON.parse(raw);
+    sessionStorage.removeItem(EV_INTENT_KEY);
+  } catch (e) { /* corrupt or unavailable — fall through to the normal landing */ }
+  if (!route) route = evRouteFromHash();
+  if (!route || route.name !== 'event') return false;
+  showPage('events');
+  evOpen(route.id);
+  return true;
+}
+
+// Entry point for a cold load. Returns true when it has taken responsibility for the screen,
+// so boot.js can skip its own "restore the last page" logic rather than painting twice.
+//
+// The signed-out case does NOT silently drop the intent. It stores it first and then asks for
+// a login, so the round trip ends where it started.
+function evHandleColdRoute(signedIn) {
+  const route = evRouteFromHash();
+  if (!route) return false;
+  if (!signedIn) {
+    evStoreIntent();
+    openModal('loginModal');
+    return true;
+  }
+  showPage('events');
+  evOpen(route.id);
+  return true;
+}
+
+// Navigating within the app once it is already open — a shared link pasted into the address
+// bar of a live tab, or the back button after closing the modal.
+window.addEventListener('hashchange', () => {
+  const route = evRouteFromHash();
+  if (!route) return;
+  if (!getEffectiveUser()) { evStoreIntent(); openModal('loginModal'); return; }
+  showPage('events');
+  evOpen(route.id);
+});
+
+// Closing the modal clears the route from the address bar, so a reload does not reopen an
+// event the student has already dismissed. replaceState rather than assigning location.hash:
+// assigning would push a history entry and make Back re-open it.
+function evClearRoute() {
+  if (evRouteFromHash()) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+}
