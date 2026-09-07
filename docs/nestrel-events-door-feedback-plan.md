@@ -713,13 +713,29 @@ restore point.
 | # | Session | Done when |
 |---|---|---|
 | **E0** | Capture stage 0 | ✅ **Done 2026-09-06** — `sql/2026-09-06_capture_views.sql`. Two of the three were already captured on 2026-09-04 (`is_super_admin()`, `user_roles`); only the views were missing. `visible_listings` exists and is correct. Two findings came out of it: books have no suspended-poster filter (logged to ROADMAP), and `visible_events` needs `security_invoker`. |
-| **E1** | Schema, visibility, RPCs | The §2 script is a file in `sql/`, has run, and `information_schema` matches it. `visible_events` returns rows. `sql/2026-09-XX_verify_events.sql` passes its 10 assertions. Every other file in `sql/` re-run and reported. |
+| **E1** | Schema, visibility, RPCs | ✅ **Schema, RPCs and verification green 2026-09-07** — `2026-09-07_events_schema.sql`, `_events_rpcs.sql`, `_verify_events.sql`, all 18 assertions PASS. ⬜ Remaining: re-run the other five verify files. Four findings came out of it, in §7.1. |
 | **E2** | Officer: create, edit, media, QR | An officer creates an event with a poster from the console and it appears in the database. Cancel without a reason is refused. QR downloads and a phone camera opens the event URL. |
 | **E2.5** | **Section scaffold + marketplace extraction** | `page-events` exists and both entry points reach it. All nine call sites in §4.0 are moved. Home feed, saved, profile listings and chat listing-cards render identically to before. **Own commit, nothing else in it.** |
 | **E3** | Feed, detail, register, org profile | A student browses events chronologically, opens one, registers, and the seat count is right with two browsers racing. `#/event/:id` works cold in incognito. A password-reset link still reaches the reset screen. |
 | **E4** | Events search | The scoped search and the global search Events section call the same match function over `visible_events`. |
 | **E5** | The door | Officer, self-confirm, trusted-self and walk-in each write the correct `check_in_method`, verified in the database, not the UI. A student cannot set their own status to `checked_in` via the API. |
 | **E6** | Feedback | `get_event_feedback` returns a null average at 4 responses and a number at 5. Feedback without a check-in row is refused by the policy. |
+
+### 7.1 What E1 actually cost, and what it caught
+
+E1 took five runs of its own verification file. Every one failed on something the file was not
+written to test, which is the argument for writing it at all:
+
+| Run | Failure | What it really was |
+|---|---|---|
+| 1 | `42P17 infinite recursion in policy for "events"` | `events_select` read `event_registrations`, whose policy read `events`. Neither policy is wrong alone. **Mutual RLS recursion is invisible until a row is actually selected** — it survived review and appeared on the first real `SELECT`. Fixed with `is_event_registrant()`, `SECURITY DEFINER`, safe because it hard-codes `user_id = auth.uid()` and so cannot be asked about anyone else. |
+| 2 | `get_event_feedback` refused an officer | The function was right and the **plan contradicted itself**: §2 guarded it with `view_analytics`, §3.2 put the feedback summary in a Recap section gated on `manage_events`. Resolved in §3.2 — the summary is analytics, the photos are not. TEST 9c now pins it. |
+| 3 | `42501` from `guard_org_membership_flags()` | The fixture switched role but left the JWT claims set, so the guard saw an authenticated caller lacking `can_manage_admins` and refused. **The guard catching an accidental privilege escalation is the guard working.** |
+| 4 | Same error, same line number | Stale paste in the SQL editor. The edit had provably moved that line. Same shape as the browser-cache trap in `CLAUDE.md`: *a change that appears to have had no effect is a staleness symptom before it is a logic one.* |
+| 5 | — | 18/18 PASS. |
+
+Two of those four were faults in **this document**, not in the code. That is the ratio worth
+remembering the next time a plan looks finished.
 
 E1 → E2.5 → E3 is a shippable events product. E5 is what makes it worth an administrator's
 attention. E4 and E6 are small and can slot in either order.
