@@ -1222,3 +1222,145 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-logo img { width: 100%; height: 100%; object-fit: cover; }
 .oc-logo-empty { font-size: 20px; font-weight: 700; color: var(--brand, #3B5BA5); }
 .oc-logo-btn { cursor: pointer; }
+
+/* ── Organization directory (2026-09-06) ──────────────────────────────────────
+   The first student-facing surface on the org hierarchy. Rendered by
+   js/orgdir.js into #page-orgs.
+
+   No dark-mode block: this stylesheet has none anywhere, and adding one for a
+   single new page would leave the rest of the app inconsistent in a way a
+   reader would have to notice and explain. Everything below is built from the
+   same --surface / --border / --text tokens as the rest of the app, so it
+   inherits whatever theme work lands later. */
+
+/* The subtitle under a page title. Defined as a class rather than repeated as
+   an inline style — the listings page still carries the inline version, which
+   is the migration CLAUDE.md calls slow future cleanup. New markup uses this. */
+.page-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+.dir-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+.dir-search-wrap { position: relative; flex: 1; }
+.dir-search-icon {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--text-faint); pointer-events: none; display: flex;
+}
+.dir-search { margin-bottom: 0; width: 100%; padding-left: 38px; }
+
+.dir-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* One object repeated, so the edges, baselines and inner padding match from
+   card to card and the follow button sits in the same place on every row. */
+.dir-card {
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 14px; align-items: center;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.dir-logo {
+  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  object-fit: cover; flex-shrink: 0; background: var(--bg);
+}
+.dir-logo-none {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-pale); color: var(--brand-mid);
+  font-size: 20px; font-weight: 700;
+}
+
+.dir-body { min-width: 0; }   /* lets the ellipsis below actually engage */
+
+/* The breadcrumb is where the hierarchy first becomes visible to a student,
+   so it sits above the name rather than below it — read before the club, the
+   way it is spoken: Caldwell University > Student Life > Chess Club. */
+.dir-crumb {
+  font-size: 11px; color: var(--text-faint); margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dir-sep { opacity: .6; padding: 0 1px; }
+
+.dir-name {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  margin: 0 0 3px; line-height: 1.3;
+}
+.dir-verified {
+  color: var(--success); font-size: 12px; margin-left: 5px; font-weight: 700;
+}
+
+/* Two lines, then ellipsis. A one-line description and a five-line one must
+   not make two cards different heights, or the column stops reading as a list. */
+.dir-desc {
+  font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 5px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dir-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.dir-type { text-transform: capitalize; }
+.dir-dot { opacity: .5; }
+.dir-count { font-variant-numeric: tabular-nums; }
+
+/* Follow is the lightest commitment in the product, so the resting state is a
+   quiet outline rather than a solid call to action. Once following, it inverts
+   to filled-pale — clearly a state, and still obviously clickable to undo. */
+.dir-follow {
+  flex-shrink: 0; padding: 7px 16px; font-size: 13px; font-weight: 600;
+  border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--brand-light);
+  background: var(--surface); color: var(--brand-mid);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.dir-follow:hover { background: var(--brand-pale); }
+.dir-follow.is-following {
+  background: var(--brand-pale); border-color: var(--brand-pale); color: var(--brand-mid);
+}
+.dir-follow.is-following:hover {
+  background: var(--danger-pale); border-color: var(--danger); color: var(--danger);
+}
+.dir-follow:focus-visible { outline: 2px solid var(--brand-mid); outline-offset: 2px; }
+
+.dir-empty {
+  padding: 40px 20px; text-align: center;
+  font-size: 14px; color: var(--text-muted); line-height: 1.7;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Narrow: the logo shrinks and the follow button drops to its own row rather
+   than squeezing the name into two characters and an ellipsis. */
+@media(max-width:600px) {
+  .dir-card { grid-template-columns: auto 1fr; gap: 12px; padding: 12px 14px; }
+  .dir-logo { width: 40px; height: 40px; font-size: 17px; }
+  .dir-follow { grid-column: 1 / -1; width: 100%; padding: 9px 16px; }
+}
+
+/* A tappable row on the profile page: icon, title, one line of explanation, chevron.
+   Built for the directory entry point, which needs a home on mobile because the bottom
+   bar holds five tabs and all five are spoken for.
+
+   Deliberately not a .btn-full — that reads as an action ("Log out"), and this is
+   navigation. Left-aligned with a chevron is the convention every phone settings screen
+   uses for "this opens somewhere else", which is exactly what it does. */
+.profile-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; text-align: left;
+  transition: background .12s, border-color .12s;
+}
+.profile-row:hover { background: var(--brand-pale); border-color: var(--brand-light); }
+.profile-row:focus-visible { outline: 2px solid var(--brand-mid); outline-offset: 2px; }
+
+.profile-row-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--brand-pale); color: var(--brand-mid);
+}
+.profile-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.profile-row-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.profile-row-sub   { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.profile-row-chev  { color: var(--text-faint); font-size: 20px; line-height: 1; flex-shrink: 0; }

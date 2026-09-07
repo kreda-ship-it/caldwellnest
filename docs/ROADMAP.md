@@ -2285,3 +2285,90 @@ against a real non-member, which is what the outsider account exists for.
 **Still open from this session:** the two "Untested" rows on the status page stay Untested
 until the two hand checks are actually done. They are Kal's to run, and they are the entire
 point of Phase 0.
+
+---
+
+## Engagement build Phase 1 — students can see the organizations. 2026-09-06
+
+The first student-facing surface on the org hierarchy. Until now every screen built on it
+faced officers and admins; `org_follows` had RLS, grants and no user interface at all.
+
+### The build document said "Schema: none new". It was wrong, and checking cost ten minutes
+
+Two items on Phase 1's own spec are unreadable by a student under the live policies:
+
+- **Follower count.** `org_follows` SELECT is `using (user_id = auth.uid())`. A student's
+  `count(*)` returns 1 or 0 — their own row. `2026-09-04_org_hierarchy.sql` says so in a
+  comment and defers it to "the analytics workstream"; the directory needs it a workstream
+  early.
+- **The officer list.** `org_memberships` SELECT is own-row or `can_act('manage_members')`,
+  so a plain student sees zero rows and "officers, name and title only" renders empty.
+
+Both are the same problem — **a fact about a group that must not be assembled from rows the
+viewer may not see** — and the project already had the answer one file over. Two views, no
+`security_invoker`, so they read past RLS. `sql/2026-09-06_org_public_views.sql`.
+
+- ✅ `org_directory` — active orgs only (that filter lives in the view, because no policy is
+      behind it), follower count, and the parent/grandparent names that make the breadcrumb.
+- ✅ `org_public_officers` — role, title, first and last name. **No `user_id`, deliberately.**
+      With it, anyone could read the view across every organization and assemble which student
+      is involved in what, which §6.1 says belongs to the student and nobody else.
+- ✅ **The revokes CLAUDE.md says get forgotten** — and have been, twice. Done here.
+- ✅ An index on `org_follows(org_id)`. Its primary key is `(user_id, org_id)`, so counting by
+      `org_id` could not use it and every count was a sequential scan. Invisible at this size;
+      the directory runs one per organization per page load.
+
+### The verification file is a different shape from the other three, and that is the point
+
+`verify_can_act.sql` tests a function and `verify_flag_guard.sql` tests a trigger — both work
+from the SQL editor, because a function called from anywhere is still that function.
+**RLS is not like that.** The editor connects as a role that bypasses it, so every "can the
+outsider read this row" asked from a normal session comes back yes — not because the policy
+allowed it but because the policy was never consulted.
+
+So `sql/2026-09-06_verify_org_visibility.sql` does `set local role authenticated` and speaks
+as three students in turn. Consequence worth knowing: **once the role is switched nothing more
+can be set up**, so every fixture is built first — including a club that is deactivated at
+birth, because an ordinary student cannot deactivate one.
+
+Eleven properties. Tests 2, 5, 6, 8 and 10 are the ones proving the gates are gates rather
+than walls: a policy that hid everything from everybody would pass the five refusals perfectly.
+
+### The surface
+
+- ✅ `js/orgdir.js` — **a new file, not an addition to `js/orgs.js`.** That one is already the
+      admin tab and the officer console in 56K; a third area means a student-directory bug can
+      empty an officer's console. Same reasoning as the original split.
+- ✅ Searchable directory at `#page-orgs`, filterable by type, reachable from the desktop nav.
+      Cards carry logo, breadcrumb, description, follower count and a follow button.
+- ✅ Follow and unfollow, optimistic, with a working revert. `23505` is treated as success,
+      not error: `org_follows` is keyed on the pair, so "already following" means the database
+      and the button already agree.
+- ✅ Three distinct empty states — nothing exists / nothing matches / the load failed — because
+      one message for all three sends the reader looking in the wrong place. That lesson is
+      from yesterday.
+- ✅ **Mobile: a row on the profile page.** The bottom bar holds five and all five are spoken
+      for. Briefly tried replacing the Events tab; Kal reverted it — **Events stays exactly as
+      it was**, and `js/listings.js` was restored rather than re-edited, so `updateMTabbar()`
+      is byte-identical to before the attempt.
+      The directory is reached instead from a `.profile-row` above the org-console entry —
+      icon, title, one line, chevron. Shown to **every** student, unlike the console row,
+      which is for the rare case. Left-aligned with a chevron rather than a `.btn-full`
+      because it is navigation, not an action.
+
+### A pre-existing bug this surfaced
+`clearOrgContext()` was never called on logout — only after membership changes. Log out and
+back in as somebody else in the same tab and you inherited the previous student's officer
+buttons. The directory would have had exactly the same hazard, so both are now cleared in
+`sLogout()` and `aLogout()`. **A cache added without its invalidation is a bug shipped on
+purpose.**
+
+### What the next session starts with
+Run `sql/2026-09-06_org_public_views.sql`, then `sql/2026-09-06_verify_org_visibility.sql`
+(expect eleven PASS). **Run the SQL before deploying the code** — the Clubs page queries a
+view that does not exist yet, and will show its load-failed state until it does. The rest of
+the app is unaffected this time.
+
+Then the org profile page and the followed-orgs feed, which finish Phase 1. Open question
+carried forward: the build document puts the feed on the home page; it is currently planned as
+a second tab inside the orgs page, so that `page-home` stays another feature's territory.

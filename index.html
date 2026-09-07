@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-05b">
+<link rel="stylesheet" href="styles.css?v=2026-09-06a">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,6 +28,7 @@
     </div>
     <div class="nav-user" id="navUser">
       <button class="nav-ghost nav-btn" onclick="showPage('listings')" style="color:rgba(255,255,255,0.8)">Browse</button>
+      <button class="nav-ghost nav-btn" onclick="orgDirGo()" style="color:rgba(255,255,255,0.8)">Clubs</button>
       <button class="nav-ghost nav-btn" onclick="showPage('messages')" style="color:rgba(255,255,255,0.8)">
         Messages <span id="msgBadge" style="background:var(--accent);color:var(--brand);font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px;display:none">2</span>
       </button>
@@ -187,6 +188,39 @@
   </div>
 
   <!-- LISTINGS -->
+  <!-- ORGANIZATION DIRECTORY — the first student-facing surface on the org hierarchy.
+       Rendered by js/orgdir.js. Reads org_directory, a view, because follower counts and
+       officer names cannot be assembled from tables a student is allowed to read. -->
+  <div id="page-orgs" class="page">
+    <div class="page-wrap">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Clubs &amp; organizations</h1>
+          <p class="page-sub" id="orgDirCount">Loading…</p>
+        </div>
+      </div>
+      <div class="dir-controls">
+        <div class="dir-search-wrap">
+          <span class="dir-search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg></span>
+          <!-- Wrapped in its own <form> for the same reason as the listing search: Chrome
+               pools every input NOT inside a form and autofills the saved credential into
+               the first visible one. autocomplete="off" alone does not stop it. -->
+          <form onsubmit="return false" autocomplete="off" class="form-shell">
+            <input class="form-input dir-search" id="orgDirSearchInput" name="org-dir-search" autocomplete="off"
+                   placeholder="Search clubs and departments..." oninput="orgDirSearch(this.value)">
+          </form>
+        </div>
+      </div>
+      <div class="cat-tabs">
+        <button class="cat-tab dir-filter active" onclick="orgDirSetType('all',this)">All</button>
+        <button class="cat-tab dir-filter" onclick="orgDirSetType('club',this)">Clubs</button>
+        <button class="cat-tab dir-filter" onclick="orgDirSetType('department',this)">Departments</button>
+        <button class="cat-tab dir-filter" onclick="orgDirSetType('office',this)">Offices</button>
+      </div>
+      <div id="orgDirList" class="dir-list"></div>
+    </div>
+  </div>
+
   <div id="page-listings" class="page">
     <div class="page-wrap">
       <div class="page-header">
@@ -278,6 +312,18 @@
         <div class="section-divider"></div>
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
+        <div class="section-divider"></div>
+        <!-- The directory's entry point on mobile, where the bottom bar has no free slot.
+             Shown to EVERY student, unlike the console row below it: browsing clubs is what
+             the hierarchy exists for, and being an officer is the rare case. -->
+        <button class="profile-row" onclick="orgDirGo()">
+          <span class="profile-row-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
+          <span class="profile-row-body">
+            <span class="profile-row-title">Clubs &amp; organizations</span>
+            <span class="profile-row-sub">Browse what&#8217;s on campus and follow the ones you care about</span>
+          </span>
+          <span class="profile-row-chev" aria-hidden="true">&#8250;</span>
+        </button>
         <!-- Filled by renderOrgConsoleEntry() in js/orgs.js, and left empty for the
              overwhelming majority of students, who are officers of nothing. -->
         <div id="orgConsoleEntry"></div>
@@ -1585,18 +1631,19 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-05b"></script>
-<script src="js/utils.js?v=2026-09-05b"></script>
-<script src="js/data.js?v=2026-09-05b"></script>
-<script src="js/auth.js?v=2026-09-05b"></script>
-<script src="js/profile.js?v=2026-09-05b"></script>
-<script src="js/listings.js?v=2026-09-05b"></script>
-<script src="js/books.js?v=2026-09-05b"></script>
-<script src="js/media.js?v=2026-09-05b"></script>
-<script src="js/messages.js?v=2026-09-05b"></script>
-<script src="js/admin.js?v=2026-09-05b"></script>
-<script src="js/orgs.js?v=2026-09-05b"></script>
-<script src="js/boot.js?v=2026-09-05b"></script>
+<script src="js/config.js?v=2026-09-06a"></script>
+<script src="js/utils.js?v=2026-09-06a"></script>
+<script src="js/data.js?v=2026-09-06a"></script>
+<script src="js/auth.js?v=2026-09-06a"></script>
+<script src="js/profile.js?v=2026-09-06a"></script>
+<script src="js/listings.js?v=2026-09-06a"></script>
+<script src="js/books.js?v=2026-09-06a"></script>
+<script src="js/media.js?v=2026-09-06a"></script>
+<script src="js/messages.js?v=2026-09-06a"></script>
+<script src="js/admin.js?v=2026-09-06a"></script>
+<script src="js/orgs.js?v=2026-09-06a"></script>
+<script src="js/orgdir.js?v=2026-09-06a"></script>
+<script src="js/boot.js?v=2026-09-06a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

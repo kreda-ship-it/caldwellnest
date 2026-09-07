@@ -49,6 +49,8 @@ async function aLogout() {
   // keep firing as an anonymous client and clobber the caches. (Defined in js/admin.js.)
   stopAdminRealtimeListeners();
   await supabaseClient.auth.signOut();
+  clearOrgContext();
+  clearOrgDirectory();
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
@@ -84,6 +86,13 @@ async function sLogout() {
   if (sProfileChannel)   { supabaseClient.removeChannel(sProfileChannel);   sProfileChannel   = null; }
   await supabaseClient.auth.signOut();
   sUser = null;
+  // Both of these are per-ACCOUNT caches, and neither was being cleared here. Log out and
+  // back in as somebody else in the same tab and you inherited the previous student's
+  // officer buttons — and, since 2026-09-06, their follow state on every directory card.
+  // A cache added without its invalidation is a bug shipped on purpose. (js/orgs.js,
+  // js/orgdir.js.)
+  clearOrgContext();
+  clearOrgDirectory();
   sessionStorage.removeItem('cn_last_convo');
   updateSNav();
   // The hint deliberately SURVIVES logout — this is still their device, so the way back in

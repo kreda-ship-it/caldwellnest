@@ -51,7 +51,7 @@ if (!adminPreviewMode && !_recoveryMode) {
   if (!session) {
     if (applyMaintenance()) return;
     const lastPage = sessionStorage.getItem('cn_last_page');
-    const onPrivatePage = ['messages', 'profile'].includes(lastPage); // the early restore may have painted a signed-in-only page
+    const onPrivatePage = ['messages', 'profile', 'orgs'].includes(lastPage); // the early restore may have painted a signed-in-only page
     const prior = getPriorUser();
     if (prior) {
       // STATE B — this device knows someone, but the session is gone or expired.
@@ -113,6 +113,10 @@ if (!adminPreviewMode && !_recoveryMode) {
     orgConsoleRestore();
   } else if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {
     showPage(lastPage);
+    // Same shape as the console one line above: #orgDirList is an empty div until
+    // renderOrgDirectory() fills it, so a bare showPage() restores a blank page that looks
+    // like a directory with nothing in it.
+    if (lastPage === 'orgs') renderOrgDirectory();
     if (lastPage === 'messages') {
       try {
         const c = JSON.parse(sessionStorage.getItem('cn_last_convo'));
