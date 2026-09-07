@@ -1515,7 +1515,14 @@ let _ocRegOpen = null;   // event id whose roster is showing
 let _ocRegRows = [];
 
 async function ocToggleRoster(id) {
-  if (_ocRegOpen === id) { _ocRegOpen = null; _ocRegRows = []; ocPaintRoster(); return; }
+  if (_ocRegOpen === id) {
+    // Clear the pending undo too. A timer that fires after the panel has gone would repaint a
+    // list that is no longer on screen, and worse, leave _ocUndoId pointing at a row the next
+    // event's roster might reuse the id of.
+    clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = '';
+    _ocRegOpen = null; _ocRegRows = []; ocPaintRoster(); return;
+  }
+  clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = '';
   _ocRegOpen = id; _ocRegRows = [];
   ocPaintRoster('Loading…');
 
@@ -1539,6 +1546,25 @@ const OC_REG_LABEL = {
   cancelled:     'Cancelled',
 };
 
+// The row whose Undo is still showing, and the timer that takes it away.
+//
+// UNDO, NOT A CONFIRMATION DIALOG. A door has a line forming behind it, and a dialog asks the
+// officer to answer a question about every single person. Undo asks nothing, and the mistake
+// it protects against — tapping the wrong Daniel — is one somebody notices within seconds or
+// not at all. Five seconds is long enough to notice and short enough that the button is gone
+// before the next person is in front of you.
+let _ocUndoId = null;
+let _ocUndoTimer = null;
+let _ocRegQuery = '';
+
+function ocArmUndo(regId) {
+  clearTimeout(_ocUndoTimer);
+  _ocUndoId = regId;
+  _ocUndoTimer = setTimeout(() => { _ocUndoId = null; ocPaintRoster(); }, 5000);
+}
+
+function ocRegSearch(v) { _ocRegQuery = (v || '').trim().toLowerCase(); ocPaintRoster(); }
+
 function ocPaintRoster(msg) {
   const el = document.getElementById('ocRoster-' + _ocRegOpen);
   document.querySelectorAll('.oc-ev-roster').forEach(n => {
@@ -1549,32 +1575,125 @@ function ocPaintRoster(msg) {
 
   if (msg) { el.innerHTML = `<div class="oc-note">${esc(msg)}</div>`; return; }
 
-  // Cancelled rows are kept and shown last rather than hidden. An officer looking at a
-  // half-empty room is entitled to know that twelve people signed up and pulled out — that is
-  // a fact about the event, and deleting it would make every list look like the plan worked.
-  const live = _ocRegRows.filter(r => r.status !== 'cancelled');
-  const gone = _ocRegRows.filter(r => r.status === 'cancelled');
+  const ev = _ocEvents.find(x => x.id === _ocRegOpen);
+  const here  = _ocRegRows.filter(r => r.status === 'checked_in' || r.status === 'walk_in');
+  const waiting = _ocRegRows.filter(r => r.status === 'self_reported');
+  const expected = _ocRegRows.filter(r => r.status === 'registered');
+  const gone  = _ocRegRows.filter(r => r.status === 'cancelled');
 
-  if (!_ocRegRows.length) {
-    el.innerHTML = '<div class="oc-note">Nobody has registered yet.</div>';
-    return;
-  }
-
-  const row = r => `
-    <div class="oc-reg-row${r.status === 'cancelled' ? ' is-off' : ''}">
-      <div class="oc-reg-who">
-        <div class="oc-reg-name">${esc(r.name_at_signup)}</div>
-        <div class="oc-reg-mail">${esc(r.email_at_signup || '—')}</div>
-      </div>
-      <div class="oc-reg-state">${esc(OC_REG_LABEL[r.status] || r.status)}${
-        r.check_in_method ? ` · ${esc(r.check_in_method.replace(/_/g, ' '))}` : ''}</div>
+  // Everything an officer wants at a door, in one line, in the order they want it: how many
+  // are in, out of how many to expect. A percentage would be worse — nobody counts a room in
+  // percentages.
+  const counter = `
+    <div class="oc-door-count">
+      <span class="oc-door-in">${here.length}</span>
+      <span class="oc-door-of">of ${here.length + waiting.length + expected.length} here</span>
+      ${gone.length ? `<span class="oc-door-note">${gone.length} cancelled</span>` : ''}
+      ${ev?.capacity ? `<span class="oc-door-note">capacity ${ev.capacity}</span>` : ''}
     </div>`;
 
+  const q = _ocRegQuery;
+  const match = r => !q
+    || (r.name_at_signup || '').toLowerCase().includes(q)
+    || (r.email_at_signup || '').toLowerCase().includes(q);
+
+  const row = r => {
+    const isHere = r.status === 'checked_in' || r.status === 'walk_in';
+    const undo = _ocUndoId === r.id;
+    return `
+      <div class="oc-reg-row${r.status === 'cancelled' ? ' is-off' : ''}${isHere ? ' is-here' : ''}">
+        <div class="oc-reg-who">
+          <div class="oc-reg-name">${esc(r.name_at_signup)}</div>
+          <div class="oc-reg-mail">${esc(r.email_at_signup || '—')}</div>
+        </div>
+        ${r.status === 'cancelled'
+          ? '<div class="oc-reg-state">Cancelled</div>'
+          : isHere
+            ? (undo
+                ? `<button class="org-btn oc-undo" onclick="ocUndoCheckIn(${r.id})">Undo</button>`
+                : `<div class="oc-reg-state oc-reg-in">Here &#10003;${
+                     r.check_in_method ? `<br><span class="note-xs">${esc(r.check_in_method.replace(/_/g, ' '))}</span>` : ''}</div>`)
+            : `<button class="org-btn org-btn-go" onclick="ocCheckIn(${r.id}, '${r.status === 'self_reported' ? 'self_confirmed' : 'officer'}')">${
+                 r.status === 'self_reported' ? 'Confirm' : 'Check in'}</button>`}
+      </div>`;
+  };
+
+  // Arrivals first. Somebody standing at the door having tapped "I'm here" is waiting on the
+  // officer RIGHT NOW; somebody who registered last week is not. Ordering the list by who is
+  // waiting is the difference between a screen an officer reads and one they search.
+  const section = (label, rows) => rows.filter(match).length
+    ? `<div class="oc-reg-head">${label} · ${rows.filter(match).length}</div>${rows.filter(match).map(row).join('')}`
+    : '';
+
   el.innerHTML = `
-    <div class="oc-reg-head">${live.length} registered${gone.length ? ` · ${gone.length} cancelled` : ''}</div>
-    ${live.map(row).join('')}
-    ${gone.map(row).join('')}
-    <button class="org-btn" onclick="ocCopyEmails(${_ocRegOpen})">Copy email addresses</button>`;
+    ${counter}
+    <input class="oc-input oc-door-search" placeholder="Search by name or email…"
+           autocomplete="off" value="${escAttr(_ocRegQuery)}" oninput="ocRegSearch(this.value)">
+    ${!_ocRegRows.length ? '<div class="oc-note">Nobody has registered yet. You can still add walk-ins.</div>' : ''}
+    ${section('Waiting to be confirmed', waiting)}
+    ${section('Expected', expected)}
+    ${section('Here', here)}
+    ${section('Cancelled', gone)}
+    <div class="oc-door-actions">
+      <button class="org-btn" onclick="ocAddWalkIn(${_ocRegOpen})">+ Add walk-in</button>
+      <button class="org-btn" onclick="ocCopyEmails(${_ocRegOpen})">Copy emails</button>
+    </div>`;
+}
+
+// Every check-in goes through the RPC, never an UPDATE. The RPC records WHO checked them in
+// and BY WHAT METHOD in the same transaction as the log row — and check_in_method is the
+// column that cannot be backfilled, because "how much of our attendance is officer-verified"
+// is a question an advisor asks six months later and app code cannot answer it retroactively.
+//
+// 'self_confirmed' when the student tapped "I'm here" first and the officer confirmed;
+// 'officer' when the officer found them by name. Two different facts, and the difference is
+// exactly what makes the number honest.
+async function ocCheckIn(regId, method) {
+  const { error } = await supabaseClient.rpc('check_in_attendee',
+    { p_registration_id: regId, p_method: method });
+  if (error) { toast('Could not check in: ' + error.message); console.error('[ocCheckIn]', error); return; }
+  ocArmUndo(regId);
+  await ocReloadRoster();
+}
+
+async function ocUndoCheckIn(regId) {
+  const { error } = await supabaseClient.rpc('undo_check_in', { p_registration_id: regId });
+  if (error) { toast('Could not undo: ' + error.message); console.error('[ocUndoCheckIn]', error); return; }
+  clearTimeout(_ocUndoTimer); _ocUndoId = null;
+  await ocReloadRoster();
+  toast('Undone');
+}
+
+// A walk-in is somebody who never registered. They may have no account at all, which is why
+// event_registrations.user_id is nullable — the single schema decision this whole path rests
+// on, and the one most likely to be "tidied" into NOT NULL by a future session.
+//
+// The RPC links them to a profile when the email matches one, and to nothing when it does
+// not. Either way they are counted.
+async function ocAddWalkIn(eventId) {
+  const name = prompt('Walk-in — name?');
+  if (name === null) return;
+  if (!name.trim()) { toast('A walk-in needs a name'); return; }
+  const email = prompt(`Email for ${name.trim()}? (optional — leave blank if they do not have one to hand)`) || '';
+
+  const { error } = await supabaseClient.rpc('add_walk_in',
+    { p_event_id: eventId, p_name: name.trim(), p_email: email.trim() });
+  if (error) { toast('Could not add: ' + error.message); console.error('[ocAddWalkIn]', error); return; }
+  toast('✓ Added');
+  await ocReloadRoster();
+}
+
+// Re-reads rather than patching the local array. At a door two officers may be checking people
+// in at once, and a list built from what THIS browser did would quietly disagree with the room.
+async function ocReloadRoster() {
+  const { data } = await supabaseClient
+    .from('event_registrations')
+    .select('id, user_id, name_at_signup, email_at_signup, status, check_in_method, ' +
+            'checked_in_at, created_at')
+    .eq('event_id', _ocRegOpen)
+    .order('created_at', { ascending: true });
+  _ocRegRows = data || [];
+  ocPaintRoster();
 }
 
 // Copying beats a CSV export here. There is no notification layer, so the only way an officer
@@ -1761,7 +1880,7 @@ function ocEventCardHTML(e) {
           ${e.status === 'draft' ? `<button class="org-btn org-btn-go" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
           ${live ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
           <button class="org-btn" onclick="ocToggleRoster(${e.id})">Who's coming${
-          e._going ? ` · ${e._going}` : ''}</button>
+          e._going ? ` · ${e._checked ? `${e._checked}/${e._going}` : e._going}` : ''}</button>
         <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
           <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">QR</button>
           ${live ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel</button>` : ''}
