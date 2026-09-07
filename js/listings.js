@@ -1117,7 +1117,11 @@ function selectCategory(cat) {
   const _catC = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other;
   document.getElementById('postCatBadge').innerHTML = `<span style="color:${_catC.text};margin-right:6px">${catIcon(cat, 13)}</span>${CATEGORY_LABELS[cat]}`;
   document.querySelectorAll('[id^="catFields-"]').forEach(el => el.style.display = 'none');
-  document.getElementById('catFields-' + cat).style.display = '';
+  // Guarded: not every category has an extra-fields block, and one of them stopped having
+  // one when events left this form. An unknown category should open the plain form, not
+  // throw on a null and leave the modal half-drawn.
+  const cf = document.getElementById('catFields-' + cat);
+  if (cf) cf.style.display = '';
 }
 
 function backToCategories() {
@@ -1227,12 +1231,6 @@ async function submitListing() {
   } else if (cat === 'donation') {
     details.condition = document.getElementById('pDN_cond').value;
     details.pickup_info = document.getElementById('pDN_pickup').value.trim();
-  } else if (cat === 'organization_event') {
-    details.org_name = document.getElementById('pEV_org').value.trim();
-    details.event_date = document.getElementById('pEV_date').value;
-    details.event_time = document.getElementById('pEV_time').value;
-    details.event_contact = document.getElementById('pEV_contact').value.trim();
-    location = document.getElementById('pEV_loc').value.trim();
   } else if (cat === 'other') {
     const p = parseInt(document.getElementById('pOT_price').value);
     if (!isNaN(p)) price = p;
@@ -1240,7 +1238,7 @@ async function submitListing() {
 
   // Soft photo nudge: for categories where a photo really helps, gently warn if there's none.
   // The student can still proceed — it's encouragement, not a hard block.
-  const PHOTO_NUDGE_CATS = ['housing', 'clothing', 'technology', 'organization_event'];
+  const PHOTO_NUDGE_CATS = ['housing', 'clothing', 'technology'];
   if (!_pendingPhotoFiles.length && PHOTO_NUDGE_CATS.includes(cat)) {
     if (!confirm('Listings with a photo get far more interest from other students.\n\nPost without a photo?')) return;
   }

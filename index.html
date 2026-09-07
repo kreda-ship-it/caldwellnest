@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-06b">
+<link rel="stylesheet" href="styles.css?v=2026-09-07a">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -1308,10 +1308,12 @@
         <button class="cat-pick-btn cat-clothing" onclick="selectCategory('clothing')">Clothing</button>
         <button class="cat-pick-btn cat-technology" onclick="selectCategory('technology')">Technology</button>
         <button class="cat-pick-btn cat-donation" onclick="selectCategory('donation')">Free items</button>
-        <button class="cat-pick-btn cat-organization_event" onclick="selectCategory('organization_event')">Org / Event</button>
         <button class="cat-pick-btn cat-books" onclick="closePostModal();openPostBook()">Books</button>
         <button class="cat-pick-btn cat-other" onclick="selectCategory('other')">Other</button>
       </div>
+      <!-- Events left this form on 2026-09-07. Removing an option without saying where it
+           went reads as a bug, so the line stays even though the button does not. -->
+      <div class="post-cat-note">Running an event? Ask your organization to post it from the club console.</div>
     </div>
 
     <!-- STEP 2: Form -->
@@ -1371,17 +1373,6 @@
       <div id="catFields-donation" style="display:none">
         <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
         <div class="form-group"><label class="form-label">Pickup info</label><input class="form-input" id="pDN_pickup" placeholder="e.g. Caldwell dorms, contact to arrange"></div>
-      </div>
-
-      <!-- ORG / EVENT fields -->
-      <div id="catFields-organization_event" style="display:none">
-        <div class="form-group"><label class="form-label">Organization name</label><input class="form-input" id="pEV_org" placeholder="e.g. Caldwell Student Government"></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="pEV_date" type="date"></div>
-          <div class="form-group"><label class="form-label">Time</label><input class="form-input" id="pEV_time" type="time"></div>
-        </div>
-        <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="pEV_loc" placeholder="e.g. Caldwell Main Hall, Room 201"></div>
-        <div class="form-group"><label class="form-label">Contact / Link</label><input class="form-input" id="pEV_contact" placeholder="e.g. email, Instagram, or website link"></div>
       </div>
 
       <!-- OTHER fields -->
@@ -1636,7 +1627,7 @@
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-06b"></script>
 <script src="js/profile.js?v=2026-09-06b"></script>
-<script src="js/listings.js?v=2026-09-06b"></script>
+<script src="js/listings.js?v=2026-09-07a"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>

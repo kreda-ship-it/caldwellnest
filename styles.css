@@ -976,6 +976,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 .tcard-flush{margin-bottom:0;}
 .note-xs{font-size:11px;color:var(--text-faint);}
+/* Sits under the "what are you posting?" grid. Events left this form on 2026-09-07 and
+   this line is where the option used to be — a removed choice with no explanation reads
+   as a bug to the person who used it last week. */
+.post-cat-note{margin-top:14px;font-size:12px;color:var(--text-muted);line-height:1.6;text-align:center;}
 
 /* The school / brand chip. It had been hand-written 18 times in 12 slightly different
    variants across admin.js — 9/10/11/12px fonts and six different paddings — so the same
