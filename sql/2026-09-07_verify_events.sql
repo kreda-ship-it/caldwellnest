@@ -432,7 +432,21 @@ BEGIN
   -- Officer B is promoted onto the SCHOOL organization, then edits club A's event. can_act()
   -- walks up from club A, reaches the school row, and finds them. This is the direction that
   -- must work; TEST 4 is the direction that must not.
+  -- The CLAIMS have to be cleared, not just the role. guard_org_membership_flags() fires on
+  -- any insert that grants a flag, and its break-glass branch keys on request.jwt.claims
+  -- being EMPTY — not on being postgres. Leaving officer A's claims in place while switching
+  -- role means the guard sees a real authenticated caller who lacks can_manage_admins, and
+  -- refuses. Correctly: whoever can grant permissions can grant them to themselves, which is
+  -- why that guard exists at all.
+  --
+  -- This is the cost sql/2026-09-05_flag_set.sql writes down in the guard's own comment —
+  -- "a test that inserts rows from the SQL editor without setting request.jwt.claims is not
+  -- testing this trigger, it is walking straight past it." Here we WANT to walk past it: this
+  -- is fixture setup for TEST 3, not an assertion about the guard. 2026-09-05_verify_flag_guard.sql
+  -- is the file that tests it, and it sets claims before every assertion for that reason.
   PERFORM set_config('role', 'postgres', true);
+  PERFORM set_config('request.jwt.claims', '', true);
+
   INSERT INTO public.org_memberships
          (org_id, user_id, role, title, status, can_post, can_manage_events)
   VALUES (v_school_org, v_officer_b, 'officer', 'Dean', 'active', true, true);
