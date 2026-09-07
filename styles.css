@@ -1255,6 +1255,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-door-search { margin: 0 0 6px; }
 .oc-door-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 
+/* The walk-in form, below the actions rather than above the list. It is used less often than
+   the list is read, and putting it on top would push the queue down every time it opened. */
+.oc-walk { margin-top: 12px; padding: 14px; border: 1px solid var(--border);
+           border-radius: 10px; background: var(--bg); }
+.oc-walk .ff:last-of-type { margin-bottom: 8px; }
+
 /* Somebody already in the room recedes. The list is a queue of people still to deal with, and
    the ones you have dealt with should stop competing for the same attention. */
 .oc-reg-row.is-here { opacity: .68; }

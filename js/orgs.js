@@ -1519,10 +1519,10 @@ async function ocToggleRoster(id) {
     // Clear the pending undo too. A timer that fires after the panel has gone would repaint a
     // list that is no longer on screen, and worse, leave _ocUndoId pointing at a row the next
     // event's roster might reuse the id of.
-    clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = '';
+    clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = ''; _ocWalkOpen = false;
     _ocRegOpen = null; _ocRegRows = []; ocPaintRoster(); return;
   }
-  clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = '';
+  clearTimeout(_ocUndoTimer); _ocUndoId = null; _ocRegQuery = ''; _ocWalkOpen = false;
   _ocRegOpen = id; _ocRegRows = [];
   ocPaintRoster('Loading…');
 
@@ -1555,7 +1555,6 @@ const OC_REG_LABEL = {
 // before the next person is in front of you.
 let _ocUndoId = null;
 let _ocUndoTimer = null;
-let _ocRegQuery = '';
 
 function ocArmUndo(regId) {
   clearTimeout(_ocUndoTimer);
@@ -1563,7 +1562,74 @@ function ocArmUndo(regId) {
   _ocUndoTimer = setTimeout(() => { _ocUndoId = null; ocPaintRoster(); }, 5000);
 }
 
-function ocRegSearch(v) { _ocRegQuery = (v || '').trim().toLowerCase(); ocPaintRoster(); }
+// Search repaints ONLY the list, never the panel around it. A full repaint rebuilds the input
+// the officer is typing into, which drops focus after the first character — the box empties
+// itself and looks broken. The same reasoning keeps the walk-in fields out of the repainted
+// region: a form that clears itself while you fill it in is worse than no form.
+let _ocRegQuery = '';
+function ocRegSearch(v) {
+  _ocRegQuery = (v || '').trim().toLowerCase();
+  const list = document.getElementById('ocRosterList');
+  if (list) list.innerHTML = ocRosterListHTML();
+}
+
+let _ocWalkOpen = false;
+function ocWalkToggle() {
+  _ocWalkOpen = !_ocWalkOpen;
+  const box = document.getElementById('ocWalkBox');
+  if (box) box.hidden = !_ocWalkOpen;
+  if (_ocWalkOpen) document.getElementById('ocWalkName')?.focus();
+}
+
+function ocRosterRowHTML(r) {
+  const isHere = r.status === 'checked_in' || r.status === 'walk_in';
+  const undo = _ocUndoId === r.id;
+  return `
+    <div class="oc-reg-row${r.status === 'cancelled' ? ' is-off' : ''}${isHere ? ' is-here' : ''}">
+      <div class="oc-reg-who">
+        <div class="oc-reg-name">${esc(r.name_at_signup)}</div>
+        <div class="oc-reg-mail">${esc(r.email_at_signup || '—')}</div>
+      </div>
+      ${r.status === 'cancelled'
+        ? '<div class="oc-reg-state">Cancelled</div>'
+        : isHere
+          ? (undo
+              ? `<button class="org-btn oc-undo" onclick="ocUndoCheckIn(${r.id})">Undo</button>`
+              : `<div class="oc-reg-state oc-reg-in">Here &#10003;${
+                   r.check_in_method ? `<br><span class="note-xs">${esc(r.check_in_method.replace(/_/g, ' '))}</span>` : ''}</div>`)
+          : `<button class="org-btn org-btn-go" onclick="ocCheckIn(${r.id}, '${r.status === 'self_reported' ? 'self_confirmed' : 'officer'}')">${
+               r.status === 'self_reported' ? 'Confirm' : 'Check in'}</button>`}
+    </div>`;
+}
+
+// Arrivals first. Somebody standing at the door having tapped "I'm here" is waiting on the
+// officer RIGHT NOW; somebody who registered last week is not. Ordering the list by who is
+// waiting is the difference between a screen an officer reads and one they search.
+function ocRosterListHTML() {
+  const q = _ocRegQuery;
+  const match = r => !q
+    || (r.name_at_signup || '').toLowerCase().includes(q)
+    || (r.email_at_signup || '').toLowerCase().includes(q);
+
+  const groups = [
+    ['Waiting to be confirmed', _ocRegRows.filter(r => r.status === 'self_reported')],
+    ['Expected',                _ocRegRows.filter(r => r.status === 'registered')],
+    ['Here',                    _ocRegRows.filter(r => r.status === 'checked_in' || r.status === 'walk_in')],
+    ['Cancelled',               _ocRegRows.filter(r => r.status === 'cancelled')],
+  ];
+
+  let html = '';
+  let shown = 0;
+  for (const [label, rows] of groups) {
+    const hit = rows.filter(match);
+    if (!hit.length) continue;
+    shown += hit.length;
+    html += `<div class="oc-reg-head">${label} · ${hit.length}</div>${hit.map(ocRosterRowHTML).join('')}`;
+  }
+  if (!_ocRegRows.length) return '<div class="oc-note">Nobody has registered yet. You can still add walk-ins.</div>';
+  if (!shown) return `<div class="oc-note">Nobody matching “${esc(_ocRegQuery)}”. They may be a walk-in.</div>`;
+  return html;
+}
 
 function ocPaintRoster(msg) {
   const el = document.getElementById('ocRoster-' + _ocRegOpen);
@@ -1576,67 +1642,47 @@ function ocPaintRoster(msg) {
   if (msg) { el.innerHTML = `<div class="oc-note">${esc(msg)}</div>`; return; }
 
   const ev = _ocEvents.find(x => x.id === _ocRegOpen);
-  const here  = _ocRegRows.filter(r => r.status === 'checked_in' || r.status === 'walk_in');
+  const here    = _ocRegRows.filter(r => r.status === 'checked_in' || r.status === 'walk_in');
   const waiting = _ocRegRows.filter(r => r.status === 'self_reported');
   const expected = _ocRegRows.filter(r => r.status === 'registered');
-  const gone  = _ocRegRows.filter(r => r.status === 'cancelled');
+  const gone    = _ocRegRows.filter(r => r.status === 'cancelled');
 
   // Everything an officer wants at a door, in one line, in the order they want it: how many
   // are in, out of how many to expect. A percentage would be worse — nobody counts a room in
   // percentages.
-  const counter = `
+  el.innerHTML = `
     <div class="oc-door-count">
       <span class="oc-door-in">${here.length}</span>
       <span class="oc-door-of">of ${here.length + waiting.length + expected.length} here</span>
       ${gone.length ? `<span class="oc-door-note">${gone.length} cancelled</span>` : ''}
       ${ev?.capacity ? `<span class="oc-door-note">capacity ${ev.capacity}</span>` : ''}
-    </div>`;
+    </div>
 
-  const q = _ocRegQuery;
-  const match = r => !q
-    || (r.name_at_signup || '').toLowerCase().includes(q)
-    || (r.email_at_signup || '').toLowerCase().includes(q);
-
-  const row = r => {
-    const isHere = r.status === 'checked_in' || r.status === 'walk_in';
-    const undo = _ocUndoId === r.id;
-    return `
-      <div class="oc-reg-row${r.status === 'cancelled' ? ' is-off' : ''}${isHere ? ' is-here' : ''}">
-        <div class="oc-reg-who">
-          <div class="oc-reg-name">${esc(r.name_at_signup)}</div>
-          <div class="oc-reg-mail">${esc(r.email_at_signup || '—')}</div>
-        </div>
-        ${r.status === 'cancelled'
-          ? '<div class="oc-reg-state">Cancelled</div>'
-          : isHere
-            ? (undo
-                ? `<button class="org-btn oc-undo" onclick="ocUndoCheckIn(${r.id})">Undo</button>`
-                : `<div class="oc-reg-state oc-reg-in">Here &#10003;${
-                     r.check_in_method ? `<br><span class="note-xs">${esc(r.check_in_method.replace(/_/g, ' '))}</span>` : ''}</div>`)
-            : `<button class="org-btn org-btn-go" onclick="ocCheckIn(${r.id}, '${r.status === 'self_reported' ? 'self_confirmed' : 'officer'}')">${
-                 r.status === 'self_reported' ? 'Confirm' : 'Check in'}</button>`}
-      </div>`;
-  };
-
-  // Arrivals first. Somebody standing at the door having tapped "I'm here" is waiting on the
-  // officer RIGHT NOW; somebody who registered last week is not. Ordering the list by who is
-  // waiting is the difference between a screen an officer reads and one they search.
-  const section = (label, rows) => rows.filter(match).length
-    ? `<div class="oc-reg-head">${label} · ${rows.filter(match).length}</div>${rows.filter(match).map(row).join('')}`
-    : '';
-
-  el.innerHTML = `
-    ${counter}
     <input class="oc-input oc-door-search" placeholder="Search by name or email…"
            autocomplete="off" value="${escAttr(_ocRegQuery)}" oninput="ocRegSearch(this.value)">
-    ${!_ocRegRows.length ? '<div class="oc-note">Nobody has registered yet. You can still add walk-ins.</div>' : ''}
-    ${section('Waiting to be confirmed', waiting)}
-    ${section('Expected', expected)}
-    ${section('Here', here)}
-    ${section('Cancelled', gone)}
+
+    <div id="ocRosterList">${ocRosterListHTML()}</div>
+
     <div class="oc-door-actions">
-      <button class="org-btn" onclick="ocAddWalkIn(${_ocRegOpen})">+ Add walk-in</button>
+      <button class="org-btn" onclick="ocWalkToggle()">+ Add walk-in</button>
       <button class="org-btn" onclick="ocCopyEmails(${_ocRegOpen})">Copy emails</button>
+    </div>
+
+    <div class="oc-walk" id="ocWalkBox" ${_ocWalkOpen ? '' : 'hidden'}>
+      <div class="ff">
+        <label class="ff-label" for="ocWalkName">Name</label>
+        <input class="oc-input" id="ocWalkName" placeholder="As they say it at the door"
+               autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('ocWalkEmail').focus()">
+      </div>
+      <div class="ff">
+        <label class="ff-label" for="ocWalkEmail">Email <span class="ff-opt">optional</span></label>
+        <input class="oc-input" id="ocWalkEmail" type="email" placeholder="name@caldwell.edu"
+               autocomplete="off" onkeydown="if(event.key==='Enter')ocAddWalkIn(${_ocRegOpen})">
+      </div>
+      <p class="ff-help">If the email matches a student account they are linked to it. If it
+        does not, or you leave it blank, they are still counted — a walk-in does not need an
+        account to have walked in.</p>
+      <button class="ff-btn ff-btn-go" onclick="ocAddWalkIn(${_ocRegOpen})">Add and check in</button>
     </div>`;
 }
 
@@ -1671,16 +1717,22 @@ async function ocUndoCheckIn(regId) {
 // The RPC links them to a profile when the email matches one, and to nothing when it does
 // not. Either way they are counted.
 async function ocAddWalkIn(eventId) {
-  const name = prompt('Walk-in — name?');
-  if (name === null) return;
-  if (!name.trim()) { toast('A walk-in needs a name'); return; }
-  const email = prompt(`Email for ${name.trim()}? (optional — leave blank if they do not have one to hand)`) || '';
+  const nameEl  = document.getElementById('ocWalkName');
+  const emailEl = document.getElementById('ocWalkEmail');
+  const name  = (nameEl?.value || '').trim();
+  const email = (emailEl?.value || '').trim();
+  if (!name) { toast('A walk-in needs a name'); nameEl?.focus(); return; }
 
   const { error } = await supabaseClient.rpc('add_walk_in',
-    { p_event_id: eventId, p_name: name.trim(), p_email: email.trim() });
+    { p_event_id: eventId, p_name: name, p_email: email });
   if (error) { toast('Could not add: ' + error.message); console.error('[ocAddWalkIn]', error); return; }
-  toast('✓ Added');
+
+  toast('✓ ' + name + ' added');
   await ocReloadRoster();
+  // The box stays open and the cursor goes back to the name. Walk-ins arrive in a run — three
+  // people from the same corridor — and closing the form after each one makes the officer
+  // reopen it while somebody waits.
+  document.getElementById('ocWalkName')?.focus();
 }
 
 // Re-reads rather than patching the local array. At a door two officers may be checking people
