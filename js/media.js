@@ -29,23 +29,39 @@ function resizeImage(file) {
   });
 }
 
-async function uploadListingPhoto(blob, posterId) {
+// The bucket every existing upload uses. Listing photos, avatars and org logos all live
+// here together — one bucket, three kinds of image. Events are the first to need a second
+// one, because posters are portrait (~4:5) and a grid built for one aspect ratio breaks
+// when the other arrives.
+const BUCKET_LISTINGS = 'listing-photos';
+
+// `bucket` is a parameter rather than a constant because the events work needs a second one.
+// Before this it was hardcoded here, again in getPublicUrl, again in deleteListingPhotos'
+// URL parsing, and a fifth time inline in ocPickLogo — which had already copied this whole
+// function rather than call it. Events would have been the sixth copy. One helper with an
+// argument is the alternative to that.
+async function uploadListingPhoto(blob, posterId, bucket = BUCKET_LISTINGS) {
   const path = `${posterId || 'guest'}/${crypto.randomUUID()}.jpg`;
   const { error } = await supabaseClient.storage
-    .from('listing-photos')
+    .from(bucket)
     .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
-  const { data } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
-async function deleteListingPhotos(photoUrls) {
+// The bucket has to be passed here too, and it cannot be inferred from the caller: the path
+// is recovered by splitting the public URL on the bucket name, so passing the wrong one
+// yields no paths and deletes nothing. Silently — which is why the split result is checked
+// rather than assumed.
+async function deleteListingPhotos(photoUrls, bucket = BUCKET_LISTINGS) {
   if (!photoUrls || !photoUrls.length) return;
+  const marker = `/${bucket}/`;
   const paths = photoUrls.map(url => {
-    const m = url.split('/listing-photos/');
+    const m = url.split(marker);
     return m.length === 2 ? m[1] : null;
   }).filter(Boolean);
-  if (paths.length) await supabaseClient.storage.from('listing-photos').remove(paths);
+  if (paths.length) await supabaseClient.storage.from(bucket).remove(paths);
 }
 
 // Renders a photo gallery: one main image + (if more than one) a strip of
@@ -100,10 +116,10 @@ function paintAvatarEl(el, url, initials, color) {
 async function uploadAvatar(blob, userId) {
   const path = `${userId}/avatar-${Date.now()}.jpg`; // first folder must be the user id to pass the storage policy
   const { error } = await supabaseClient.storage
-    .from('listing-photos')
+    .from(BUCKET_LISTINGS)
     .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
-  const { data } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+  const { data } = supabaseClient.storage.from(BUCKET_LISTINGS).getPublicUrl(path);
   return data.publicUrl;
 }
 
@@ -114,7 +130,7 @@ async function deleteAvatarFile(url) {
   if (!url) return;
   const path = String(url).split('?')[0].split('/listing-photos/')[1]; // .split('?') drops any legacy ?v= cache-buster
   if (!path) return;
-  const { error } = await supabaseClient.storage.from('listing-photos').remove([path]);
+  const { error } = await supabaseClient.storage.from(BUCKET_LISTINGS).remove([path]);
   if (error) console.warn('[avatar cleanup] old file left behind:', error.message);
 }
 

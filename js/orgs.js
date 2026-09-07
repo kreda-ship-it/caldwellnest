@@ -1105,14 +1105,14 @@ async function ocPickLogo(input) {
   try {
     const blob = await resizeImage(file);
     const { data: { user } } = await supabaseClient.auth.getUser();
-    const path = `${user.id}/orglogo-${_ocOrgId}-${Date.now()}.jpg`;
-    const { error: ue } = await supabaseClient.storage
-      .from('listing-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
-    if (ue) throw ue;
-    const { data: pub } = supabaseClient.storage.from('listing-photos').getPublicUrl(path);
+    // Was an inlined copy of uploadListingPhoto() with a different path scheme. Now the
+    // shared helper, so the bucket is named in one place. The old path carried the org id
+    // and a timestamp; the helper uses a uuid, which is just as unique and needs no
+    // collision reasoning.
+    const publicUrl = await uploadListingPhoto(blob, user.id);
 
     const { error } = await supabaseClient.from('organizations')
-      .update({ logo_url: pub.publicUrl }).eq('id', _ocOrgId);
+      .update({ logo_url: publicUrl }).eq('id', _ocOrgId);
     if (error) throw error;
 
     toast('✓ Logo updated');
