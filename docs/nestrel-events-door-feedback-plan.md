@@ -21,6 +21,14 @@ on the marketplace.** What changed:
 - `activity_log` / `entity_type` corrected to `logEvent()` / `admin_activity_log` / `target_type`
   everywhere.
 - §9 open questions are now §9 decisions, answered.
+
+**Rev 2.1 — 2026-09-07, from E1 step 1.** `can_act()`'s action names **drop the `can_`
+prefix**: `'manage_events'`, `'check_in'`, `'view_analytics'`
+(`sql/2026-09-05_flag_set.sql:146-153`). Rev 2 wrote `can_act('can_manage_events', …)`
+everywhere and it is corrected throughout. **This one does not raise.** `can_act()` ends in
+`else false`, so a misspelled action returns false and refuses *everyone* — every officer
+locked out of their own events, with nothing in the console to debug from. If an events
+permission ever behaves as though nobody has it, check this first.
 - Sessions resequenced to E0 … E6, each with a **Done when** checklist.
 
 Rev 1 is recoverable at commit `bf17325`.
@@ -228,7 +236,7 @@ ratings cannot be un-published once they exist.
 **Anonymity, described honestly.** `user_id` is stored — it has to be, to enforce one rating per
 person and to check attendance — but officers never see it. The officer read goes through a
 `SECURITY DEFINER` function returning the aggregate and comment text with no identity attached,
-guarded by `can_act('can_view_analytics', org_id)`. Student-facing copy says what is true and no
+guarded by `can_act('view_analytics', org_id)`. Student-facing copy says what is true and no
 more: *shared anonymously with the organizers — though at a small event, a detailed comment may
 still be recognisable.* Do not write "completely anonymous." It is not, at eleven attendees, and
 the first person who feels identified will be right.
@@ -391,9 +399,9 @@ again and check rather than trust.
 **RLS, in words; written properly in E1:**
 
 - `events` — SELECT via `visible_events` for any authenticated student of the school.
-  INSERT/UPDATE/DELETE gated on `can_act('can_manage_events', org_id)`.
+  INSERT/UPDATE/DELETE gated on `can_act('manage_events', org_id)`.
 - `event_media` — SELECT follows the event's own visibility. Writes gated on
-  `can_act('can_manage_events', org_id)`.
+  `can_act('manage_events', org_id)`.
 - `event_registrations` — a student SELECTs and INSERTs their own row only, and may UPDATE it only
   to `cancelled`. **A student can never write `status='checked_in'` or `check_in_method`.**
 - `event_feedback` — INSERT only when a row exists in `event_registrations` for
@@ -401,7 +409,7 @@ again and check rather than trust.
   **and** it ended within seven days. SELECT: own row only. Officers never read this table
   directly.
 - `get_event_feedback(event_id)` — `SECURITY DEFINER`, guarded by
-  `can_act('can_view_analytics', org_id)`, returns `{count, avg, comments[]}` with no user ids and
+  `can_act('view_analytics', org_id)`, returns `{count, avg, comments[]}` with no user ids and
   a **null average when `count < 5`**. The suppression lives in the function, not the UI — a
   suppression rule enforced only in JavaScript is not a suppression rule.
 

@@ -80,6 +80,11 @@ kept so they can be read, reviewed, and re-applied.
 
 These were never captured and are needed before this folder can rebuild the database:
 
+- ✅ **Views** — captured 2026-09-06 in `2026-09-06_capture_views.sql`. All five in `public`,
+      emitted by `pg_get_viewdef()` rather than retyped. This list had never mentioned views
+      at all, which is why `visible_listings` — the rule the whole marketplace feed is
+      supposed to obey — was undocumented for as long as it was.
+
 - ✅ The `book_listings` guard — trigger *and* function — captured 2026-08-08.
 - ⬜ The real `CREATE TRIGGER` statement for `trg_guard_owner_listing_update`. Only the
       *function* it calls was ever read. Capture it with:
