@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-07f">
+<link rel="stylesheet" href="styles.css?v=2026-09-07g">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1438,6 +1438,17 @@
   <div id="detailContent"></div></div>
 </div>
 
+<!-- EVENT DETAIL — the one detail view. The #/event/:id deep link opens this same modal on
+     load rather than a second page, so the two cannot drift apart. -->
+<div class="modal-overlay" id="evDetailModal">
+  <div class="modal evd-modal">
+    <div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;">
+      <button class="modal-close" onclick="closeModal('evDetailModal')">&#215;</button>
+    </div>
+    <div id="evDetailBody"></div>
+  </div>
+</div>
+
 <!-- POST A BOOK -->
 <div class="modal-overlay" id="postBookModal">
   <div class="modal"><div class="modal-header"><div class="modal-title">Post a book</div><button class="modal-close" onclick="closePostBook()">&#215;</button></div>
@@ -1670,7 +1681,7 @@
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-07i"></script>
-<script src="js/events.js?v=2026-09-07a"></script>
+<script src="js/events.js?v=2026-09-07b"></script>
 <script src="js/orgdir.js?v=2026-09-06b"></script>
 <script src="js/boot.js?v=2026-09-07a"></script>
 

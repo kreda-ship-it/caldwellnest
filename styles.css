@@ -1633,3 +1633,58 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .ev-cat-tabs { display: none; }   /* the bottom tab bar is the phone's entry point */
   .ev-poster { max-height: none; }
 }
+
+
+/* ---------- Event detail ---------- */
+.evd-modal { max-width: 560px; }
+#evDetailBody { padding: 0 24px 26px; }
+
+/* The banner is first and it is loud, because for a registrant it is the ONLY way they find
+   out — there is no notification layer, so this is the whole of §6's mitigation. */
+.evd-cancelled { padding: 12px 14px; margin-bottom: 16px; border-radius: 10px;
+                 background: #fdecec; color: #c0392b; font-size: 13px; line-height: 1.6; }
+
+.evd-poster { aspect-ratio: 4/5; max-height: 380px; border-radius: 12px; overflow: hidden;
+              background: var(--surface-2); }
+.evd-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.evd-org { border: 0; border-bottom: 1px solid var(--border); padding: 12px 0; }
+.evd-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.2;
+             color: var(--text); margin: 14px 0 10px; }
+.evd-when  { font-size: 15px; color: var(--text); font-weight: 500; }
+.evd-where { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+
+.evd-cal { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+.evd-cal-btn { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border);
+               border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer;
+               font-family: inherit; }
+.evd-cal-btn:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
+
+.evd-desc { font-size: 14px; line-height: 1.75; color: var(--text); margin: 16px 0; }
+.evd-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 16px 0; }
+.evd-gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+
+.evd-video { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 8px 0;
+             border: 1px solid var(--border); border-radius: 10px; text-decoration: none;
+             color: var(--text); font-size: 13px; }
+.evd-video:hover { border-color: var(--brand, #3B5BA5); }
+.evd-video-play { width: 26px; height: 26px; border-radius: 50%; flex: none; color: #fff;
+                  background: var(--brand, #3B5BA5); display: inline-flex;
+                  align-items: center; justify-content: center; font-size: 11px; }
+
+.evd-reg { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.evd-btn { flex: 1; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 600;
+           cursor: pointer; font-family: inherit; border: 1px solid var(--border);
+           background: var(--bg); color: var(--text); }
+.evd-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
+.evd-btn-go:hover { background: var(--brand-dark, #2f4a86); }
+.evd-btn-ghost { flex: none; padding: 10px 14px; font-size: 13px; font-weight: 500; }
+.evd-btn:disabled { opacity: .55; cursor: default; }
+.evd-going { flex: 1; font-size: 15px; font-weight: 600; color: var(--brand, #3B5BA5); }
+.evd-seats { font-size: 13px; color: var(--text-muted); flex: none; }
+
+/* Directly under the button, not in a settings page, not in a tooltip. §4.1 says do not bury
+   it, and the reason is that the star and the register button differ on exactly this point. */
+.evd-privacy { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+.evd-note { margin-top: 20px; padding: 12px 14px; border-radius: 10px;
+            background: var(--surface-2, #f4f4f7); font-size: 13px; color: var(--text-muted);
+            line-height: 1.6; }

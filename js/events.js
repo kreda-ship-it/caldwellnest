@@ -14,6 +14,8 @@ let _evFeed   = [];        // upcoming, ascending
 let _evPast   = [];        // ended, newest first
 let _evOrgs   = new Map(); // org id -> directory row, for the card's header
 let _evSaved  = new Set(); // event ids this student has starred
+let _evGoing  = new Map(); // event id -> this student's own registration row
+let _evDetail = null;      // the event currently open in the detail modal
 let _evShowPast = false;
 
 async function renderEvents() {
@@ -26,7 +28,7 @@ async function renderEvents() {
     .from('visible_events')
     .select('id, org_id, title, description, event_type, starts_at, ends_at, location, ' +
             'poster_url, status, registration_open, capacity, cancelled_reason, ' +
-            'has_ended, is_browsable, effective_ends_at')
+            'has_ended, is_browsable, effective_ends_at, going_count, seats_left')
     .eq('school', eu?.school || 'caldwell')
     .order('starts_at', { ascending: true });
 
@@ -43,7 +45,7 @@ async function renderEvents() {
   _evPast = rows.filter(e => e.has_ended && e.status === 'published')
                 .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  await Promise.all([evLoadOrgs(rows), evLoadSaved()]);
+  await Promise.all([evLoadOrgs(rows), evLoadSaved(), evLoadGoing()]);
   evPaint();
 }
 
@@ -89,6 +91,18 @@ async function evToggleSave(id, btn) {
     toast('Could not save that — try again');
     console.error('[evToggleSave]', error);
   }
+}
+
+// A student may read their OWN registration rows and no one else's, which is exactly what
+// this needs. The count of everybody else arrives as going_count on the view, computed by a
+// definer function — the rows stay private, the number does not.
+async function evLoadGoing() {
+  const eu = getEffectiveUser();
+  if (!eu?.id) return;
+  const { data } = await supabaseClient
+    .from('event_registrations').select('event_id, status').eq('user_id', eu.id);
+  _evGoing = new Map();
+  (data || []).filter(r => r.status !== 'cancelled').forEach(r => _evGoing.set(r.event_id, r));
 }
 
 // ---------- Date grouping ----------
@@ -176,8 +190,16 @@ function evCardHTML(e, past = false) {
          <div class="ev-p-title">${esc(e.title)}</div>
        </div>`;
 
-  const seats = (e.registration_open && e.capacity)
-    ? `<span class="ev-seats">${e.capacity} places</span>` : '';
+  // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so
+  // the null check comes first — treating them alike would print "0 spots left" on an event
+  // with no limit at all.
+  const bits = [];
+  if (e.registration_open && e.going_count) bits.push(`${e.going_count} going`);
+  if (e.registration_open && e.seats_left !== null && e.seats_left !== undefined) {
+    bits.push(e.seats_left === 0 ? 'full' : `${e.seats_left} spot${e.seats_left === 1 ? '' : 's'} left`);
+  }
+  if (_evGoing.has(e.id)) bits.unshift('You are going');
+  const seats = bits.length ? `<span class="ev-seats">${esc(bits.join(' · '))}</span>` : '';
 
   return `
     <article class="ev-card${past ? ' is-past' : ''}">
@@ -203,9 +225,240 @@ function evCardHTML(e, past = false) {
     </article>`;
 }
 
-// The detail page arrives with registration. Until then, tapping a card says so rather than
-// doing nothing — a card that swallows a tap reads as broken, not as unfinished.
-function evOpen(id) {
-  const e = [..._evFeed, ..._evPast].find(x => x.id === id);
-  toast(e ? `“${e.title}” — the full page is coming next` : 'Event not found');
+// ============================================================
+// DETAIL
+// ============================================================
+// A modal, matching how a listing opens, rather than a separate page. When the #/event/:id
+// deep link arrives it opens this same modal on load, so there is one detail view and not a
+// second one that drifts.
+
+async function evOpen(id) {
+  // Re-read the row rather than trusting the feed's copy. A student can arrive here from a
+  // deep link with no feed loaded at all, and an event opened from a stale feed could show a
+  // seat that was taken two minutes ago.
+  const { data, error } = await supabaseClient
+    .from('visible_events')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error || !data) {
+    toast(error ? 'Could not open that event' : 'That event is no longer available');
+    if (error) console.error('[evOpen]', error);
+    return;
+  }
+  _evDetail = data;
+
+  const [{ data: media }] = await Promise.all([
+    supabaseClient.from('event_media')
+      .select('kind, url, caption, phase, sort_order').eq('event_id', id).order('sort_order'),
+    evLoadGoing(),
+  ]);
+  _evDetail._media = media || [];
+  if (!_evOrgs.has(data.org_id)) await evLoadOrgs([data]);
+
+  evPaintDetail();
+  openModal('evDetailModal');
+}
+
+function evPaintDetail() {
+  const e = _evDetail;
+  const org = _evOrgs.get(e.org_id);
+  const images = e._media.filter(m => m.kind === 'image');
+  const videos = e._media.filter(m => m.kind === 'video_link');
+
+  const starts = new Date(e.starts_at);
+  const whenFull = starts.toLocaleString(undefined,
+    { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const endBit = e.ends_at
+    ? ' – ' + new Date(e.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : '';
+
+  document.getElementById('evDetailBody').innerHTML = `
+    ${e.status === 'cancelled' ? `
+      <div class="evd-cancelled">
+        <strong>This event was cancelled.</strong>
+        ${e.cancelled_reason ? `<div>${esc(e.cancelled_reason)}</div>` : ''}
+      </div>` : ''}
+
+    <div class="evd-poster">
+      ${e.poster_url
+        ? `<img src="${escAttr(e.poster_url)}" alt="">`
+        : `<div class="ev-poster-made" style="background:${eventGradient(e.id)}">
+             <div class="ev-p-org">${esc(org?.name || '')}</div>
+             <div class="ev-p-title">${esc(e.title)}</div>
+           </div>`}
+    </div>
+
+    <button class="ev-org evd-org" onclick="closeModal('evDetailModal');orgDirGo()">
+      ${org?.logo_url ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
+                      : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
+      <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>
+      ${org?.is_verified ? '<span class="ev-verified">&#10003;</span>' : ''}
+    </button>
+
+    <h2 class="evd-title">${esc(e.title)}</h2>
+
+    <div class="evd-when">${esc(whenFull + endBit)}</div>
+    <div class="evd-where">${esc(e.location)}</div>
+
+    <div class="evd-cal">
+      <button class="evd-cal-btn" onclick="evAddToGoogle()">Add to Google Calendar</button>
+      <button class="evd-cal-btn" onclick="evDownloadIcs()">Download .ics</button>
+    </div>
+
+    ${e.description ? `<p class="evd-desc">${esc(e.description)}</p>` : ''}
+
+    ${images.length > 1 ? `<div class="evd-gallery">${
+      images.map(m => `<img src="${escAttr(m.url)}" alt="${escAttr(m.caption || '')}" loading="lazy">`).join('')
+    }</div>` : ''}
+
+    ${videos.map(v => `
+      <a class="evd-video" href="${escAttr(v.url)}" target="_blank" rel="noopener noreferrer">
+        <span class="evd-video-play">&#9654;</span>
+        <span>Watch on ${esc(evVideoHost(v.url))}</span>
+      </a>`).join('')}
+
+    ${evRegisterBlockHTML(e)}`;
+}
+
+// Every state the button can be in, in one place, so none of them can be reached by accident.
+function evRegisterBlockHTML(e) {
+  const mine = _evGoing.get(e.id);
+
+  if (e.status === 'cancelled') return '';
+  if (e.has_ended) return '<div class="evd-note">This event has ended.</div>';
+  if (!e.registration_open) {
+    return '<div class="evd-note">No sign-up needed — just turn up.</div>';
+  }
+  if (mine) {
+    return `
+      <div class="evd-reg">
+        <div class="evd-going">You are going &#10003;</div>
+        <button class="evd-btn evd-btn-ghost" onclick="evUnregister()">Cancel my place</button>
+      </div>
+      ${evPrivacyLine()}`;
+  }
+  if (e.seats_left === 0) {
+    return `<div class="evd-reg"><button class="evd-btn" disabled>Full</button></div>
+            <div class="evd-note">Every place has been taken. There is no waiting list yet.</div>`;
+  }
+  return `
+    <div class="evd-reg">
+      <button class="evd-btn evd-btn-go" onclick="evRegister()">Register</button>
+      ${e.seats_left !== null && e.seats_left !== undefined
+        ? `<span class="evd-seats">${e.seats_left} left</span>` : ''}
+    </div>
+    ${evPrivacyLine()}`;
+}
+
+// Stated once, plainly, directly under the button — §4.1 is explicit that it must not be
+// buried. The star is private and this is not, and a student is entitled to know which is
+// which BEFORE they tap, not in a settings page afterwards.
+function evPrivacyLine() {
+  return `<p class="evd-privacy">The organizers will see your name and email. Saving with the
+          star does not tell anyone.</p>`;
+}
+
+function evVideoHost(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return 'video'; }
+}
+
+async function evRegister() {
+  const e = _evDetail;
+  if (!getEffectiveUser()) { requireAuth(); return; }
+  const btn = document.querySelector('.evd-btn-go');
+  if (btn) { btn.disabled = true; btn.textContent = 'Registering…'; }
+
+  // The RPC, never a direct insert. It locks the event row, counts and inserts in one
+  // transaction, so two students tapping the last seat queue instead of both winning.
+  const { error } = await supabaseClient.rpc('register_for_event', { p_event_id: e.id });
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Register'; }
+    // "This event is full" is the message the RPC raises when it loses the race, and it is
+    // worth showing as-is: it is accurate, and it is the one refusal a student will actually
+    // want explained.
+    toast(error.message.includes('full') ? 'Sorry — that filled up' : 'Could not register: ' + error.message);
+    console.error('[evRegister]', error);
+    await evRefreshDetail();
+    return;
+  }
+  toast('✓ You are going');
+  await evRefreshDetail();
+  renderEvents();
+}
+
+async function evUnregister() {
+  const e = _evDetail;
+  if (!confirm('Cancel your place? Someone else can take it.')) return;
+  const { error } = await supabaseClient.rpc('cancel_registration', { p_event_id: e.id });
+  if (error) { toast('Could not cancel: ' + error.message); console.error('[evUnregister]', error); return; }
+  toast('Your place has been cancelled');
+  await evRefreshDetail();
+  renderEvents();
+}
+
+// Re-reads the row so the seat count and the button state come from the database rather than
+// from what this browser assumed happened.
+async function evRefreshDetail() {
+  const { data } = await supabaseClient.from('visible_events').select('*').eq('id', _evDetail.id).maybeSingle();
+  if (data) { data._media = _evDetail._media; _evDetail = data; }
+  await evLoadGoing();
+  evPaintDetail();
+}
+
+// ---------- Add to calendar ----------
+// The classic bug in this feature is a time that lands hours off. Both formats below want UTC
+// with a Z, and toISOString() is the only thing here that produces it — building the string
+// from getHours() would emit local time labelled as UTC, which is the shift.
+function evUtcStamp(d) {
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+function evCalRange() {
+  const start = new Date(_evDetail.starts_at);
+  // Falls back to the same effective end the view computes, so an event with no end time
+  // still lands in a calendar as a block rather than a zero-length instant.
+  const end = new Date(_evDetail.ends_at || _evDetail.effective_ends_at);
+  return `${evUtcStamp(start)}/${evUtcStamp(end)}`;
+}
+
+function evAddToGoogle() {
+  const e = _evDetail;
+  const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(e.title)
+    + '&dates=' + evCalRange()
+    + '&location=' + encodeURIComponent(e.location || '')
+    + '&details=' + encodeURIComponent(e.description || '');
+  window.open(url, '_blank', 'noopener');
+}
+
+function evDownloadIcs() {
+  const e = _evDetail;
+  // CRLF line endings are required by the iCalendar spec, and some calendar apps genuinely
+  // reject a file that uses bare newlines.
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CaldwellNest//Events//EN',
+    'BEGIN:VEVENT',
+    `UID:event-${e.id}@caldwellnest`,
+    `DTSTAMP:${evUtcStamp(new Date())}`,
+    `DTSTART:${evUtcStamp(new Date(e.starts_at))}`,
+    `DTEND:${evUtcStamp(new Date(e.ends_at || e.effective_ends_at))}`,
+    `SUMMARY:${evIcsEscape(e.title)}`,
+    `LOCATION:${evIcsEscape(e.location || '')}`,
+    `DESCRIPTION:${evIcsEscape(e.description || '')}`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  a.download = `${String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'event'}.ics`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Commas, semicolons and backslashes are field separators in iCalendar. An unescaped comma in
+// a title silently truncates the rest of it in some calendar apps.
+function evIcsEscape(t) {
+  return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 }
