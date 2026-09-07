@@ -21,6 +21,7 @@ on the marketplace.** What changed:
 - `activity_log` / `entity_type` corrected to `logEvent()` / `admin_activity_log` / `target_type`
   everywhere.
 - §9 open questions are now §9 decisions, answered.
+- Sessions resequenced to E0 … E6, each with a **Done when** checklist.
 
 **Rev 2.1 — 2026-09-07, from E1 step 1.** `can_act()`'s action names **drop the `can_`
 prefix**: `'manage_events'`, `'check_in'`, `'view_analytics'`
@@ -29,7 +30,6 @@ everywhere and it is corrected throughout. **This one does not raise.** `can_act
 `else false`, so a misspelled action returns false and refuses *everyone* — every officer
 locked out of their own events, with nothing in the console to debug from. If an events
 permission ever behaves as though nobody has it, check this first.
-- Sessions resequenced to E0 … E6, each with a **Done when** checklist.
 
 Rev 1 is recoverable at commit `bf17325`.
 
