@@ -1030,6 +1030,11 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .org-btn:hover { background: var(--brand-pale, #eef3ff); border-color: var(--brand, #3B5BA5); }
 .org-btn-warn:hover { background: #fdecec; border-color: #c0392b; color: #c0392b; }
+/* The one action in a row that moves the thing forward — publish an event, start a new one.
+   Filled rather than outlined, so a row of five identical buttons has an obvious first
+   choice instead of making the officer read all five every time. */
+.org-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
+.org-btn-go:hover { background: var(--brand-dark, #2f4a86); border-color: var(--brand-dark, #2f4a86); color: #fff; }
 
 .org-panel:not(:empty) {
   margin: 4px 0 8px 24px; padding: 12px 14px;
@@ -1151,12 +1156,75 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-ev-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .oc-ev-row .oc-input { flex: 1 1 130px; margin-top: 0; }
 
-/* Event posters are portrait (~4:5), which is why they get their own bucket and their own
-   box. object-fit: cover crops rather than distorting, so a landscape photo dropped in by an
-   officer still fills the frame instead of stretching a face sideways. */
-.oc-ev-poster { aspect-ratio: 4/5; max-height: 260px; border-radius: var(--radius-sm);
-                overflow: hidden; margin-bottom: 10px; background: var(--surface-2); }
+/* ---------- Events section ---------- */
+.oc-ev-head { display: flex; align-items: center; justify-content: space-between;
+              gap: 12px; margin-bottom: 4px; }
+.oc-ev-head-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px;
+                    color: var(--text); }
+/* Group labels are a rung ABOVE the cards in the hierarchy, so they are set in small caps
+   with letter-spacing rather than as another line of body text. Without that they read as
+   the first line of the card underneath them. */
+.oc-ev-group { margin: 22px 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .08em;
+               text-transform: uppercase; color: var(--text-faint); }
+.oc-ev-empty { margin-top: 18px; padding: 26px 18px; text-align: center; font-size: 14px;
+               color: var(--text-muted); border: 1px dashed var(--border);
+               border-radius: var(--radius-sm); line-height: 1.7; }
+
+/* The card is a two-column grid on anything wider than a phone: poster left at a fixed
+   width, everything else right. Fixed rather than proportional so a row of cards has one
+   text column that starts in the same place — a ragged left edge down a list is the thing
+   that makes it look unconsidered. */
+.oc-ev-card { display: grid; grid-template-columns: 132px 1fr; gap: 16px; padding: 14px;
+              margin-bottom: 12px; border: 1px solid var(--border);
+              border-radius: var(--radius-sm); background: var(--surface); }
+.oc-ev-card.is-cancelled { border-color: var(--danger, #c0392b); opacity: .78; }
+@media (max-width: 560px) {
+  /* One column on a phone. The poster keeps its 4:5 shape but stops being a stripe down the
+     side, where at 132px it would crowd the text into a gutter. */
+  .oc-ev-card { grid-template-columns: 1fr; gap: 12px; }
+  .oc-ev-poster { max-width: 200px; }
+}
+
+/* Posters are portrait (~4:5), which is why they get their own bucket and their own box.
+   object-fit: cover crops rather than distorting, so a landscape photo dropped in by an
+   officer fills the frame instead of stretching a face sideways. */
+.oc-ev-poster { aspect-ratio: 4/5; border-radius: 10px; overflow: hidden;
+                background: var(--surface-2); }
 .oc-ev-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* The generated poster. Three placed things and nothing else: the org at the top, the title
+   filling the middle, the date anchored to the bottom. Space-between does the placing, so a
+   one-word title and a five-word title both sit correctly without any measuring. */
+.oc-ev-made { display: flex; flex-direction: column; justify-content: space-between;
+              padding: 12px 12px 13px; color: #fff; }
+.oc-ev-p-org { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+               opacity: .85; line-height: 1.3;
+               /* Two lines at most. A long department name would otherwise push the title
+                  down and unbalance every card it appears on. */
+               display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+               overflow: hidden; }
+.oc-ev-p-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px;
+                 line-height: 1.15; margin: 8px 0;
+                 display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+                 overflow: hidden; }
+.oc-ev-p-foot { font-size: 10px; letter-spacing: .02em; opacity: .95; }
+/* A short rule above the date. It gives the bottom block a baseline to sit on, so a poster
+   with a two-word title does not leave the date floating in the middle of nowhere. */
+.oc-ev-p-rule { display: block; width: 26px; height: 2px; background: currentColor;
+                opacity: .7; margin-bottom: 6px; }
+
+/* The text column: one idea per line, in the order an officer reads them — what it is called,
+   when, where, then the numbers. Size and colour carry the ranking, not indentation. */
+.oc-ev-body { min-width: 0; display: flex; flex-direction: column; }
+.oc-ev-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.oc-ev-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.oc-ev-when  { margin-top: 4px; font-size: 13px; color: var(--text); }
+.oc-ev-where { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
+.oc-ev-facts { margin-top: 8px; font-size: 12px; color: var(--text-faint); }
+.oc-ev-reason { margin-top: 8px; font-size: 12px; color: var(--danger, #c0392b); line-height: 1.6; }
+/* Pushed to the bottom of the card so the action row sits on one line across every card in
+   the list, whatever length the text above it happens to be. */
+.oc-ev-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 12px; }
 
 .oc-ev-drop { display: block; border: 2px dashed var(--border); border-radius: var(--radius-sm);
               padding: 16px; text-align: center; cursor: pointer; color: var(--text-muted);

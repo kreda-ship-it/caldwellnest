@@ -1013,13 +1013,24 @@ async function renderOcEvents() {
   const upcoming = _ocEvents.filter(e => !e._past).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const past     = _ocEvents.filter(e =>  e._past);
 
+  // The form opens on demand rather than sitting permanently above the list. With one event an
+  // always-open composer is harmless; with twenty it pushes everything the officer came to look
+  // at below the fold. Editing and duplicating force it open, because they have nowhere else to
+  // put their values.
+  const formOpen = _ocEvFormOpen || _ocEvEditId || _ocEvDraft;
+
   body.innerHTML = `
-    ${ocEventFormHTML()}
-    ${upcoming.length ? `<div class="oc-note">Upcoming · ${upcoming.length}</div>
+    <div class="oc-ev-head">
+      <div class="oc-ev-head-title">Events</div>
+      ${formOpen ? '' : `<button class="org-btn org-btn-go" onclick="ocEvOpenForm()">+ New event</button>`}
+    </div>
+    ${formOpen ? ocEventFormHTML() : ''}
+    ${upcoming.length ? `<div class="oc-ev-group">Upcoming · ${upcoming.length}</div>
       ${upcoming.map(ocEventCardHTML).join('')}` : ''}
-    ${past.length ? `<div class="oc-note">Past · ${past.length}</div>
+    ${past.length ? `<div class="oc-ev-group">Past · ${past.length}</div>
       ${past.map(ocEventCardHTML).join('')}` : ''}
-    ${_ocEvents.length ? '' : `<div class="oc-note">Nothing scheduled yet.</div>`}`;
+    ${_ocEvents.length ? '' : `<div class="oc-ev-empty">Nothing scheduled yet.<br>
+      <span class="note-xs">Events you publish appear to students in their own feed.</span></div>`}`;
 
   // The strip is filled after innerHTML rather than inside the template, because the previews
   // are object URLs held in memory and the existing media comes from the loaded rows — two
@@ -1154,7 +1165,7 @@ async function ocEvPublish(id) {
 function ocEvClearForm() {
   _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
   _ocEvPhotos = []; _ocEvRemoved = [];
-  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
+  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; _ocEvFormOpen = false;
   renderOcEvents();
 }
 
@@ -1285,6 +1296,8 @@ function ocEvPaintPhotos() {
 // from Duplicate lives here too, as values without an id.
 let _ocEvEditId = null;
 let _ocEvDraft  = null;
+let _ocEvFormOpen = false;
+function ocEvOpenForm() { _ocEvFormOpen = true; renderOcEvents(); }
 
 // The REVERSE of ocEvLocalToISO, and the place the timezone bug hides on the way back.
 // getFullYear/getMonth/getDate/getHours read the date in the BROWSER'S timezone, which is the
@@ -1457,7 +1470,7 @@ async function ocSaveEvent(status = 'published') {
   });
   _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
   _ocEvPhotos = []; _ocEvRemoved = [];
-  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
+  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; _ocEvFormOpen = false;
   toast(status === 'draft' ? '✓ Draft saved' : (editing ? '✓ Event updated' : '✓ Event published'));
   renderOcEvents();
 }
@@ -1564,6 +1577,30 @@ function ocEventCardHTML(e) {
   const whenTxt = when.toLocaleString(undefined,
     { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
+  const shots = (e._media || []).filter(m => m.kind === 'image').length;
+  const org = _orgCtx?.orgs.get(_ocOrgId);
+
+  // Two posters, one slot.
+  //
+  // With a photo, the photo IS the poster and nothing is drawn over it. An officer who chose
+  // an image chose a composition; typing across it would wreck theirs.
+  //
+  // Without one, the generated poster is composed rather than blank, and it carries exactly
+  // three things: who is running it, what it is called, and when. Location is deliberately
+  // NOT here — it sits in the card text below, and repeating it on the poster would be
+  // filling space rather than placing something. The rule above the date is there to give the
+  // block a base line to sit on, so short titles do not leave the date floating.
+  const poster = e.poster_url
+    ? `<div class="oc-ev-poster"><img src="${escAttr(e.poster_url)}" alt=""></div>`
+    : `<div class="oc-ev-poster oc-ev-made" style="background:${eventGradient(e.id)}">
+         <div class="oc-ev-p-org">${esc(org?.name || '')}</div>
+         <div class="oc-ev-p-title">${esc(e.title)}</div>
+         <div class="oc-ev-p-foot">
+           <span class="oc-ev-p-rule"></span>
+           ${esc(whenTxt)}
+         </div>
+       </div>`;
+
   const chips = [
     e.status === 'cancelled' ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
     e.status === 'draft'     ? '<span class="oc-chip">Draft</span>' : '',
@@ -1578,30 +1615,34 @@ function ocEventCardHTML(e) {
     ? 'Registration closed'
     : `${e._going} going${left == null ? '' : ` · ${left} spot${left === 1 ? '' : 's'} left`}`;
 
-  const shots = (e._media || []).filter(m => m.kind === 'image').length;
+  // One facts line, built from whatever is true, rather than three lines two of which are
+  // usually empty. Empty slots that sometimes fill are what make a list look ragged.
+  const facts = [
+    reg,
+    e._past && e._checked ? `${e._checked} checked in` : '',
+    shots ? `${shots} photo${shots === 1 ? '' : 's'}` : '',
+  ].filter(Boolean).join(' · ');
+
+  const live = e.status !== 'cancelled' && !e._past;
 
   return `
-    <div class="oc-post${e.status === 'cancelled' ? ' oc-post-urgent' : ''}">
-      <div class="oc-ev-poster"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
-        ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="">` : ''}
-      </div>
-      <div class="oc-post-head">
-        ${chips}
-        <span class="oc-post-date">${esc(whenTxt)}</span>
-      </div>
-      <div class="oc-post-title">${esc(e.title)}</div>
-      <div class="oc-post-body">${esc(e.location)}</div>
-      <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}${shots ? ` · ${shots} photo${shots === 1 ? '' : 's'}` : ''}</div>
-      ${e.status === 'cancelled' && e.cancelled_reason
-        ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
-      <div class="oc-post-actions">
-        ${e.status === 'draft' ? `<button class="org-btn" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
-        ${e.status !== 'cancelled' && !e._past
-          ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
-        <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
-        <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">Download QR</button>
-        ${e.status !== 'cancelled' && !e._past
-          ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel event</button>` : ''}
+    <div class="oc-ev-card${e.status === 'cancelled' ? ' is-cancelled' : ''}">
+      ${poster}
+      <div class="oc-ev-body">
+        ${chips ? `<div class="oc-ev-chips">${chips}</div>` : ''}
+        <div class="oc-ev-title">${esc(e.title)}</div>
+        <div class="oc-ev-when">${esc(whenTxt)}</div>
+        <div class="oc-ev-where">${esc(e.location)}</div>
+        <div class="oc-ev-facts">${esc(facts)}</div>
+        ${e.status === 'cancelled' && e.cancelled_reason
+          ? `<div class="oc-ev-reason">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
+        <div class="oc-ev-actions">
+          ${e.status === 'draft' ? `<button class="org-btn org-btn-go" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
+          ${live ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
+          <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
+          <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">QR</button>
+          ${live ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel</button>` : ''}
+        </div>
       </div>
     </div>`;
 }
