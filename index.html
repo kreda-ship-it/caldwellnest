@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-07e">
+<link rel="stylesheet" href="styles.css?v=2026-09-07f">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -227,6 +227,37 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       EVENTS — its own section since 2026-09-07, not a marketplace category.
+       Reached from the phone's bottom tab and from the Events button in the
+       desktop category strip. Both entry points are where they always were;
+       only the destination changed.
+  ============================================================ -->
+  <div id="page-events" class="page">
+    <div class="page-wrap">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">What's happening</h1>
+          <p class="page-sub">Events posted by clubs and departments, soonest first.</p>
+        </div>
+      </div>
+      <!-- The category strip appears here too, on desktop. Events is reached BY clicking a
+           category, so landing on a page with no categories would strand the student with no
+           way back to Housing. -->
+      <div class="cat-tabs ev-cat-tabs">
+        <button class="cat-tab" onclick="setListingCat('all');showPage('listings')">All</button>
+        <button class="cat-tab" onclick="setListingCat('housing');showPage('listings')">Housing</button>
+        <button class="cat-tab" onclick="setListingCat('clothing');showPage('listings')">Clothing</button>
+        <button class="cat-tab" onclick="setListingCat('technology');showPage('listings')">Technology</button>
+        <button class="cat-tab" onclick="setListingCat('donation');showPage('listings')">Free items</button>
+        <button class="cat-tab active">Events</button>
+        <button class="cat-tab" onclick="setListingCat('books');showPage('listings')">Books</button>
+        <button class="cat-tab" onclick="setListingCat('other');showPage('listings')">Other</button>
+      </div>
+      <div id="evFeed"></div>
+    </div>
+  </div>
+
   <div id="page-listings" class="page">
     <div class="page-wrap">
       <div class="page-header">
@@ -258,7 +289,7 @@
         <button class="cat-tab" onclick="setListingCat('clothing',this)">Clothing</button>
         <button class="cat-tab" onclick="setListingCat('technology',this)">Technology</button>
         <button class="cat-tab" onclick="setListingCat('donation',this)">Free items</button>
-        <button class="cat-tab" onclick="setListingCat('organization_event',this)">Events</button>
+        <button class="cat-tab" onclick="showPage('events')">Events</button>
         <button class="cat-tab" onclick="setListingCat('books',this)">Books</button>
         <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
       </div>
@@ -372,7 +403,7 @@
       <span>Messages</span>
       <span class="m-tab-badge" id="mMsgBadge" style="display:none"></span>
     </button>
-    <button class="m-tab" id="mtab-events" onclick="_mTabIntent='search';setListingCat('organization_event');showPage('listings')" aria-label="Events">
+    <button class="m-tab" id="mtab-events" onclick="if(requireAuth())showPage('events')" aria-label="Events">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span>Events</span>
     </button>
@@ -1633,14 +1664,15 @@
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-06b"></script>
 <script src="js/profile.js?v=2026-09-06b"></script>
-<script src="js/listings.js?v=2026-09-07a"></script>
+<script src="js/listings.js?v=2026-09-07b"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-07i"></script>
+<script src="js/events.js?v=2026-09-07a"></script>
 <script src="js/orgdir.js?v=2026-09-06b"></script>
-<script src="js/boot.js?v=2026-09-06b"></script>
+<script src="js/boot.js?v=2026-09-07a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

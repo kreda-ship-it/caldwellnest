@@ -19,6 +19,10 @@ function showPage(name) {
   if (name === 'messages') { renderConvos(); markActiveConvoSeen(); } // returning to an already-open thread reads it; badges come from refreshUnread (DB)
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
+  // Same shape as messages and profile above: page-events is an empty div until renderEvents()
+  // fills it, so a bare showPage() would restore a page that looks like a feed with nothing
+  // in it. boot.js's page restore needs the same line for the same reason.
+  if (name === 'events') renderEvents();
   updateMTabbar(name);
   document.querySelector('.s-nav')?.classList.remove('m-hidden'); // navigating always reveals the top bar
   if (window.innerWidth <= 768) window.scrollTo(0, 0); // app-style: each page opens at its top
@@ -43,13 +47,15 @@ function goSearch() {
   showPage('listings');
 }
 
-// Highlights the mobile bottom-bar tab matching the current page. Home, Search and Events
-// all share page-listings: an active Events category wins, otherwise the tab the student
-// actually tapped (_mTabIntent) decides.
+// Highlights the mobile bottom-bar tab matching the current page. Events has its own page
+// since 2026-09-07, so it is a plain name match now — it used to be inferred from an active
+// marketplace category, which was the clearest sign that the tab was a filter in costume.
+// Home and Search still share page-listings, so the tab the student tapped (_mTabIntent)
+// decides between those two.
 function updateMTabbar(name) {
   const tabId = name === 'home' ? 'mtab-home'
-    : name === 'listings' ? (_filters.category === 'organization_event' ? 'mtab-events'
-                            : _mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')
+    : name === 'events' ? 'mtab-events'
+    : name === 'listings' ? (_mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')
     : name === 'messages' ? 'mtab-messages'
     : null; // profile & other pages: no tab highlighted
   document.querySelectorAll('#mTabbar .m-tab').forEach(t => t.classList.toggle('active', t.id === tabId));

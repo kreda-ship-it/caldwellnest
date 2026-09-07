@@ -117,6 +117,7 @@ if (!adminPreviewMode && !_recoveryMode) {
     // renderOrgDirectory() fills it, so a bare showPage() restores a blank page that looks
     // like a directory with nothing in it.
     if (lastPage === 'orgs') renderOrgDirectory();
+    if (lastPage === 'events') renderEvents();
     if (lastPage === 'messages') {
       try {
         const c = JSON.parse(sessionStorage.getItem('cn_last_convo'));
