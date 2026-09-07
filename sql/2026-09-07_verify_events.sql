@@ -55,6 +55,7 @@ DECLARE
   v_ev_old     bigint;   -- club A, ended 30 days ago — outside the feedback window
   v_ev_rate    bigint;   -- club A, ended yesterday — inside the window
   v_ev_b       bigint;   -- club B, for the cross-club refusal
+  v_ev_draft   bigint;   -- club A, unpublished — TEST 10c
   v_reg        bigint;
   v_got        boolean;
   v_n          integer;
@@ -159,6 +160,12 @@ BEGIN
           now() + interval '4 days', now() + interval '4 days 2 hours', 'Room 12')
   RETURNING id INTO v_ev_b;
 
+  INSERT INTO public.events (school, org_id, created_by, title, event_type,
+                             starts_at, ends_at, location, status)
+  VALUES (v_school, v_club_a, v_officer_a, 'Not Ready Yet', 'social',
+          now() + interval '6 days', now() + interval '6 days 2 hours', 'TBC', 'draft')
+  RETURNING id INTO v_ev_draft;
+
   -- The outsider is a REGISTRANT of the cancelled event. TEST 10 turns on this row:
   -- §6 makes "still reachable by its registrants, with the reason" the entire mitigation
   -- for having no notification layer, and that promise lives in the SELECT policy.
@@ -256,24 +263,48 @@ BEGIN
     r := r || E'TEST 1  outsider cannot create an event ......... PASS (refused)\n';
   END;
 
-  -- ---------- TEST 10 — cancelled event: hidden from the feed, readable by its registrant ----------
+  -- ---------- TEST 10 — cancelled event: IN the view, reachable by its registrant ----------
+  -- REWRITTEN 2026-09-07. This test used to assert the opposite — that a cancelled event was
+  -- ABSENT from visible_events — and it passed, because the view's WHERE filtered on status.
+  -- That is the behaviour 2026-09-07_events_visibility_rule.sql removed: excluding cancelled
+  -- rows meant §6's "still reachable by its registrants" needed a second query that went
+  -- around the view, which is exactly the bypass this discipline exists to prevent.
+  --
+  -- A test kept passing through a deliberate design change is worse than one that fails. It
+  -- would have gone on certifying the old rule while the code obeyed the new one.
   SELECT EXISTS (SELECT 1 FROM public.visible_events WHERE id = v_ev_cancel) INTO v_got;
   IF v_got THEN
-    r := r || E'TEST 10 cancelled event absent from the feed .... *** FAIL — STILL IN visible_events ***\n';
-    pass_all := false;
+    r := r || E'TEST 10 registrant reaches a cancelled event ... PASS (in the view)\n';
   ELSE
-    r := r || E'TEST 10 cancelled event absent from the feed .... PASS\n';
+    r := r || E'TEST 10 registrant reaches a cancelled event ... *** FAIL — NOT IN THE VIEW, §6 IS BROKEN ***\n';
+    pass_all := false;
   END IF;
 
-  -- ---------- TEST 10b — CONTROL. The registrant can still reach it ----------
-  -- Without this, TEST 10 is equally satisfied by a policy that hides cancelled events from
-  -- everyone including the people who signed up — which is the failure §6 is written to stop.
-  SELECT EXISTS (SELECT 1 FROM public.events WHERE id = v_ev_cancel) INTO v_got;
-  IF v_got THEN
-    r := r || E'TEST 10b registrant still reaches it (control) .. PASS\n';
-  ELSE
-    r := r || E'TEST 10b registrant still reaches it (control) .. *** FAIL — INVISIBLE TO ITS OWN REGISTRANT ***\n';
+  -- ---------- TEST 10b — and no browse surface will show it ----------
+  -- The other half, and the half that makes TEST 10 safe. Being in the view is only correct
+  -- because is_browsable answers separately. If this ever returns true, every cancelled event
+  -- is back in the student feed.
+  SELECT is_browsable INTO v_got FROM public.visible_events WHERE id = v_ev_cancel;
+  IF v_got IS NULL THEN
+    r := r || E'TEST 10b cancelled event is not browsable ...... *** FAIL — ROW MISSING ***\n';
     pass_all := false;
+  ELSIF v_got THEN
+    r := r || E'TEST 10b cancelled event is not browsable ...... *** FAIL — IT IS BROWSABLE ***\n';
+    pass_all := false;
+  ELSE
+    r := r || E'TEST 10b cancelled event is not browsable ...... PASS\n';
+  END IF;
+
+  -- ---------- TEST 10c — a student cannot see a DRAFT through the view ----------
+  -- The risk taken by removing `status` from the view's WHERE. Drafts are now excluded by RLS
+  -- alone, so this asserts the policy actually carries the weight the WHERE used to. If it
+  -- ever fails, every unpublished event on the platform is readable.
+  SELECT EXISTS (SELECT 1 FROM public.visible_events WHERE id = v_ev_draft) INTO v_got;
+  IF v_got THEN
+    r := r || E'TEST 10c draft hidden from a student ............ *** FAIL — DRAFT IS READABLE ***\n';
+    pass_all := false;
+  ELSE
+    r := r || E'TEST 10c draft hidden from a student ............ PASS (RLS holds it)\n';
   END IF;
 
   -- ---------- TEST 6 — a student cannot write their own attendance ----------
@@ -357,6 +388,17 @@ BEGIN
     r := r || format(E'TEST 2  officer creates own club event .......... *** FAIL — %s ***\n', SQLERRM);
     pass_all := false;
   END;
+
+  -- ---------- TEST 10d — CONTROL. The officer DOES see their own draft ----------
+  -- Without this, TEST 10c is equally satisfied by a view that shows nobody anything. The pair
+  -- is the whole argument for taking `status` out of the WHERE: one policy, two answers.
+  SELECT EXISTS (SELECT 1 FROM public.visible_events WHERE id = v_ev_draft) INTO v_got;
+  IF v_got THEN
+    r := r || E'TEST 10d officer sees own draft (control) ....... PASS\n';
+  ELSE
+    r := r || E'TEST 10d officer sees own draft (control) ....... *** FAIL — DRAFTS INVISIBLE TO THEIR AUTHOR ***\n';
+    pass_all := false;
+  END IF;
 
   -- ---------- TEST 4 — a club officer cannot edit ANOTHER club's event ----------
   -- can_act() walks UP from the event's org, so officer A on club A never reaches club B.
