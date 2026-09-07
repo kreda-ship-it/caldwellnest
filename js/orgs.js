@@ -1503,6 +1503,99 @@ async function ocSaveEvent(status = 'published') {
   renderOcEvents();
 }
 
+// ---------- Who is coming ----------
+// Expanded per event rather than loaded for all of them: an officer looks at one event's list
+// at a time, and fetching every registration on the page would pull the whole term's
+// attendance to render a button nobody pressed.
+//
+// event_reg_select lets an officer read the rows for their own events — including a
+// can_check_in holder, deliberately, because whoever works the door needs the list without
+// being able to post as the club.
+let _ocRegOpen = null;   // event id whose roster is showing
+let _ocRegRows = [];
+
+async function ocToggleRoster(id) {
+  if (_ocRegOpen === id) { _ocRegOpen = null; _ocRegRows = []; ocPaintRoster(); return; }
+  _ocRegOpen = id; _ocRegRows = [];
+  ocPaintRoster('Loading…');
+
+  const { data, error } = await supabaseClient
+    .from('event_registrations')
+    .select('id, user_id, name_at_signup, email_at_signup, status, check_in_method, ' +
+            'checked_in_at, created_at')
+    .eq('event_id', id)
+    .order('created_at', { ascending: true });
+
+  if (error) { ocPaintRoster('Could not load the list.'); console.error('[ocToggleRoster]', error); return; }
+  _ocRegRows = data || [];
+  ocPaintRoster();
+}
+
+const OC_REG_LABEL = {
+  registered:    'Registered',
+  self_reported: 'Said they are here',
+  checked_in:    'Checked in',
+  walk_in:       'Walk-in',
+  cancelled:     'Cancelled',
+};
+
+function ocPaintRoster(msg) {
+  const el = document.getElementById('ocRoster-' + _ocRegOpen);
+  document.querySelectorAll('.oc-ev-roster').forEach(n => {
+    if (n !== el) { n.hidden = true; n.innerHTML = ''; }
+  });
+  if (!el) return;
+  el.hidden = false;
+
+  if (msg) { el.innerHTML = `<div class="oc-note">${esc(msg)}</div>`; return; }
+
+  // Cancelled rows are kept and shown last rather than hidden. An officer looking at a
+  // half-empty room is entitled to know that twelve people signed up and pulled out — that is
+  // a fact about the event, and deleting it would make every list look like the plan worked.
+  const live = _ocRegRows.filter(r => r.status !== 'cancelled');
+  const gone = _ocRegRows.filter(r => r.status === 'cancelled');
+
+  if (!_ocRegRows.length) {
+    el.innerHTML = '<div class="oc-note">Nobody has registered yet.</div>';
+    return;
+  }
+
+  const row = r => `
+    <div class="oc-reg-row${r.status === 'cancelled' ? ' is-off' : ''}">
+      <div class="oc-reg-who">
+        <div class="oc-reg-name">${esc(r.name_at_signup)}</div>
+        <div class="oc-reg-mail">${esc(r.email_at_signup || '—')}</div>
+      </div>
+      <div class="oc-reg-state">${esc(OC_REG_LABEL[r.status] || r.status)}${
+        r.check_in_method ? ` · ${esc(r.check_in_method.replace(/_/g, ' '))}` : ''}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="oc-reg-head">${live.length} registered${gone.length ? ` · ${gone.length} cancelled` : ''}</div>
+    ${live.map(row).join('')}
+    ${gone.map(row).join('')}
+    <button class="org-btn" onclick="ocCopyEmails(${_ocRegOpen})">Copy email addresses</button>`;
+}
+
+// Copying beats a CSV export here. There is no notification layer, so the only way an officer
+// reaches their registrants is by pasting the addresses into their own mail client — and a
+// downloaded file that has to be opened, found and re-copied is three steps to reach the same
+// clipboard. Cancelled rows are excluded: those people said they are not coming.
+async function ocCopyEmails(id) {
+  const emails = _ocRegRows
+    .filter(r => r.status !== 'cancelled' && r.email_at_signup)
+    .map(r => r.email_at_signup).join(', ');
+  if (!emails) { toast('No email addresses to copy'); return; }
+  try {
+    await navigator.clipboard.writeText(emails);
+    toast('✓ Copied');
+  } catch (e) {
+    // Clipboard access needs a secure context and can be refused outright. Falling back to a
+    // prompt is ugly and always works, which beats a button that silently does nothing.
+    window.prompt('Copy these addresses:', emails);
+  }
+}
+
 // ---------- The QR ----------
 // The deep link the QR encodes. Taken from window.location.origin at the moment the officer
 // clicks, NOT from a constant somebody has to remember to change at deploy: a QR generated on
@@ -1667,10 +1760,13 @@ function ocEventCardHTML(e) {
         <div class="oc-ev-actions">
           ${e.status === 'draft' ? `<button class="org-btn org-btn-go" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
           ${live ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
-          <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
+          <button class="org-btn" onclick="ocToggleRoster(${e.id})">Who's coming${
+          e._going ? ` · ${e._going}` : ''}</button>
+        <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
           <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">QR</button>
           ${live ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel</button>` : ''}
         </div>
+        <div class="oc-ev-roster" id="ocRoster-${e.id}" hidden></div>
       </div>
     </div>`;
 }

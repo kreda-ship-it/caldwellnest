@@ -181,13 +181,26 @@ function evCardHTML(e, past = false) {
   const org = _evOrgs.get(e.org_id);
   const saved = _evSaved.has(e.id);
 
-  // Poster or a generated one. Never blank: a feed of empty rectangles reads as a feed that
-  // failed to load, and most clubs will not have a poster for most events.
+  const dayTime = `${evDayLabel(e.starts_at)} · ${evTime(e.starts_at)}`;
+
+  // Two posters, and they carry DIFFERENT amounts of information on purpose.
+  //
+  // A photo is a composition somebody chose, so nothing is written over it and the details go
+  // in the text row beneath.
+  //
+  // A generated poster has nothing to protect, so it carries the whole answer — who, what,
+  // when, where — and the text row beneath drops the title and the time rather than printing
+  // them twice. A card should say each thing once.
   const poster = e.poster_url
     ? `<img class="ev-poster-img" src="${escAttr(e.poster_url)}" alt="" loading="lazy">`
     : `<div class="ev-poster-made" style="background:${eventGradient(e.id)}">
          <div class="ev-p-org">${esc(org?.name || '')}</div>
          <div class="ev-p-title">${esc(e.title)}</div>
+         <div class="ev-p-foot">
+           <span class="ev-p-rule"></span>
+           <div class="ev-p-when">${esc(dayTime)}</div>
+           <div class="ev-p-where">${esc(e.location)}</div>
+         </div>
        </div>`;
 
   // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so
@@ -215,8 +228,9 @@ function evCardHTML(e, past = false) {
 
       <div class="ev-meta">
         <div class="ev-meta-text" onclick="evOpen(${e.id})">
-          <div class="ev-title">${esc(e.title)}</div>
-          <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>
+          ${e.poster_url ? `
+            <div class="ev-title">${esc(e.title)}</div>
+            <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>` : ''}
           ${seats}
         </div>
         <button class="ev-star${saved ? ' is-on' : ''}" aria-label="Save"

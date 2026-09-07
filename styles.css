@@ -1228,6 +1228,21 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    the list, whatever length the text above it happens to be. */
 .oc-ev-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 12px; }
 
+/* The registration list, expanded under one event at a time. */
+.oc-ev-roster { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.oc-reg-head { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+               color: var(--text-faint); margin-bottom: 8px; }
+/* Name and email on separate lines rather than one run-on row: the email is what gets copied
+   and read back character by character, and it needs to be scannable on its own. */
+.oc-reg-row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+              padding: 8px 0; border-bottom: 1px solid var(--border); }
+.oc-reg-row:last-of-type { border-bottom: 0; }
+.oc-reg-row.is-off { opacity: .5; }
+.oc-reg-who { min-width: 0; }
+.oc-reg-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.oc-reg-mail { font-size: 12px; color: var(--text-muted); word-break: break-all; }
+.oc-reg-state { flex: none; font-size: 11px; color: var(--text-faint); text-align: right; }
+
 .oc-ev-drop { display: block; border: 2px dashed var(--border); border-radius: var(--radius-sm);
               padding: 16px; text-align: center; cursor: pointer; color: var(--text-muted);
               font-size: 13px; margin-top: 10px; }
@@ -1565,6 +1580,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    ============================================================ */
 .ev-cat-tabs { margin-bottom: 18px; }
 
+/* A poster-first feed is a COLUMN, not a page-width table. At full width a 4:5 poster is
+   either enormous or, worse, sits in the corner of a card with a field of white beside it —
+   which is what the first version did. Capping the column is what makes the poster the right
+   size at every window width without a single media query about the poster itself. */
+#evFeed { max-width: 520px; margin-inline: auto; }
+
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */
 .ev-day { position: sticky; top: 0; z-index: 2; padding: 14px 0 8px;
@@ -1587,17 +1608,31 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                align-items: center; justify-content: center; flex: none; }
 
 /* 4:5 portrait, the aspect the event-media bucket exists to keep consistent. */
-.ev-poster { aspect-ratio: 4/5; max-height: 420px; cursor: pointer; background: var(--surface-2); }
+/* No max-height. The column above caps the width, and the ratio does the rest — a max-height
+   as well would fight the ratio and letterbox the poster at some widths and not others. */
+.ev-poster { aspect-ratio: 4/5; cursor: pointer; background: var(--surface-2); }
 .ev-poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ev-poster-made { width: 100%; height: 100%; display: flex; flex-direction: column;
                   justify-content: space-between; padding: 18px; color: #fff; }
 .ev-p-org { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
             opacity: .85; }
+/* Placed by space-between, not by measuring: org at the top, title taking the middle, the
+   when/where block anchored to the bottom. A one-word title and a six-word title both sit
+   correctly, and nothing has to know how long the text is. */
 .ev-p-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; line-height: 1.15;
-              display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
-              overflow: hidden; }
+              margin: 14px 0; display: -webkit-box; -webkit-line-clamp: 4;
+              -webkit-box-orient: vertical; overflow: hidden; }
+.ev-p-foot { font-size: 13px; line-height: 1.5; }
+/* A short rule gives the bottom block a baseline to sit on. Without it a short title leaves
+   the date floating in the middle of the poster with nothing under it. */
+.ev-p-rule { display: block; width: 34px; height: 2px; background: currentColor;
+             opacity: .75; margin-bottom: 8px; }
+.ev-p-when { font-weight: 600; }
+.ev-p-where { opacity: .85; }
 
-.ev-meta { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px 14px; }
+/* Sized down when the poster already carries the words. An empty text column beside a star
+   would leave the card looking like it failed to render its own title. */
+.ev-meta { display: flex; align-items: center; gap: 10px; padding: 12px 14px 14px; }
 .ev-meta-text { flex: 1; min-width: 0; cursor: pointer; }
 .ev-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
 .ev-when  { margin-top: 3px; font-size: 13px; color: var(--text-muted); }
@@ -1631,7 +1666,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 @media (max-width: 768px) {
   .ev-cat-tabs { display: none; }   /* the bottom tab bar is the phone's entry point */
-  .ev-poster { max-height: none; }
+  #evFeed { max-width: none; }      /* the phone IS the column */
 }
 
 
