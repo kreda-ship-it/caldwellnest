@@ -253,6 +253,44 @@ alter table public.event_registrations enable row level security;
 alter table public.event_media         enable row level security;
 alter table public.event_feedback      enable row level security;
 
+-- ---------- the recursion breaker ----------
+-- FOUND BY THE VERIFICATION FILE, 2026-09-07:
+--     ERROR 42P17: infinite recursion detected in policy for relation "events"
+--
+-- The first draft of events_select asked "is this person registered?" by reading
+-- event_registrations directly. That fires event_reg_select, which asks "which
+-- event is this row on?" by reading events, which fires events_select again.
+-- Two policies, each needing the other to answer first. Postgres detects the loop
+-- and refuses rather than hanging.
+--
+-- This is not a mistake in either policy on its own — each is correct read alone,
+-- which is exactly why it survived review and only appeared when a row was actually
+-- selected. Mutual recursion between RLS policies is invisible until runtime.
+--
+-- SECURITY DEFINER is the break. A definer function runs as its owner, so the query
+-- inside it does NOT evaluate RLS on event_registrations, and the chain terminates
+-- one step in. It is safe to define one here because of how narrow it is: it takes
+-- an event id, hard-codes `user_id = auth.uid()`, and returns a boolean about the
+-- CALLER'S OWN registration. It cannot be asked about anybody else, so it leaks
+-- nothing that the caller could not already read.
+create or replace function public.is_event_registrant(p_event_id bigint)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $function$
+  select exists (
+    select 1 from public.event_registrations r
+    where r.event_id = p_event_id
+      and r.user_id = auth.uid()
+  );
+$function$;
+
+revoke all on function public.is_event_registrant(bigint) from public, anon;
+grant execute on function public.is_event_registrant(bigint) to authenticated;
+
+
 -- ---------- events ----------
 -- Read: anything published and not members-only, plus anything at all for someone
 -- who can manage that org's events (so drafts and cancellations stay visible to
@@ -264,8 +302,7 @@ create policy events_select on public.events
   using (
     (status = 'published' and members_only = false)
     or public.can_act('manage_events', org_id)
-    or exists (select 1 from public.event_registrations r
-               where r.event_id = events.id and r.user_id = auth.uid())
+    or public.is_event_registrant(id)   -- definer: see the recursion note above
   );
 
 drop policy if exists events_insert on public.events;
