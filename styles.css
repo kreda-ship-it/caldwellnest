@@ -1135,7 +1135,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* Listed so the shape of the console is visible, disabled so nothing pretends to work. */
 .oc-tab-soon { opacity: .4; cursor: not-allowed; }
 
-.oc-body { padding: 18px; max-width: 620px; }
+/* Centred, not pinned left. At 620px hard-left on a 1900px screen the console read as a
+   column that had failed to load the rest of itself. */
+.oc-body { padding: 18px; max-width: 680px; margin-inline: auto; }
 .oc-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
 .oc-meta-slug { font-size: 12px; color: var(--text-faint); font-family: ui-monospace, monospace; }
@@ -1280,6 +1282,81 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-poll-fields { padding: 4px 0; }
 .oc-toggle-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 4px; }
 .oc-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+
+/* ---------- Event form ---------- */
+/* Every field is a labelled row in one vertical rhythm. The screenshot this replaced had
+   three unlabelled boxes in a line — mm/dd/yyyy, --:--, --:-- — where nothing said which
+   time was the start. A placeholder is not a label: it disappears exactly when the field
+   has content, which is when you most want to check what it was for. */
+.oc-ev-form { padding: 18px; }
+.ff-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+           margin-bottom: 14px; }
+.ff-head-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px;
+                 color: var(--text); margin: 0; }
+.ff-head-x { border: 0; background: none; font-size: 12px; color: var(--text-muted);
+             cursor: pointer; font-family: inherit; text-decoration: underline; padding: 0; }
+.ff-warn { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px;
+           background: var(--warning-pale, #fdf6e3); color: var(--warning, #8a6d1f);
+           font-size: 12px; line-height: 1.6; }
+
+.ff { margin-bottom: 12px; }
+.ff-label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 600;
+            color: var(--text); }
+.ff-opt { font-weight: 400; color: var(--text-faint); }
+.ff .oc-input { margin: 0; }
+/* Help sits under the thing it explains and is visibly subordinate to it. Same size as a
+   label but lighter and not bold, so it never competes for the same read. */
+.ff-help { margin: -4px 0 14px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+.ff-help-center { text-align: center; margin-top: 10px; }
+
+/* Date wider than the two times, because a date is longer. Below 560px the date takes the
+   full row and the two times split it — start and end belong side by side, always. */
+.ff-when { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.ff-when .ff { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .ff-when { grid-template-columns: 1fr 1fr; }
+  .ff-when-date { grid-column: 1 / -1; }
+}
+
+/* A disclosure is a full-width row, not a pill. Pills floating in the middle of a column of
+   full-width fields read as leftover buttons; a row reads as a section of the form that is
+   currently shut. Each states what is inside before it is opened, so nobody has to open one
+   to find out whether they already filled it in. */
+.ff-section { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px;
+              margin-top: 6px; border: 1px solid var(--border); border-radius: 8px;
+              background: var(--bg); cursor: pointer; font-family: inherit; text-align: left; }
+.ff-section:hover { border-color: var(--brand, #3B5BA5); }
+.ff-section.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+                      border-bottom-color: transparent; }
+.ff-section-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ff-section-state { margin-left: auto; font-size: 12px; color: var(--text-faint); }
+/* A plus that becomes a minus. Two spans would need managing in JS; one box with a rotating
+   pseudo-element cannot fall out of sync with the panel it controls. */
+.ff-section-mark { position: relative; width: 12px; height: 12px; flex: none; }
+.ff-section-mark::before, .ff-section-mark::after {
+  content: ''; position: absolute; background: var(--text-muted);
+  transition: transform .18s ease, opacity .18s ease; }
+.ff-section-mark::before { left: 0; top: 5px; width: 12px; height: 2px; }
+.ff-section-mark::after  { left: 5px; top: 0; width: 2px; height: 12px; }
+.ff-section.is-open .ff-section-mark::after { transform: scaleY(0); opacity: 0; }
+
+.ff-panel { padding: 14px; margin-bottom: 6px; border: 1px solid var(--border);
+            border-top: 0; border-radius: 0 0 8px 8px; background: var(--bg); }
+.ff-panel .ff:last-child { margin-bottom: 0; }
+.ff-panel .ff-help:last-child { margin-bottom: 0; }
+
+/* Two actions, equal width, side by side. Draft first because it reads left-to-right as the
+   lesser commitment, and publish sits where the eye finishes. A full-width Publish with a
+   small draft button underneath said the draft was an afterthought — it is not, it is half
+   of what this form does. */
+.ff-actions { display: flex; gap: 10px; margin-top: 18px; }
+.ff-btn { flex: 1 1 0; padding: 13px 10px; border-radius: 8px; font-size: 14px;
+          font-weight: 600; cursor: pointer; font-family: inherit;
+          border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.ff-btn-ghost:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
+.ff-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
+.ff-btn-go:hover { background: var(--brand-dark, #2f4a86); border-color: var(--brand-dark, #2f4a86); }
+.ff-btn:disabled { opacity: .6; cursor: default; }
 
 .oc-post { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--card, #fff); }
 /* Urgent is a left rail, not a filled card. A red block behind body text hurts to read, and

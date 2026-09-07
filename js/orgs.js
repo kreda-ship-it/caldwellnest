@@ -1052,8 +1052,10 @@ function ocEvToggle(key) {
   _ocEvOpen[key] = !_ocEvOpen[key];
   const el = document.getElementById('ocEvPanel-' + key);
   const btn = document.getElementById('ocEvToggle-' + key);
+  // Toggled in place rather than re-rendered: a re-render would throw away everything already
+  // typed into the fields above, which is the one thing a disclosure control must never do.
   if (el) el.hidden = !_ocEvOpen[key];
-  if (btn) btn.classList.toggle('active', !!_ocEvOpen[key]);
+  if (btn) btn.classList.toggle('is-open', !!_ocEvOpen[key]);
 }
 
 function ocEventFormHTML() {
@@ -1066,100 +1068,119 @@ function ocEventFormHTML() {
   const editing = !!_ocEvEditId;
   const va = v => (v == null ? '' : escAttr(String(v)));
   if ((p._media || []).length) _ocEvOpen.media = true;
-  // Progressive disclosure, per §3.1: a short required block, then panels that stay shut.
-  // Every required field is a reason somebody abandons the form, so the visible part is the
-  // five things an event cannot exist without.
-  //
-  // NOT offered here, and both absences are deliberate:
-  //   * Members only — the gating is deferred from V1, so a members_only row would be
-  //     invisible to everyone including its own members. Offering a switch that hides your
-  //     event from the whole campus is worse than not offering it.
-  //   * Repeat — duplicate-an-event covers it until recurrence is built.
+
+  const shots = (p._media || []).filter(m => m.kind === 'image').length;
+  const vidUrl = (p._media || []).find(m => m.kind === 'video_link')?.url;
+
+  // Each collapsed section states what is inside it before it is opened. A row labelled only
+  // "Add registration" makes the officer open it to find out whether they already did.
+  const regSummary = src
+    ? (p.registration_open ? (p.capacity ? `On · ${p.capacity} places` : 'On · unlimited') : 'Off')
+    : 'Off';
+  const mediaSummary = [shots ? `${shots} photo${shots === 1 ? '' : 's'}` : '', vidUrl ? 'video link' : '']
+    .filter(Boolean).join(' · ') || 'None yet';
+
+  const section = (key, label, summary) => `
+    <button type="button" class="ff-section${_ocEvOpen[key] ? ' is-open' : ''}"
+            id="ocEvToggle-${key}" onclick="ocEvToggle('${key}')">
+      <span class="ff-section-label">${label}</span>
+      <span class="ff-section-state">${esc(summary)}</span>
+      <span class="ff-section-mark" aria-hidden="true"></span>
+    </button>`;
+
   return `
-    <div class="oc-composer" id="ocEvForm">
-      <div class="oc-post-title">${editing ? 'Edit event' : (src ? 'Duplicate of ' + esc(p.title || '') : 'New event')}</div>
-      ${editing ? `<div class="oc-note">Editing a published event changes it for everyone already
+    <div class="oc-composer oc-ev-form" id="ocEvForm">
+      <div class="ff-head">
+        <h3 class="ff-head-title">${editing ? 'Edit event' : (src ? 'Duplicate' : 'New event')}</h3>
+        ${src ? `<button type="button" class="ff-head-x" onclick="ocEvClearForm()">${
+          editing ? 'Stop editing' : 'Discard'}</button>` : ''}
+      </div>
+      ${editing ? `<p class="ff-warn">Editing a published event changes it for everyone already
         registered, and nobody is notified — there is no notification layer yet. For a change of
-        date or venue, say so in the description as well.</div>` : ''}
+        date or venue, say so in the description as well.</p>` : ''}
 
-      <input class="oc-input" id="ocEvTitle" placeholder="Event title" autocomplete="off" value="${va(p.title)}">
-
-      <div class="oc-ev-row">
-        <input class="oc-input" id="ocEvDate" type="date" autocomplete="off" value="${va(st.date)}">
-        <input class="oc-input" id="ocEvStart" type="time" autocomplete="off" value="${va(st.time)}">
-        <input class="oc-input" id="ocEvEnd" type="time" autocomplete="off" value="${va(en.time)}">
+      <div class="ff">
+        <label class="ff-label" for="ocEvTitle">Event title</label>
+        <input class="oc-input" id="ocEvTitle" placeholder="Fall Club Fair" autocomplete="off" value="${va(p.title)}">
       </div>
-      <div class="oc-note">Start and end. Leave the end blank and it is treated as about three
-        hours — long enough that the event does not disappear from the feed while it is still
-        happening.</div>
 
-      <input class="oc-input" id="ocEvLoc" placeholder="Location — e.g. Main Hall Lawn" autocomplete="off" value="${va(p.location)}">
-
-      <select class="oc-input" id="ocEvType">
-        <option value="">What kind of event?</option>
-        ${EVENT_TYPES.map(([v, l]) =>
-          `<option value="${v}"${p.event_type === v ? ' selected' : ''}>${l}</option>`).join('')}
-      </select>
-
-      <textarea class="oc-input" id="ocEvDesc" rows="3" placeholder="Description (optional)">${esc(p.description || '')}</textarea>
-
-      <div class="oc-type-row">
-        <button class="oc-type" id="ocEvToggle-reg" onclick="ocEvToggle('reg')">Add registration</button>
-        <button class="oc-type" id="ocEvToggle-media" onclick="ocEvToggle('media')">Add photos</button>
+      <div class="ff-when">
+        <div class="ff ff-when-date">
+          <label class="ff-label" for="ocEvDate">Date</label>
+          <input class="oc-input" id="ocEvDate" type="date" autocomplete="off" value="${va(st.date)}">
+        </div>
+        <div class="ff">
+          <label class="ff-label" for="ocEvStart">Starts</label>
+          <input class="oc-input" id="ocEvStart" type="time" autocomplete="off" value="${va(st.time)}">
+        </div>
+        <div class="ff">
+          <label class="ff-label" for="ocEvEnd">Ends <span class="ff-opt">optional</span></label>
+          <input class="oc-input" id="ocEvEnd" type="time" autocomplete="off" value="${va(en.time)}">
+        </div>
       </div>
-      <div id="ocEvPanel-reg" ${(_ocEvOpen.reg || src) ? '' : 'hidden'}>
+      <p class="ff-help">Leave the end blank and it is treated as about three hours, so the event
+        does not drop out of the feed while it is still happening.</p>
+
+      <div class="ff">
+        <label class="ff-label" for="ocEvLoc">Location</label>
+        <input class="oc-input" id="ocEvLoc" placeholder="Main Hall Lawn" autocomplete="off" value="${va(p.location)}">
+      </div>
+
+      <div class="ff">
+        <label class="ff-label" for="ocEvType">Kind of event</label>
+        <select class="oc-input" id="ocEvType">
+          <option value="">Choose one…</option>
+          ${EVENT_TYPES.map(([v, l]) =>
+            `<option value="${v}"${p.event_type === v ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="ff">
+        <label class="ff-label" for="ocEvDesc">Description <span class="ff-opt">optional</span></label>
+        <textarea class="oc-input" id="ocEvDesc" rows="3"
+          placeholder="What happens, who it is for, anything to bring.">${esc(p.description || '')}</textarea>
+      </div>
+
+      ${section('reg', 'Registration', regSummary)}
+      <div class="ff-panel" id="ocEvPanel-reg" ${_ocEvOpen.reg ? '' : 'hidden'}>
         <label class="oc-toggle"><input type="checkbox" id="ocEvRegOpen" ${(src ? p.registration_open : true) ? 'checked' : ''}> Let students register</label>
-        <input class="oc-input" id="ocEvCapacity" type="number" min="1" placeholder="Capacity (leave blank for unlimited)" autocomplete="off" value="${va(p.capacity)}">
-        <div class="oc-note">Capacity is enforced by the database, not the browser, so the last
-          seat cannot be taken twice. Students who register are visible to you by name and
-          email — they are told that before they tap.</div>
+        <div class="ff">
+          <label class="ff-label" for="ocEvCapacity">Capacity <span class="ff-opt">blank = unlimited</span></label>
+          <input class="oc-input" id="ocEvCapacity" type="number" min="1" placeholder="60" autocomplete="off" value="${va(p.capacity)}">
+        </div>
+        <p class="ff-help">Capacity is enforced by the database, not the browser, so the last seat
+          cannot be taken twice. Students who register are visible to you by name and email — they
+          are told that before they tap.</p>
       </div>
 
-      <div id="ocEvPanel-media" ${_ocEvOpen.media ? '' : 'hidden'}>
+      ${section('media', 'Photos and video', mediaSummary)}
+      <div class="ff-panel" id="ocEvPanel-media" ${_ocEvOpen.media ? '' : 'hidden'}>
         <label for="ocEvPhotoInput" class="oc-ev-drop">Tap to choose photos<br>
           <span class="note-xs">JPEG · PNG · WebP · resized before upload</span></label>
         <input type="file" id="ocEvPhotoInput" accept="image/jpeg,image/png,image/webp,image/*"
                multiple style="display:none" onchange="ocEvPickPhotos(this)">
         <div class="oc-ev-strip" id="ocEvPhotoStrip"></div>
-        <div class="oc-note">The first photo is the card image. Without one the card draws a
-          colour generated from the event itself — the same colour every time, never blank.</div>
+        <p class="ff-help">The first photo is the card image. Without one the card draws a colour
+          generated from the event itself — the same colour every time, never blank.</p>
 
-        <input class="oc-input" id="ocEvVideo" placeholder="Video link (Instagram, YouTube, TikTok)"
-               autocomplete="off" value="${va((p._media || []).find(m => m.kind === 'video_link')?.url)}">
-        <div class="oc-note">A link, not an upload. Hosting video would cost more bandwidth than
-          the whole marketplace has used, and an iPhone .mov often will not play on Android.</div>
+        <div class="ff">
+          <label class="ff-label" for="ocEvVideo">Video link <span class="ff-opt">optional</span></label>
+          <input class="oc-input" id="ocEvVideo" placeholder="instagram.com/p/…" autocomplete="off" value="${va(vidUrl)}">
+        </div>
+        <p class="ff-help">A link, not an upload. Hosting video would cost more bandwidth than the
+          whole marketplace has used, and an iPhone .mov often will not play on Android.</p>
       </div>
 
-      <button class="btn-full oc-save" onclick="ocSaveEvent('published')">${
-        editing && p.status === 'published' ? 'Save changes' : 'Publish event'}</button>
-      ${p.status !== 'published' ? `<button class="org-btn" onclick="ocSaveEvent('draft')">${
-        editing ? 'Save draft' : 'Save as draft'}</button>` : ''}
-      ${src ? `<button class="org-btn" onclick="ocEvClearForm()">${editing ? 'Stop editing' : 'Discard this copy'}</button>` : ''}
-      ${p.status !== 'published' ? `<div class="oc-note">A draft is finished enough to save and not
-        ready to be seen. It stays in this list, is invisible to students, and takes no
-        registrations until you publish it.</div>` : ''}
+      <div class="ff-actions">
+        ${p.status !== 'published'
+          ? `<button class="ff-btn ff-btn-ghost" onclick="ocSaveEvent('draft')">${editing ? 'Save draft' : 'Save as draft'}</button>` : ''}
+        <button class="ff-btn ff-btn-go" onclick="ocSaveEvent('published')">${
+          editing && p.status === 'published' ? 'Save changes' : 'Publish event'}</button>
+      </div>
+      ${p.status !== 'published' ? `<p class="ff-help ff-help-center">A draft is finished enough to
+        save and not ready to be seen. It stays in this list, is invisible to students, and takes no
+        registrations until you publish it.</p>` : ''}
     </div>`;
-}
-
-// Publishing from the card rather than only through the form, because that is the shape of
-// the actual task: a draft written on Monday is published on Thursday without changing a word
-// of it, and reopening a form to press a different button is friction with no purpose.
-async function ocEvPublish(id) {
-  const e = _ocEvents.find(x => x.id === id);
-  if (!e) return;
-  if (!confirm(`Publish "${e.title}"?\n\nIt becomes visible to students and starts taking registrations if you enabled them.`)) return;
-
-  const { error } = await supabaseClient.from('events')
-    .update({ status: 'published', updated_at: new Date().toISOString() }).eq('id', id);
-  if (error) { toast('Could not publish: ' + error.message); console.error('[ocEvPublish]', error); return; }
-
-  logEvent('event_published', {
-    targetType: 'event', targetId: id, targetLabel: e.title,
-    school: _orgCtx.orgs.get(_ocOrgId)?.school,
-    before: { status: 'draft' }, after: { status: 'published' },
-  });
-  toast('✓ Published');
-  renderOcEvents();
 }
 
 function ocEvClearForm() {
@@ -1378,7 +1399,11 @@ async function ocSaveEvent(status = 'published') {
   }
 
   const { data: { user } } = await supabaseClient.auth.getUser();
-  const btn = document.querySelector('.oc-composer .oc-save');
+  // The button that was pressed, not always the publish one — and its own label is captured
+  // so restoring it cannot drift out of step with what the form decided to call it.
+  const btn = document.querySelector(status === 'draft' ? '.ff-actions .ff-btn-ghost'
+                                                       : '.ff-actions .ff-btn-go');
+  const btnLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = status === 'draft' ? 'Saving…' : (editing ? 'Saving…' : 'Publishing…'); }
 
   const row = {
@@ -1415,7 +1440,7 @@ async function ocSaveEvent(status = 'published') {
     for (const ph of _ocEvPhotos) uploaded.push(await uploadListingPhoto(ph.blob, _ocOrgId, 'event-media'));
   } catch (upErr) {
     if (uploaded.length) await deleteListingPhotos(uploaded, 'event-media');
-    if (btn) { btn.disabled = false; btn.textContent = editing ? 'Save changes' : 'Publish event'; }
+    if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
     toast('Could not upload the photos: ' + (upErr.message || upErr));
     console.error('[ocSaveEvent upload]', upErr); return;
   }
@@ -1425,7 +1450,7 @@ async function ocSaveEvent(status = 'published') {
   if (cover) row.poster_url = cover;
   else if (editing) row.poster_url = null;   // every photo removed: fall back to the gradient
 
-  if (btn) { btn.disabled = false; btn.textContent = editing ? 'Save changes' : 'Publish event'; }
+  if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
   if (error) {
     if (uploaded.length) await deleteListingPhotos(uploaded, 'event-media');
     // The likeliest refusal here is RLS: can_act('manage_events') walked the tree and found
