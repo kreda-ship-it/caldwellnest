@@ -1037,6 +1037,14 @@ function ocEvToggle(key) {
 }
 
 function ocEventFormHTML() {
+  // Three states, one form: creating, editing an existing event, or carrying a duplicate's
+  // values with no id yet. Prefill comes from whichever applies.
+  const src = _ocEvEditId ? _ocEvents.find(e => e.id === _ocEvEditId) : _ocEvDraft;
+  const p = src || {};
+  const st = ocEvISOToLocal(p.starts_at);
+  const en = ocEvISOToLocal(p.ends_at);
+  const editing = !!_ocEvEditId;
+  const va = v => (v == null ? '' : escAttr(String(v)));
   // Progressive disclosure, per §3.1: a short required block, then panels that stay shut.
   // Every required field is a reason somebody abandons the form, so the visible part is the
   // five things an event cannot exist without.
@@ -1047,42 +1055,91 @@ function ocEventFormHTML() {
   //     event from the whole campus is worse than not offering it.
   //   * Repeat — duplicate-an-event covers it until recurrence is built.
   return `
-    <div class="oc-composer">
-      <div class="oc-post-title">New event</div>
+    <div class="oc-composer" id="ocEvForm">
+      <div class="oc-post-title">${editing ? 'Edit event' : (src ? 'Duplicate of ' + esc(p.title || '') : 'New event')}</div>
+      ${editing ? `<div class="oc-note">Editing a published event changes it for everyone already
+        registered, and nobody is notified — there is no notification layer yet. For a change of
+        date or venue, say so in the description as well.</div>` : ''}
 
-      <input class="oc-input" id="ocEvTitle" placeholder="Event title" autocomplete="off">
+      <input class="oc-input" id="ocEvTitle" placeholder="Event title" autocomplete="off" value="${va(p.title)}">
 
       <div class="oc-ev-row">
-        <input class="oc-input" id="ocEvDate" type="date" autocomplete="off">
-        <input class="oc-input" id="ocEvStart" type="time" autocomplete="off">
-        <input class="oc-input" id="ocEvEnd" type="time" autocomplete="off">
+        <input class="oc-input" id="ocEvDate" type="date" autocomplete="off" value="${va(st.date)}">
+        <input class="oc-input" id="ocEvStart" type="time" autocomplete="off" value="${va(st.time)}">
+        <input class="oc-input" id="ocEvEnd" type="time" autocomplete="off" value="${va(en.time)}">
       </div>
       <div class="oc-note">Start and end. Leave the end blank and it is treated as about three
         hours — long enough that the event does not disappear from the feed while it is still
         happening.</div>
 
-      <input class="oc-input" id="ocEvLoc" placeholder="Location — e.g. Main Hall Lawn" autocomplete="off">
+      <input class="oc-input" id="ocEvLoc" placeholder="Location — e.g. Main Hall Lawn" autocomplete="off" value="${va(p.location)}">
 
       <select class="oc-input" id="ocEvType">
         <option value="">What kind of event?</option>
-        ${EVENT_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+        ${EVENT_TYPES.map(([v, l]) =>
+          `<option value="${v}"${p.event_type === v ? ' selected' : ''}>${l}</option>`).join('')}
       </select>
 
-      <textarea class="oc-input" id="ocEvDesc" rows="3" placeholder="Description (optional)"></textarea>
+      <textarea class="oc-input" id="ocEvDesc" rows="3" placeholder="Description (optional)">${esc(p.description || '')}</textarea>
 
       <div class="oc-type-row">
         <button class="oc-type" id="ocEvToggle-reg" onclick="ocEvToggle('reg')">Add registration</button>
       </div>
-      <div id="ocEvPanel-reg" hidden>
-        <label class="oc-toggle"><input type="checkbox" id="ocEvRegOpen" checked> Let students register</label>
-        <input class="oc-input" id="ocEvCapacity" type="number" min="1" placeholder="Capacity (leave blank for unlimited)" autocomplete="off">
+      <div id="ocEvPanel-reg" ${(_ocEvOpen.reg || src) ? '' : 'hidden'}>
+        <label class="oc-toggle"><input type="checkbox" id="ocEvRegOpen" ${(src ? p.registration_open : true) ? 'checked' : ''}> Let students register</label>
+        <input class="oc-input" id="ocEvCapacity" type="number" min="1" placeholder="Capacity (leave blank for unlimited)" autocomplete="off" value="${va(p.capacity)}">
         <div class="oc-note">Capacity is enforced by the database, not the browser, so the last
           seat cannot be taken twice. Students who register are visible to you by name and
           email — they are told that before they tap.</div>
       </div>
 
-      <button class="btn-full oc-save" onclick="ocCreateEvent()">Publish event</button>
+      <button class="btn-full oc-save" onclick="ocSaveEvent()">${editing ? 'Save changes' : 'Publish event'}</button>
+      ${src ? `<button class="org-btn" onclick="ocEvClearForm()">${editing ? 'Stop editing' : 'Discard this copy'}</button>` : ''}
     </div>`;
+}
+
+function ocEvClearForm() { _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; renderOcEvents(); }
+
+function ocEvEdit(id) {
+  _ocEvEditId = id; _ocEvDraft = null;
+  renderOcEvents().then(() => document.getElementById('ocEvForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+// Duplicate is what stands in for recurrence until recurrence is built, so it copies
+// everything EXCEPT the identity: no id, and the date moved a week forward. A week is the
+// commonest gap between meetings of the same club, and a date the officer must look at beats
+// one they might not notice — a duplicate silently keeping the original's date would publish
+// a second event in the past.
+function ocEvDuplicate(id) {
+  const e = _ocEvents.find(x => x.id === id);
+  if (!e) return;
+  const start = new Date(new Date(e.starts_at).getTime() + 7 * 864e5);
+  const ends  = e.ends_at ? new Date(new Date(e.ends_at).getTime() + 7 * 864e5) : null;
+  _ocEvEditId = null;
+  _ocEvDraft = { ...e, id: undefined, starts_at: start.toISOString(),
+                 ends_at: ends ? ends.toISOString() : null, status: 'published', cancelled_reason: null };
+  renderOcEvents().then(() => document.getElementById('ocEvForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+// The event being edited, or null when the form is creating a new one. A draft carried in
+// from Duplicate lives here too, as values without an id.
+let _ocEvEditId = null;
+let _ocEvDraft  = null;
+
+// The REVERSE of ocEvLocalToISO, and the place the timezone bug hides on the way back.
+// getFullYear/getMonth/getDate/getHours read the date in the BROWSER'S timezone, which is the
+// clock the officer typed on. Using toISOString().slice(0,10) instead — the obvious one-liner
+// — reads it in UTC, so an 8pm event in New Jersey comes back as the NEXT day's date and the
+// officer silently reschedules it by saving a form they only opened to fix a typo.
+function ocEvISOToLocal(iso) {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  if (isNaN(d)) return { date: '', time: '' };
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 // 'YYYY-MM-DD' plus 'HH:MM' with no timezone suffix parses as LOCAL time, which is what the
@@ -1095,7 +1152,7 @@ function ocEvLocalToISO(dateStr, timeStr) {
   return isNaN(d) ? null : d.toISOString();
 }
 
-async function ocCreateEvent() {
+async function ocSaveEvent() {
   const title = document.getElementById('ocEvTitle').value.trim();
   const date  = document.getElementById('ocEvDate').value;
   const start = document.getElementById('ocEvStart').value;
@@ -1128,14 +1185,20 @@ async function ocCreateEvent() {
     toast('Capacity has to be a whole number, or blank for unlimited'); return;
   }
 
+  const editing = _ocEvEditId;
+  const before  = editing ? _ocEvents.find(e => e.id === editing) : null;
+
+  // Editing an event that has already been cancelled would quietly un-cancel nothing and
+  // confuse its registrants, who are looking at a red banner. Refuse rather than half-do it.
+  if (before && before.status === 'cancelled') {
+    toast('A cancelled event cannot be edited. Duplicate it instead.'); return;
+  }
+
   const { data: { user } } = await supabaseClient.auth.getUser();
   const btn = document.querySelector('.oc-composer .oc-save');
-  if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+  if (btn) { btn.disabled = true; btn.textContent = editing ? 'Saving…' : 'Publishing…'; }
 
-  const { data: ev, error } = await supabaseClient.from('events').insert({
-    org_id: _ocOrgId,
-    school: _orgCtx.orgs.get(_ocOrgId)?.school,  // overwritten by events_set_school; sent to satisfy NOT NULL
-    created_by: user?.id,
+  const row = {
     title,
     description: document.getElementById('ocEvDesc').value.trim() || null,
     event_type: type,
@@ -1144,23 +1207,38 @@ async function ocCreateEvent() {
     location: loc,
     registration_open: document.getElementById('ocEvRegOpen').checked,
     capacity,
-  }).select('id').single();
+  };
 
-  if (btn) { btn.disabled = false; btn.textContent = 'Publish event'; }
+  // updated_at is set by hand because nothing sets it for us: the column defaults to now()
+  // on INSERT and no trigger touches it afterwards, so without this an edited event would
+  // claim it had not changed since the day it was created.
+  const { data: ev, error } = editing
+    ? await supabaseClient.from('events').update({ ...row, updated_at: new Date().toISOString() })
+        .eq('id', editing).select('id').single()
+    : await supabaseClient.from('events').insert({
+        ...row,
+        org_id: _ocOrgId,
+        school: _orgCtx.orgs.get(_ocOrgId)?.school,  // overwritten by events_set_school; sent to satisfy NOT NULL
+        created_by: user?.id,
+      }).select('id').single();
+
+  if (btn) { btn.disabled = false; btn.textContent = editing ? 'Save changes' : 'Publish event'; }
   if (error) {
     // The likeliest refusal here is RLS: can_act('manage_events') walked the tree and found
-    // nothing. Saying so is more useful than the raw message, which reads as a database fault.
-    toast('Could not publish: ' + error.message);
-    console.error('[ocCreateEvent]', error); return;
+    // nothing. The raw message reads as a database fault, so it is shown alongside plainer
+    // words rather than instead of them.
+    toast(`Could not ${editing ? 'save' : 'publish'}: ` + error.message);
+    console.error('[ocSaveEvent]', error); return;
   }
 
-  logEvent('event_created', {
+  logEvent(editing ? 'event_edited' : 'event_created', {
     targetType: 'event', targetId: ev.id, targetLabel: title,
     school: _orgCtx.orgs.get(_ocOrgId)?.school,
+    before: before ? { starts_at: before.starts_at, location: before.location, title: before.title } : undefined,
     after: { starts_at: startsAt, location: loc, event_type: type },
   });
-  _ocEvOpen = {};
-  toast('✓ Event published');
+  _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {};
+  toast(editing ? '✓ Event updated' : '✓ Event published');
   renderOcEvents();
 }
 
@@ -1215,9 +1293,13 @@ function ocEventCardHTML(e) {
       <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}</div>
       ${e.status === 'cancelled' && e.cancelled_reason
         ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
-      ${e.status !== 'cancelled' && !e._past ? `<div class="oc-post-actions">
-        <button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel event</button>
-      </div>` : ''}
+      <div class="oc-post-actions">
+        ${e.status !== 'cancelled' && !e._past
+          ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
+        <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
+        ${e.status !== 'cancelled' && !e._past
+          ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel event</button>` : ''}
+      </div>
     </div>`;
 }
 
