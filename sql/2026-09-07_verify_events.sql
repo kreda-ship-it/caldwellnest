@@ -25,12 +25,14 @@
 --
 --
 -- WHAT THIS FILE CANNOT TEST, STATED PLAINLY
--- 1. TEST 12 checks security_invoker structurally, from pg_class.reloptions, not
---    behaviourally. Today the view's own WHERE (published, not members_only) and the events
---    SELECT policy overlap almost exactly, so no student-visible row separates them. The
---    behavioural difference only becomes observable when members_only gating is built — which
---    is precisely when a missing security_invoker would start leaking. Structural now,
---    behavioural then; do not read this pass as covering that future case.
+-- 1. TEST 12 checks security_invoker structurally, from pg_class.reloptions. That WAS the
+--    only check available, because the view's old WHERE (published, not members_only) and the
+--    events SELECT policy overlapped almost exactly, so no student-visible row separated them.
+--    Since 2026-09-07 the WHERE carries no status test at all, so TESTS 10c and 10d now cover
+--    it BEHAVIOURALLY as well: a draft is hidden from a student and visible to its officer
+--    through the same view, which can only be true if the policies reach the caller. With
+--    security_invoker off, the view would run as its owner and 10c would fail.
+--    Members-only gating remains untested here because no members-only event exists yet.
 -- 2. TEST 9 needs FIVE students with check-in rows, because five is the suppression
 --    threshold and a threshold cannot be tested from one side. If the database holds fewer
 --    than five non-admin profiles the test reports SKIP rather than a false pass.
