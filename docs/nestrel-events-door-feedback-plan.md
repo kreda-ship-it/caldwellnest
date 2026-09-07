@@ -713,7 +713,7 @@ restore point.
 | # | Session | Done when |
 |---|---|---|
 | **E0** | Capture stage 0 | ✅ **Done 2026-09-06** — `sql/2026-09-06_capture_views.sql`. Two of the three were already captured on 2026-09-04 (`is_super_admin()`, `user_roles`); only the views were missing. `visible_listings` exists and is correct. Two findings came out of it: books have no suspended-poster filter (logged to ROADMAP), and `visible_events` needs `security_invoker`. |
-| **E1** | Schema, visibility, RPCs | ✅ **Schema, RPCs and verification green 2026-09-07** — `2026-09-07_events_schema.sql`, `_events_rpcs.sql`, `_verify_events.sql`, all 18 assertions PASS. ⬜ Remaining: re-run the other five verify files. Four findings came out of it, in §7.1. |
+| **E1** | Schema, visibility, RPCs | ✅ **Schema, RPCs and verification green 2026-09-07** — `2026-09-07_events_schema.sql`, `_events_rpcs.sql`, `_verify_events.sql`, all 18 assertions PASS. ✅ **All six verification files in `sql/` re-run green 2026-09-07.** Findings in §7.1. |
 | **E2** | Officer: create, edit, media, QR | An officer creates an event with a poster from the console and it appears in the database. Cancel without a reason is refused. QR downloads and a phone camera opens the event URL. |
 | **E2.5** | **Section scaffold + marketplace extraction** | `page-events` exists and both entry points reach it. All nine call sites in §4.0 are moved. Home feed, saved, profile listings and chat listing-cards render identically to before. **Own commit, nothing else in it.** |
 | **E3** | Feed, detail, register, org profile | A student browses events chronologically, opens one, registers, and the seat count is right with two browsers racing. `#/event/:id` works cold in incognito. A password-reset link still reaches the reset screen. |
@@ -736,6 +736,24 @@ written to test, which is the argument for writing it at all:
 
 Two of those four were faults in **this document**, not in the code. That is the ratio worth
 remembering the next time a plan looks finished.
+
+**Then the suite re-run found a fifth thing, and E1 did not cause it.**
+`2026-09-06_verify_self_removal.sql` failed its three refusals and passed its three
+permissions — the shape of an *absent* trigger, not a broken one. `pg_trigger` confirmed it:
+`guard_org_self_removal()` had been written, reviewed and committed in `4a61d1a`, and never
+run against the database. Applied 2026-09-07, green.
+
+That is the whole argument for §6.4's "re-run everything." It is usually justified as *my
+change might have broken something else.* Here it did something more valuable — it found a
+hole that had been open since the previous day, which nothing in the events work would ever
+have touched. **A file in `sql/` is not a rule in Postgres.**
+
+One thing the guard's own verify query surfaced, which is not a bug and is worth a decision:
+the root organization has **exactly one** membership carrying `can_manage_members`. Every
+permission in the app resolves through that single row. The guard now stops that account
+removing itself; it cannot stop the account becoming unavailable. A second officer on the
+root org is one row, and it is what makes the guard's own advice — *ask somebody else* —
+true at the root, where today there is no somebody else.
 
 E1 → E2.5 → E3 is a shippable events product. E5 is what makes it worth an administrator's
 attention. E4 and E6 are small and can slot in either order.
