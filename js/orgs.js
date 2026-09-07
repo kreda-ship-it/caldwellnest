@@ -705,7 +705,9 @@ function orgConsoleSections() {
   if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
   // Events, Registrations, Check-in and Analytics arrive with workstreams 3 and 6. They are
   // listed so the shape of the console is visible, and disabled so nothing pretends to work.
-  s.push({ id: 'events',    label: 'Events',    soon: 'workstream 3' });
+  if (orgCanAct('manage_events', _ocOrgId)) s.push({ id: 'events', label: 'Events' });
+  // Analytics arrives with workstream 6. Listed so the shape of the console is visible, and
+  // disabled so nothing pretends to work.
   s.push({ id: 'analytics', label: 'Analytics', soon: 'workstream 6' });
   return s;
 }
@@ -724,15 +726,35 @@ function renderOrgConsole() {
   const swBtn = document.getElementById('ocSwitchBtn');
   if (swBtn) swBtn.hidden = orgMemberships().filter(m => m.role === 'officer').length < 2;
 
-  document.getElementById('ocNav').innerHTML = orgConsoleSections().map(s =>
+  // A section this officer cannot reach must not stay selected. Falls back to the first one
+  // they can — 'profile' is pushed unconditionally, so there is always one.
+  const sections = orgConsoleSections();
+  if (!sections.some(s => s.id === _ocSection && !s.soon)) {
+    _ocSection = (sections.find(s => !s.soon) || { id: 'profile' }).id;
+  }
+
+  document.getElementById('ocNav').innerHTML = sections.map(s =>
     s.soon
       ? `<button class="oc-tab oc-tab-soon" disabled title="Arrives with ${s.soon}">${s.label}</button>`
       : `<button class="oc-tab${_ocSection === s.id ? ' active' : ''}" onclick="orgConsoleGo('${s.id}')">${s.label}</button>`
   ).join('');
 
-  if      (_ocSection === 'members') renderOcMembers();
-  else if (_ocSection === 'profile') renderOcProfile();
-  else                               renderOcPosts();
+  // Dispatch by name, not by a chain ending in `else renderOcPosts()`. The old chain sent
+  // every unrecognised section to Posts, which was invisible while Events was a disabled
+  // stub and would have become a bug the moment it was clickable: the Events tab would have
+  // rendered the Posts page, which is worse than an error because it looks like it worked.
+  //
+  // It was already wrong in one live case. orgConsoleOpen() sets _ocSection = 'posts'
+  // unconditionally, so an officer holding manage_events but NOT post — exactly the split
+  // the flag set exists to allow — opened the console on a Posts page they cannot use,
+  // backed by a query RLS returns nothing for.
+  const OC_RENDER = {
+    posts:   renderOcPosts,
+    profile: renderOcProfile,
+    members: renderOcMembers,
+    events:  renderOcEvents,
+  };
+  (OC_RENDER[_ocSection] || renderOcProfile)();
 }
 
 function orgConsoleGo(section) { _ocSection = section; renderOrgConsole(); }
@@ -925,6 +947,114 @@ async function renderOcPosts() {
   body.innerHTML = ocComposerHTML() + (_ocPosts.length
     ? _ocPosts.map(ocPostCardHTML).join('')
     : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>');
+}
+
+// ---------- Events ----------
+// Gated on can_manage_events. A can_check_in holder reaches the door (E5) and never this.
+
+let _ocEvents = [];
+
+// An event's effective end. ends_at is nullable on purpose — an officer posting "club fair,
+// Tuesday 6pm" should not be blocked on deciding when it stops — but §1.1 makes pastness a
+// comparison against the end, so a null end would mean the event is never past and sits at
+// the top of a chronological list forever.
+//
+// Three hours is the same guess visible_events makes in SQL. It is written twice, which is
+// once too many: if it ever changes, both must change. The SQL one is authoritative because
+// it is the one students' feeds obey.
+const EVENT_ASSUMED_HOURS = 3;
+function eventEndsAt(e) {
+  return new Date(e.ends_at || (new Date(e.starts_at).getTime() + EVENT_ASSUMED_HOURS * 3600e3));
+}
+
+async function renderOcEvents() {
+  const body = document.getElementById('ocBody');
+  body.innerHTML = '<div class="oc-note">Loading events…</div>';
+
+  const { data: events, error } = await supabaseClient
+    .from('events')
+    .select('id, title, event_type, starts_at, ends_at, location, status, poster_url, ' +
+            'registration_open, capacity, cancelled_reason, members_only')
+    .eq('org_id', _ocOrgId)
+    .order('starts_at', { ascending: false });
+  if (error) {
+    body.innerHTML = '<div class="oc-note">Could not load events.</div>';
+    console.error('[renderOcEvents]', error); return;
+  }
+
+  // Counted here rather than stored on the event. A stored count is a second source of truth
+  // that drifts the first time a registration is written by anything other than the one code
+  // path that remembers to increment it.
+  const ids = (events || []).map(e => e.id);
+  let regs = [];
+  if (ids.length) {
+    const { data } = await supabaseClient
+      .from('event_registrations').select('event_id, status').in('event_id', ids);
+    regs = data || [];
+  }
+
+  const now = new Date();
+  _ocEvents = (events || []).map(e => {
+    const mine = regs.filter(r => r.event_id === e.id);
+    return {
+      ...e,
+      _past:    eventEndsAt(e) < now,
+      _going:   mine.filter(r => ['registered', 'self_reported', 'checked_in', 'walk_in'].includes(r.status)).length,
+      _checked: mine.filter(r => ['checked_in', 'walk_in'].includes(r.status)).length,
+    };
+  });
+
+  // Upcoming ascending — the next thing to happen is the thing an officer is working on.
+  // Past descending, because the most recent one is the one with photos to upload.
+  const upcoming = _ocEvents.filter(e => !e._past).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past     = _ocEvents.filter(e =>  e._past);
+
+  body.innerHTML = `
+    <div class="oc-composer">
+      <div class="oc-post-title">Events</div>
+      <div class="oc-note">Creating and editing events arrives in the next change. This list is
+        live — anything already in the database for this organization is shown below.</div>
+    </div>
+    ${upcoming.length ? `<div class="oc-note">Upcoming · ${upcoming.length}</div>
+      ${upcoming.map(ocEventCardHTML).join('')}` : ''}
+    ${past.length ? `<div class="oc-note">Past · ${past.length}</div>
+      ${past.map(ocEventCardHTML).join('')}` : ''}
+    ${_ocEvents.length ? '' : `<div class="oc-note">No events yet.</div>`}`;
+}
+
+function ocEventCardHTML(e) {
+  const when = new Date(e.starts_at);
+  // toLocaleString, not a hand-built string: the officer sees their own device's format, and
+  // an event stored in UTC renders in local time without any conversion of ours to get wrong.
+  const whenTxt = when.toLocaleString(undefined,
+    { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+  const chips = [
+    e.status === 'cancelled' ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
+    e.status === 'draft'     ? '<span class="oc-chip">Draft</span>' : '',
+    e.members_only           ? '<span class="oc-chip">Members only</span>' : '',
+    e._past                  ? '<span class="oc-chip">Past</span>' : '',
+  ].join('');
+
+  // Registration state reads as one line rather than several counters. "18 spots left" is the
+  // number an officer acts on; "42 of 60" makes them do the subtraction.
+  const left = e.capacity == null ? null : Math.max(0, e.capacity - e._going);
+  const reg = !e.registration_open
+    ? 'Registration closed'
+    : `${e._going} going${left == null ? '' : ` · ${left} spot${left === 1 ? '' : 's'} left`}`;
+
+  return `
+    <div class="oc-post${e.status === 'cancelled' ? ' oc-post-urgent' : ''}">
+      <div class="oc-post-head">
+        ${chips}
+        <span class="oc-post-date">${esc(whenTxt)}</span>
+      </div>
+      <div class="oc-post-title">${esc(e.title)}</div>
+      <div class="oc-post-body">${esc(e.location)}</div>
+      <div class="oc-note">${esc(reg)}${e._past && e._checked ? ` · ${e._checked} checked in` : ''}</div>
+      ${e.status === 'cancelled' && e.cancelled_reason
+        ? `<div class="oc-note">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
+    </div>`;
 }
 
 function ocComposerHTML() {
