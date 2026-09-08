@@ -641,3 +641,88 @@ function evClearRoute() {
     history.replaceState(null, '', window.location.pathname + window.location.search);
   }
 }
+
+
+// ============================================================
+// GOING  —  the student's own registrations, on their profile
+// ============================================================
+// §4.6. Upcoming first, then what already happened, because the question a student opens this
+// for is "what have I said yes to" and only afterwards "what did I go to".
+//
+// This is the ONLY surface that starts from event_registrations rather than from
+// visible_events, and it has to: an event the student registered for and then had cancelled
+// is still theirs, and a feed built from browsable events would silently drop it. So it reads
+// their own rows — which RLS allows and nothing else — and fetches the events by id.
+
+async function renderGoing() {
+  const sec = document.getElementById('goingSection');
+  const wrap = document.getElementById('myGoing');
+  if (!sec || !wrap) return;
+
+  const eu = getEffectiveUser();
+  if (!eu?.id) { sec.hidden = true; return; }
+
+  const { data: regs, error } = await supabaseClient
+    .from('event_registrations')
+    .select('event_id, status, created_at')
+    .eq('user_id', eu.id);
+
+  if (error) { sec.hidden = true; console.error('[renderGoing]', error); return; }
+
+  // Cancelled registrations are dropped: the student withdrew, and a list of things you
+  // decided not to do is not a useful part of your own profile. A cancelled EVENT is a
+  // different thing entirely and stays — see below.
+  const live = (regs || []).filter(r => r.status !== 'cancelled');
+  if (!live.length) { sec.hidden = true; wrap.innerHTML = ''; return; }
+
+  const { data: evs } = await supabaseClient
+    .from('visible_events')
+    .select('id, org_id, title, starts_at, location, poster_url, status, has_ended, cancelled_reason')
+    .in('id', live.map(r => r.event_id));
+
+  const rows = evs || [];
+  if (!rows.length) { sec.hidden = true; wrap.innerHTML = ''; return; }
+  await evLoadOrgs(rows);
+
+  const byId = new Map(live.map(r => [r.event_id, r]));
+  const upcoming = rows.filter(e => !e.has_ended)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past = rows.filter(e => e.has_ended)
+    .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+
+  sec.hidden = false;
+  wrap.innerHTML =
+    upcoming.map(e => goingRowHTML(e, byId.get(e.id))).join('') +
+    (past.length ? `<div class="go-head">Already happened</div>` : '') +
+    past.map(e => goingRowHTML(e, byId.get(e.id))).join('');
+}
+
+function goingRowHTML(e, reg) {
+  const org = _evOrgs.get(e.org_id);
+  const when = new Date(e.starts_at).toLocaleString(undefined,
+    { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+  // A cancelled event the student registered for stays on this list, loudly. It is the one
+  // place they will look, there is no notification layer to tell them any other way, and
+  // quietly removing it would mean they turn up.
+  const state = e.status === 'cancelled'
+    ? `<span class="go-state go-off">Cancelled${e.cancelled_reason ? ' · ' + esc(e.cancelled_reason) : ''}</span>`
+    : (reg?.status === 'checked_in' || reg?.status === 'walk_in')
+      ? '<span class="go-state go-in">You were there &#10003;</span>'
+      : reg?.status === 'self_reported'
+        ? '<span class="go-state">Waiting to be confirmed</span>'
+        : e.has_ended ? '<span class="go-state go-off">Did not check in</span>' : '';
+
+  return `
+    <button class="go-row${e.has_ended ? ' is-past' : ''}" onclick="evOpen(${e.id})">
+      <div class="go-thumb"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
+        ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
+      </div>
+      <div class="go-text">
+        <div class="go-title">${esc(e.title)}</div>
+        <div class="go-when">${esc(when)}</div>
+        <div class="go-where">${esc(org?.name ? org.name + " · " : "")}${esc(e.location)}</div>
+        ${state}
+      </div>
+    </button>`;
+}

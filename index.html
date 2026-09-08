@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-08b">
+<link rel="stylesheet" href="styles.css?v=2026-09-08c">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -358,6 +358,13 @@
         <div class="section-divider"></div>
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
+        <!-- GOING — events this student registered for. Rendered only when there are some:
+             an empty section on every profile would be a permanent reminder of nothing. -->
+        <div id="goingSection" hidden>
+          <div class="section-divider"></div>
+          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Going</div>
+          <div id="myGoing"></div>
+        </div>
         <div class="section-divider"></div>
         <!-- The directory's entry point on mobile, where the bottom bar has no free slot.
              Shown to EVERY student, unlike the console row below it: browsing clubs is what
@@ -1683,14 +1690,14 @@
 <script src="js/utils.js?v=2026-09-06b"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-07a"></script>
-<script src="js/profile.js?v=2026-09-06b"></script>
+<script src="js/profile.js?v=2026-09-08a"></script>
 <script src="js/listings.js?v=2026-09-07b"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-07l"></script>
-<script src="js/events.js?v=2026-09-08a"></script>
+<script src="js/events.js?v=2026-09-08b"></script>
 <script src="js/orgdir.js?v=2026-09-08b"></script>
 <script src="js/boot.js?v=2026-09-08a"></script>
 

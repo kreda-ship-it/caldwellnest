@@ -461,6 +461,7 @@ function renderProfile() {
   }
 
   renderMyListingsGrid(u); // async — one grid, marketplace + books together
+  renderGoing();           // async — events this student registered for (js/events.js)
 }
 
 // The one My Listings grid: cached marketplace rows (all statuses — owners see their
