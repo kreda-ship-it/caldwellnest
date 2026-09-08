@@ -1866,3 +1866,38 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* A cancelled event a student signed up for is the one thing on this page they must not
    scroll past, because nothing else will tell them. */
 .go-off { color: var(--danger, #c0392b); }
+
+
+/* ---------- Ratings ---------- */
+/* The single contextual slot above the first date group. One card, never a stack — a column
+   of things to do is a column people scroll past. */
+.ev-ask { padding: 16px; margin-bottom: 16px; border-radius: 14px;
+          background: var(--brand-pale, #eef3ff); border: 1px solid var(--brand-light, #cfdcf5); }
+.ev-ask-q { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.ev-ask-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+.ev-stars { display: inline-flex; gap: 2px; }
+/* Big enough to hit with a thumb without aiming. A five-star row of small targets is the
+   commonest way a rating gets the wrong number. */
+.ev-star-btn { width: 34px; height: 34px; border: 0; background: none; cursor: pointer;
+               font-size: 22px; line-height: 1; color: var(--text-faint); padding: 0; }
+.ev-star-btn:hover, .ev-star-btn.is-on { color: #e8a317; }
+/* Hovering a star lights every star before it, which is what makes a row of stars read as a
+   scale rather than as five separate buttons. */
+.ev-stars:hover .ev-star-btn { color: #e8a317; }
+.ev-stars .ev-star-btn:hover ~ .ev-star-btn { color: var(--text-faint); }
+
+.go-rate { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.go-rate-q { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.go-rate .ev-star-btn { width: 26px; height: 26px; font-size: 17px; }
+.go-rated { color: #e8a317; }
+.go-shut { color: var(--text-faint); font-weight: 500; }
+
+/* ---------- Recap (console) ---------- */
+.oc-recap-sum { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.oc-recap-n { font-family: 'DM Serif Display', Georgia, serif; font-size: 32px; line-height: 1;
+              color: var(--brand, #3B5BA5); }
+.oc-recap-lab { font-size: 13px; color: var(--text-muted); }
+.oc-recap-c { padding: 10px 12px; margin-bottom: 6px; border-radius: 10px;
+              background: var(--surface-2, #f4f4f7); font-size: 13px; line-height: 1.6;
+              color: var(--text); }

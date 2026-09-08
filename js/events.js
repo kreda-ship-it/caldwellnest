@@ -16,6 +16,7 @@ let _evOrgs   = new Map(); // org id -> directory row, for the card's header
 let _evSaved  = new Set(); // event ids this student has starred
 let _evGoing  = new Map(); // event id -> this student's own registration row
 let _evDetail = null;      // the event currently open in the detail modal
+let _evRated  = new Map(); // event id -> this student's own feedback row
 let _evShowPast = false;
 
 async function renderEvents() {
@@ -45,8 +46,12 @@ async function renderEvents() {
   _evPast = rows.filter(e => e.has_ended && e.status === 'published')
                 .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  await Promise.all([evLoadOrgs(rows), evLoadSaved(), evLoadGoing()]);
+  await Promise.all([evLoadOrgs(rows), evLoadSaved(), evLoadGoing(), evLoadRated()]);
   evPaint();
+  // Painted after the feed rather than inside it: it needs two more queries, and holding the
+  // whole feed back for a prompt would make the common case — nothing to rate — slower for
+  // everybody.
+  evPaintAsk();
 }
 
 // Org name, logo and verified badge come from org_directory — the same public view the Clubs
@@ -142,7 +147,7 @@ function evPaint() {
     return;
   }
 
-  let html = '';
+  let html = '<div id="evAskSlot"></div>';
   let lastKey = null;
   for (const e of _evFeed) {
     const key = evDayKey(e.starts_at);
@@ -168,6 +173,12 @@ function evPaint() {
   }
 
   wrap.innerHTML = html;
+}
+
+async function evPaintAsk() {
+  const slot = document.getElementById('evAskSlot');
+  if (!slot) return;
+  slot.innerHTML = await evPendingRatingHTML();
 }
 
 function evTogglePast(btn) {
@@ -677,12 +688,13 @@ async function renderGoing() {
 
   const { data: evs } = await supabaseClient
     .from('visible_events')
-    .select('id, org_id, title, starts_at, location, poster_url, status, has_ended, cancelled_reason')
+    .select('id, org_id, title, starts_at, location, poster_url, status, has_ended, ' +
+            'effective_ends_at, cancelled_reason')
     .in('id', live.map(r => r.event_id));
 
   const rows = evs || [];
   if (!rows.length) { sec.hidden = true; wrap.innerHTML = ''; return; }
-  await evLoadOrgs(rows);
+  await Promise.all([evLoadOrgs(rows), evLoadRated()]);
 
   const byId = new Map(live.map(r => [r.event_id, r]));
   const upcoming = rows.filter(e => !e.has_ended)
@@ -705,6 +717,14 @@ function goingRowHTML(e, reg) {
   // A cancelled event the student registered for stays on this list, loudly. It is the one
   // place they will look, there is no notification layer to tell them any other way, and
   // quietly removing it would mean they turn up.
+  const rated = _evRated.get(e.id);
+  const rate = rated
+    ? `<span class="go-state go-rated">You rated it ${'&#9733;'.repeat(rated.rating)}</span>`
+    : evCanRate(e, reg)
+      ? `<div class="go-rate"><span class="go-rate-q">Rate it</span>${evStarsHTML(e.id, 0)}</div>`
+      : (e.has_ended && ['checked_in', 'walk_in'].includes(reg?.status)
+          ? '<span class="go-state go-shut">Rating closed</span>' : '');
+
   const state = e.status === 'cancelled'
     ? `<span class="go-state go-off">Cancelled${e.cancelled_reason ? ' · ' + esc(e.cancelled_reason) : ''}</span>`
     : (reg?.status === 'checked_in' || reg?.status === 'walk_in')
@@ -713,16 +733,138 @@ function goingRowHTML(e, reg) {
         ? '<span class="go-state">Waiting to be confirmed</span>'
         : e.has_ended ? '<span class="go-state go-off">Did not check in</span>' : '';
 
+  // A div, not a button. The row now contains star buttons, and nesting a button inside a
+  // button is invalid HTML that browsers resolve by dropping one of them — usually the inner
+  // one, which is exactly the control that matters here. The thumbnail and the text open the
+  // event; the stars do their own thing.
   return `
-    <button class="go-row${e.has_ended ? ' is-past' : ''}" onclick="evOpen(${e.id})">
-      <div class="go-thumb"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
+    <div class="go-row${e.has_ended ? ' is-past' : ''}">
+      <div class="go-thumb" onclick="evOpen(${e.id})"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
         ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
       </div>
-      <div class="go-text">
+      <div class="go-text" onclick="if(!event.target.closest('.ev-stars'))evOpen(${e.id})">
         <div class="go-title">${esc(e.title)}</div>
         <div class="go-when">${esc(when)}</div>
         <div class="go-where">${esc(org?.name ? org.name + " · " : "")}${esc(e.location)}</div>
         ${state}
+        ${rate}
       </div>
-    </button>`;
+    </div>`;
+}
+
+
+// ============================================================
+// FEEDBACK  —  gated on attendance
+// ============================================================
+// §1.6. Anyone can have an opinion about a party they did not attend; only a student with a
+// CHECK-IN row can rate an event. One rule, three jobs: the feedback means something because
+// it comes from people who were there, check-in gains a reason to exist for the STUDENT
+// rather than only for the org, and the loop that makes staffing a door worthwhile closes.
+//
+// The rule is enforced by the event_feedback INSERT policy — check-in row, event ended,
+// ended within seven days — not here. Everything below decides what to OFFER; the database
+// decides what to accept, and a student reading the network tab reaches the same answer.
+
+const EV_FEEDBACK_DAYS = 7;
+
+// A student may read their own feedback rows and nothing else, which is exactly what this
+// needs: whether THEY have already rated something.
+async function evLoadRated() {
+  const eu = getEffectiveUser();
+  if (!eu?.id) return;
+  const { data } = await supabaseClient
+    .from('event_feedback').select('event_id, rating, comment').eq('user_id', eu.id);
+  _evRated = new Map((data || []).map(f => [f.event_id, f]));
+}
+
+// Mirrors the policy rather than inventing a second rule: attended, over, and inside the
+// window. If these ever disagree the database wins and the student sees a refusal, which is
+// why the copy never promises the rating will be accepted before it has been.
+function evCanRate(e, reg) {
+  if (!e || !reg) return false;
+  if (!['checked_in', 'walk_in'].includes(reg.status)) return false;
+  if (!e.has_ended) return false;
+  const ended = new Date(e.effective_ends_at || e.ends_at || e.starts_at).getTime();
+  return Date.now() - ended < EV_FEEDBACK_DAYS * 864e5;
+}
+
+// ---------- The one contextual slot ----------
+// §4.1 allows AT MOST ONE card above the first date group, and this is its correct first use.
+// There is no notification layer, so a passive prompt in the place the student already looks
+// is the whole delivery mechanism — and the most recent event is the one they remember.
+async function evPendingRatingHTML() {
+  const eu = getEffectiveUser();
+  if (!eu?.id) return '';
+
+  const { data: regs } = await supabaseClient
+    .from('event_registrations').select('event_id, status').eq('user_id', eu.id)
+    .in('status', ['checked_in', 'walk_in']);
+  if (!regs || !regs.length) return '';
+
+  const { data: evs } = await supabaseClient
+    .from('visible_events')
+    .select('id, title, has_ended, effective_ends_at')
+    .in('id', regs.map(r => r.event_id));
+
+  const byReg = new Map(regs.map(r => [r.event_id, r]));
+  const due = (evs || [])
+    .filter(e => evCanRate(e, byReg.get(e.id)) && !_evRated.has(e.id))
+    .sort((a, b) => new Date(b.effective_ends_at) - new Date(a.effective_ends_at));
+
+  if (!due.length) return '';
+  const e = due[0];
+  return `
+    <div class="ev-ask">
+      <div class="ev-ask-q">How was ${esc(e.title)}?</div>
+      ${evStarsHTML(e.id, 0)}
+      <div class="ev-ask-note">Shared anonymously with the organizers.</div>
+    </div>`;
+}
+
+function evStarsHTML(eventId, value) {
+  return `<div class="ev-stars" id="evStars-${eventId}">${
+    [1, 2, 3, 4, 5].map(n =>
+      `<button class="ev-star-btn${n <= value ? ' is-on' : ''}" aria-label="${n} out of 5"
+               onclick="evRate(${eventId}, ${n})">&#9733;</button>`).join('')
+  }</div>`;
+}
+
+// One tap submits the rating. The comment is a SECOND, optional step offered afterwards,
+// because asking for words up front is what stops most people answering at all — and a rating
+// with no comment is still the number the officer needs.
+async function evRate(eventId, rating) {
+  const eu = getEffectiveUser();
+  if (!eu?.id) { requireAuth(); return; }
+
+  // `school` is omitted deliberately: event_feedback_set_school fills it from the event, so
+  // the browser cannot write a row into a school that does not exist.
+  const { error } = await supabaseClient.from('event_feedback')
+    .insert({ event_id: eventId, user_id: eu.id, rating });
+
+  if (error) {
+    // The likely refusals are all policy: no check-in row, or outside the seven days. Both
+    // mean the same thing to a student, and neither is worth a database message.
+    toast(error.code === '23505' ? 'You already rated that one'
+        : 'That rating could not be saved — the window may have closed');
+    console.error('[evRate]', error);
+    return;
+  }
+  _evRated.set(eventId, { event_id: eventId, rating, comment: null });
+  toast('✓ Thank you');
+  evAskComment(eventId, rating);
+  renderEvents();
+  renderGoing();
+}
+
+// Offered once, immediately after the star, and never again. The card does not come back:
+// §4.5 says submitting replaces it with a thank-you, and a prompt that reappears is a prompt
+// people learn to dismiss without reading.
+async function evAskComment(eventId, rating) {
+  const note = prompt('Anything you want to tell the organizers? (optional)\n\nShared anonymously — though at a small event a detailed comment may still be recognisable.');
+  if (note === null || !note.trim()) return;
+  const { error } = await supabaseClient.from('event_feedback')
+    .update({ comment: note.trim() }).eq('event_id', eventId).eq('user_id', getEffectiveUser().id);
+  if (error) { console.error('[evAskComment]', error); return; }
+  const row = _evRated.get(eventId); if (row) row.comment = note.trim();
+  toast('✓ Sent');
 }

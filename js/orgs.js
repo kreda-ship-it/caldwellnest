@@ -1933,11 +1933,13 @@ function ocEventCardHTML(e) {
           ${live ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
           <button class="org-btn" onclick="ocToggleRoster(${e.id})">Who's coming${
           e._going ? ` · ${e._checked ? `${e._checked}/${e._going}` : e._going}` : ''}</button>
+        ${e._past ? `<button class="org-btn" onclick="ocToggleRecap(${e.id})">Recap</button>` : ''}
         <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
           <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">QR</button>
           ${live ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel</button>` : ''}
         </div>
         <div class="oc-ev-roster" id="ocRoster-${e.id}" hidden></div>
+        <div class="oc-ev-recap oc-ev-roster" id="ocRecap-${e.id}" hidden></div>
       </div>
     </div>`;
 }
@@ -2137,4 +2139,141 @@ async function ocPickLogo(input) {
     toast('Could not upload: ' + (e.message || e));
     console.error('[ocPickLogo]', e);
   }
+}
+
+
+// ============================================================
+// RECAP  —  after the event
+// ============================================================
+// Two halves under two different flags, which is the resolution TEST 9c pins down: the recap
+// PHOTOS need can_manage_events, the feedback SUMMARY needs can_view_analytics. Authority
+// flows down, so a school admin can edit every club's events — and if editing implied reading
+// the comments, "private to the org" would quietly mean "private to everyone above you",
+// which is not what a student is told when they leave one.
+
+let _ocRecapOpen = null;
+let _ocRecapFb   = null;
+
+async function ocToggleRecap(id) {
+  if (_ocRecapOpen === id) { _ocRecapOpen = null; _ocRecapFb = null; ocPaintRecap(); return; }
+  _ocRecapOpen = id; _ocRecapFb = null;
+  ocPaintRecap('Loading…');
+
+  // Officers never read event_feedback directly — the policy is own-row-only. The function is
+  // the only door, and the suppression below five lives INSIDE it, not in this file. A
+  // suppression rule enforced in JavaScript is not a suppression rule.
+  const { data, error } = await supabaseClient.rpc('get_event_feedback', { p_event_id: id });
+  if (error) {
+    // Refusal here is the analytics flag, not a fault. Saying which is more useful than the
+    // raw message, because the fix is a permission somebody has to grant.
+    _ocRecapFb = { denied: /Not authorized/.test(error.message || '') };
+    if (!_ocRecapFb.denied) console.error('[ocToggleRecap]', error);
+  } else {
+    _ocRecapFb = data;
+  }
+  ocPaintRecap();
+}
+
+function ocPaintRecap(msg) {
+  const el = document.getElementById('ocRecap-' + _ocRecapOpen);
+  document.querySelectorAll('.oc-ev-recap').forEach(n => {
+    if (n !== el) { n.hidden = true; n.innerHTML = ''; }
+  });
+  if (!el) return;
+  el.hidden = false;
+  if (msg) { el.innerHTML = `<div class="oc-note">${esc(msg)}</div>`; return; }
+
+  const fb = _ocRecapFb || {};
+  const ev = _ocEvents.find(x => x.id === _ocRecapOpen);
+  const recapShots = (ev?._media || []).filter(m => m.phase === 'recap');
+
+  let summary;
+  if (fb.denied) {
+    summary = `<div class="oc-note">Feedback is visible to officers with analytics access.
+               Ask whoever administers your organization to grant it.</div>`;
+  } else if (!fb.count) {
+    summary = '<div class="oc-note">No feedback yet. Only people who checked in can leave any.</div>';
+  } else if (fb.suppressed) {
+    // The number is withheld by the FUNCTION, and the wording says why rather than pretending
+    // there is nothing there. At three responses an average is not a measurement, and at that
+    // size the person who left a comment is guessable.
+    summary = `
+      <div class="oc-recap-sum">
+        <div class="oc-recap-n">${fb.count}</div>
+        <div class="oc-recap-lab">response${fb.count === 1 ? '' : 's'} — not enough to summarise yet</div>
+      </div>
+      <div class="oc-note">An average appears at five. Below that it would say more about who
+        answered than about the event.</div>`;
+  } else {
+    summary = `
+      <div class="oc-recap-sum">
+        <div class="oc-recap-n">${esc(String(fb.avg))}</div>
+        <div class="oc-recap-lab">average from ${fb.count} response${fb.count === 1 ? '' : 's'}</div>
+      </div>`;
+  }
+
+  const comments = (fb.comments || []).length
+    ? `<div class="oc-reg-head">What people said</div>
+       ${fb.comments.map(c => `<div class="oc-recap-c">${esc(c)}</div>`).join('')}
+       <div class="oc-note">Ordered by rating, not by time, so the order cannot be lined up
+         against who walked through the door when.</div>`
+    : '';
+
+  el.innerHTML = `
+    ${summary}
+    ${comments}
+    <div class="oc-reg-head">Recap photos${recapShots.length ? ` · ${recapShots.length}` : ''}</div>
+    <div class="oc-ev-strip">${recapShots.map(m => `
+      <div class="oc-ev-thumb"><img src="${escAttr(m.url)}" alt="">
+        <button class="oc-ev-x" onclick="ocDeleteRecap(${m.id}, '${escAttr(m.url)}')" title="Remove">&times;</button>
+      </div>`).join('')}</div>
+    <label for="ocRecapInput" class="oc-ev-drop">Add photos from the event</label>
+    <input type="file" id="ocRecapInput" accept="image/jpeg,image/png,image/webp,image/*"
+           multiple style="display:none" onchange="ocUploadRecap(${_ocRecapOpen}, this)">
+    <div class="oc-note">Recap photos are what makes a past event worth opening, and what makes
+      the organization look alive to somebody deciding whether to join.</div>`;
+}
+
+async function ocUploadRecap(eventId, input) {
+  const files = [...input.files];
+  input.value = '';
+  if (!files.length) return;
+  toast('Uploading…');
+
+  const urls = [];
+  try {
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) { toast('Skipped a file that is not an image'); continue; }
+      const blob = await resizeImage(f);
+      urls.push(await uploadListingPhoto(blob, _ocOrgId, 'event-media'));
+    }
+  } catch (e) {
+    if (urls.length) await deleteListingPhotos(urls, 'event-media');
+    toast('Could not upload: ' + (e.message || e)); console.error('[ocUploadRecap]', e); return;
+  }
+  if (!urls.length) return;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const base = ((_ocEvents.find(x => x.id === eventId)?._media) || []).length;
+  const { error } = await supabaseClient.from('event_media').insert(
+    urls.map((url, i) => ({ event_id: eventId, kind: 'image', url,
+                            phase: 'recap', sort_order: base + i, created_by: user?.id })));
+  if (error) {
+    // Same recovery as the create form: the files exist and the rows do not, so the files go.
+    // An orphan in storage is invisible and permanent, which is worse than a failed upload.
+    await deleteListingPhotos(urls, 'event-media');
+    toast('Could not attach: ' + error.message); console.error('[ocUploadRecap insert]', error); return;
+  }
+  toast('✓ Added');
+  await renderOcEvents();
+  ocPaintRecap();
+}
+
+async function ocDeleteRecap(mediaId, url) {
+  if (!confirm('Remove this photo?')) return;
+  const { error } = await supabaseClient.from('event_media').delete().eq('id', mediaId);
+  if (error) { toast('Could not remove: ' + error.message); console.error('[ocDeleteRecap]', error); return; }
+  await deleteListingPhotos([url], 'event-media');
+  await renderOcEvents();
+  ocPaintRecap();
 }
