@@ -24,13 +24,28 @@ async function renderEvents() {
   if (!wrap) return;
   wrap.innerHTML = '<div class="ev-note">Loading…</div>';
 
+  // Boot paints the last-visited page BEFORE the session has resolved, so this can run with no
+  // user and no grant — visible_events is granted to authenticated only, so the query returns
+  // nothing and the empty state would say "Nothing on yet". That is a lie: it is not that
+  // there are no events, it is that we cannot see them yet. Saying so and letting boot's async
+  // block re-render is both honest and correct for a genuinely signed-out visitor.
   const eu = getEffectiveUser();
+  if (!eu) {
+    wrap.innerHTML = `
+      <div class="ev-empty">
+        <div class="ev-empty-title">What's happening</div>
+        <p>Sign in to see events posted by clubs and departments.</p>
+        <button class="ev-empty-btn" onclick="requireAuth()">Sign in</button>
+      </div>`;
+    return;
+  }
+
   const { data, error } = await supabaseClient
     .from('visible_events')
     .select('id, org_id, title, description, event_type, starts_at, ends_at, location, ' +
             'poster_url, status, registration_open, capacity, cancelled_reason, ' +
             'has_ended, is_browsable, effective_ends_at, going_count, seats_left, checkin_is_open')
-    .eq('school', eu?.school || 'caldwell')
+    .eq('school', eu.school || 'caldwell')
     .order('starts_at', { ascending: true });
 
   if (error) {
