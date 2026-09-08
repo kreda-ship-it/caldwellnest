@@ -272,6 +272,10 @@ let _opPosts = [];
 let _opOfficers = [];
 
 async function orgPageOpen(orgId) {
+  // Remembered so a refresh comes back HERE. showPage() stores 'org' as the last page, but
+  // the page renders one specific organization and the markup is an empty shell without it —
+  // the same shape as the console, which stores its org id for the same reason.
+  saveUiState('orgPage', orgId);
   showPage('org');
   const body = document.getElementById('orgPageBody');
   body.innerHTML = '<div class="op-note">Loading…</div>';

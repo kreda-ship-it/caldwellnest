@@ -135,11 +135,15 @@ if (!adminPreviewMode && !_recoveryMode) {
     // renderOrgDirectory() fills it, so a bare showPage() restores a blank page that looks
     // like a directory with nothing in it.
     if (lastPage === 'orgs') renderOrgDirectory();
-    // page-org is remembered like any other page, but it renders one SPECIFIC organization
-    // and the id is not remembered with it — so restoring it would paint an empty shell. The
-    // directory is the honest fallback: it is where that page was reached from, and it is one
-    // tap from where the student was.
-    if (lastPage === 'org') { showPage('orgs'); renderOrgDirectory(); }
+    // page-org renders one SPECIFIC organization, so the page name alone is not enough — the
+    // id is stored alongside it. With the id we return to the org the student was reading;
+    // without it (a tab that never opened one, or storage that refused) the directory is the
+    // honest fallback, because it is where that page is reached from.
+    if (lastPage === 'org') {
+      const backTo = loadUiState('orgPage');
+      if (backTo) orgPageOpen(backTo);
+      else { showPage('orgs'); renderOrgDirectory(); }
+    }
     if (lastPage === 'events') renderEvents();
     if (lastPage === 'messages') {
       try {

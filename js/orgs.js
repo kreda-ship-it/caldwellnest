@@ -656,7 +656,10 @@ async function orgConsoleOpen(orgId) {
   else if (mine.length === 1) _ocOrgId = mine[0].org_id;
   else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
 
-  _ocSection = 'posts';
+  // The remembered section, falling back to posts. renderOrgConsole() corrects it anyway if
+  // this officer cannot reach it — a flag revoked since the last visit lands them on the
+  // first section they can actually open rather than on an empty page.
+  _ocSection = loadUiState('ocSection:' + _ocOrgId, 'posts');
   // Remembered so a refresh returns here rather than to the feed. showPage() already stores
   // 'org-console' as the last page; on its own that is not enough, because the console markup
   // is an empty shell until an organization has been chosen.
@@ -757,7 +760,14 @@ function renderOrgConsole() {
   (OC_RENDER[_ocSection] || renderOcProfile)();
 }
 
-function orgConsoleGo(section) { _ocSection = section; renderOrgConsole(); }
+function orgConsoleGo(section) {
+  _ocSection = section;
+  // Remembered per organization. An officer of two clubs is doing different work in each, and
+  // restoring "Events" into a club where they only handle the roster would be a worse guess
+  // than the default.
+  saveUiState('ocSection:' + _ocOrgId, section);
+  renderOrgConsole();
+}
 
 // ---------- Org profile ----------
 const OC_FIELDS = [

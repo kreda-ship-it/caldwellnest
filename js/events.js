@@ -277,6 +277,7 @@ async function evOpen(id) {
     return;
   }
   _evDetail = data;
+  const e = data;
 
   const [{ data: media }] = await Promise.all([
     supabaseClient.from('event_media')
@@ -288,6 +289,18 @@ async function evOpen(id) {
 
   evPaintDetail();
   openModal('evDetailModal');
+
+  // Put the event in the address bar. Three things fall out of one line: a refresh reopens it
+  // through the cold-route path already built, the URL is shareable without anybody having to
+  // find a share button, and it is the same address the QR encodes — so the deep link and an
+  // opened modal are not two different states.
+  //
+  // replaceState, not pushState: pushState would make Back step through every event the
+  // student browsed rather than leaving the feed. Neither fires hashchange, so the listener
+  // does not re-enter this function.
+  if (`#/event/${e.id}` !== window.location.hash) {
+    history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/event/${e.id}`);
+  }
 }
 
 function evPaintDetail() {
