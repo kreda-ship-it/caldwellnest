@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-08e">
+<link rel="stylesheet" href="styles.css?v=2026-09-08f">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -239,6 +239,14 @@
     <div class="page-wrap">
       <button class="op-back" onclick="orgDirGo()">&#8249; All clubs</button>
       <div id="orgPageBody"></div>
+    </div>
+  </div>
+
+  <!-- SEARCH — its own page since 2026-09-08. It used to be page-listings, the same screen
+       Home shows, so two of the five bottom tabs led to one place. -->
+  <div id="page-search" class="page">
+    <div class="page-wrap">
+      <div id="searchBody"></div>
     </div>
   </div>
 
@@ -1694,13 +1702,14 @@
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-07a"></script>
 <script src="js/profile.js?v=2026-09-08a"></script>
-<script src="js/listings.js?v=2026-09-08a"></script>
+<script src="js/listings.js?v=2026-09-08b"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
 <script src="js/events.js?v=2026-09-08f"></script>
+<script src="js/search.js?v=2026-09-08a"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-08c"></script>
 

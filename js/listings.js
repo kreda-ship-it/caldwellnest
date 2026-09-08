@@ -23,6 +23,7 @@ function showPage(name) {
   // fills it, so a bare showPage() would restore a page that looks like a feed with nothing
   // in it. boot.js's page restore needs the same line for the same reason.
   if (name === 'events') renderEvents();
+  if (name === 'search') renderSearch();
   updateMTabbar(name);
   document.querySelector('.s-nav')?.classList.remove('m-hidden'); // navigating always reveals the top bar
   if (window.innerWidth <= 768) window.scrollTo(0, 0); // app-style: each page opens at its top
@@ -42,9 +43,12 @@ function goHome() {
   showPage(known ? 'listings' : 'home');
 }
 
+// Search is its own page since 2026-09-08. It used to show page-listings — the same screen
+// Home shows — so two of the five bottom tabs did the same thing and only the highlight
+// differed. That is the costume Events was in before it got its own section.
 function goSearch() {
   _mTabIntent = 'search';
-  showPage('listings');
+  showPage('search');
 }
 
 // Highlights the mobile bottom-bar tab matching the current page. Events has its own page
@@ -54,6 +58,7 @@ function goSearch() {
 // decides between those two.
 function updateMTabbar(name) {
   const tabId = name === 'home' ? 'mtab-home'
+    : name === 'search' ? 'mtab-search'
     : name === 'events' ? 'mtab-events'
     : name === 'listings' ? (_mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')
     : name === 'messages' ? 'mtab-messages'
@@ -547,6 +552,23 @@ function showFeedSkeletons() {
 // index.html, so #listingsGrid already exists by the time this file executes.
 showFeedSkeletons();
 
+// THE keyword rule for a marketplace item, extracted so the feed and the search page cannot
+// drift apart. Two copies of "what counts as a match" is the same bug as book_listings
+// bypassing visible_listings, one layer up.
+//
+// The ISBN branch strips hyphens and spaces from BOTH sides, because a student copying a
+// number off the back of a book types it however it is printed and expects it to be found.
+// That single line is most of what makes book search work on a campus.
+function matchItemKeyword(l, keyword) {
+  if (!keyword) return true;
+  const k = String(keyword).toLowerCase();
+  return (l.title || '').toLowerCase().includes(k)
+    || (l.desc || '').toLowerCase().includes(k)
+    || (l.author || '').toLowerCase().includes(k)
+    || (l.course_code || '').toLowerCase().includes(k)
+    || (l.isbn || '').replace(/[- ]/g, '').includes(k.replace(/[- ]/g, ''));
+}
+
 function renderListings() {
   // Saved HERE rather than in each setter, and that is the point: six functions change
   // _filters and every one of them ends by calling this. A save in each would be six places
@@ -564,11 +586,7 @@ function renderListings() {
   const rest     = approved.filter(l => !l.pinned);
 
   const catMatch = l => _filters.category === 'all' || l.category === _filters.category;
-  const kwMatch  = l => !_filters.keyword ||
-    (l.title || '').toLowerCase().includes(_filters.keyword) ||
-    (l.desc || '').toLowerCase().includes(_filters.keyword) ||
-    (l.author || '').toLowerCase().includes(_filters.keyword) ||
-    (l.isbn || '').replace(/[- ]/g, '').includes(_filters.keyword.replace(/[- ]/g, ''));
+  const kwMatch  = l => matchItemKeyword(l, _filters.keyword);
   const priceMatch = l => {
     const p = l.rent || 0;
     if (_filters.minPrice !== null && p < _filters.minPrice) return false;
