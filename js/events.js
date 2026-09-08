@@ -137,6 +137,10 @@ function evTime(iso) {
 function evPaint() {
   const wrap = document.getElementById('evFeed');
 
+  // Search replaces the feed rather than sitting above it. Both answer "what is on", and two
+  // lists of events on one screen makes the student work out which one they are reading.
+  if (_evSearchOn) { wrap.innerHTML = evSearchHTML(); evSearchPaintChips(); return; }
+
   if (!_evFeed.length && !_evPast.length) {
     wrap.innerHTML = `
       <div class="ev-empty">
@@ -867,4 +871,205 @@ async function evAskComment(eventId, rating) {
   if (error) { console.error('[evAskComment]', error); return; }
   const row = _evRated.get(eventId); if (row) row.comment = note.trim();
   toast('✓ Sent');
+}
+
+
+// ============================================================
+// EVENTS SEARCH
+// ============================================================
+// §1.2 and §4.2. Scoped to events, opened from the events header, and separate from the
+// marketplace search on purpose: that one answers "what is available", this one answers "when
+// is it and who is running it". Two axes, two surfaces.
+//
+// THE ENTRY STATE MATTERS MORE THAN THE QUERY STATE, and that is not a stylistic claim. With
+// a dozen events in a semester, a typed query returns nothing most of the time. Zero results
+// is Tuesday, not an error. So what fills the screen before anybody types — the orgs you
+// follow, the date chips, the type tiles — is the product, and the text box is the fallback.
+
+let _evSearchOn   = false;
+let _evSearchQ    = '';
+let _evSearchOrg  = null;
+let _evSearchType = null;
+let _evSearchWhen = null;
+let _evFollowed   = [];
+
+const EV_TYPES = [
+  ['social', 'Social'], ['academic', 'Academic'], ['sports', 'Sports'],
+  ['service', 'Service'], ['career', 'Career'], ['arts', 'Arts'], ['meeting', 'Meeting'],
+];
+
+// Named ranges, resolved against the student's own clock because "this weekend" is a fact
+// about where they are, not about the server. A user-chosen range is a QUERY, not one of the
+// app's visibility rules — those stay in the view as columns; this is the student asking a
+// question and it belongs where the question is asked.
+function evWhenRange(key) {
+  const now = new Date();
+  const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const add = (d, n) => new Date(d.getTime() + n * 864e5);
+  const today = startOfDay(now);
+  // getDay(): 0 is Sunday. Days until the coming Saturday, and 0 when it already is Saturday.
+  const toSat = (6 - today.getDay() + 7) % 7;
+  switch (key) {
+    case 'week':    return [now, add(today, 7)];
+    case 'weekend': return [add(today, toSat), add(today, toSat + 2)];
+    case 'next':    return [add(today, 7), add(today, 14)];
+    case 'month':   return [now, new Date(now.getFullYear(), now.getMonth() + 1, 1)];
+    default:        return null;
+  }
+}
+
+// THE one matching function. §1.2 requires it to be written once and called from both
+// surfaces, because the scoped search and the marketplace's Events section diverging is
+// exactly the bug already flagged for book_listings bypassing visible_listings.
+//
+// Takes rows that came from visible_events and never re-queries: whatever RLS refused the
+// caller is already absent, so a filter here can only narrow what they were entitled to see.
+// That is why it is safe for this to be JavaScript at all — a filter is not a permission,
+// and this one is not being asked to be.
+function evMatchEvents(rows, { q, orgId, type, when } = {}) {
+  const needle = (q || '').trim().toLowerCase();
+  const range = when ? evWhenRange(when) : null;
+
+  return (rows || []).filter(e => {
+    if (orgId && e.org_id !== orgId) return false;
+    if (type && e.event_type !== type) return false;
+    if (range) {
+      const t = new Date(e.starts_at);
+      if (t < range[0] || t >= range[1]) return false;
+    }
+    if (!needle) return true;
+    // Org name is searched too, because "chess" is as likely to be the club as the event.
+    const org = _evOrgs.get(e.org_id);
+    return [e.title, e.location, e.description, org?.name]
+      .some(v => (v || '').toLowerCase().includes(needle));
+  });
+}
+
+async function evSearchOpen() {
+  _evSearchOn = true;
+  _evSearchQ = ''; _evSearchOrg = null; _evSearchType = null; _evSearchWhen = null;
+  await evLoadFollowed();
+  evPaint();
+  document.getElementById('evSearchInput')?.focus();
+}
+
+function evSearchClose() { _evSearchOn = false; evPaint(); }
+
+// The orgs a student follows, which on a campus feed is the most-used control on this screen
+// and is not a search at all. Fetched once per open rather than cached, because following
+// happens on another page and a stale row here would offer the wrong shortcuts.
+async function evLoadFollowed() {
+  const eu = getEffectiveUser();
+  if (!eu?.id) { _evFollowed = []; return; }
+  const { data: f } = await supabaseClient.from('org_follows').select('org_id').eq('user_id', eu.id);
+  const ids = (f || []).map(x => x.org_id);
+  if (!ids.length) { _evFollowed = []; return; }
+  const { data } = await supabaseClient.from('org_directory')
+    .select('id, name, logo_url, is_verified').in('id', ids);
+  _evFollowed = data || [];
+}
+
+function evSearchSet(kind, value) {
+  if (kind === 'q')    _evSearchQ = value;
+  if (kind === 'org')  _evSearchOrg = _evSearchOrg === value ? null : value;
+  if (kind === 'type') _evSearchType = _evSearchType === value ? null : value;
+  if (kind === 'when') _evSearchWhen = _evSearchWhen === value ? null : value;
+  // Only the results repaint. Rebuilding the panel would recreate the input being typed into
+  // and drop focus after the first character — the same bug the door's search box had.
+  const out = document.getElementById('evSearchResults');
+  if (out) out.innerHTML = evSearchResultsHTML();
+  if (kind !== 'q') evSearchPaintChips();
+}
+
+function evSearchPaintChips() {
+  document.querySelectorAll('[data-evchip]').forEach(el => {
+    const [kind, value] = el.getAttribute('data-evchip').split(':');
+    const on = (kind === 'org'  && String(_evSearchOrg)  === value)
+            || (kind === 'type' && _evSearchType === value)
+            || (kind === 'when' && _evSearchWhen === value);
+    el.classList.toggle('is-on', on);
+  });
+}
+
+function evSearchHTML() {
+  const anyFilter = _evSearchQ || _evSearchOrg || _evSearchType || _evSearchWhen;
+  return `
+    <div class="evs-bar">
+      <input class="evs-input" id="evSearchInput" autocomplete="off"
+             placeholder="Search events, clubs, places…"
+             value="${escAttr(_evSearchQ)}" oninput="evSearchSet('q', this.value)">
+      <button class="evs-close" onclick="evSearchClose()">Done</button>
+    </div>
+
+    ${_evFollowed.length ? `
+      <div class="evs-sec">
+        <div class="evs-lab">Clubs you follow</div>
+        <div class="evs-orgs">${_evFollowed.map(o => `
+          <button class="evs-org" data-evchip="org:${o.id}" onclick="evSearchSet('org', ${o.id})">
+            ${o.logo_url ? `<img src="${escAttr(o.logo_url)}" alt="">`
+                         : `<span class="evs-org-blank">${esc((o.name || '?').charAt(0).toUpperCase())}</span>`}
+            <span class="evs-org-name">${esc(o.name)}</span>
+          </button>`).join('')}</div>
+      </div>` : ''}
+
+    <div class="evs-sec">
+      <div class="evs-lab">When</div>
+      <div class="evs-chips">
+        ${[['week', 'This week'], ['weekend', 'This weekend'], ['next', 'Next week'], ['month', 'This month']]
+          .map(([k, l]) => `<button class="evs-chip" data-evchip="when:${k}"
+                 onclick="evSearchSet('when', '${k}')">${l}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="evs-sec">
+      <div class="evs-lab">Kind</div>
+      <div class="evs-chips">
+        ${EV_TYPES.map(([v, l]) => `<button class="evs-chip" data-evchip="type:${v}"
+             onclick="evSearchSet('type', '${v}')">${l}</button>`).join('')}
+      </div>
+    </div>
+
+    <div id="evSearchResults">${anyFilter ? evSearchResultsHTML() : ''}</div>`;
+}
+
+function evSearchResultsHTML() {
+  const anyFilter = _evSearchQ || _evSearchOrg || _evSearchType || _evSearchWhen;
+  if (!anyFilter) return '';
+
+  const hits = evMatchEvents(_evFeed, {
+    q: _evSearchQ, orgId: _evSearchOrg, type: _evSearchType, when: _evSearchWhen,
+  });
+
+  if (!hits.length) {
+    // Suggests broadening rather than showing a bare "no results". With a dozen events, an
+    // empty result is usually the filters being narrow, not the campus being quiet — and the
+    // student cannot see which of their four choices did it.
+    const tried = [
+      _evSearchWhen ? 'the date' : '', _evSearchType ? 'the kind' : '',
+      _evSearchOrg ? 'the club' : '', _evSearchQ ? `“${esc(_evSearchQ)}”` : '',
+    ].filter(Boolean);
+    return `
+      <div class="evs-none">
+        <div class="evs-none-t">Nothing matches yet</div>
+        <p>Try clearing ${tried.length > 1 ? 'one of ' : ''}${tried.join(' or ')}.
+           There are ${_evFeed.length} event${_evFeed.length === 1 ? '' : 's'} coming up in total.</p>
+        <button class="evs-chip" onclick="evSearchReset()">Clear all filters</button>
+      </div>`;
+  }
+
+  // Grouped by date exactly like the feed, so a result list and the feed are read the same way.
+  let html = `<div class="evs-count">${hits.length} event${hits.length === 1 ? '' : 's'}</div>`;
+  let lastKey = null;
+  for (const e of hits) {
+    const key = evDayKey(e.starts_at);
+    if (key !== lastKey) { html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`; lastKey = key; }
+    html += evCardHTML(e);
+  }
+  return html;
+}
+
+function evSearchReset() {
+  _evSearchQ = ''; _evSearchOrg = null; _evSearchType = null; _evSearchWhen = null;
+  evPaint();
+  document.getElementById('evSearchInput')?.focus();
 }
