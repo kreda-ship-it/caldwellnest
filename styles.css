@@ -1542,6 +1542,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .dir-follow:focus-visible { outline: 2px solid var(--brand-mid); outline-offset: 2px; }
 
+/* "Following" states a fact and hides an action — nothing on it says that tapping unfollows.
+   The label becomes "Unfollow" exactly while the pointer or keyboard focus is on it, which is
+   also when the button turns red. A phone has no hover, which is why the toast exists: on
+   touch the confirmation arrives after the tap instead of before it. */
+.df-do { display: none; }
+.dir-follow.is-following:hover .df-is,
+.dir-follow.is-following:focus-visible .df-is { display: none; }
+.dir-follow.is-following:hover .df-do,
+.dir-follow.is-following:focus-visible .df-do { display: inline; }
+/* Held wide enough for the longer of the two words, so the button does not jump under the
+   pointer at the moment it changes meaning. */
+.dir-follow { min-width: 96px; text-align: center; }
+
 .dir-empty {
   padding: 40px 20px; text-align: center;
   font-size: 14px; color: var(--text-muted); line-height: 1.7;

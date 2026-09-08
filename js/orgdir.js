@@ -158,11 +158,11 @@ function _dirCardHtml(o) {
         ${crumb}
         <h3 class="dir-name">${esc(o.name)}${o.is_verified ? '<span class="dir-verified" title="Verified by the university">✓</span>' : ''}</h3>
         ${o.description ? `<p class="dir-desc">${esc(o.description)}</p>` : ''}
-        <div class="dir-meta"><span class="dir-type">${esc(o.type)}</span><span class="dir-dot">·</span><span class="dir-count" id="dir-count-${o.id}">${count}</span></div>
+        <div class="dir-meta"><span class="dir-type">${esc(o.type)}</span><span class="dir-dot">·</span><span class="dir-count" data-count="${o.id}">${count}</span></div>
       </div>
       <button class="dir-follow${following ? ' is-following' : ''}"
-              id="dir-follow-${o.id}"
-              onclick="event.stopPropagation();orgDirToggleFollow(${o.id})">${following ? 'Following' : 'Follow'}</button>
+              data-follow="${o.id}"
+              onclick="event.stopPropagation();orgDirToggleFollow(${o.id})">${_dirFollowLabel(following)}</button>
     </article>`;
 }
 
@@ -191,15 +191,27 @@ async function orgDirToggleFollow(orgId) {
   const eu = getEffectiveUser();
   if (!eu) { toast('Sign in to follow organizations'); return; }
 
-  const org  = (_dirOrgs || []).find(o => o.id === orgId);
+  // The org row can come from either surface. _dirOrgs is only filled by the DIRECTORY
+  // loader, so a student who reached the org page from an event card has it null — and the
+  // follower count would silently never update, including on the rollback path.
+  const org  = (_dirOrgs || []).find(o => o.id === orgId)
+            || (_opOrg && _opOrg.id === orgId ? _opOrg : null);
   const was  = _dirFollows.has(orgId);
-  const btn  = document.getElementById('dir-follow-' + orgId);
-  const cnt  = document.getElementById('dir-count-' + orgId);
+  // Attributes, not ids. page-orgs and page-org are BOTH in the document at all times — the
+  // router hides pages, it does not remove them — and both render a follow button for the
+  // same organization. getElementById returns the first match in document order, which is the
+  // directory card, so tapping Follow on the org page repainted a hidden button and left the
+  // visible one alone. Duplicate ids are invalid HTML anyway; this paints every instance.
 
   // Paint first.
   if (was) _dirFollows.delete(orgId); else _dirFollows.add(orgId);
   if (org) org.follower_count = Math.max(0, (org.follower_count || 0) + (was ? -1 : 1));
-  _dirPaintFollow(btn, cnt, org, !was);
+  _dirPaintFollow(orgId, org, !was);
+
+  // Unfollowing is confirmed by a toast rather than by a dialog. A dialog is friction on the
+  // common, deliberate case; the risk is the accidental tap, and the thing that fixes an
+  // accidental tap is NOTICING it. Following back is one tap and the button is still there.
+  if (was) toast('Unfollowed ' + (org?.name || 'that organization'));
 
   const { error } = was
     ? await supabaseClient.from('org_follows').delete().eq('org_id', orgId).eq('user_id', eu.id)
@@ -212,20 +224,30 @@ async function orgDirToggleFollow(orgId) {
   if (error && error.code !== '23505') {
     if (was) _dirFollows.add(orgId); else _dirFollows.delete(orgId);
     if (org) org.follower_count = Math.max(0, (org.follower_count || 0) + (was ? 1 : -1));
-    _dirPaintFollow(btn, cnt, org, was);
+    _dirPaintFollow(orgId, org, was);
     toast('Could not ' + (was ? 'unfollow' : 'follow') + ': ' + error.message);
     console.error('[orgDirToggleFollow]', error);
   }
 }
 
-function _dirPaintFollow(btn, cnt, org, following) {
-  if (btn) {
-    btn.textContent = following ? 'Following' : 'Follow';
+// A button labelled only "Following" states a fact and hides an action: nothing on it says
+// that tapping unfollows. Two spans, swapped by CSS on hover and focus, so the label becomes
+// "Unfollow" exactly when the pointer is on it. Touch has no hover, which is why the toast
+// above exists — on a phone the confirmation arrives after the tap rather than before it.
+function _dirFollowLabel(following) {
+  return following
+    ? '<span class="df-is">Following</span><span class="df-do">Unfollow</span>'
+    : 'Follow';
+}
+
+function _dirPaintFollow(orgId, org, following) {
+  document.querySelectorAll(`[data-follow="${orgId}"]`).forEach(btn => {
+    btn.innerHTML = _dirFollowLabel(following);
     btn.classList.toggle('is-following', following);
-  }
-  if (cnt && org) {
-    cnt.textContent = org.follower_count === 1 ? '1 follower' : `${org.follower_count || 0} followers`;
-  }
+  });
+  if (!org) return;
+  const txt = org.follower_count === 1 ? '1 follower' : `${org.follower_count || 0} followers`;
+  document.querySelectorAll(`[data-count="${orgId}"]`).forEach(el => { el.textContent = txt; });
 }
 
 
@@ -325,10 +347,10 @@ function orgPagePaint() {
         <h1 class="op-name">${esc(o.name)}${
           o.is_verified ? '<span class="dir-verified" title="Verified by the university">✓</span>' : ''}</h1>
         <div class="op-meta">${esc(o.type)} <span class="dir-dot">·</span>
-          <span id="dir-count-${o.id}">${o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`}</span></div>
+          <span data-count="${o.id}">${o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`}</span></div>
       </div>
-      <button class="dir-follow${following ? ' is-following' : ''}" id="dir-follow-${o.id}"
-              onclick="orgDirToggleFollow(${o.id})">${following ? 'Following' : 'Follow'}</button>
+      <button class="dir-follow${following ? ' is-following' : ''}" data-follow="${o.id}"
+              onclick="orgDirToggleFollow(${o.id})">${_dirFollowLabel(following)}</button>
     </header>
 
     ${o.description ? `<p class="op-desc">${esc(o.description)}</p>` : ''}
