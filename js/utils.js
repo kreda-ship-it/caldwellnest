@@ -36,3 +36,26 @@ document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('cli
 function switchModal(from, to) { closeModal(from); setTimeout(() => openModal(to), 150); }
 function toast(msg) { const t = document.getElementById('toastEl'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
 
+
+
+// ------------------------------------------------------------
+// Remembering what the student was looking at
+// ------------------------------------------------------------
+// sessionStorage, deliberately, and the choice is the whole design. It dies with the TAB, so
+// reloading keeps your place and closing the app starts clean — which is what a student
+// expects from both actions. localStorage would remember a filter set three weeks ago and
+// present it as the state of the marketplace.
+//
+// Every access is wrapped: a private window, or a browser set to block site data, throws on
+// read AND on write rather than returning null, and an unguarded call takes the page down.
+// Losing the memory is a papercut; losing the render is a broken app.
+function saveUiState(key, value) {
+  try { sessionStorage.setItem('cn_ui_' + key, JSON.stringify(value)); } catch (e) { /* private mode */ }
+}
+
+function loadUiState(key, fallback = null) {
+  try {
+    const raw = sessionStorage.getItem('cn_ui_' + key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) { return fallback; }   // unreadable or corrupt: start clean rather than throw
+}

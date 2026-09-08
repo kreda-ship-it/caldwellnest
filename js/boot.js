@@ -38,6 +38,10 @@ supabaseClient.auth.onAuthStateChange((event) => {
 // has, painting the feed is right far more often than painting the landing page; the async
 // block below corrects to the welcome-back login on the rare miss.
 if (!adminPreviewMode && !_recoveryMode) {
+  // Before any page paints, so the first render is already the right one. Restoring after
+  // would show the default feed and then swap it, which reads as a glitch rather than as a
+  // restore.
+  restoreListingFilters();
   const _rp = sessionStorage.getItem('cn_last_page');
   if (_rp && _rp !== 'home' && document.getElementById('page-' + _rp)) showPage(_rp);
   else if (getPriorUser()) showPage('listings');

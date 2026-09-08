@@ -101,6 +101,27 @@ function requireAuth(action) {
   return true;
 }
 
+// Restores the filters a refresh would otherwise throw away: the category you were browsing,
+// what you had typed, the sort and the scope. Called once from boot before the first paint.
+//
+// Chip state and the input's value are set here too. _filters alone would filter correctly and
+// LOOK wrong — the grid showing housing while every chip says "All" is worse than not
+// restoring at all, because the student cannot tell why the results are narrow.
+function restoreListingFilters() {
+  const f = loadUiState('filters');
+  if (!f) return;
+  Object.assign(_filters, f);
+
+  const el = document.getElementById('listingSearch');
+  if (el && _filters.keyword) el.value = _filters.keyword;
+
+  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
+  const chip = [...document.querySelectorAll('#sCategoryChips .cat-tab')]
+    .find(b => b.getAttribute('onclick')?.includes(`'${_filters.category}'`));
+  if (chip) chip.classList.add('active');
+  renderDeepFilters();
+}
+
 function setListingCat(cat, el) {
   _filters.category = cat;
   _filters.details = {};  // clear category-specific filters on category switch
@@ -527,6 +548,11 @@ function showFeedSkeletons() {
 showFeedSkeletons();
 
 function renderListings() {
+  // Saved HERE rather than in each setter, and that is the point: six functions change
+  // _filters and every one of them ends by calling this. A save in each would be six places
+  // to keep in step, and the seventh filter somebody adds would be the one that forgets.
+  saveUiState('filters', _filters);
+
   // Keep the mobile tab highlight honest when the category changes *within* the Browse
   // page (e.g. tapping the Events chip should light up the Events tab, not Search).
   if (document.getElementById('page-listings').classList.contains('active')) updateMTabbar('listings');
