@@ -216,7 +216,7 @@ function evCardHTML(e, past = false) {
 
   return `
     <article class="ev-card${past ? ' is-past' : ''}">
-      <button class="ev-org" onclick="event.stopPropagation();orgDirGo()">
+      <button class="ev-org" onclick="event.stopPropagation();orgPageOpen(${e.org_id})">
         ${org?.logo_url
           ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
           : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
@@ -304,7 +304,7 @@ function evPaintDetail() {
            </div>`}
     </div>
 
-    <button class="ev-org evd-org" onclick="closeModal('evDetailModal');orgDirGo()">
+    <button class="ev-org evd-org" onclick="closeModal('evDetailModal');evClearRoute();orgPageOpen(${e.org_id})">
       ${org?.logo_url ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
                       : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
       <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>

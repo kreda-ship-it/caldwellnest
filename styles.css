@@ -1761,3 +1761,69 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .evd-here { margin-top: 22px; padding: 18px; border-radius: 12px; text-align: center;
             background: var(--success-pale, #eaf6ef); color: var(--success, #2e7d52);
             font-size: 16px; font-weight: 600; }
+
+
+/* ============================================================
+   ONE ORGANIZATION
+   ============================================================ */
+.op-back { border: 0; background: none; padding: 0; margin-bottom: 16px; cursor: pointer;
+           font-family: inherit; font-size: 13px; color: var(--text-muted); }
+.op-back:hover { color: var(--brand, #3B5BA5); }
+
+.op-head { display: flex; align-items: flex-start; gap: 16px; }
+.op-logo { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; flex: none; }
+.op-logo-none { display: flex; align-items: center; justify-content: center;
+                background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5);
+                font-size: 28px; font-weight: 600; }
+.op-head-text { flex: 1; min-width: 0; }
+.op-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.2;
+           color: var(--text); margin: 2px 0 4px; }
+.op-meta { font-size: 13px; color: var(--text-muted); text-transform: capitalize; }
+
+.op-desc { font-size: 15px; line-height: 1.75; color: var(--text); margin: 18px 0 10px; }
+.op-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.op-contact a { color: var(--brand, #3B5BA5); text-decoration: none; }
+.op-contact a:hover { text-decoration: underline; }
+
+.op-sec { margin-top: 30px; }
+/* Section headings are a rung above the rows beneath them, in the same small-caps register the
+   console uses, so the page reads as sections rather than as one long column. */
+.op-sec-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+                color: var(--text-faint); margin: 0 0 12px; }
+
+.op-officers { display: flex; flex-wrap: wrap; gap: 10px; }
+.op-officer { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.op-officer-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.op-officer-role { font-size: 12px; color: var(--text-muted); }
+
+/* A compact row, not the feed's full-height poster. This page is a summary of an
+   organization; a column of posters would bury the description under the events. */
+.op-event { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
+            margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px;
+            background: var(--card, #fff); cursor: pointer; font-family: inherit;
+            text-align: left; }
+.op-event:hover { border-color: var(--brand, #3B5BA5); }
+.op-event-thumb { width: 56px; height: 70px; border-radius: 8px; flex: none; overflow: hidden;
+                  background: var(--surface-2); }
+.op-event-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.op-event-text { min-width: 0; }
+.op-event-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.op-event-when { font-size: 12px; color: var(--text); margin-top: 2px; }
+.op-event-where { font-size: 12px; color: var(--text-muted); }
+.op-past .op-event { opacity: .68; }
+
+.op-post { padding: 14px; margin-bottom: 8px; border: 1px solid var(--border);
+           border-radius: 12px; background: var(--card, #fff); }
+.op-post.is-urgent { border-color: #c0392b; }
+.op-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.op-post-date { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.op-post-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.op-post-body { font-size: 14px; line-height: 1.7; color: var(--text-muted); margin-top: 4px;
+                white-space: pre-wrap; }
+
+.op-note { padding: 16px 0; font-size: 13px; color: var(--text-muted); }
+
+@media (max-width: 560px) {
+  .op-head { flex-wrap: wrap; }
+  .op-head .dir-follow { order: 3; width: 100%; }
+}

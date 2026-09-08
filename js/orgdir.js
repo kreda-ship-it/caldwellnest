@@ -152,7 +152,7 @@ function _dirCardHtml(o) {
   const count = o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`;
 
   return `
-    <article class="dir-card">
+    <article class="dir-card" onclick="orgPageOpen(${o.id})">
       ${logo}
       <div class="dir-body">
         ${crumb}
@@ -162,7 +162,7 @@ function _dirCardHtml(o) {
       </div>
       <button class="dir-follow${following ? ' is-following' : ''}"
               id="dir-follow-${o.id}"
-              onclick="orgDirToggleFollow(${o.id})">${following ? 'Following' : 'Follow'}</button>
+              onclick="event.stopPropagation();orgDirToggleFollow(${o.id})">${following ? 'Following' : 'Follow'}</button>
     </article>`;
 }
 
@@ -232,3 +232,162 @@ function _dirPaintFollow(btn, cnt, org, following) {
 // Called after signing in or out. The directory is per-student — the follow state is theirs
 // — so a stale cache would show the previous person's buttons.
 function clearOrgDirectory() { _dirOrgs = null; _dirFollows = new Set(); _dirQuery = ''; _dirType = 'all'; }
+
+
+// ============================================================
+// ONE ORGANIZATION
+// ============================================================
+// The page the directory has been missing since it shipped. Cards were never tappable, so a
+// student could see that a club existed and learn nothing else about it — and an event card's
+// org row had nowhere to send them either.
+//
+// Everything here comes from views that are already public: org_directory,
+// org_public_officers, visible_events and the org_posts policy. No new permission surface.
+
+let _opOrg = null;
+let _opEvents = [];
+let _opPosts = [];
+let _opOfficers = [];
+
+async function orgPageOpen(orgId) {
+  showPage('org');
+  const body = document.getElementById('orgPageBody');
+  body.innerHTML = '<div class="op-note">Loading…</div>';
+
+  const [dir, off, evs, posts] = await Promise.all([
+    supabaseClient.from('org_directory').select('*').eq('id', orgId).maybeSingle(),
+    supabaseClient.from('org_public_officers').select('*').eq('org_id', orgId),
+    supabaseClient.from('visible_events')
+      .select('id, title, starts_at, location, poster_url, status, has_ended, is_browsable, ' +
+              'going_count, seats_left, registration_open')
+      .eq('org_id', orgId).order('starts_at', { ascending: false }),
+    // members_only posts are filtered by RLS, not by this query. A student who is a member
+    // gets them; one who is not never sees the row. Filtering here as well would only hide
+    // rows from the people entitled to them.
+    supabaseClient.from('org_posts')
+      .select('id, type, title, body, is_pinned, is_urgent, members_only, created_at')
+      .eq('org_id', orgId).eq('status', 'published')
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false }).limit(10),
+  ]);
+
+  if (dir.error || !dir.data) {
+    body.innerHTML = '<div class="op-note">That organization is not available.</div>';
+    if (dir.error) console.error('[orgPageOpen]', dir.error);
+    return;
+  }
+
+  _opOrg = dir.data;
+  _opOfficers = off.data || [];
+  _opEvents = evs.data || [];
+  _opPosts = posts.data || [];
+
+  // The follow set is loaded by the directory. Someone arriving here from an event card may
+  // never have opened the directory, so it is fetched rather than assumed.
+  await orgPageLoadFollow(orgId);
+  orgPagePaint();
+}
+
+async function orgPageLoadFollow(orgId) {
+  const eu = getEffectiveUser();
+  if (!eu?.id) return;
+  const { data } = await supabaseClient.from('org_follows')
+    .select('org_id').eq('user_id', eu.id).eq('org_id', orgId).maybeSingle();
+  if (data) _dirFollows.add(orgId); else _dirFollows.delete(orgId);
+}
+
+function orgPagePaint() {
+  const o = _opOrg;
+  const following = _dirFollows.has(o.id);
+
+  const crumbs = [o.grandparent_name, o.parent_name].filter(Boolean);
+  const logo = o.logo_url
+    ? `<img class="op-logo" src="${escAttr(o.logo_url)}" alt="">`
+    : `<div class="op-logo op-logo-none">${esc((o.name || '?').charAt(0).toUpperCase())}</div>`;
+
+  // Contact rows are only drawn when they exist. An empty "Website —" line tells a student
+  // nothing except that the club did not fill in a form.
+  const contact = [
+    o.contact_email ? `<a href="mailto:${escAttr(o.contact_email)}">${esc(o.contact_email)}</a>` : '',
+    o.website ? `<a href="${escAttr(o.website)}" target="_blank" rel="noopener noreferrer">Website</a>` : '',
+    o.instagram ? `<a href="https://instagram.com/${escAttr(String(o.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener noreferrer">@${esc(String(o.instagram).replace(/^@/, ''))}</a>` : '',
+  ].filter(Boolean);
+
+  const upcoming = _opEvents.filter(e => e.is_browsable)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past = _opEvents.filter(e => e.has_ended && e.status === 'published');
+
+  document.getElementById('orgPageBody').innerHTML = `
+    <header class="op-head">
+      ${logo}
+      <div class="op-head-text">
+        ${crumbs.length ? `<div class="dir-crumb">${crumbs.map(esc).join(' <span class="dir-sep">›</span> ')}</div>` : ''}
+        <h1 class="op-name">${esc(o.name)}${
+          o.is_verified ? '<span class="dir-verified" title="Verified by the university">✓</span>' : ''}</h1>
+        <div class="op-meta">${esc(o.type)} <span class="dir-dot">·</span>
+          <span id="dir-count-${o.id}">${o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`}</span></div>
+      </div>
+      <button class="dir-follow${following ? ' is-following' : ''}" id="dir-follow-${o.id}"
+              onclick="orgDirToggleFollow(${o.id})">${following ? 'Following' : 'Follow'}</button>
+    </header>
+
+    ${o.description ? `<p class="op-desc">${esc(o.description)}</p>` : ''}
+    ${contact.length ? `<div class="op-contact">${contact.join('<span class="dir-dot">·</span>')}</div>` : ''}
+
+    ${_opOfficers.length ? `
+      <section class="op-sec">
+        <h2 class="op-sec-title">Who runs it</h2>
+        <div class="op-officers">${_opOfficers.map(x => `
+          <div class="op-officer">
+            <div class="op-officer-name">${esc(x.first_name || '')} ${esc(x.last_name || '')}</div>
+            ${x.title ? `<div class="op-officer-role">${esc(x.title)}</div>` : ''}
+          </div>`).join('')}</div>
+      </section>` : ''}
+
+    <section class="op-sec">
+      <h2 class="op-sec-title">Upcoming</h2>
+      ${upcoming.length ? upcoming.map(orgPageEventHTML).join('')
+                        : '<div class="op-note">Nothing scheduled right now.</div>'}
+    </section>
+
+    ${_opPosts.length ? `
+      <section class="op-sec">
+        <h2 class="op-sec-title">Announcements</h2>
+        ${_opPosts.map(p => `
+          <div class="op-post${p.is_urgent ? ' is-urgent' : ''}">
+            <div class="op-post-head">
+              ${p.is_pinned ? '<span class="oc-chip oc-chip-pin">Pinned</span>' : ''}
+              ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
+              ${p.members_only ? '<span class="oc-chip">Members only</span>' : ''}
+              <span class="op-post-date">${esc(fmtDate(p.created_at))}</span>
+            </div>
+            <div class="op-post-title">${esc(p.title)}</div>
+            ${p.body ? `<div class="op-post-body">${esc(p.body)}</div>` : ''}
+          </div>`).join('')}
+      </section>` : ''}
+
+    ${past.length ? `
+      <section class="op-sec">
+        <h2 class="op-sec-title">Already happened</h2>
+        <div class="op-past">${past.map(orgPageEventHTML).join('')}</div>
+      </section>` : ''}`;
+}
+
+// A compact row, not the big feed card. This page is a summary of an organization; a column of
+// full-height posters would bury the description and the contact details under the events.
+function orgPageEventHTML(e) {
+  const d = new Date(e.starts_at);
+  const when = d.toLocaleString(undefined,
+    { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return `
+    <button class="op-event" onclick="evOpen(${e.id})">
+      <div class="op-event-thumb"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
+        ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
+      </div>
+      <div class="op-event-text">
+        <div class="op-event-title">${esc(e.title)}</div>
+        <div class="op-event-when">${esc(when)}</div>
+        <div class="op-event-where">${esc(e.location)}</div>
+      </div>
+    </button>`;
+}
