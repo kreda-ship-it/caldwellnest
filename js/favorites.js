@@ -58,8 +58,18 @@ async function toggleFav(type, id, btn) {
   if (error && error.code !== '23505') {
     if (was) _favs.add(key); else _favs.delete(key);
     favPaint(type, id);
-    toast('Could not ' + (was ? 'remove that' : 'save that') + ' — try again');
-    console.error('[toggleFav]', error);
+
+    // "Try again" is advice, and advice that cannot work is worse than none. A check
+    // constraint refusing this item_type will refuse it every time, and telling a student to
+    // retry sends them round a loop the app already knows is closed. 23514 is
+    // check_violation; it means this KIND of thing cannot be saved, not that the save failed.
+    toast(error.code === '23514'
+      ? 'Saving is not switched on for this yet'
+      : 'Could not ' + (was ? 'remove that' : 'save that') + ' — try again');
+    // Logged with the code and the type, because the two together name the cause: a 23514 on
+    // item_type is the check constraint, and a check constraint is a database state, not a bug
+    // in this file.
+    console.error('[toggleFav]', type, id, error.code, error.message, error);
   }
 }
 
