@@ -666,25 +666,27 @@ function evClearRoute() {
 // their own rows — which RLS allows and nothing else — and fetches the events by id.
 
 async function renderGoing() {
-  const sec = document.getElementById('goingSection');
   const wrap = document.getElementById('myGoing');
-  if (!sec || !wrap) return;
+  if (!wrap) return;
 
+  // A TAB now, not a section that hides when empty. See renderSaved() for why.
   const eu = getEffectiveUser();
-  if (!eu?.id) { sec.hidden = true; return; }
+  if (!eu?.id) return;
+  const emptyHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing yet</div>
+    <p>Events you register for show up here, and stay afterwards so you can rate them.</p></div>`;
 
   const { data: regs, error } = await supabaseClient
     .from('event_registrations')
     .select('event_id, status, created_at')
     .eq('user_id', eu.id);
 
-  if (error) { sec.hidden = true; console.error('[renderGoing]', error); return; }
+  if (error) { console.error('[renderGoing]', error); return; }
 
   // Cancelled registrations are dropped: the student withdrew, and a list of things you
   // decided not to do is not a useful part of your own profile. A cancelled EVENT is a
   // different thing entirely and stays — see below.
   const live = (regs || []).filter(r => r.status !== 'cancelled');
-  if (!live.length) { sec.hidden = true; wrap.innerHTML = ''; return; }
+  if (!live.length) { profileSetCount('going', 0); wrap.innerHTML = emptyHTML; return; }
 
   const { data: evs } = await supabaseClient
     .from('visible_events')
@@ -693,7 +695,7 @@ async function renderGoing() {
     .in('id', live.map(r => r.event_id));
 
   const rows = evs || [];
-  if (!rows.length) { sec.hidden = true; wrap.innerHTML = ''; return; }
+  if (!rows.length) { profileSetCount('going', 0); wrap.innerHTML = emptyHTML; return; }
   await Promise.all([evLoadOrgs(rows), evLoadRated()]);
 
   const byId = new Map(live.map(r => [r.event_id, r]));
@@ -702,7 +704,7 @@ async function renderGoing() {
   const past = rows.filter(e => e.has_ended)
     .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  sec.hidden = false;
+  profileSetCount('going', rows.length);
   wrap.innerHTML =
     upcoming.map(e => goingRowHTML(e, byId.get(e.id))).join('') +
     (past.length ? `<div class="go-head">Already happened</div>` : '') +

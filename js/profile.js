@@ -439,13 +439,14 @@ function renderProfile() {
   if (u.bio) { bioEl.textContent = u.bio; bioEl.style.display = 'block'; }
   else { bioEl.style.display = 'none'; }
 
-  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently';
-  document.getElementById('profileInfo').innerHTML = [
-    `<div class="info-item"><label>Major</label><span>${esc(u.major || 'Not set')}</span></div>`,
-    `<div class="info-item"><label>Year</label><span>${esc(u.year || 'Not set')}</span></div>`,
-    u.pronouns ? `<div class="info-item"><label>Pronouns</label><span>${esc(u.pronouns)}</span></div>` : '',
-    `<div class="info-item"><label>Joined</label><span>${joined}</span></div>`
-  ].join('');
+  // One muted line instead of a four-cell grid. Major, year and join date are context, not
+  // content — a labelled grid gives each of them the visual weight of a section heading, and
+  // four of those above the tabs is what pushed everything a student came to do off the
+  // screen. Empty values are omitted rather than printed as "Not set", which says nothing
+  // except that a form was skipped.
+  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
+  document.getElementById('profileInfo').textContent =
+    [u.year, u.major, u.pronouns, joined ? 'Joined ' + joined : ''].filter(Boolean).join('  ·  ');
 
   // What this person agreed to, and when. Deliberately silent when there is no record:
   // every account created before 2026-09-01 predates consent recording, and saying
@@ -460,9 +461,13 @@ function renderProfile() {
     }
   }
 
+  // All three panes load, not just the visible one, because the counts on the header are the
+  // tabs and a tab that says "–" until you press it is not a count. Three small queries once
+  // beats a number the student cannot trust.
   renderMyListingsGrid(u); // async — one grid, marketplace + books together
   renderSaved();           // async — everything starred (js/favorites.js)
   renderGoing();           // async — events this student registered for (js/events.js)
+  profileTab(loadUiState('profileTab', 'listings'), true);
 }
 
 // The one My Listings grid: cached marketplace rows (all statuses — owners see their
@@ -473,6 +478,7 @@ async function renderMyListingsGrid(u) {
   if (!grid) return;
   const mine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
   grid.innerHTML = renderListingGrid(mine, true); // paint immediately; books join in a beat
+  profileSetCount('listings', mine.length);
   const { data: books, error } = await supabaseClient.from('book_listings')
     .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
   if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
@@ -480,4 +486,41 @@ async function renderMyListingsGrid(u) {
   const merged = [...mine, ...books.map(bookAsListing)]
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   grid.innerHTML = renderListingGrid(merged, true);
+  // Set twice on purpose: once for the immediate paint and again when the books land. The
+  // count and the grid are written together, so the number can never describe a list the
+  // student is not looking at.
+  profileSetCount('listings', merged.length);
+}
+
+
+// ------------------------------------------------------------
+// Profile tabs
+// ------------------------------------------------------------
+// Three stacked sections became one screen with three destinations. The stacked version was
+// not navigable: Saved and Going sat below however many listings the student had, so finding
+// them meant scrolling past your own inventory every time.
+//
+// Which tab you were on is WHERE YOU WERE, so it is sessionStorage — it survives a reload and
+// dies with the tab, per the rule on saveUiState().
+function profileTab(tab, restoring = false) {
+  const tabs = ['listings', 'saved', 'going'];
+  if (!tabs.includes(tab)) tab = 'listings';
+
+  tabs.forEach(t => {
+    const pane = document.getElementById('pfPane-' + t);
+    if (pane) pane.hidden = t !== tab;
+  });
+  // Both the tab bar and the counts carry data-pftab, so one loop lights whichever of them is
+  // on screen. Two selectors would be two places to forget.
+  document.querySelectorAll('[data-pftab]').forEach(el =>
+    el.classList.toggle('is-on', el.getAttribute('data-pftab') === tab));
+
+  if (!restoring) saveUiState('profileTab', tab);
+}
+
+// Called by each pane's renderer when it knows its own number. A count written by the thing
+// that produced it cannot disagree with what the pane shows.
+function profileSetCount(tab, n) {
+  const el = document.getElementById('pfCount' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (el) el.textContent = n;
 }

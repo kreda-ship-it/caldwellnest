@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-09c">
+<link rel="stylesheet" href="styles.css?v=2026-09-09d">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -282,17 +282,16 @@
     <div class="page-wrap">
       <div class="page-header">
         <div><h1 class="page-title" id="listingsTitle">Housing listings</h1><p style="color:var(--text-muted);font-size:13px;margin-top:4px;" id="listingsSub">Caldwell University students only</p></div>
-        <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
-        <!-- A BUTTON, not a box. Search is its own page since 2026-09-08 and owns the
-             query, the entry state and the filters; a second search box here was a
-             duplicate affordance that answered a narrower question. It also frees the
-             toolbar, which on a phone is the scarcest row on the screen. -->
-        <button class="browse-search" onclick="goSearch()" aria-label="Search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
-          <span>Search listings, books and events</span>
-        </button>
+        <!-- An icon, beside the action it belongs with. Search is its own page and owns the
+             query, the entry state and the filters, so this is a doorway rather than a
+             control — and a doorway does not need a full row. Removing that row gives the
+             category tabs and the first cards a screenful more space on a phone. -->
+        <div class="page-header-actions">
+          <button class="hdr-icon-btn" onclick="goSearch()" aria-label="Search" title="Search">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
+        </div>
       </div>
       <div class="cat-tabs" id="sCategoryChips">
         <button class="cat-tab active" onclick="setListingCat('all',this)">All</button>
@@ -340,40 +339,70 @@
   <div id="page-profile" class="page">
     <div class="profile-wrap">
       <div class="profile-card">
-        <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px;">
-          <!-- Identity fields start EMPTY on purpose. Boot paints this page before the
-               Supabase session is restored, and renderProfile() bails out until it has a
-               user — so any sample text here stays on screen and reads as "you are logged
-               in as someone else". styles.css gives the empty state a loading look. -->
+        <!-- HEADER. Avatar and counts on one row, identity beneath, one action button — the
+             shape Instagram and TikTok settled on, and for the reason they did: the header is
+             an introduction, not the page. Everything a student actually came to DO is in the
+             tabs below, and a header that fills the screen pushes all of it under the fold.
+
+             Identity fields start EMPTY on purpose. Boot paints this page before the Supabase
+             session is restored and renderProfile() bails until it has a user, so sample text
+             here would stay on screen reading as "you are logged in as someone else". -->
+        <div class="pf-head">
           <div class="profile-avatar-lg" id="profileAvatar"></div>
-          <div style="flex:1;min-width:0">
-            <div style="font-family:'DM Serif Display',serif;font-size:24px;line-height:1.2" id="profileName"></div>
-            <div id="profileUsername" style="margin-top:3px"></div>
-            <div style="font-size:13px;color:var(--text-muted);margin-top:3px" id="profileEmail"></div>
-            <div class="edu-badge" style="margin-top:6px">&#10003; .edu verified</div>
+          <!-- The counts ARE the tabs. Two controls for one destination is a choice the
+               student has to make about how to get somewhere, which is a choice worth
+               removing. -->
+          <div class="pf-stats">
+            <button class="pf-stat" data-pftab="listings" onclick="profileTab('listings')">
+              <span class="pf-stat-n" id="pfCountListings">–</span><span class="pf-stat-l">Listings</span>
+            </button>
+            <button class="pf-stat" data-pftab="saved" onclick="profileTab('saved')">
+              <span class="pf-stat-n" id="pfCountSaved">–</span><span class="pf-stat-l">Saved</span>
+            </button>
+            <button class="pf-stat" data-pftab="going" onclick="profileTab('going')">
+              <span class="pf-stat-n" id="pfCountGoing">–</span><span class="pf-stat-l">Going</span>
+            </button>
           </div>
-          <button class="btn-sm-a btn-a-neutral" onclick="openEditProfile()" style="flex-shrink:0;margin-top:2px">&#9998; Edit</button>
         </div>
-        <div id="profileBio" style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:16px;display:none"></div>
-        <div class="section-divider"></div>
-        <div class="info-grid" id="profileInfo"></div>
-        <div class="section-divider"></div>
-        <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
-        <div id="myListings"></div>
-        <!-- SAVED — everything starred, in one list. Rendered only when there is something
-             in it, for the same reason Going is. -->
-        <div id="savedSection" hidden>
-          <div class="section-divider"></div>
-          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Saved</div>
-          <div id="mySaved"></div>
+
+        <div class="pf-id">
+          <div class="pf-name" id="profileName"></div>
+          <div class="pf-handle" id="profileUsername"></div>
+          <div class="pf-meta" id="profileInfo"></div>
+          <div class="pf-bio" id="profileBio" style="display:none"></div>
+          <div class="pf-verified"><span class="edu-badge">&#10003; .edu verified</span>
+            <span class="pf-email" id="profileEmail"></span></div>
         </div>
-        <!-- GOING — events this student registered for. Rendered only when there are some:
-             an empty section on every profile would be a permanent reminder of nothing. -->
-        <div id="goingSection" hidden>
-          <div class="section-divider"></div>
-          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Going</div>
-          <div id="myGoing"></div>
+
+        <button class="pf-edit" onclick="openEditProfile()">Edit profile</button>
+        <div class="pf-consent" id="profileConsent"></div>
+
+        <!-- TAB BAR. Icons with labels, an underline on the active one, and the SAME three
+             destinations as the counts above. It sticks to the top of the scroll area, which
+             is what makes a long list of saved things navigable rather than a place you get
+             lost in.
+
+             The tabs never disappear. Saved and Going used to hide themselves when empty,
+             which is right for a stacked section and wrong for navigation: a bar whose items
+             come and go is not a bar you can learn. The emptiness lives inside the tab now. -->
+        <div class="pf-tabs" role="tablist">
+          <button class="pf-tab is-on" data-pftab="listings" role="tab" onclick="profileTab('listings')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>Listings</span>
+          </button>
+          <button class="pf-tab" data-pftab="saved" role="tab" onclick="profileTab('saved')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9 16.5 13.5 18.5 21 12 16.8 5.5 21 7.5 13.5 2 9 9 9"/></svg>
+            <span>Saved</span>
+          </button>
+          <button class="pf-tab" data-pftab="going" role="tab" onclick="profileTab('going')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Going</span>
+          </button>
         </div>
+
+        <div class="pf-pane" id="pfPane-listings"><div id="myListings"></div></div>
+        <div class="pf-pane" id="pfPane-saved" hidden><div id="mySaved"></div></div>
+        <div class="pf-pane" id="pfPane-going" hidden><div id="myGoing"></div></div>
         <div class="section-divider"></div>
         <!-- The directory's entry point on mobile, where the bottom bar has no free slot.
              Shown to EVERY student, unlike the console row below it: browsing clubs is what
@@ -1697,17 +1726,17 @@
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
 <script src="js/config.js?v=2026-09-06b"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
-<script src="js/favorites.js?v=2026-09-09b"></script>
+<script src="js/favorites.js?v=2026-09-09c"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-09a"></script>
-<script src="js/profile.js?v=2026-09-09a"></script>
+<script src="js/profile.js?v=2026-09-09b"></script>
 <script src="js/listings.js?v=2026-09-09b"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
-<script src="js/events.js?v=2026-09-09a"></script>
+<script src="js/events.js?v=2026-09-09b"></script>
 <script src="js/search.js?v=2026-09-09b"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-09a"></script>

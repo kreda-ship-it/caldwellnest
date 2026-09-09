@@ -100,14 +100,21 @@ function favStarHTML(type, id, extraClass = '') {
 // listing looks like the same object a student met in the feed and in a search.
 
 async function renderSaved() {
-  const sec = document.getElementById('savedSection');
   const wrap = document.getElementById('mySaved');
-  if (!sec || !wrap) return;
+  if (!wrap) return;
 
+  // No longer hides itself. It is a TAB now, and a tab that vanishes when empty is not
+  // navigation — the emptiness belongs inside it, where a student who tapped Saved gets an
+  // answer rather than a bar that changed shape under them.
   const eu = getEffectiveUser();
-  if (!eu?.id) { sec.hidden = true; return; }
+  if (!eu?.id) return;
   await loadFavorites(true);
-  if (!_favs.size) { sec.hidden = true; wrap.innerHTML = ''; return; }
+  if (!_favs.size) {
+    profileSetCount('saved', 0);
+    wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved yet</div>
+      <p>Tap the star on anything — a listing, a book, an event — and it waits for you here.</p></div>`;
+    return;
+  }
 
   const ids = { listing: [], book: [], event: [] };
   for (const key of _favs) {
@@ -135,14 +142,13 @@ async function renderSaved() {
   // and the view both apply the live rule. That is deliberate: a saved list is a shortcut to
   // things you can still act on, and a column of gone items is a list of disappointments.
   const total = goods.length + books.length + events.length;
+  profileSetCount('saved', total);
   if (!total) {
-    sec.hidden = false;
     wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved is still available</div>
       <p>Things you starred have sold, been taken down, or already happened.</p></div>`;
     return;
   }
 
-  sec.hidden = false;
   wrap.innerHTML =
     savedSection('Listings', goods, l => sqRowHTML(l, `openDetail(${l.id})`)) +
     savedSection('Books',    books, l => sqRowHTML(l, `openBookDetail(${l.id})`)) +
