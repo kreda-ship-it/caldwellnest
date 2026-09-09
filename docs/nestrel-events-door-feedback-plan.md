@@ -743,10 +743,10 @@ restore point.
 | **E1** | Schema, visibility, RPCs | ✅ **Schema, RPCs and verification green 2026-09-07** — `2026-09-07_events_schema.sql`, `_events_rpcs.sql`, `_verify_events.sql`, all 18 assertions PASS. ✅ **All six verification files in `sql/` re-run green 2026-09-07.** Findings in §7.1. |
 | **E2** | Officer: create, edit, media, QR | ✅ **Done 2026-09-07.** Console Events section, create/edit/duplicate/draft/publish/cancel, photos + video link to the `event-media` bucket, deterministic poster, QR sheet. Plus the visibility rule (§1.1) and `verify_events` at 20/20. |
 | **E2.5** | **Section scaffold + marketplace extraction** | `page-events` exists and both entry points reach it. All nine call sites in §4.0 are moved. Home feed, saved, profile listings and chat listing-cards render identically to before. **Own commit, nothing else in it.** |
-| **E3** | Feed, detail, register, org profile | A student browses events chronologically, opens one, registers, and the seat count is right with two browsers racing. `#/event/:id` works cold in incognito. A password-reset link still reaches the reset screen. |
-| **E4** | Events search | The scoped search and the global search Events section call the same match function over `visible_events`. |
-| **E5** | The door | Officer, self-confirm, trusted-self and walk-in each write the correct `check_in_method`, verified in the database, not the UI. A student cannot set their own status to `checked_in` via the API. |
-| **E6** | Feedback | `get_event_feedback` returns a null average at 4 responses and a number at 5. Feedback without a check-in row is refused by the policy. |
+| **E3** | Feed, detail, register, org profile | ✅ **Done 2026-09-07/08.** `page-events`, poster-first date-grouped feed, detail modal, register/unregister through the RPC, add-to-calendar, the org profile page the directory had been missing, and Going on the profile. Deep link works cold; the router yields to Supabase auth hashes (§5.1). ⬜ **A real password-reset email has still not been clicked** — see §7.2. |
+| **E4** | Events search | ✅ **Done 2026-09-08.** Scoped surface with the follow/date/type entry state; `evMatchEvents()` is the one match function, tested against ten cases. The marketplace search became its own page the same week and calls it for the Events section, so the two cannot diverge. |
+| **E5** | The door | ✅ **Built 2026-09-07/08**, brought forward into the console's roster rather than a separate Door section. Check-in with 5-second undo, arrivals queue, walk-in form, and the student's "I'm here". ⬜ **The four `check_in_method` values have not been confirmed in the database** — TEST 6 proves a student cannot write their own, but officer / self_confirmed / self_auto / walk_in still need reading back from real rows. |
+| **E6** | Feedback | ✅ **Done 2026-09-08.** One-tap star with the comment as an optional second step, in the single contextual slot; Going carries each past event's rating state; the console's Recap shows the summary and takes recap photos. Suppression proven in `verify_events` at 4 and at 5 responses (TEST 9 / 9b). |
 
 ### 7.1 What E1 actually cost, and what it caught
 
@@ -782,7 +782,30 @@ removing itself; it cannot stop the account becoming unavailable. A second offic
 root org is one row, and it is what makes the guard's own advice — *ask somebody else* —
 true at the root, where today there is no somebody else.
 
-E1 → E2.5 → E3 is a shippable events product. E5 is what makes it worth an administrator's
+E1 → E2.5 → E3 is a shippable events product.
+
+### 7.2 What is left, 2026-09-09
+
+Every session E0–E6 is built. Three things stand between here and launch, and none of them is
+code:
+
+1. **A real password-reset email, clicked on a real device.** This is the last item on the v1
+   launch-blocker list and it has been unverified since before the events work began. §5.1's
+   router was written to yield to Supabase's auth hashes and refuses every token shape in
+   testing — but that is a test of the regex, not of a reset link arriving in a mailbox and
+   landing on the reset screen. Do this before anything else ships.
+2. **The deployed domain in Supabase's redirect allow-list.** The QR reads
+   `window.location.origin` at click time so no code changes at deploy, and it refuses to
+   generate on localhost. The allow-list is a dashboard setting and still has to be made.
+3. **A second officer on the root organization.** The root has exactly one membership carrying
+   `can_manage_members`, and every permission in the app resolves through it.
+   `guard_org_self_removal()` stops that row deleting itself; nothing stops the account
+   becoming unavailable, and the guard's own advice — *ask somebody else* — is not true at the
+   root while there is no somebody else.
+
+One verification gap worth closing when convenient: the four `check_in_method` values are
+written by RPCs that were tested for refusal, not for which value they wrote. Reading four real
+rows back would close it. E5 is what makes it worth an administrator's
 attention. E4 and E6 are small and can slot in either order.
 
 **E2.5 sits after E2 on purpose.** Building the officer side first means that the moment the
