@@ -13,7 +13,6 @@
 let _evFeed   = [];        // upcoming, ascending
 let _evPast   = [];        // ended, newest first
 let _evOrgs   = new Map(); // org id -> directory row, for the card's header
-let _evSaved  = new Set(); // event ids this student has starred
 let _evGoing  = new Map(); // event id -> this student's own registration row
 let _evDetail = null;      // the event currently open in the detail modal
 let _evRated  = new Map(); // event id -> this student's own feedback row
@@ -61,7 +60,7 @@ async function renderEvents() {
   _evPast = rows.filter(e => e.has_ended && e.status === 'published')
                 .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  await Promise.all([evLoadOrgs(rows), evLoadSaved(), evLoadGoing(), evLoadRated()]);
+  await Promise.all([evLoadOrgs(rows), loadFavorites(true), evLoadGoing(), evLoadRated()]);
   evPaint();
   // Painted after the feed rather than inside it: it needs two more queries, and holding the
   // whole feed back for a prompt would make the common case — nothing to rate — slower for
@@ -80,38 +79,9 @@ async function evLoadOrgs(rows) {
   (data || []).forEach(o => _evOrgs.set(o.id, o));
 }
 
-// The star is PRIVATE. favorites has accepted 'event' since 2026-09-04, so saving an event
-// needed no migration. Registering is the public one, and the detail page says so.
-async function evLoadSaved() {
-  const eu = getEffectiveUser();
-  if (!eu?.id) return;
-  const { data } = await supabaseClient
-    .from('favorites').select('item_id').eq('user_id', eu.id).eq('item_type', 'event');
-  _evSaved = new Set((data || []).map(f => Number(f.item_id)));
-}
-
-async function evToggleSave(id, btn) {
-  const eu = getEffectiveUser();
-  if (!eu?.id) { requireAuth(); return; }
-  const on = _evSaved.has(id);
-  // Painted before the round trip. A star that waits for the network feels broken on a phone,
-  // and the worst case is a star that flips back — which is the truth arriving late.
-  if (on) _evSaved.delete(id); else _evSaved.add(id);
-  if (btn) btn.classList.toggle('is-on', !on);
-
-  const q = on
-    ? supabaseClient.from('favorites').delete()
-        .eq('user_id', eu.id).eq('item_type', 'event').eq('item_id', String(id))
-    : supabaseClient.from('favorites')
-        .insert({ user_id: eu.id, item_type: 'event', item_id: String(id) });
-  const { error } = await q;
-  if (error) {
-    if (on) _evSaved.add(id); else _evSaved.delete(id);
-    if (btn) btn.classList.toggle('is-on', on);
-    toast('Could not save that — try again');
-    console.error('[evToggleSave]', error);
-  }
-}
+// The star is PRIVATE, and the calendar/register action is not — the detail page says so
+// directly under the button. Saving itself lives in js/favorites.js, which owns the star for
+// listings, books and events alike: three copies of "is this saved" is three sources of truth.
 
 // A student may read their OWN registration rows and no one else's, which is exactly what
 // this needs. The count of everybody else arrives as going_count on the view, computed by a
@@ -209,7 +179,6 @@ function evTogglePast(btn) {
 
 function evCardHTML(e, past = false) {
   const org = _evOrgs.get(e.org_id);
-  const saved = _evSaved.has(e.id);
 
   const dayTime = `${evDayLabel(e.starts_at)} · ${evTime(e.starts_at)}`;
 
@@ -263,8 +232,7 @@ function evCardHTML(e, past = false) {
             <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>` : ''}
           ${seats}
         </div>
-        <button class="ev-star${saved ? ' is-on' : ''}" aria-label="Save"
-                onclick="event.stopPropagation();evToggleSave(${e.id}, this)">&#9733;</button>
+        ${favStarHTML('event', e.id, 'ev-star')}
       </div>
     </article>`;
 }

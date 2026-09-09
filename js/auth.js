@@ -51,6 +51,7 @@ async function aLogout() {
   await supabaseClient.auth.signOut();
   clearOrgContext();
   clearOrgDirectory();
+  clearFavorites();
   document.getElementById('adminApp').style.display = 'none';
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
@@ -93,6 +94,7 @@ async function sLogout() {
   // js/orgdir.js.)
   clearOrgContext();
   clearOrgDirectory();
+  clearFavorites();
   sessionStorage.removeItem('cn_last_convo');
   updateSNav();
   // The hint deliberately SURVIVES logout — this is still their device, so the way back in
@@ -410,7 +412,10 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
   updateSNav();
   if (welcomeMsg) toast(welcomeMsg);
   if (applyMaintenance()) return;
-  await loadListings();
+  // Loaded BEFORE the first render, because every listing card draws a star and a card painted
+  // without the set shows an empty one for something the student already saved. Correcting it
+  // afterwards would flip stars on under their eyes.
+  await Promise.all([loadListings(), loadFavorites(true)]);
   // Return-to-intent. A student who scanned a poster while signed out was sent to login;
   // this is where they get sent back to THAT EVENT rather than dumped on the home feed,
   // which is the single most likely thing to make a QR feel broken at a real door.

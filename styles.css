@@ -2049,3 +2049,18 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ev-empty p, .evs-none p, .sq-empty p {
   font-size: 13px; color: var(--text-muted); line-height: 1.7; margin: 0 0 16px;
 }
+
+
+/* ---------- The star ---------- */
+/* One star for listings, books and events. Outline until saved, filled after — a state you
+   set, which is why it is never a filled shape by default. Sized for a thumb: the commonest
+   way a save gets missed is a target smaller than the finger aiming at it. */
+.fav-star { width: 36px; height: 36px; flex: none; border: 0; background: none;
+            cursor: pointer; font-size: 19px; line-height: 1; padding: 0;
+            color: var(--text-faint); border-radius: 50%; }
+.fav-star:hover { background: var(--brand-pale, #eef3ff); color: #e8a317; }
+.fav-star.is-on { color: #e8a317; }
+/* On a listing card it sits in the footer beside the price, so it is pushed to the right of
+   the price and left of the message button. */
+.lc-star { margin-left: auto; }
+.lc-foot .fav-star + * { margin-left: 6px; }

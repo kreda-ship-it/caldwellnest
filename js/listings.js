@@ -884,6 +884,10 @@ function listingCardHTML(l, isPinned) {
       ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${esc(l.desc)}</div>` : ''}
       <div class="lc-foot">
         <div class="lc-price"${!photoCount ? ` style="color:${cat.text}"` : ''}>${priceLabel(l)}</div>
+        <!-- The star sits with the price and the message button, not floating on the photo.
+             A control over an image is invisible on a light photo and unreadable on a busy
+             one, and this card already has a report flag up there. -->
+        ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'lc-star')}
         ${messageBtn}
       </div>
     </div>

@@ -113,6 +113,7 @@ if (!adminPreviewMode && !_recoveryMode) {
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
+  loadFavorites(true);   // stars need the set; see enterStudentSession() for why it is early
   rememberUser(profile.first_name, profile.email || session.user.email); // keep the hint fresh
   // STATE A — valid session. Invisible reload: return to the page the student was on before
   // the browser reloaded the tab, and otherwise go straight to the feed. That `else` is the
