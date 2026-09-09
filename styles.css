@@ -2138,27 +2138,17 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* Avatar and counts share a row. A stacked header is taller by exactly the height of the
    avatar, and that height is the difference between the tabs being on screen or under it. */
-.pf-head { display: flex; align-items: center; gap: 22px; margin-bottom: 16px; }
-
-.pf-stats { display: flex; flex: 1; justify-content: space-around; gap: 4px; }
-/* The counts ARE the tabs. Two controls for one destination is a decision the student has to
-   make about how to get somewhere, and that decision is worth removing. */
-.pf-stat { display: flex; flex-direction: column; align-items: center; gap: 1px;
-           border: 0; background: none; cursor: pointer; font-family: inherit; padding: 4px 8px;
-           border-radius: 10px; }
-.pf-stat:hover { background: var(--surface-2, #f4f4f7); }
-.pf-stat-n { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.1; }
-.pf-stat-l { font-size: 12px; color: var(--text-muted); }
-.pf-stat.is-on .pf-stat-n { color: var(--brand, #3B5BA5); }
-
-.pf-id { margin-bottom: 14px; }
+/* Avatar beside the name. The counts that used to sit here duplicated the tab bar directly
+   below them, so removing them removes a row without removing an answer. */
+.pf-head { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+.pf-id { flex: 1; min-width: 0; }
 .pf-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 23px; line-height: 1.2;
            color: var(--text); }
 .pf-handle { margin-top: 2px; }
 /* Context, not content. One muted line where a labelled four-cell grid used to give each of
    major, year and join date the weight of a section heading. */
 .pf-meta { margin-top: 4px; font-size: 13px; color: var(--text-muted); }
-.pf-bio { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--text);
+.pf-bio { margin-top: 10px; font-size: 14px; line-height: 1.6; color: var(--text);
           white-space: pre-wrap; }
 .pf-verified { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 /* .edu-badge carries its own margin-top from where it used to sit in a stacked block. Inside
@@ -2197,5 +2187,5 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .pf-tab span { display: none; }
   .pf-tab { padding: 14px 6px; }
   .pf-head { gap: 14px; }
-  .pf-stat-n { font-size: 17px; }
+  .pf-name { font-size: 21px; }
 }

@@ -110,7 +110,6 @@ async function renderSaved() {
   if (!eu?.id) return;
   await loadFavorites(true);
   if (!_favs.size) {
-    profileSetCount('saved', 0);
     wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved yet</div>
       <p>Tap the star on anything — a listing, a book, an event — and it waits for you here.</p></div>`;
     return;
@@ -142,7 +141,6 @@ async function renderSaved() {
   // and the view both apply the live rule. That is deliberate: a saved list is a shortcut to
   // things you can still act on, and a column of gone items is a list of disappointments.
   const total = goods.length + books.length + events.length;
-  profileSetCount('saved', total);
   if (!total) {
     wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved is still available</div>
       <p>Things you starred have sold, been taken down, or already happened.</p></div>`;

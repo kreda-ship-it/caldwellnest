@@ -461,9 +461,8 @@ function renderProfile() {
     }
   }
 
-  // All three panes load, not just the visible one, because the counts on the header are the
-  // tabs and a tab that says "–" until you press it is not a count. Three small queries once
-  // beats a number the student cannot trust.
+  // All three panes load, not just the visible one. They are cheap, and a tab that paints
+  // only when first pressed shows a blank for a moment every time it is opened.
   renderMyListingsGrid(u); // async — one grid, marketplace + books together
   renderSaved();           // async — everything starred (js/favorites.js)
   renderGoing();           // async — events this student registered for (js/events.js)
@@ -478,7 +477,6 @@ async function renderMyListingsGrid(u) {
   if (!grid) return;
   const mine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
   grid.innerHTML = renderListingGrid(mine, true); // paint immediately; books join in a beat
-  profileSetCount('listings', mine.length);
   const { data: books, error } = await supabaseClient.from('book_listings')
     .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
   if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
@@ -486,10 +484,6 @@ async function renderMyListingsGrid(u) {
   const merged = [...mine, ...books.map(bookAsListing)]
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   grid.innerHTML = renderListingGrid(merged, true);
-  // Set twice on purpose: once for the immediate paint and again when the books land. The
-  // count and the grid are written together, so the number can never describe a list the
-  // student is not looking at.
-  profileSetCount('listings', merged.length);
 }
 
 
@@ -518,9 +512,3 @@ function profileTab(tab, restoring = false) {
   if (!restoring) saveUiState('profileTab', tab);
 }
 
-// Called by each pane's renderer when it knows its own number. A count written by the thing
-// that produced it cannot disagree with what the pane shows.
-function profileSetCount(tab, n) {
-  const el = document.getElementById('pfCount' + tab.charAt(0).toUpperCase() + tab.slice(1));
-  if (el) el.textContent = n;
-}

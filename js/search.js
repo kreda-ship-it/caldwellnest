@@ -16,6 +16,11 @@
 // visible_listings bug one layer up.
 
 let _sqQuery = '';
+// Set by goSearch() and consumed once. A flag rather than a call from goSearch() because the
+// input is created by renderSearch(), which is async — focusing before it paints would find
+// nothing, and focusing on every render would steal the cursor back from a student who had
+// tapped elsewhere on the page.
+let _sqAutoFocus = false;
 let _sqEvents = [];
 let _sqTimer = null;
 
@@ -68,6 +73,14 @@ async function renderSearch() {
 
   wrap.innerHTML = sqShellHTML();
   sqPaintResults();
+
+  if (_sqAutoFocus) {
+    _sqAutoFocus = false;
+    const el = document.getElementById('sqInput');
+    // preventScroll keeps the page where showPage() put it. Focusing an input near the top of
+    // a freshly painted page can otherwise scroll it under the sticky header on iOS.
+    el?.focus({ preventScroll: true });
+  }
   // Events are fetched once per visit rather than on every keystroke. The marketplace is
   // already in memory (browseItems), events are not, and a query per character would be a
   // request per character.

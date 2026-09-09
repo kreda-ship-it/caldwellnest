@@ -686,7 +686,7 @@ async function renderGoing() {
   // decided not to do is not a useful part of your own profile. A cancelled EVENT is a
   // different thing entirely and stays — see below.
   const live = (regs || []).filter(r => r.status !== 'cancelled');
-  if (!live.length) { profileSetCount('going', 0); wrap.innerHTML = emptyHTML; return; }
+  if (!live.length) { wrap.innerHTML = emptyHTML; return; }
 
   const { data: evs } = await supabaseClient
     .from('visible_events')
@@ -695,7 +695,7 @@ async function renderGoing() {
     .in('id', live.map(r => r.event_id));
 
   const rows = evs || [];
-  if (!rows.length) { profileSetCount('going', 0); wrap.innerHTML = emptyHTML; return; }
+  if (!rows.length) { wrap.innerHTML = emptyHTML; return; }
   await Promise.all([evLoadOrgs(rows), evLoadRated()]);
 
   const byId = new Map(live.map(r => [r.event_id, r]));
@@ -704,7 +704,6 @@ async function renderGoing() {
   const past = rows.filter(e => e.has_ended)
     .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  profileSetCount('going', rows.length);
   wrap.innerHTML =
     upcoming.map(e => goingRowHTML(e, byId.get(e.id))).join('') +
     (past.length ? `<div class="go-head">Already happened</div>` : '') +

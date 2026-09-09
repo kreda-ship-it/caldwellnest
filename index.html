@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-09e">
+<link rel="stylesheet" href="styles.css?v=2026-09-09f">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -347,32 +347,22 @@
              Identity fields start EMPTY on purpose. Boot paints this page before the Supabase
              session is restored and renderProfile() bails until it has a user, so sample text
              here would stay on screen reading as "you are logged in as someone else". -->
+        <!-- Avatar beside the name, and no counts row. The counts duplicated the tab bar
+             directly beneath them — two controls for one destination, which is a decision
+             about how to get somewhere that the student should not have to make. The tabs
+             won because they also hold the content. -->
         <div class="pf-head">
           <div class="profile-avatar-lg" id="profileAvatar"></div>
-          <!-- The counts ARE the tabs. Two controls for one destination is a choice the
-               student has to make about how to get somewhere, which is a choice worth
-               removing. -->
-          <div class="pf-stats">
-            <button class="pf-stat" data-pftab="listings" onclick="profileTab('listings')">
-              <span class="pf-stat-n" id="pfCountListings">–</span><span class="pf-stat-l">Listings</span>
-            </button>
-            <button class="pf-stat" data-pftab="saved" onclick="profileTab('saved')">
-              <span class="pf-stat-n" id="pfCountSaved">–</span><span class="pf-stat-l">Saved</span>
-            </button>
-            <button class="pf-stat" data-pftab="going" onclick="profileTab('going')">
-              <span class="pf-stat-n" id="pfCountGoing">–</span><span class="pf-stat-l">Going</span>
-            </button>
+          <div class="pf-id">
+            <div class="pf-name" id="profileName"></div>
+            <div class="pf-handle" id="profileUsername"></div>
+            <div class="pf-meta" id="profileInfo"></div>
           </div>
         </div>
 
-        <div class="pf-id">
-          <div class="pf-name" id="profileName"></div>
-          <div class="pf-handle" id="profileUsername"></div>
-          <div class="pf-meta" id="profileInfo"></div>
-          <div class="pf-bio" id="profileBio" style="display:none"></div>
-          <div class="pf-verified"><span class="edu-badge">&#10003; .edu verified</span>
-            <span class="pf-email" id="profileEmail"></span></div>
-        </div>
+        <div class="pf-bio" id="profileBio" style="display:none"></div>
+        <div class="pf-verified"><span class="edu-badge">&#10003; .edu verified</span>
+          <span class="pf-email" id="profileEmail"></span></div>
 
         <button class="pf-edit" onclick="openEditProfile()">Edit profile</button>
         <div class="pf-consent" id="profileConsent"></div>
@@ -445,7 +435,11 @@
          logged-out visitor tapping this got an empty grid reading "No listings yet — be
          the first to post one!", which presents "not allowed to see this" as "this place
          is empty". Prompt them to log in instead of lying about the platform. -->
-    <button class="m-tab" id="mtab-search" onclick="if(requireAuth())goSearch()" aria-label="Search">
+    <!-- goSearch(false): no auto-focus from the TAB. Tapping a tab is "take me to the search
+         section", where the entry state — recent searches, category tiles, courses with books
+         — is the thing worth seeing, and a keyboard covers most of it. The search BUTTON on
+         Browse focuses, because tapping that is "I want to type now". -->
+    <button class="m-tab" id="mtab-search" onclick="if(requireAuth())goSearch(false)" aria-label="Search">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
       <span>Search</span>
     </button>
@@ -1726,18 +1720,18 @@
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
 <script src="js/config.js?v=2026-09-06b"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
-<script src="js/favorites.js?v=2026-09-09c"></script>
+<script src="js/favorites.js?v=2026-09-09d"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-09a"></script>
-<script src="js/profile.js?v=2026-09-09b"></script>
-<script src="js/listings.js?v=2026-09-09b"></script>
+<script src="js/profile.js?v=2026-09-09c"></script>
+<script src="js/listings.js?v=2026-09-09c"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
-<script src="js/events.js?v=2026-09-09b"></script>
-<script src="js/search.js?v=2026-09-09b"></script>
+<script src="js/events.js?v=2026-09-09c"></script>
+<script src="js/search.js?v=2026-09-09c"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-09a"></script>
 

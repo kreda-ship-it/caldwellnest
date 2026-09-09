@@ -46,8 +46,13 @@ function goHome() {
 // Search is its own page since 2026-09-08. It used to show page-listings — the same screen
 // Home shows — so two of the five bottom tabs did the same thing and only the highlight
 // differed. That is the costume Events was in before it got its own section.
-function goSearch() {
+function goSearch(focus = true) {
   _mTabIntent = 'search';
+  // Arriving with the cursor already in the box. Somebody who taps a search control has
+  // decided to type — asking them to tap a second time inside the page they just opened is a
+  // tap that carries no decision. renderSearch() does the focusing, because the input does
+  // not exist until it has painted.
+  _sqAutoFocus = focus;
   showPage('search');
 }
 
