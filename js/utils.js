@@ -41,10 +41,20 @@ function toast(msg) { const t = document.getElementById('toastEl'); t.textConten
 // ------------------------------------------------------------
 // Remembering what the student was looking at
 // ------------------------------------------------------------
-// sessionStorage, deliberately, and the choice is the whole design. It dies with the TAB, so
-// reloading keeps your place and closing the app starts clean — which is what a student
-// expects from both actions. localStorage would remember a filter set three weeks ago and
-// present it as the state of the marketplace.
+// THE RULE, and everything in this app follows it:
+//
+//     sessionStorage remembers WHERE YOU WERE.   It dies with the tab.
+//     localStorage   remembers WHAT YOU PREFER.  It does not.
+//
+// Where you were is the page, the filters, the open section, the organization you were
+// reading. Reloading keeps your place; closing the app starts clean — which is what a student
+// expects from both actions, and localStorage would instead present a filter set three weeks
+// ago as the state of the marketplace.
+//
+// What you prefer is recent searches (js/search.js) and grid-versus-list (js/search.js).
+// Those are not positions, and losing them on every visit is the papercut they exist to
+// remove. Anything added here should be sorted into one of those two sentences first; if it
+// fits neither, it probably belongs in the database rather than in the browser.
 //
 // Every access is wrapped: a private window, or a browser set to block site data, throws on
 // read AND on write rather than returning null, and an unguarded call takes the page down.
