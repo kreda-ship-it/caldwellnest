@@ -2161,6 +2161,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .pf-bio { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--text);
           white-space: pre-wrap; }
 .pf-verified { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+/* .edu-badge carries its own margin-top from where it used to sit in a stacked block. Inside
+   a flex row that pushes it out of line with the email beside it. */
+.pf-verified .edu-badge { margin-top: 0; }
 .pf-email { font-size: 12px; color: var(--text-faint); }
 
 /* Full width, like the app it borrows from. An edit button tucked in the corner of a header is
