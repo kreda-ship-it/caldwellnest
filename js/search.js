@@ -229,11 +229,14 @@ function sqSection(label, rows, render) {
 // One compact row shape for all three types. Search results are SCANNED and compared across
 // categories; the feed is where things are browsed. Full cards here would make three
 // different-looking lists out of one answer.
+// A div, not a button: it carries a star, and a button inside a button is invalid HTML that
+// browsers resolve by dropping one — usually the inner one, which is the control that matters.
+// Same correction the Going rows needed when they gained their rating stars.
 function sqRowHTML(l, onclick) {
   const photo = (l.photo_urls && l.photo_urls[0]) || (l.photos && l.photos[0]) || null;
   const price = l.rent ? `$${l.rent}` : (l.category === 'donation' ? 'Free' : '');
   return `
-    <button class="sq-row" onclick="${onclick}">
+    <div class="sq-row" onclick="${onclick}">
       <div class="sq-thumb">${photo
         ? `<img src="${escAttr(photo)}" alt="" loading="lazy">`
         : `<span class="sq-thumb-i">${catIcon(l.category, 18)}</span>`}</div>
@@ -242,7 +245,8 @@ function sqRowHTML(l, onclick) {
         <div class="sq-row-sub">${esc([CATEGORY_LABELS[l.category] || l.category, l.location].filter(Boolean).join(' · '))}</div>
       </div>
       ${price ? `<div class="sq-row-price">${esc(price)}</div>` : ''}
-    </button>`;
+      ${favStarHTML(l.isBook ? 'book' : 'listing', l.id)}
+    </div>`;
 }
 
 function sqEventRowHTML(e) {
@@ -250,7 +254,7 @@ function sqEventRowHTML(e) {
   const when = new Date(e.starts_at).toLocaleString(undefined,
     { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   return `
-    <button class="sq-row" onclick="evOpen(${e.id})">
+    <div class="sq-row" onclick="evOpen(${e.id})">
       <div class="sq-thumb"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
         ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
       </div>
@@ -258,5 +262,6 @@ function sqEventRowHTML(e) {
         <div class="sq-row-title">${esc(e.title)}</div>
         <div class="sq-row-sub">${esc([org?.name, when, e.location].filter(Boolean).join(' · '))}</div>
       </div>
-    </button>`;
+      ${favStarHTML('event', e.id)}
+    </div>`;
 }

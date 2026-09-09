@@ -67,6 +67,9 @@ async function toggleFav(type, id, btn) {
 // because the same listing can be on screen twice — a search result and a feed card, or two
 // pages the router has hidden rather than removed. That duplicate-id bug cost an afternoon on
 // the follow button; this is the same shape and it is not being repeated.
+// Note what this deliberately does NOT do: re-render the Saved list. Un-starring a row there
+// leaves it in place, unstarred, until the next visit. Removing it under the finger that just
+// tapped it makes the list jump and takes away the only way to undo the tap.
 function favPaint(type, id) {
   const on = isFav(type, id);
   document.querySelectorAll(`[data-fav="${favKey(type, id)}"]`).forEach(el => {
@@ -83,4 +86,70 @@ function favStarHTML(type, id, extraClass = '') {
   return `<button class="fav-star${on ? ' is-on' : ''} ${extraClass}" data-fav="${favKey(type, id)}"
     aria-pressed="${on}" aria-label="${on ? 'Saved' : 'Save'}"
     onclick="event.stopPropagation();toggleFav('${type}', '${id}', this)">&#9733;</button>`;
+}
+
+
+// ============================================================
+// THE SAVED LIST
+// ============================================================
+// One list, sectioned by type, on the profile beside Listings and Going. Saved things are
+// yours, and the profile is already where your things are — a sixth bottom tab for a list
+// most students open occasionally is the opposite of the trade we just made removing one.
+//
+// Sectioned the same way search results are, and drawn with the same compact row, so a saved
+// listing looks like the same object a student met in the feed and in a search.
+
+async function renderSaved() {
+  const sec = document.getElementById('savedSection');
+  const wrap = document.getElementById('mySaved');
+  if (!sec || !wrap) return;
+
+  const eu = getEffectiveUser();
+  if (!eu?.id) { sec.hidden = true; return; }
+  await loadFavorites(true);
+  if (!_favs.size) { sec.hidden = true; wrap.innerHTML = ''; return; }
+
+  const ids = { listing: [], book: [], event: [] };
+  for (const key of _favs) {
+    const [type, id] = key.split(':');
+    if (ids[type]) ids[type].push(id);
+  }
+
+  // Marketplace rows come from the caches the feed already holds, so a saved listing is drawn
+  // from the same shape and the same visibility rule as everywhere else.
+  const items = browseItems().filter(isListingLive);
+  const goods = items.filter(l => !l.isBook && ids.listing.includes(String(l.id)));
+  const books = items.filter(l =>  l.isBook && ids.book.includes(String(l.id)));
+
+  let events = [];
+  if (ids.event.length) {
+    const { data } = await supabaseClient
+      .from('visible_events')
+      .select('id, org_id, title, starts_at, location, poster_url, status, has_ended')
+      .in('id', ids.event);
+    events = data || [];
+    await evLoadOrgs(events);
+  }
+
+  // A saved item that has since sold, been withdrawn or ended is simply absent — the caches
+  // and the view both apply the live rule. That is deliberate: a saved list is a shortcut to
+  // things you can still act on, and a column of gone items is a list of disappointments.
+  const total = goods.length + books.length + events.length;
+  if (!total) {
+    sec.hidden = false;
+    wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved is still available</div>
+      <p>Things you starred have sold, been taken down, or already happened.</p></div>`;
+    return;
+  }
+
+  sec.hidden = false;
+  wrap.innerHTML =
+    savedSection('Listings', goods, l => sqRowHTML(l, `openDetail(${l.id})`)) +
+    savedSection('Books',    books, l => sqRowHTML(l, `openBookDetail(${l.id})`)) +
+    savedSection('Events',   events, e => sqEventRowHTML(e));
+}
+
+function savedSection(label, rows, render) {
+  if (!rows.length) return '';
+  return `<div class="sq-lab sq-lab-res">${label} · ${rows.length}</div>${rows.map(render).join('')}`;
 }

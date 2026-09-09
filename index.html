@@ -369,6 +369,13 @@
         <div class="section-divider"></div>
         <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>
         <div id="myListings"></div>
+        <!-- SAVED — everything starred, in one list. Rendered only when there is something
+             in it, for the same reason Going is. -->
+        <div id="savedSection" hidden>
+          <div class="section-divider"></div>
+          <div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Saved</div>
+          <div id="mySaved"></div>
+        </div>
         <!-- GOING — events this student registered for. Rendered only when there are some:
              an empty section on every profile would be a permanent reminder of nothing. -->
         <div id="goingSection" hidden>
@@ -1699,10 +1706,10 @@
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
 <script src="js/config.js?v=2026-09-06b"></script>
 <script src="js/utils.js?v=2026-09-08a"></script>
-<script src="js/favorites.js?v=2026-09-09a"></script>
+<script src="js/favorites.js?v=2026-09-09b"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-09a"></script>
-<script src="js/profile.js?v=2026-09-08a"></script>
+<script src="js/profile.js?v=2026-09-09a"></script>
 <script src="js/listings.js?v=2026-09-09a"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
@@ -1710,7 +1717,7 @@
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
 <script src="js/events.js?v=2026-09-09a"></script>
-<script src="js/search.js?v=2026-09-08a"></script>
+<script src="js/search.js?v=2026-09-09a"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-09a"></script>
 

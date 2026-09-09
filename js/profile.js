@@ -461,6 +461,7 @@ function renderProfile() {
   }
 
   renderMyListingsGrid(u); // async — one grid, marketplace + books together
+  renderSaved();           // async — everything starred (js/favorites.js)
   renderGoing();           // async — events this student registered for (js/events.js)
 }
 
