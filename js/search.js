@@ -123,8 +123,12 @@ function sqRun(term) {
   el?.focus();
 }
 
+// Clears the CATEGORY as well as the text. To a student the × means "start again", and
+// leaving a category chip lit while the box empties would return them to an entry state that
+// is quietly still narrowed.
 function sqClear() {
   _sqQuery = '';
+  if (_filters.category !== 'all') setListingCat('all');
   const el = document.getElementById('sqInput');
   if (el) { el.value = ''; el.focus(); }
   sqPaintResults();
@@ -142,13 +146,23 @@ function sqShellHTML() {
                placeholder="Search listings, books and events…"
                value="${escAttr(_sqQuery)}" oninput="sqSet(this.value)">
       </form>
-      ${_sqQuery ? `<button class="sq-x" onclick="sqClear()" aria-label="Clear">&times;</button>` : ''}
+      ${(_sqQuery || _filters.category !== 'all')
+        ? `<button class="sq-x" onclick="sqClear()" aria-label="Clear">&times;</button>` : ''}
     </div>
 
-    <!-- Filters moved here from the Browse toolbar on 2026-09-09. Search is where a student
-         arrives with a question and narrows it; Browse is where they look at what is around.
-         The drawer is the same one, over the same _filters object, so a cap set here is the
-         cap Browse shows — one marketplace, one state. -->
+    <div id="sqBody"></div>`;
+}
+
+// Filters and the layout switch belong WITH the results, not above the entry state. On the
+// entry state there is nothing to filter and nothing laid out, so both were controls acting on
+// nothing — and the Filters button carrying a count while no results were shown was actively
+// confusing. They appear on the empty-result state too, because a filter is precisely the
+// thing to change when nothing came back.
+//
+// The drawer itself is the same one Browse used, over the same _filters object: a cap set here
+// is the cap Browse shows. One marketplace, one state.
+function sqToolsHTML() {
+  return `
     <div class="sq-tools">
       <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()"
               aria-haspopup="dialog" aria-label="Open filters">
@@ -156,9 +170,7 @@ function sqShellHTML() {
         <span>Filters</span><span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
       </button>
       ${sqViewToggleHTML()}
-    </div>
-
-    <div id="sqBody"></div>`;
+    </div>`;
 }
 
 // ---------- How results are laid out ----------
@@ -206,6 +218,9 @@ function sqEntryHTML() {
     .filter(b => b.course_code && isListingLive(bookAsListing(b)))
     .map(b => b.course_code))].sort().slice(0, 12);
 
+  const cats = [['housing', 'Housing'], ['books', 'Books'], ['technology', 'Technology'],
+                ['clothing', 'Clothing'], ['donation', 'Free items'], ['other', 'Other']];
+
   return `
     ${recent.length ? `
       <div class="sq-sec">
@@ -217,17 +232,16 @@ function sqEntryHTML() {
           </span>`).join('')}</div>
       </div>` : ''}
 
+    <!-- Chips that NARROW, not tiles that leave. The previous version made the biggest block
+         on this page six buttons that all navigated to Browse — you tapped Search and the
+         dominant element said "go somewhere else". A category here filters the results below
+         it, which is what makes Search answer a question on its own rather than act as a
+         launcher for another page. -->
     <div class="sq-sec">
-      <div class="sq-lab">Browse</div>
-      <div class="sq-tiles">
-        ${[['housing', 'Housing'], ['books', 'Books'], ['technology', 'Technology'],
-           ['clothing', 'Clothing'], ['donation', 'Free items'], ['other', 'Other']]
-          .map(([v, l]) => `<button class="sq-tile" onclick="sqBrowse('${v}')">
-             <span class="sq-tile-i" style="color:${(CATEGORY_COLORS[v] || CATEGORY_COLORS.other).text}">${catIcon(v, 18)}</span>
-             ${l}</button>`).join('')}
-        <button class="sq-tile" onclick="showPage('events')">
-          <span class="sq-tile-i">&#128197;</span>Events</button>
-      </div>
+      <div class="sq-lab">Category</div>
+      <div class="sq-chips">${cats.map(([v, l]) =>
+        `<button class="sq-chip${_filters.category === v ? ' is-on' : ''}"
+                 onclick="sqCat('${v}')">${l}</button>`).join('')}</div>
     </div>
 
     ${courses.length ? `
@@ -235,12 +249,20 @@ function sqEntryHTML() {
         <div class="sq-lab">Courses with books listed</div>
         <div class="sq-chips">${courses.map(c =>
           `<button class="sq-chip" onclick="sqRun('${escAttr(c)}')">${esc(c)}</button>`).join('')}</div>
-      </div>` : ''}`;
+      </div>` : ''}
+
+    <!-- One line out, at the bottom, where a way out belongs. Browsing the whole feed is a
+         different act from searching it and it has its own tab; it does not need six buttons
+         at the top of this one. -->
+    <button class="sq-out" onclick="showPage('listings')">Browse everything instead &rsaquo;</button>`;
 }
 
-function sqBrowse(cat) {
-  setListingCat(cat);
-  showPage('listings');
+// Tapping a category chip narrows in place. Toggling it off returns to the entry state, which
+// is why the same chip sets 'all' when it is already on — a chip that only ever turns on is a
+// chip you cannot undo without hunting for a Clear button.
+function sqCat(cat) {
+  setListingCat(_filters.category === cat ? 'all' : cat);
+  renderSearch();
 }
 
 // ---------- Results ----------
@@ -248,22 +270,30 @@ function sqPaintResults() {
   const body = document.getElementById('sqBody');
   if (!body) return;
 
+  // A category on its own is enough to show results. Without this the chips would set a
+  // filter and leave the student looking at the entry state, wondering what the tap did.
   const q = _sqQuery.trim().toLowerCase();
-  if (!q) { body.innerHTML = sqEntryHTML(); return; }
+  const narrowed = q || _filters.category !== 'all';
+  if (!narrowed) { body.innerHTML = sqEntryHTML(); return; }
 
   // Marketplace rows come from browseItems(), which is listings + books already shaped the
   // same way, filtered by the one visibility rule the feed uses. Search must never show
   // something the feed would hide.
-  const items = browseItems().filter(isListingLive).filter(l => matchItemKeyword(l, q));
+  const items = browseItems().filter(isListingLive)
+    .filter(l => _filters.category === 'all' || l.category === _filters.category)
+    .filter(l => matchItemKeyword(l, q));
   // isBook, not category === 'books'. bookAsListing() sets both, but the flag is the one that
   // says WHICH TABLE the row came from — and that is what decides which detail opener works.
   const books = items.filter(l => l.isBook);
   const goods = items.filter(l => !l.isBook);
-  const events = evMatchEvents(_sqEvents, { q });
+  // Events are excluded once a MARKETPLACE category is chosen. "Housing" is not a kind of
+  // event, and showing events under it would answer a question nobody asked.
+  const events = _filters.category === 'all' ? evMatchEvents(_sqEvents, { q }) : [];
 
   const total = goods.length + books.length + events.length;
   if (!total) {
     body.innerHTML = `
+      ${sqToolsHTML()}
       <div class="sq-empty">
         <div class="sq-empty-t">Nothing for “${esc(_sqQuery)}”</div>
         <p>Try a shorter word, or browse instead — there are ${browseItems().filter(isListingLive).length}
@@ -280,6 +310,7 @@ function sqPaintResults() {
   // and a title but not for a date, a place and an organization.
   const grid = sqView() === 'grid';
   body.innerHTML = `
+    ${sqToolsHTML()}
     <div class="sq-count">${total} result${total === 1 ? '' : 's'}</div>
     ${sqSection('Listings', goods, l => grid ? sqTileHTML(l, `openDetail(${l.id})`) : sqRowHTML(l, `openDetail(${l.id})`), grid)}
     ${sqSection('Books', books, l => grid ? sqTileHTML(l, `openBookDetail(${l.id})`) : sqRowHTML(l, `openBookDetail(${l.id})`), grid)}

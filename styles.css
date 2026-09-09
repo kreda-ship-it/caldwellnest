@@ -1942,7 +1942,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .sq-x { border: 0; background: none; font-size: 22px; line-height: 1; color: var(--text-muted);
         cursor: pointer; padding: 4px 8px; }
 
-.sq-sec { margin-bottom: 26px; }
+/* Recent first and with the most room, because on a small corpus it is the control most
+   likely to be the answer. The sections below it are progressively lighter rather than three
+   equal blocks — the previous version gave recent searches, categories and course codes the
+   same weight, so nothing led. */
+.sq-sec { margin-bottom: 24px; }
+.sq-sec:first-child { margin-bottom: 30px; }
 .sq-lab { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
           color: var(--text-faint); margin-bottom: 10px; }
 .sq-lab-res { margin-top: 22px; }
@@ -1963,13 +1968,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                font-size: 15px; line-height: 1; color: var(--text-faint); }
 .sq-recent-x:hover { color: var(--danger, #c0392b); }
 
-.sq-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
-.sq-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-           padding: 14px 12px; border: 1px solid var(--border); border-radius: 12px;
-           background: var(--bg); cursor: pointer; font-family: inherit; font-size: 13px;
-           font-weight: 500; color: var(--text); text-align: left; }
-.sq-tile:hover { border-color: var(--brand, #3B5BA5); }
-.sq-tile-i { display: flex; }
+/* The category tiles are gone. They were the biggest block on the page and every one of them
+   navigated away from it; chips that narrow in place replaced them. */
+
+/* A quiet way out, at the bottom, where a way out belongs. Text rather than a button shape,
+   because leaving is not the action this page is for. */
+.sq-out { display: block; width: 100%; margin-top: 26px; padding: 12px; border: 0;
+          background: none; font-family: inherit; font-size: 13px; color: var(--text-muted);
+          cursor: pointer; text-align: center; }
+.sq-out:hover { color: var(--brand, #3B5BA5); }
 
 /* One row shape for all three result types, so a search answer reads as one list rather than
    as three differently-shaped ones. */
@@ -2034,6 +2041,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   color: var(--text);
 }
 .evs-chip:hover, .sq-chip:hover { border-color: var(--brand, #3B5BA5); }
+/* Selected. The marketplace search narrows in place now, so its chips need the same on-state
+   the events search chips already had — one chip style, one selected look. */
+.sq-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
 .sq-chip:hover { color: var(--brand, #3B5BA5); }
 
 /* One empty state, three users. Each says something different; none of them should LOOK
@@ -2081,7 +2091,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .page-header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 
 /* ---------- Search: tools row ---------- */
-.sq-tools { display: flex; align-items: center; gap: 8px; margin: -10px 0 20px; }
+.sq-tools { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; }
 .sq-tools .filters-btn { margin-right: auto; }
 
 /* Two states of one control, so they share a border and read as a switch rather than as two
