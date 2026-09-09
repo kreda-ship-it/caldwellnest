@@ -76,16 +76,32 @@ function favPaint(type, id) {
     el.classList.toggle('is-on', on);
     el.setAttribute('aria-pressed', on ? 'true' : 'false');
     el.setAttribute('aria-label', on ? 'Saved' : 'Save');
+    // The fill is an attribute, not a class, because `fill` on the element beats any
+    // stylesheet rule targeting it. Setting one and not the other leaves an outline heart
+    // coloured as though it were filled.
+    el.querySelector('svg')?.setAttribute('fill', on ? 'currentColor' : 'none');
   });
 }
 
-// The one star. `stop` keeps the click off the card underneath it, which is always a link to
-// the thing being saved.
+// A HEART, drawn as an SVG, and both halves of that are deliberate.
+//
+// SVG because every other icon in this app is one, at stroke-width 2. The star was a text
+// glyph (&#9733;), which is why it sat heavier than everything around it and rendered
+// differently on each platform — it was never part of the icon language, it was a character
+// that happened to look like an icon.
+//
+// A heart because a star already means something else here. Event ratings ARE stars, and a
+// saved star beside a rating star is two different actions wearing one symbol. Saving is a
+// heart, rating is stars, and neither has to be explained.
+//
+// Filled when on, outline when off: the fill IS the state, so nothing depends on colour alone.
+// event.stopPropagation keeps the tap off the card underneath, which is always a link to the
+// thing being saved.
 function favStarHTML(type, id, extraClass = '') {
   const on = isFav(type, id);
   return `<button class="fav-star${on ? ' is-on' : ''} ${extraClass}" data-fav="${favKey(type, id)}"
     aria-pressed="${on}" aria-label="${on ? 'Saved' : 'Save'}"
-    onclick="event.stopPropagation();toggleFav('${type}', '${id}', this)">&#9733;</button>`;
+    onclick="event.stopPropagation();toggleFav('${type}', '${id}', this)"><svg viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>`;
 }
 
 
