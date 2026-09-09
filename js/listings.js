@@ -117,8 +117,12 @@ function restoreListingFilters() {
   if (!f) return;
   Object.assign(_filters, f);
 
-  const el = document.getElementById('listingSearch');
-  if (el && _filters.keyword) el.value = _filters.keyword;
+  // The KEYWORD is deliberately not restored, and is dropped if an older session saved one.
+  // Browse lost its search box on 2026-09-09 — the query belongs to the search page now, in
+  // _sqQuery. A keyword restored here would narrow the feed with no box to show it in, and
+  // the only way out would be a tag most people would not connect to a search they made
+  // yesterday. Filters are a preference and are shared; a query is a question asked once.
+  _filters.keyword = '';
 
   document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
   const chip = [...document.querySelectorAll('#sCategoryChips .cat-tab')]

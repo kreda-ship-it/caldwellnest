@@ -131,7 +131,55 @@ function sqShellHTML() {
       </form>
       ${_sqQuery ? `<button class="sq-x" onclick="sqClear()" aria-label="Clear">&times;</button>` : ''}
     </div>
+
+    <!-- Filters moved here from the Browse toolbar on 2026-09-09. Search is where a student
+         arrives with a question and narrows it; Browse is where they look at what is around.
+         The drawer is the same one, over the same _filters object, so a cap set here is the
+         cap Browse shows — one marketplace, one state. -->
+    <div class="sq-tools">
+      <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()"
+              aria-haspopup="dialog" aria-label="Open filters">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+        <span>Filters</span><span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
+      </button>
+      ${sqViewToggleHTML()}
+    </div>
+
     <div id="sqBody"></div>`;
+}
+
+// ---------- How results are laid out ----------
+// GRID OR LIST, and the choice is remembered. A student looking for a desk wants to see
+// things; a student looking for a textbook wants to read titles. Neither is the right default
+// for the other, and the app cannot tell which one they are today.
+//
+// localStorage, not sessionStorage, and that is now a RULE rather than the exception recent
+// searches used to be: sessionStorage remembers WHERE YOU WERE and dies with the tab;
+// localStorage remembers WHAT YOU PREFER and does not. A layout preference is not a position.
+const SQ_VIEW_KEY = 'cn_search_view';
+function sqView() {
+  try { return localStorage.getItem(SQ_VIEW_KEY) === 'grid' ? 'grid' : 'list'; }
+  catch (e) { return 'list'; }
+}
+function sqSetView(v) {
+  try { localStorage.setItem(SQ_VIEW_KEY, v); } catch (e) { /* private mode */ }
+  document.querySelectorAll('[data-sqview]').forEach(b =>
+    b.classList.toggle('is-on', b.getAttribute('data-sqview') === v));
+  sqPaintResults();
+}
+function sqViewToggleHTML() {
+  const v = sqView();
+  return `
+    <div class="sq-view" role="group" aria-label="Result layout">
+      <button data-sqview="list" class="${v === 'list' ? 'is-on' : ''}" onclick="sqSetView('list')"
+              aria-label="List view" title="List">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button data-sqview="grid" class="${v === 'grid' ? 'is-on' : ''}" onclick="sqSetView('grid')"
+              aria-label="Grid view" title="Grid">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>`;
 }
 
 // ---------- Entry state ----------
@@ -214,16 +262,42 @@ function sqPaintResults() {
 
   // SECTIONS, NOT TABS. At this corpus size a tab hides results behind a guess about which
   // one holds the answer; sections show all three counts at once and cost one scroll.
+  // The toggle changes LISTINGS AND BOOKS only. Events stay rows whichever is chosen: an event
+  // is identified by when it is and who is running it, and a grid tile has room for a picture
+  // and a title but not for a date, a place and an organization.
+  const grid = sqView() === 'grid';
   body.innerHTML = `
     <div class="sq-count">${total} result${total === 1 ? '' : 's'}</div>
-    ${sqSection('Listings', goods, l => sqRowHTML(l, `openDetail(${l.id})`))}
-    ${sqSection('Books', books, l => sqRowHTML(l, `openBookDetail(${l.id})`))}
+    ${sqSection('Listings', goods, l => grid ? sqTileHTML(l, `openDetail(${l.id})`) : sqRowHTML(l, `openDetail(${l.id})`), grid)}
+    ${sqSection('Books', books, l => grid ? sqTileHTML(l, `openBookDetail(${l.id})`) : sqRowHTML(l, `openBookDetail(${l.id})`), grid)}
     ${sqSection('Events', events, e => sqEventRowHTML(e))}`;
 }
 
-function sqSection(label, rows, render) {
+function sqSection(label, rows, render, grid = false) {
   if (!rows.length) return '';
-  return `<div class="sq-lab sq-lab-res">${label} · ${rows.length}</div>${rows.map(render).join('')}`;
+  const inner = rows.map(render).join('');
+  return `<div class="sq-lab sq-lab-res">${label} · ${rows.length}</div>${
+    grid ? `<div class="sq-grid">${inner}</div>` : inner}`;
+}
+
+// The grid tile. Picture-led, because that is the whole reason to choose this view — so a tile
+// with no photo shows the category icon on a tinted ground rather than a grey hole, and the
+// title sits under the image where it can wrap to two lines instead of truncating.
+function sqTileHTML(l, onclick) {
+  const photo = (l.photo_urls && l.photo_urls[0]) || (l.photos && l.photos[0]) || null;
+  const price = l.rent ? `$${l.rent}` : (l.category === 'donation' ? 'Free' : '');
+  const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
+  return `
+    <div class="sq-tile-card">
+      <div class="sq-tile-img" onclick="${onclick}"${photo ? '' : ` style="background:${cat.bg};color:${cat.text}"`}>
+        ${photo ? `<img src="${escAttr(photo)}" alt="" loading="lazy">` : catIcon(l.category, 26)}
+      </div>
+      ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'sq-tile-star')}
+      <div class="sq-tile-body" onclick="${onclick}">
+        <div class="sq-tile-title">${esc(l.title)}</div>
+        ${price ? `<div class="sq-tile-price">${esc(price)}</div>` : ''}
+      </div>
+    </div>`;
 }
 
 // One compact row shape for all three types. Search results are SCANNED and compared across

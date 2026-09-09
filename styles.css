@@ -2064,3 +2064,59 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    the price and left of the message button. */
 .lc-star { margin-left: auto; }
 .lc-foot .fav-star + * { margin-left: 6px; }
+
+
+/* ---------- Browse: the search button that replaced the search box ---------- */
+.browse-search { display: flex; align-items: center; gap: 10px; width: 100%;
+                 padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px;
+                 background: var(--bg); color: var(--text-muted); cursor: pointer;
+                 font-family: inherit; font-size: 14px; text-align: left; }
+.browse-search:hover { border-color: var(--brand, #3B5BA5); color: var(--text); }
+.browse-search svg { flex: none; }
+
+/* ---------- Search: tools row ---------- */
+.sq-tools { display: flex; align-items: center; gap: 8px; margin: -10px 0 20px; }
+.sq-tools .filters-btn { margin-right: auto; }
+
+/* Two states of one control, so they share a border and read as a switch rather than as two
+   buttons that happen to sit together. */
+.sq-view { display: inline-flex; border: 1px solid var(--border); border-radius: 9px;
+           overflow: hidden; flex: none; }
+.sq-view button { display: flex; align-items: center; justify-content: center;
+                  width: 36px; height: 32px; border: 0; background: var(--bg);
+                  color: var(--text-faint); cursor: pointer; }
+.sq-view button + button { border-left: 1px solid var(--border); }
+.sq-view button.is-on { background: var(--brand, #3B5BA5); color: #fff; }
+
+/* ---------- Search: grid results ---------- */
+/* auto-fill with a minimum, not a fixed count: the same rule works at 390px and at 1400px
+   without a media query per breakpoint, and the tile decides how many fit. */
+.sq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+           gap: 10px; margin-bottom: 6px; }
+.sq-tile-card { position: relative; border: 1px solid var(--border); border-radius: 12px;
+                overflow: hidden; background: var(--card, #fff); cursor: pointer; }
+.sq-tile-card:hover { border-color: var(--brand, #3B5BA5); }
+.sq-tile-img { aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+               background: var(--surface-2); }
+.sq-tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* On the image, not in the body — a tile has no footer to put it in, and over a photo it needs
+   its own ground to stay visible on a light one. */
+.sq-tile-star { position: absolute; top: 4px; right: 4px; background: rgba(255,255,255,.86);
+                backdrop-filter: blur(2px); }
+.sq-tile-star:hover { background: #fff; }
+.sq-tile-body { padding: 9px 10px 11px; }
+/* Wraps to two lines rather than truncating. In a grid the title is the only text there is,
+   where a row has a subtitle beside it to carry the rest. */
+.sq-tile-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.35;
+                 display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                 overflow: hidden; }
+.sq-tile-price { margin-top: 3px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
+/* ---------- The category picker inside the filter drawer ---------- */
+.df-static { cursor: default; }
+.df-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.df-cat { padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
+          font-family: inherit; border: 1px solid var(--border); background: var(--bg);
+          color: var(--text); }
+.df-cat:hover { border-color: var(--brand, #3B5BA5); }
+.df-cat.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }

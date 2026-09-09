@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-09b">
+<link rel="stylesheet" href="styles.css?v=2026-09-09c">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -285,22 +285,13 @@
         <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
-        <div style="position:relative;flex:1;">
-          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-faint);pointer-events:none;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg></span>
-          <!-- Wrapped in its own <form> on purpose. Chrome pools every input that is NOT
-               inside a form into one synthetic page-wide form, then autofills the saved
-               credential into the first VISIBLE text field in that pool — which was this
-               box, since the login modal is display:none at page load. Owning a form takes
-               this input out of the pool. autocomplete="off" alone does not work: Chrome
-               has ignored that hint for autofill for years. Submission is suppressed, so
-               Enter here behaves exactly as before (it does nothing). -->
-          <form onsubmit="return false" autocomplete="off" class="form-shell">
-            <input class="form-input" id="listingSearch" name="listing-search" autocomplete="off" placeholder="Search listings..." oninput="onListingSearch(this.value)" style="margin-bottom:0;width:100%;padding-left:38px;">
-          </form>
-        </div>
-        <button class="filters-btn" id="filtersBtn" onclick="openFilterDrawer()" aria-haspopup="dialog" aria-label="Open filters">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
-          <span>Filters</span><span class="filters-btn-count" id="filtersBtnCount" style="display:none"></span>
+        <!-- A BUTTON, not a box. Search is its own page since 2026-09-08 and owns the
+             query, the entry state and the filters; a second search box here was a
+             duplicate affordance that answered a narrower question. It also frees the
+             toolbar, which on a phone is the scarcest row on the screen. -->
+        <button class="browse-search" onclick="goSearch()" aria-label="Search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+          <span>Search listings, books and events</span>
         </button>
       </div>
       <div class="cat-tabs" id="sCategoryChips">
@@ -1710,14 +1701,14 @@
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-09a"></script>
 <script src="js/profile.js?v=2026-09-09a"></script>
-<script src="js/listings.js?v=2026-09-09a"></script>
+<script src="js/listings.js?v=2026-09-09b"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
 <script src="js/events.js?v=2026-09-09a"></script>
-<script src="js/search.js?v=2026-09-09a"></script>
+<script src="js/search.js?v=2026-09-09b"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-09a"></script>
 
