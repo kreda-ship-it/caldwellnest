@@ -1137,7 +1137,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* Centred, not pinned left. At 620px hard-left on a 1900px screen the console read as a
    column that had failed to load the rest of itself. */
-.oc-body { padding: 18px; max-width: 680px; margin-inline: auto; }
+.oc-body { padding: 18px; max-width: var(--col-work); margin-inline: auto; }
 .oc-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
 .oc-meta-slug { font-size: 12px; color: var(--text-faint); font-family: ui-monospace, monospace; }
@@ -1624,7 +1624,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    either enormous or, worse, sits in the corner of a card with a field of white beside it —
    which is what the first version did. Capping the column is what makes the poster the right
    size at every window width without a single media query about the poster itself. */
-#evFeed { max-width: 520px; margin-inline: auto; }
+#evFeed { max-width: var(--col-read); margin-inline: auto; }
 
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */
@@ -1695,11 +1695,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ev-past .ev-card { opacity: .72; }
 
 .ev-note { padding: 20px 4px; font-size: 13px; color: var(--text-muted); }
-.ev-empty { margin-top: 24px; padding: 40px 24px; text-align: center;
-            border: 1px dashed var(--border); border-radius: 14px; }
-.ev-empty-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px;
-                  color: var(--text); margin-bottom: 8px; }
-.ev-empty p { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin: 0 0 18px; }
+/* Shape shared with .evs-none and .sq-empty — see the shared block at the end of this file.
+   Only the button below is particular to this one. */
 .ev-empty-btn { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--brand, #3B5BA5);
                 background: var(--brand, #3B5BA5); color: #fff; font-size: 14px;
                 font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -1811,18 +1808,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* A compact row, not the feed's full-height poster. This page is a summary of an
    organization; a column of posters would bury the description under the events. */
-.op-event { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
-            margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px;
-            background: var(--card, #fff); cursor: pointer; font-family: inherit;
-            text-align: left; }
-.op-event:hover { border-color: var(--brand, #3B5BA5); }
-.op-event-thumb { width: 56px; height: 70px; border-radius: 8px; flex: none; overflow: hidden;
-                  background: var(--surface-2); }
-.op-event-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.op-event-text { min-width: 0; }
-.op-event-title { font-size: 14px; font-weight: 600; color: var(--text); }
-.op-event-when { font-size: 12px; color: var(--text); margin-top: 2px; }
-.op-event-where { font-size: 12px; color: var(--text-muted); }
+/* Sizes only. The shared shape is in the compact-row block near the end of this file. */
+.op-event-thumb { width: 56px; height: 70px; }
 .op-past .op-event { opacity: .68; }
 
 .op-post { padding: 14px; margin-bottom: 8px; border: 1px solid var(--border);
@@ -1845,21 +1832,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* ---------- Going (profile) ---------- */
 .go-head { margin: 18px 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .08em;
            text-transform: uppercase; color: var(--text-faint); }
-.go-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
-          margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px;
-          background: var(--card, #fff); cursor: pointer; font-family: inherit;
-          text-align: left; }
-.go-row:hover { border-color: var(--brand, #3B5BA5); }
 /* Past rows recede but stay legible. They are the record of what you actually went to, which
    is the half of this list that gains value over time rather than losing it. */
 .go-row.is-past { opacity: .72; }
-.go-thumb { width: 48px; height: 60px; border-radius: 8px; flex: none; overflow: hidden;
-            background: var(--surface-2); }
-.go-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.go-text { min-width: 0; }
-.go-title { font-size: 14px; font-weight: 600; color: var(--text); }
-.go-when  { font-size: 12px; color: var(--text); margin-top: 2px; }
-.go-where { font-size: 12px; color: var(--text-muted); }
+.go-thumb { width: 48px; height: 60px; }
 .go-state { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 600;
             color: var(--text-muted); }
 .go-in  { color: var(--success, #2e7d52); }
@@ -1939,18 +1915,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .evs-org.is-on .evs-org-name { color: var(--brand, #3B5BA5); font-weight: 600; }
 
 .evs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.evs-chip { padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
-            font-family: inherit; border: 1px solid var(--border); background: var(--bg);
-            color: var(--text); }
-.evs-chip:hover { border-color: var(--brand, #3B5BA5); }
+/* Base shared with .sq-chip — see the shared block at the end of this file. Only the
+   selected state is particular to the events search, which is the only one that filters. */
 .evs-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5);
                   color: #fff; }
 
 .evs-count { margin: 20px 0 4px; font-size: 12px; color: var(--text-muted); }
-.evs-none { margin-top: 22px; padding: 26px 18px; text-align: center; border: 1px dashed var(--border);
-            border-radius: 14px; }
-.evs-none-t { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.evs-none p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin: 0 0 14px; }
+/* Shape shared — see the shared block at the end of this file. */
 
 
 /* ============================================================
@@ -1958,7 +1929,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    A column, like the events feed. Results are scanned top to bottom, and a full-width row of
    text on a wide screen makes the eye travel further than the content is worth.
    ============================================================ */
-#searchBody { max-width: 560px; margin-inline: auto; }
+#searchBody { max-width: var(--col-read); margin-inline: auto; }
 
 .sq-bar { display: flex; align-items: center; gap: 8px; position: relative; margin-bottom: 22px; }
 .sq-form { flex: 1; }
@@ -1978,10 +1949,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .sq-count { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 
 .sq-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.sq-chip { padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
-           font-family: inherit; border: 1px solid var(--border); background: var(--bg);
-           color: var(--text); }
-.sq-chip:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
+/* .sq-chip shares .evs-chip — see the shared block at the end of this file. */
 
 /* A recent search is one chip carrying two actions, so the × has to be part of it rather than
    a separate control beside it — otherwise forgetting a term means aiming at a target the
@@ -2005,23 +1973,79 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* One row shape for all three result types, so a search answer reads as one list rather than
    as three differently-shaped ones. */
-.sq-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
-          margin-bottom: 6px; border: 1px solid var(--border); border-radius: 12px;
-          background: var(--card, #fff); cursor: pointer; font-family: inherit; text-align: left; }
-.sq-row:hover { border-color: var(--brand, #3B5BA5); }
-.sq-thumb { width: 52px; height: 52px; border-radius: 10px; flex: none; overflow: hidden;
-            background: var(--surface-2); display: flex; align-items: center;
-            justify-content: center; color: var(--text-faint); }
-.sq-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sq-row-text { flex: 1; min-width: 0; }
-.sq-row-title { font-size: 14px; font-weight: 600; color: var(--text);
-                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sq-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px;
-              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Square, because a listing photo is not a poster. Centres its fallback icon. */
+.sq-thumb { width: 52px; height: 52px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; color: var(--text-faint); }
 .sq-row-price { flex: none; font-size: 14px; font-weight: 600; color: var(--text); }
 
-.sq-empty { margin-top: 30px; padding: 34px 20px; text-align: center;
-            border: 1px dashed var(--border); border-radius: 14px; }
-.sq-empty-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px;
-              color: var(--text); margin-bottom: 8px; }
-.sq-empty p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin: 0 0 16px; }
+/* .sq-empty shares the empty-state block at the end of this file. */
+
+
+/* ============================================================
+   SHARED SHAPES
+   Written after three near-copies of each had accumulated across the events, org, profile and
+   search surfaces. Three definitions of "a compact row" is three places for them to drift,
+   and the drift shows up as one list looking subtly wrong next to another.
+   ============================================================ */
+
+/* Two column widths, and only two, each with a reason.
+     --col-read  reading and browsing: the events feed, search results. Poster-first and
+                 row-first content is scanned top to bottom, and a wider column makes the eye
+                 travel further than the content is worth.
+     --col-work  the officer console: a form beside a list, denser, and it needs the room. */
+:root { --col-read: 560px; --col-work: 680px; }
+
+/* THE compact row. A thumbnail, a title, a subtitle, sometimes a trailing value. Used by the
+   org page's events, the profile's Going list and every search result — so those three lists
+   are the same object wherever a student meets them. Sizes that genuinely differ (a portrait
+   event poster against a square listing photo) stay with their own class. */
+.op-event, .go-row, .sq-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
+  margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card, #fff); cursor: pointer; font-family: inherit; text-align: left;
+}
+.op-event:hover, .go-row:hover, .sq-row:hover { border-color: var(--brand, #3B5BA5); }
+
+.op-event-thumb, .go-thumb, .sq-thumb {
+  border-radius: 8px; flex: none; overflow: hidden; background: var(--surface-2);
+}
+.op-event-thumb img, .go-thumb img, .sq-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+.op-event-text, .go-text, .sq-row-text { flex: 1; min-width: 0; }
+.op-event-title, .go-title, .sq-row-title {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  /* Truncated rather than wrapped. A row whose height depends on its title makes a list of
+     them ragged, and the beginning of a title is what identifies it. */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.op-event-when, .go-when { font-size: 12px; color: var(--text); margin-top: 2px; }
+.op-event-where, .go-where, .sq-row-sub {
+  font-size: 12px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sq-row-sub { margin-top: 2px; }
+
+/* One chip. The events search and the search page had identical copies. */
+.evs-chip, .sq-chip {
+  padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
+  font-family: inherit; border: 1px solid var(--border); background: var(--bg);
+  color: var(--text);
+}
+.evs-chip:hover, .sq-chip:hover { border-color: var(--brand, #3B5BA5); }
+.sq-chip:hover { color: var(--brand, #3B5BA5); }
+
+/* One empty state, three users. Each says something different; none of them should LOOK
+   different, or "nothing here" reads as a different kind of nothing on each page. */
+.ev-empty, .evs-none, .sq-empty {
+  margin-top: 26px; padding: 34px 20px; text-align: center;
+  border: 1px dashed var(--border); border-radius: 14px;
+}
+.ev-empty-title, .evs-none-t, .sq-empty-t {
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 20px;
+  color: var(--text); margin-bottom: 8px;
+}
+.ev-empty p, .evs-none p, .sq-empty p {
+  font-size: 13px; color: var(--text-muted); line-height: 1.7; margin: 0 0 16px;
+}
