@@ -76,6 +76,19 @@ that is cheaper than trying to remember.
 numbered migrations — there is no migration runner. They are the real current definitions,
 kept so they can be read, reviewed, and re-applied.
 
+## Before you trust this folder: run the drift check
+
+`2026-09-09_verify_schema_drift.sql` answers the one question a git history cannot: **has
+everything in here actually been RUN?** Three times in the week of 2026-09-07 a file was
+written, reviewed, committed and never applied — the self-removal guard, the events flag
+grant, and `'event'` in `favorites_item_type_check`. Each surfaced days later looking like a
+bug in the app, and one of them was marked DONE in `docs/ROADMAP.md` at the time.
+
+Writing SQL and running it are two separate acts and a commit is evidence of the first only.
+The file is read-only, takes one paste, and sorts anything that has drifted to the top. Run it
+after a deploy, after a session that touched the schema, and any time something behaves as
+though a rule you remember writing is not there.
+
 ## Still missing
 
 These were never captured and are needed before this folder can rebuild the database:
