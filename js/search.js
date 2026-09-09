@@ -324,9 +324,13 @@ function sqSection(label, rows, render, grid = false) {
     grid ? `<div class="sq-grid">${inner}</div>` : inner}`;
 }
 
-// The grid tile. Picture-led, because that is the whole reason to choose this view — so a tile
-// with no photo shows the category icon on a tinted ground rather than a grey hole, and the
-// title sits under the image where it can wrap to two lines instead of truncating.
+// The grid tile. Picture-led — that is the whole reason to choose this view — so the image is
+// the tile and the text sits under it rather than inside a second box.
+//
+// A KICKER above the title, not an overlay on the image. The list view carries "Books ·
+// Library" as a subtitle and the grid had dropped it, so a textbook and a desk looked
+// identical; an overlay would have said it but fought the photo and broken the alignment that
+// makes a grid read as a grid.
 function sqTileHTML(l, onclick) {
   const photo = (l.photo_urls && l.photo_urls[0]) || (l.photos && l.photos[0]) || null;
   const price = l.rent ? `$${l.rent}` : (l.category === 'donation' ? 'Free' : '');
@@ -334,22 +338,18 @@ function sqTileHTML(l, onclick) {
   return `
     <div class="sq-tile-card">
       <div class="sq-tile-img" onclick="${onclick}"${photo ? '' : ` style="background:${cat.bg};color:${cat.text}"`}>
-        ${photo ? `<img src="${escAttr(photo)}" alt="" loading="lazy">` : catIcon(l.category, 26)}
+        ${photo ? `<img src="${escAttr(photo)}" alt="" loading="lazy">`
+                : `<span class="sq-tile-glyph">${catIcon(l.category, 44)}</span>`}
+        ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'sq-tile-star')}
       </div>
-      ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'sq-tile-star')}
       <div class="sq-tile-body" onclick="${onclick}">
+        <div class="sq-tile-kicker">${esc(CATEGORY_LABELS[l.category] || l.category)}</div>
         <div class="sq-tile-title">${esc(l.title)}</div>
-        ${price ? `<div class="sq-tile-price">${esc(price)}</div>` : ''}
+        <div class="sq-tile-price">${esc(price || '—')}</div>
       </div>
     </div>`;
 }
 
-// One compact row shape for all three types. Search results are SCANNED and compared across
-// categories; the feed is where things are browsed. Full cards here would make three
-// different-looking lists out of one answer.
-// A div, not a button: it carries a star, and a button inside a button is invalid HTML that
-// browsers resolve by dropping one — usually the inner one, which is the control that matters.
-// Same correction the Going rows needed when they gained their rating stars.
 function sqRowHTML(l, onclick) {
   const photo = (l.photo_urls && l.photo_urls[0]) || (l.photos && l.photos[0]) || null;
   const price = l.rent ? `$${l.rent}` : (l.category === 'donation' ? 'Free' : '');
