@@ -1650,7 +1650,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* 4:5 portrait, the aspect the event-media bucket exists to keep consistent. */
 /* No max-height. The column above caps the width, and the ratio does the rest — a max-height
    as well would fight the ratio and letterbox the poster at some widths and not others. */
-.ev-poster { aspect-ratio: 4/5; cursor: pointer; background: var(--surface-2); }
+.ev-poster { position: relative; aspect-ratio: 4/5; background: var(--surface-2); }
+/* The tappable area is a child, so the save button sitting over it is not inside the thing
+   that opens the event — no stopPropagation needed to keep one from firing the other. */
+.ev-poster-hit { position: absolute; inset: 0; cursor: pointer; }
 .ev-poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ev-poster-made { width: 100%; height: 100%; display: flex; flex-direction: column;
                   justify-content: space-between; padding: 18px; color: #fff; }
@@ -1681,9 +1684,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The star is private and the calendar icon (registration, E3) is not. They must never look
    alike, so the star is an outline that fills — a state you set — and registration will be a
    button with words on it. */
-/* Sizing only — the shape, the colour and the filled state come from .fav-btn. */
-.ev-fav { width: 38px; height: 38px; }
-.ev-fav svg { width: 20px; height: 20px; }
+/* Overlaid on the poster, same treatment as the search grid tile: its own translucent ground
+   so it stays legible over a photograph and over a generated gradient alike. Declared after
+   .fav-btn in this file would be tidier, but !important-free overrides need only come later
+   than the rule they narrow — and .fav-btn is further down, so these carry a class weight of
+   their own via .ev-card. */
+.ev-card .ev-fav { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px;
+                   background: rgba(255,255,255,.86); backdrop-filter: blur(3px); }
+.ev-card .ev-fav svg { width: 19px; height: 19px; }
+.ev-card .ev-fav:hover { background: #fff; }
 
 .ev-past-chip { display: block; width: 100%; margin: 22px 0 12px; padding: 11px;
                 border: 1px solid var(--border); border-radius: 10px; background: var(--bg);

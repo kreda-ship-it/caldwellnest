@@ -213,6 +213,14 @@ function evCardHTML(e, past = false) {
   if (_evGoing.has(e.id)) bits.unshift('You are going');
   const seats = bits.length ? `<span class="ev-seats">${esc(bits.join(' · '))}</span>` : '';
 
+  // Built once so the row can be left out entirely when it is empty. A photo card carries its
+  // title and time here; a generated-poster card carries them on the poster and often has
+  // nothing to put in this row at all.
+  const metaText = (e.poster_url
+    ? `<div class="ev-title">${esc(e.title)}</div>
+       <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>`
+    : '') + seats;
+
   return `
     <article class="ev-card${past ? ' is-past' : ''}">
       <button class="ev-org" onclick="event.stopPropagation();orgPageOpen(${e.org_id})">
@@ -223,17 +231,20 @@ function evCardHTML(e, past = false) {
         ${org?.is_verified ? '<span class="ev-verified" title="Verified organization">&#10003;</span>' : ''}
       </button>
 
-      <div class="ev-poster" onclick="evOpen(${e.id})">${poster}</div>
-
-      <div class="ev-meta">
-        <div class="ev-meta-text" onclick="evOpen(${e.id})">
-          ${e.poster_url ? `
-            <div class="ev-title">${esc(e.title)}</div>
-            <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>` : ''}
-          ${seats}
-        </div>
+      <div class="ev-poster">
+        <div class="ev-poster-hit" onclick="evOpen(${e.id})">${poster}</div>
+        <!-- ON the poster, like the search grid tile, and for a reason that only appeared
+             after the generated poster started carrying the title and the time: on a card
+             with no photo the row below has nothing left in it, so the bookmark sat alone in
+             an empty strip looking like something that had come loose. A save control belongs
+             on the thing it saves. -->
         ${favButtonHTML('event', e.id, 'ev-fav')}
       </div>
+
+      ${metaText ? `
+        <div class="ev-meta">
+          <div class="ev-meta-text" onclick="evOpen(${e.id})">${metaText}</div>
+        </div>` : ''}
     </article>`;
 }
 
