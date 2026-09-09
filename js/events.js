@@ -232,7 +232,7 @@ function evCardHTML(e, past = false) {
             <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>` : ''}
           ${seats}
         </div>
-        ${favStarHTML('event', e.id, 'ev-star')}
+        ${favButtonHTML('event', e.id, 'ev-fav')}
       </div>
     </article>`;
 }

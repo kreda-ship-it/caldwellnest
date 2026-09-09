@@ -1681,9 +1681,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The star is private and the calendar icon (registration, E3) is not. They must never look
    alike, so the star is an outline that fills — a state you set — and registration will be a
    button with words on it. */
-/* Sizing only — the shape, the colour and the filled state come from .fav-star. */
-.ev-star { width: 38px; height: 38px; }
-.ev-star svg { width: 20px; height: 20px; }
+/* Sizing only — the shape, the colour and the filled state come from .fav-btn. */
+.ev-fav { width: 38px; height: 38px; }
+.ev-fav svg { width: 20px; height: 20px; }
 
 .ev-past-chip { display: block; width: 100%; margin: 22px 0 12px; padding: 11px;
                 border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
@@ -2061,26 +2061,29 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 
 /* ---------- Save ---------- */
-/* One control for listings, books and events. Outline until saved, filled after — the shape
-   carries the state, so nothing here depends on colour alone.
+/* One control for listings, books and events, and the same mark on the profile's Saved tab.
+   Outline until saved, filled after — the shape carries the state, so nothing depends on
+   colour alone.
    The BUTTON stays 34px because that is a thumb; the ICON inside is 18px. Separating the two
    is what lets the target be big while the mark stays quiet — the old star was one 19px glyph
-   doing both jobs and doing the second one loudly. */
-.fav-star { width: 34px; height: 34px; flex: none; border: 0; background: none;
+   doing both jobs and doing the second one loudly.
+   Brand rather than red: red belongs to a heart and to destructive actions, and this is
+   neither. Amber is spoken for by the rating stars. */
+.fav-btn { width: 34px; height: 34px; flex: none; border: 0; background: none;
             cursor: pointer; padding: 0; border-radius: 50%;
             display: inline-flex; align-items: center; justify-content: center;
             color: var(--text-faint); transition: color .14s ease, transform .14s ease; }
-.fav-star svg { width: 18px; height: 18px; display: block; }
-.fav-star:hover { color: var(--danger, #c0392b); }
-.fav-star.is-on { color: var(--danger, #c0392b); }
+.fav-btn svg { width: 18px; height: 18px; display: block; }
+.fav-btn:hover { color: var(--brand, #3B5BA5); }
+.fav-btn.is-on { color: var(--brand, #3B5BA5); }
 /* A small kick on the tap that sets it. It fires on the class change, so it happens on the
    optimistic paint — the moment the student pressed, not when the network agrees. */
-.fav-star.is-on svg { animation: fav-pop .22s ease; }
+.fav-btn.is-on svg { animation: fav-pop .22s ease; }
 @keyframes fav-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
 /* On a listing card it sits in the footer beside the price, so it is pushed to the right of
    the price and left of the message button. */
-.lc-star { margin-left: auto; }
-.lc-foot .fav-star + * { margin-left: 6px; }
+.lc-fav { margin-left: auto; }
+.lc-foot .fav-btn + * { margin-left: 6px; }
 
 
 /* ---------- A doorway icon in a page header ---------- */
@@ -2132,12 +2135,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    like an image that failed to load. */
 .sq-tile-glyph { opacity: .3; display: flex; }
 
-/* Smaller here than elsewhere: .fav-star is 36px, which on a 175px tile is a fifth of its
+/* Smaller here than elsewhere: .fav-btn is 36px, which on a 175px tile is a fifth of its
    width wearing a white disc. */
-.sq-tile-star { position: absolute; top: 5px; right: 5px; width: 28px; height: 28px;
+.sq-tile-fav { position: absolute; top: 5px; right: 5px; width: 28px; height: 28px;
                 background: rgba(255,255,255,.82); backdrop-filter: blur(3px); }
-.sq-tile-star svg { width: 15px; height: 15px; }
-.sq-tile-star:hover { background: #fff; }
+.sq-tile-fav svg { width: 15px; height: 15px; }
+.sq-tile-fav:hover { background: #fff; }
 
 .sq-tile-body { padding: 9px 2px 0; }
 /* What the thing IS, above what it is called. The list view carries this as a subtitle and

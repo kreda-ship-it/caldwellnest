@@ -896,7 +896,7 @@ function listingCardHTML(l, isPinned) {
         <!-- The star sits with the price and the message button, not floating on the photo.
              A control over an image is invisible on a light photo and unreadable on a busy
              one, and this card already has a report flag up there. -->
-        ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'lc-star')}
+        ${favButtonHTML(l.isBook ? 'book' : 'listing', l.id, 'lc-fav')}
         ${messageBtn}
       </div>
     </div>

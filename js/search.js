@@ -340,7 +340,7 @@ function sqTileHTML(l, onclick) {
       <div class="sq-tile-img" onclick="${onclick}"${photo ? '' : ` style="background:${cat.bg};color:${cat.text}"`}>
         ${photo ? `<img src="${escAttr(photo)}" alt="" loading="lazy">`
                 : `<span class="sq-tile-glyph">${catIcon(l.category, 44)}</span>`}
-        ${favStarHTML(l.isBook ? 'book' : 'listing', l.id, 'sq-tile-star')}
+        ${favButtonHTML(l.isBook ? 'book' : 'listing', l.id, 'sq-tile-fav')}
       </div>
       <div class="sq-tile-body" onclick="${onclick}">
         <div class="sq-tile-kicker">${esc(CATEGORY_LABELS[l.category] || l.category)}</div>
@@ -363,7 +363,7 @@ function sqRowHTML(l, onclick) {
         <div class="sq-row-sub">${esc([CATEGORY_LABELS[l.category] || l.category, l.location].filter(Boolean).join(' · '))}</div>
       </div>
       ${price ? `<div class="sq-row-price">${esc(price)}</div>` : ''}
-      ${favStarHTML(l.isBook ? 'book' : 'listing', l.id)}
+      ${favButtonHTML(l.isBook ? 'book' : 'listing', l.id)}
     </div>`;
 }
 
@@ -380,6 +380,6 @@ function sqEventRowHTML(e) {
         <div class="sq-row-title">${esc(e.title)}</div>
         <div class="sq-row-sub">${esc([org?.name, when, e.location].filter(Boolean).join(' · '))}</div>
       </div>
-      ${favStarHTML('event', e.id)}
+      ${favButtonHTML('event', e.id)}
     </div>`;
 }

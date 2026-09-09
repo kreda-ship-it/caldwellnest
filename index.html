@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-09i">
+<link rel="stylesheet" href="styles.css?v=2026-09-09j">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -380,8 +380,11 @@
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <span>Listings</span>
           </button>
+          <!-- The SAME mark the save control uses. It was a star here while the control was a
+               heart and then a bookmark, so one feature wore three symbols — the tab a student
+               taps and the button they tapped to fill it have to be the same thing. -->
           <button class="pf-tab" data-pftab="saved" role="tab" onclick="profileTab('saved')">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9 16.5 13.5 18.5 21 12 16.8 5.5 21 7.5 13.5 2 9 9 9"/></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             <span>Saved</span>
           </button>
           <button class="pf-tab" data-pftab="going" role="tab" onclick="profileTab('going')">
@@ -1720,18 +1723,18 @@
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
 <script src="js/config.js?v=2026-09-06b"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
-<script src="js/favorites.js?v=2026-09-09e"></script>
+<script src="js/favorites.js?v=2026-09-09f"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-09a"></script>
 <script src="js/profile.js?v=2026-09-09c"></script>
-<script src="js/listings.js?v=2026-09-09c"></script>
+<script src="js/listings.js?v=2026-09-09d"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-06b"></script>
 <script src="js/admin.js?v=2026-09-06b"></script>
 <script src="js/orgs.js?v=2026-09-08b"></script>
-<script src="js/events.js?v=2026-09-09c"></script>
-<script src="js/search.js?v=2026-09-09e"></script>
+<script src="js/events.js?v=2026-09-09d"></script>
+<script src="js/search.js?v=2026-09-09f"></script>
 <script src="js/orgdir.js?v=2026-09-08c"></script>
 <script src="js/boot.js?v=2026-09-09a"></script>
 

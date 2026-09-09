@@ -83,25 +83,36 @@ function favPaint(type, id) {
   });
 }
 
-// A HEART, drawn as an SVG, and both halves of that are deliberate.
+// A BOOKMARK, and the argument is the word on the tab.
 //
-// SVG because every other icon in this app is one, at stroke-width 2. The star was a text
-// glyph (&#9733;), which is why it sat heavier than everything around it and rendered
-// differently on each platform — it was never part of the icon language, it was a character
-// that happened to look like an icon.
+// The feature is called SAVED. A heart says "I like this" and a star says "this is a
+// favourite"; a bookmark says "keep this, I am coming back to it", which is exactly what a
+// student is doing when they tap it on a desk they might buy. The icon should match the noun
+// the app already uses, and the app has never called this Likes or Favourites.
 //
-// A heart because a star already means something else here. Event ratings ARE stars, and a
-// saved star beside a rating star is two different actions wearing one symbol. Saving is a
-// heart, rating is stars, and neither has to be explained.
+// It is also not the heart every other app reaches for, which was the second thing wrong with
+// the heart: it is the correct-looking answer rather than the correct one.
 //
-// Filled when on, outline when off: the fill IS the state, so nothing depends on colour alone.
-// event.stopPropagation keeps the tap off the card underneath, which is always a link to the
-// thing being saved.
-function favStarHTML(type, id, extraClass = '') {
+// SVG at stroke-width 2, like every other icon here. The original star was the text glyph
+// &#9733;, which is why it sat heavier than everything around it — it was a character that
+// happened to look like an icon, not part of the icon set. And a star meant something else on
+// this page anyway: event ratings ARE stars, so saving needed a different mark or the two
+// actions shared one symbol.
+//
+// Filled when saved, outline when not, so the SHAPE carries the state and nothing depends on
+// colour alone. event.stopPropagation keeps the tap off the card underneath, which is always
+// a link to the thing being saved.
+function favButtonHTML(type, id, extraClass = '') {
   const on = isFav(type, id);
-  return `<button class="fav-star${on ? ' is-on' : ''} ${extraClass}" data-fav="${favKey(type, id)}"
+  return `<button class="fav-btn${on ? ' is-on' : ''} ${extraClass}" data-fav="${favKey(type, id)}"
     aria-pressed="${on}" aria-label="${on ? 'Saved' : 'Save'}"
-    onclick="event.stopPropagation();toggleFav('${type}', '${id}', this)"><svg viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1L12 21l7.7-7.6 1.1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>`;
+    onclick="event.stopPropagation();toggleFav('${type}', '${id}', this)">${favIconSVG(on)}</button>`;
+}
+
+// One definition of the mark, so the button and the profile's Saved tab cannot drift into two
+// different symbols for one feature — which is exactly what had happened.
+function favIconSVG(filled) {
+  return `<svg viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 }
 
 
