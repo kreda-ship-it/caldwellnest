@@ -96,6 +96,12 @@ function catIcon(category, size = 18) { return icon(CATEGORY_ICON[category] || '
 const BROWSE_CATEGORIES = ['housing', 'clothing', 'technology', 'donation', 'books', 'other'];
 
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
+// Short forms, for the one place where width is the binding constraint: the Marketplace's
+// single scrolling pill row. CATEGORY_LABELS stays the real vocabulary and is what filter
+// tags, card badges and the post flow say — a pill that has to fit six siblings on a 390px
+// screen is the exception, not a second opinion about what a category is called.
+const CATEGORY_SHORT = { technology:'Tech', donation:'Free', organization_event:'Events' };
+const catShort = c => CATEGORY_SHORT[c] || CATEGORY_LABELS[c] || c;
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
 //

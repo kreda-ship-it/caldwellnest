@@ -132,10 +132,8 @@ function restoreListingFilters() {
   // yesterday. Filters are a preference and are shared; a query is a question asked once.
   _filters.keyword = '';
 
-  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
-  const chip = [...document.querySelectorAll('#sCategoryChips .cat-tab')]
-    .find(b => b.getAttribute('onclick')?.includes(`'${_filters.category}'`));
-  if (chip) chip.classList.add('active');
+  document.querySelectorAll('#sCategoryChips .cat-pill').forEach(c =>
+    c.classList.toggle('active', c.dataset.cat === (_filters.category || 'all')));
   renderDeepFilters();
 }
 
@@ -146,20 +144,25 @@ function renderCategoryChips() {
   const wrap = document.getElementById('sCategoryChips');
   if (!wrap) return;
   if (!wrap.children.length) {
-    wrap.innerHTML = [['all', 'All'], ...BROWSE_CATEGORIES.map(c => [c, CATEGORY_LABELS[c] || c])]
-      .map(([v, label]) => `<button class="cat-tab" data-cat="${v}" onclick="setListingCat('${v}',this)">${esc(label)}</button>`)
+    // "All" carries no icon on purpose — it is not a category, it is the absence of one, and
+    // giving it a glyph would make it look like a seventh thing to choose between.
+    wrap.innerHTML = [['all', 'All'], ...BROWSE_CATEGORIES.map(c => [c, catShort(c)])]
+      .map(([v, label]) => `<button class="cat-pill" data-cat="${v}" onclick="setListingCat('${v}',this)">` +
+        (v === 'all' ? '' : catIcon(v, 14)) + `<span>${esc(label)}</span></button>`)
       .join('');
   }
   const active = _filters.category || 'all';
-  wrap.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === active));
+  wrap.querySelectorAll('.cat-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === active));
+  // Bring the selected pill into view. Restoring a saved category would otherwise leave the
+  // highlight somewhere off the right edge, on a row whose scroll position starts at zero.
+  wrap.querySelector('.cat-pill.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function setListingCat(cat, el) {
   _filters.category = cat;
   _filters.details = {};  // clear category-specific filters on category switch
-  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
-  else { const t = [...document.querySelectorAll('#sCategoryChips .cat-tab')].find(b => b.getAttribute('onclick')?.includes(`'${cat}'`)); if (t) t.classList.add('active'); }
+  // The highlight is not set here. renderListings() below calls renderCategoryChips(), which
+  // derives it from _filters.category — one place that decides, instead of four that guess.
   renderDeepFilters();
   renderListings();
 }
@@ -170,9 +173,6 @@ function onListingSearch(val) {
 function clearListingCat() {
   _filters.category = 'all';
   _filters.details = {};
-  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#sCategoryChips .cat-tab');
-  if (allChip) allChip.classList.add('active');
   renderDeepFilters();
   renderListings();
 }
@@ -184,9 +184,6 @@ function clearListingKeyword() {
 function clearListingFilters() {
   _filters.category = 'all'; _filters.keyword = ''; _filters.schoolScope = '25mi'; _filters.sort = 'newest';
   const el = document.getElementById('listingSearch'); if (el) el.value = '';
-  document.querySelectorAll('#sCategoryChips .cat-tab').forEach(c => c.classList.remove('active'));
-  const allChip = document.querySelector('#sCategoryChips .cat-tab');
-  if (allChip) allChip.classList.add('active');
   clearDeepFilters(false);
   renderDeepFilters();
   renderListings();

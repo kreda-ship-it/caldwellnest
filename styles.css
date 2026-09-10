@@ -276,6 +276,44 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
    the same room and only costs height. It earns its place on desktop, where there is no tab bar. */
 .mk-post{flex:none;}
 
+/* ------------------------------------------------------------------ CATEGORY PILL ROW
+   One compact row that scrolls sideways, per the approved mockup. Deliberately NOT the
+   .cat-tab underline style: those classes are the club directory's filter row, and
+   restyling them here would repaint a page this change has no business touching.
+
+   Each pill names its own two colours through --pill-bg / --pill-fg, so the shared rules
+   below stay at three, and selecting a pill just swaps which of its two colours is the
+   background. The values come from the --cat-* tokens, which are the single source of
+   truth for category colour — CATEGORY_COLORS in config.js only names these variables. */
+/* No negative margin bleeding this row to the screen edge. .page-wrap's side padding
+   changes across breakpoints, so a fixed pull would either fall short or push the row
+   wider than the viewport — and a page that scrolls sideways is a worse outcome than a
+   row that starts where the rest of the content starts. */
+.cat-row-wrap{position:relative;margin-bottom:var(--sp-4);}
+.cat-row{display:flex;gap:var(--sp-2);overflow-x:auto;scrollbar-width:none;padding:2px 0;}
+.cat-row::-webkit-scrollbar{display:none;}
+/* Sits over the right edge so the row looks cut off rather than finished. pointer-events
+   none, or it would swallow taps on the pill underneath it. */
+.cat-row-wrap::after{content:'';position:absolute;top:0;right:0;width:32px;height:100%;
+  pointer-events:none;background:linear-gradient(90deg,transparent,var(--bg) 78%);}
+
+.cat-pill{flex:none;height:34px;padding:0 13px;border-radius:var(--radius-pill);border:none;
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;
+  font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;
+  background:var(--pill-bg);color:var(--pill-fg);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);}
+.cat-pill.active{background:var(--pill-fg);color:#fff;}
+.cat-pill:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+
+.cat-pill[data-cat="all"]{--pill-bg:var(--bg-alt);--pill-fg:var(--text-muted);padding:0 15px;}
+.cat-pill[data-cat="all"].active{--pill-fg:var(--brand);}
+.cat-pill[data-cat="housing"]{--pill-bg:var(--cat-housing-bg);--pill-fg:var(--cat-housing-text);}
+.cat-pill[data-cat="clothing"]{--pill-bg:var(--cat-clothing-bg);--pill-fg:var(--cat-clothing-text);}
+.cat-pill[data-cat="technology"]{--pill-bg:var(--cat-technology-bg);--pill-fg:var(--cat-technology-text);}
+.cat-pill[data-cat="donation"]{--pill-bg:var(--cat-donation-bg);--pill-fg:var(--cat-donation-text);}
+.cat-pill[data-cat="books"]{--pill-bg:var(--cat-books-bg);--pill-fg:var(--cat-books-text);}
+.cat-pill[data-cat="other"]{--pill-bg:var(--cat-other-bg);--pill-fg:var(--cat-other-text);}
+
 .cat-tabs{display:flex;gap:22px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
 .cat-tabs::-webkit-scrollbar{display:none;}
 .cat-tab{background:none;border:none;border-bottom:2px solid transparent;padding:0 0 10px;margin-bottom:-1px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10j">
+<link rel="stylesheet" href="styles.css?v=2026-09-10k">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -309,7 +309,11 @@
       <!-- Filled by renderCategoryChips() from BROWSE_CATEGORIES. Written out by hand it
            was eight buttons duplicated on two pages, and Events was in both — a
            destination wearing a filter's clothes. -->
-      <div class="cat-tabs" id="sCategoryChips"></div>
+      <!-- The row scrolls sideways; the wrapper exists only to hang the fade on, so the last
+           pill looks cut off rather than finished and the row reads as having more in it. -->
+      <div class="cat-row-wrap">
+        <div class="cat-row" id="sCategoryChips"></div>
+      </div>
       <!-- Books merged into the main grid 2026-07-10 — book filters live in the Filters drawer now -->
       <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
@@ -1722,13 +1726,13 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-10f"></script>
+<script src="js/config.js?v=2026-09-10g"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
 <script src="js/favorites.js?v=2026-09-09g"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-10e"></script>
 <script src="js/profile.js?v=2026-09-10e"></script>
-<script src="js/listings.js?v=2026-09-10f"></script>
+<script src="js/listings.js?v=2026-09-10g"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-10b"></script>
