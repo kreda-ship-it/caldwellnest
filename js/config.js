@@ -21,74 +21,70 @@ const TERMS_VERSION = '2026-09-01';
 const CONSENT_LOGGING_SINCE = '2026-09-01';
 
 const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
-// Icons for the same seven categories, as SVG path data. Kept beside the labels
-// and colours because the category vocabulary belongs in one place.
+// ---- THE ICON SET ---------------------------------------------------------
+// One registry for the whole app. Values are the SVG children of a 24x24
+// viewBox, so an icon can use <circle>, <rect> or <polyline> and not only
+// <path>. icon() supplies the wrapper.
 //
-// These are DISPLAY only. The `emoji` column on listings still exists and is
-// still written on insert — it is simply no longer what the admin dashboard
-// draws, because an emoji cannot inherit a colour or a stroke weight, and
-// renders differently on every operating system.
-const CATEGORY_ICON_PATH = {
-  housing:            'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z|M9 21v-7h6v7',
-  clothing:           'M8.4 3 4.5 5.4V10h3v11h9V10h3V5.4L15.6 3a3.7 3.7 0 0 1-7.2 0z',
-  technology:         'M2.5 4.5h19v12h-19z|M8.5 21h7|M12 16.5V21',
-  donation:           'M3 9h18v3.5H3z|M4.6 12.5V21h14.8v-8.5|M12 9v12',
-  organization_event: 'M3 4.5h18v17H3z|M3 10h18|M8 2v4|M16 2v4',
-  other:              'M20.6 13.4 12 4.8H4.8V12l8.6 8.6a1.5 1.5 0 0 0 2.1 0l5.1-5.1a1.5 1.5 0 0 0 0-2.1z|M8.4 8.4h.01',
-  books:              'M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z|M5 17.5h14'
+// This used to live in two places: ico() in listings.js and a second set here.
+// Two registries meant an icon could be changed in one and stay stale in the
+// other, which is the exact drift the category colours were consolidated to
+// stop. There is one now.
+const ICON = {
+  alert:        '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4.5"/><path d="M12 17h.01"/>',
+  bell:         '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  book:         '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  calendar:     '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  check:        '<path d="M20 6 9 17l-5-5"/>',
+  checkDouble:  '<path d="M1.5 12.5 5 16l7.5-8.5"/><path d="M11 12.5l3.5 3.5L22 7.5"/>',
+  chevDown:     '<path d="M6 9l6 6 6-6"/>',
+  chevRight:    '<path d="M9 6l6 6-6 6"/>',
+  clock:        '<path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M12 7v5l3 2"/>',
+  dot:          '<path d="M12 12h.01"/>',
+  down:         '<path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/>',
+  flag:         '<path d="M4 22V4h9l1 2h6v10h-7l-1-2H4"/>',
+  gift:         '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+  grid:         '<path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/><path d="M14 14h7v7h-7z"/>',
+  home:         '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  image:        '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  inbox:        '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  list:         '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h11"/><path d="M3.5 6h.01"/><path d="M3.5 12h.01"/><path d="M3.5 18h.01"/>',
+  lock:         '<path d="M4 10.5h16v10.5H4z"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
+  mapPin:       '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>',
+  message:      '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  monitor:      '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  note:         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
+  pencil:       '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/>',
+  pin:          '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  play:         '<path d="M7 4.5v15l12-7.5z"/>',
+  school:       '<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/>',
+  search:       '<circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/>',
+  send:         '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/>',
+  shirt:        '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+  star:         '<path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/>',
+  starFill:     '<path d="M12 2.6l2.8 6 6.4.8-4.7 4.5 1.2 6.5L12 17.2 6.3 20.4l1.2-6.5L2.8 9.4l6.4-.8z"/>',
+  tag:          '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><circle cx="7" cy="7" r="1"/>',
+  up:           '<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>',
+  user:         '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/>',
+  x:            '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>'
 };
 
-// The one icon set the whole app draws from. Path data only — icon() wraps it.
-// Same 24px grid and stroke weight as the SVGs written directly into index.html,
-// so a generated icon and a hand-written one are the same drawing.
-const ICON_PATH = {
-  check:     'M20 6 9 17l-5-5',
-  x:         'M6 6l12 12|M18 6 6 18',
-  pencil:    'M12 19l7-7 3 3-7 7-3-3z|M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z',
-  star:      'M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z',
-  lock:      'M4 10.5h16v10.5H4z|M8 10.5V7a4 4 0 0 1 8 0v3.5',
-  mapPin:    'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z|M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
-  note:      'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h5',
-  user:      'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2|M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
-  book:      'M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z|M5 17.5h14',
-  grid:      'M3 3h7v7H3z|M14 3h7v7h-7z|M3 14h7v7H3z|M14 14h7v7h-7z',
-  list:      'M8 6h13|M8 12h13|M8 18h11|M3.5 6h.01|M3.5 12h.01|M3.5 18h.01',
-  up:        'M12 19V5|M5 12l7-7 7 7',
-  down:      'M12 5v14|M19 12l-7 7-7-7',
-  chevDown:  'M6 9l6 6 6-6',
-  chevRight: 'M9 6l6 6-6 6',
-  inbox:     'M22 12h-6l-2 3h-4l-2-3H2|M5.5 5.5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z',
-  flag:      'M4 22V4h9l1 2h6v10h-7l-1-2H4',
-  search:    'M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0z|M20 20l-3.4-3.4',
-  send:      'M21 3 10.5 13.5|M21 3l-6.5 18-4-7.5L3 9.5z',
-  dot:       'M12 12h.01',
-  clock:     'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z|M12 7v5l3 2',
-  alert:     'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z|M12 9v4.5|M12 17h.01',
-  // A second tick offset behind the first — the read receipt everyone already knows.
-  checkDouble: 'M1.5 12.5 5 16l7.5-8.5|M11 12.5l3.5 3.5L22 7.5',
-  play:      'M7 4.5v15l12-7.5z',
-  starFill:  'M12 2.6l2.8 6 6.4.8-4.7 4.5 1.2 6.5L12 17.2 6.3 20.4l1.2-6.5L2.8 9.4l6.4-.8z'
+// size defaults to 16 — the old ico() default, so existing callers are unchanged.
+function icon(name, size = 16, filled = false) {
+  const g = ICON[name];
+  if (!g) return '';
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+         `fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" ` +
+         `stroke-linecap="round" stroke-linejoin="round">${g}</svg>`;
+}
+
+// Which icon stands for a listing category. Kept beside CATEGORY_LABELS and the
+// colour tokens so the category vocabulary stays in one place.
+const CATEGORY_ICON = {
+  housing:'home', clothing:'shirt', technology:'monitor', donation:'gift',
+  organization_event:'calendar', books:'book', other:'tag'
 };
-
-// Wraps a registry entry as an inline SVG string. Unknown names return '' so a
-// typo leaves a gap rather than an error inside a template literal.
-function icon(name, size = 14, filled = false) {
-  const d = ICON_PATH[name];
-  if (!d) return '';
-  const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
-  const fill = filled ? 'currentColor' : 'none';
-  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" ` +
-         `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
-}
-
-// Returns an inline SVG string for a category. Falls back to `other` so an
-// unknown category still draws something rather than an empty box.
-function categoryIcon(cat, size = 16) {
-  const d = CATEGORY_ICON_PATH[cat] || CATEGORY_ICON_PATH.other;
-  const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
-  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
-         `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
-}
+function catIcon(category, size = 18) { return icon(CATEGORY_ICON[category] || 'tag', size); }
 
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).

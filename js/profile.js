@@ -42,7 +42,7 @@ function filterSchools(query) {
     dropdown.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--text-muted);">No schools found</div>`;
   } else {
     dropdown.innerHTML = matches.map(s =>
-      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${ico('school', 13)} ${esc(s.name)}</div>`
+      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${icon('school', 13)} ${esc(s.name)}</div>`
     ).join('');
   }
   dropdown.style.display = 'block';

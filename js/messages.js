@@ -285,7 +285,7 @@ async function renderConvos() {
 
   if (!msgs || msgs.length === 0) {
     document.getElementById('convoList').innerHTML = `<div class="empty-state">
-      <div class="empty-state-icon">${ico('message', 34)}</div>
+      <div class="empty-state-icon">${icon('message', 34)}</div>
       <div class="empty-state-title">No conversations yet</div>
       <div class="empty-state-sub">Message someone about a listing and<br>the thread will show up here.</div>
       <button class="empty-state-btn" onclick="showPage('listings')">Browse listings</button>
