@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10i">
+<link rel="stylesheet" href="styles.css?v=2026-09-10j">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -278,18 +278,33 @@
 
   <div id="page-listings" class="page">
     <div class="page-wrap">
-      <div class="page-header">
-        <div><h1 class="page-title" id="listingsTitle">Housing listings</h1><p style="color:var(--text-muted);font-size:13px;margin-top:4px;" id="listingsSub">Caldwell University students only</p></div>
-        <!-- An icon, beside the action it belongs with. Search is its own page and owns the
-             query, the entry state and the filters, so this is a doorway rather than a
-             control — and a doorway does not need a full row. Removing that row gives the
-             category tabs and the first cards a screenful more space on a phone. -->
-        <div class="page-header-actions">
-          <button class="hdr-icon-btn" onclick="goSearch()" aria-label="Search" title="Search">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
-          </button>
-          <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
-        </div>
+      <!-- The title and subtitle are admin-editable (Site Editor -> Content), so they keep
+           their ids and data.js keeps writing into them. -->
+      <div class="mk-head">
+        <h1 class="mk-title" id="listingsTitle">Marketplace</h1>
+        <p class="mk-sub" id="listingsSub">Find what you need, right on campus.</p>
+      </div>
+      <!-- Search is a doorway, not a control: it opens the Search page, which owns the query,
+           the history and the results. It looks like an input and behaves like a button, so it
+           is a button with the right role rather than a real input that would summon a keyboard
+           and then navigate away from it.
+
+           The filter square beside it was missing entirely until now. The drawer it opens has
+           always existed — price, room type, condition, book type, course, school scope, sort —
+           but the only button that opened it was rendered by search.js onto the Search page, so
+           from the Marketplace none of it was reachable. Its badge needs an id of its own:
+           both pages sit in the DOM at the same time, so reusing filtersBtnCount would leave
+           getElementById returning whichever came first in the document. -->
+      <div class="mk-tools">
+        <button class="mk-search" onclick="goSearch()" aria-label="Search the marketplace">
+          <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+          <span class="mk-search-ph">Search rooms, books, free stuff&hellip;</span>
+        </button>
+        <button class="mk-filter" id="mkFiltersBtn" onclick="openFilterDrawer(this)" aria-haspopup="dialog" aria-label="Filters">
+          <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.6" fill="var(--surface)"/><circle cx="16" cy="17" r="2.6" fill="var(--surface)"/></svg>
+          <span class="mk-filter-count" id="mkFilterCount" style="display:none"></span>
+        </button>
+        <button class="btn-sm-s btn-green mk-post" onclick="requireAuth('postListing')">+ Post a listing</button>
       </div>
       <!-- Filled by renderCategoryChips() from BROWSE_CATEGORIES. Written out by hand it
            was eight buttons duplicated on two pages, and Events was in both — a
@@ -719,8 +734,8 @@
                 <div class="ced-item"><div class="ced-label">Hero subtext</div><textarea class="form-textarea" id="txtSub" rows="2" oninput="liveContent()" style="font-size:12px;">Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.</textarea></div>
                 <div class="ced-item"><div class="ced-label">CTA button</div><input class="ced-input" id="txtCta" value="Get started free" oninput="liveContent()"></div>
                 <div class="es-title">Listings page</div>
-                <div class="ced-item"><div class="ced-label">Page title</div><input class="ced-input" id="txtLT" value="Housing listings" oninput="liveContent()"></div>
-                <div class="ced-item"><div class="ced-label">Page subtitle</div><input class="ced-input" id="txtLS" value="Caldwell University students only" oninput="liveContent()"></div>
+                <div class="ced-item"><div class="ced-label">Page title</div><input class="ced-input" id="txtLT" value="Marketplace" oninput="liveContent()"></div>
+                <div class="ced-item"><div class="ced-label">Page subtitle</div><input class="ced-input" id="txtLS" value="Find what you need, right on campus." oninput="liveContent()"></div>
                 <button class="apply-btn-e" onclick="applyContent()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Apply content</button>
               </div>
               <div class="ed-body" id="edLayout" style="display:none">
@@ -1707,20 +1722,20 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-10g"></script>
+<script src="js/config.js?v=2026-09-10f"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
 <script src="js/favorites.js?v=2026-09-09g"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-10e"></script>
 <script src="js/profile.js?v=2026-09-10e"></script>
-<script src="js/listings.js?v=2026-09-10e"></script>
+<script src="js/listings.js?v=2026-09-10f"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-10b"></script>
 <script src="js/admin.js?v=2026-09-10e"></script>
 <script src="js/orgs.js?v=2026-09-10e"></script>
 <script src="js/events.js?v=2026-09-10e"></script>
-<script src="js/search.js?v=2026-09-09f"></script>
+<script src="js/search.js?v=2026-09-10f"></script>
 <script src="js/orgdir.js?v=2026-09-10a"></script>
 <script src="js/feed.js?v=2026-09-10a"></script>
   <script src="js/boot.js?v=2026-09-10e"></script>

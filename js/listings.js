@@ -261,14 +261,23 @@ let _drawerTouchStartY = 0;
 
 function _drawerEscHandler(e) { if (e.key === 'Escape') closeFilterDrawer(); }
 
-function openFilterDrawer() {
+// Which button opened the drawer, so closing can hand focus back to it. Two buttons now
+// open this one drawer — the Marketplace's own and the one search.js renders onto the Search
+// page — and they are never both on screen. Sending focus to a fixed id would drop it onto an
+// element inside a hidden page for whichever route did not match.
+let _drawerOpener = null;
+
+function openFilterDrawer(openerEl) {
   renderDeepFilters();
   const drawer   = document.getElementById('filterDrawer');
   const backdrop = document.getElementById('filterDrawerBackdrop');
   if (!drawer) return;
+  // The event's own target when available; the Search button by name otherwise, which keeps
+  // the old programmatic callers behaving exactly as before.
+  _drawerOpener = openerEl || (typeof event !== 'undefined' && event?.currentTarget) || document.getElementById('filtersBtn');
   backdrop.classList.add('open');
   drawer.classList.add('open');
-  document.getElementById('filtersBtn')?.classList.add('open');
+  _drawerOpener?.classList.add('open');
   document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', _drawerEscHandler);
   document.querySelector('.filter-drawer-close')?.focus();
@@ -295,10 +304,13 @@ function closeFilterDrawer() {
   if (!drawer) return;
   drawer.classList.remove('open');
   backdrop.classList.remove('open');
-  document.getElementById('filtersBtn')?.classList.remove('open');
+  _drawerOpener?.classList.remove('open');
   document.body.style.overflow = '';
   document.removeEventListener('keydown', _drawerEscHandler);
-  document.getElementById('filtersBtn')?.focus();
+  // Only if it is still on screen. A button on a page that has since been hidden cannot take
+  // focus, and asking it to would leave focus on <body> with no visible ring at all.
+  if (_drawerOpener?.offsetParent) _drawerOpener.focus();
+  _drawerOpener = null;
 }
 
 function toggleDFSection(id) {
@@ -693,11 +705,16 @@ function renderListings() {
     ((_filters.minPrice !== null || _filters.maxPrice !== null) ? 1 : 0) +
     Object.keys(_filters.details).length +
     ((_filters.sort && _filters.sort !== 'newest') ? 1 : 0);
-  const badge = document.getElementById('filtersBtnCount');
-  if (badge) {
+  // Two buttons open the same drawer over the same _filters object — search.js renders one
+  // onto the Search page, index.html carries the other on the Marketplace — so both badges are
+  // set here. They need separate ids because both pages sit in the DOM at once, and
+  // getElementById would otherwise always answer with whichever is higher in the document.
+  ['filtersBtnCount', 'mkFilterCount'].forEach(id => {
+    const badge = document.getElementById(id);
+    if (!badge) return;
     badge.textContent = panelCount;
     badge.style.display = panelCount ? 'inline-flex' : 'none';
-  }
+  });
 
   // Pinned strip — only when no filters active
   const noFilters = _filters.category === 'all' && !_filters.keyword && _filters.minPrice === null && _filters.maxPrice === null && !Object.keys(_filters.details).length;

@@ -238,6 +238,44 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .active-filter-tag button{background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;line-height:1;padding:0;font-weight:600;font-family:inherit;}
 .active-filter-tag button:hover{color:var(--danger);}
 /* Category tab strip — typographic, underline on selected (no emoji, no fill) */
+/* ---------------------------------------------------------------- MARKETPLACE MASTHEAD
+   The title is a serif display face because it is the one line on the page that is not a
+   control — everything under it is something to tap. Sizes come from the Phase 0 scale so
+   this heading is the same size as every other page's heading.
+
+   .mk-search is a <button> that looks like an input, and that is deliberate. Tapping it
+   opens the Search page, which owns the query, the recent-search history and the results.
+   A real <input> here would raise the keyboard and then navigate out from under it. */
+.mk-head{margin-bottom:var(--sp-4);}
+.mk-title{font-family:'DM Serif Display',serif;font-size:var(--fs-display);line-height:1.08;color:var(--text);}
+.mk-sub{font-size:var(--fs-lead);color:var(--text-muted);margin-top:var(--sp-1);}
+
+.mk-tools{display:flex;gap:var(--sp-3);margin-bottom:var(--sp-4);}
+.mk-search{flex:1;min-width:0;height:50px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-pill);display:flex;align-items:center;gap:var(--sp-3);padding:0 18px;
+  cursor:pointer;font-family:inherit;color:var(--text-faint);text-align:left;
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);}
+.mk-search:hover{border-color:var(--brand-light);}
+.mk-search:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+.mk-search-ph{font-size:var(--fs-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.mk-filter{flex:none;width:50px;height:50px;border-radius:15px;background:var(--brand-pale);
+  color:var(--brand-mid);border:none;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;position:relative;transition:background var(--dur) var(--ease);}
+.mk-filter:hover{background:var(--cat-housing-bg);}
+.mk-filter:hover svg circle{fill:var(--cat-housing-bg);}
+.mk-filter:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+/* The circles in the slider glyph are filled with the button's own background, so the
+   horizontal line reads as passing behind them rather than through them. */
+.mk-filter svg circle{fill:var(--brand-pale);}
+.mk-filter-count{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;padding:0 5px;
+  border-radius:var(--radius-pill);background:var(--accent-warm);color:#fff;
+  font-size:var(--fs-micro);font-weight:700;line-height:19px;text-align:center;}
+
+/* On a phone the + tab in the bottom bar already posts, so this button is a second door to
+   the same room and only costs height. It earns its place on desktop, where there is no tab bar. */
+.mk-post{flex:none;}
+
 .cat-tabs{display:flex;gap:22px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
 .cat-tabs::-webkit-scrollbar{display:none;}
 .cat-tab{background:none;border:none;border-bottom:2px solid transparent;padding:0 0 10px;margin-bottom:-1px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;}
@@ -292,6 +330,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .filter-drawer.open{transform:translateY(0);}
   .filter-drawer-grip{display:flex;}
   .filter-drawer-backdrop{background:rgba(0,0,0,.35);}
+  /* The bottom bar's + already posts, so this button is a second door to the same room. */
+  .mk-post{display:none;}
+  .mk-title{font-size:var(--fs-title);}
+  .mk-sub{font-size:var(--fs-body);}
+  .mk-search,.mk-filter{height:46px;}
+  .mk-filter{width:46px;}
 }
 .cat-pick-btn{display:flex;align-items:center;justify-content:center;min-height:64px;padding:18px 12px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;transition:transform .12s,box-shadow .15s;}
 .cat-pick-btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08);}
