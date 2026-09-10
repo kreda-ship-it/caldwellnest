@@ -141,7 +141,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .auth-brand{font-family:'DM Serif Display',serif;font-size:24px;color:var(--brand);margin-bottom:32px;text-align:center;}
 .auth-brand span{color:var(--accent);}
 .auth-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:30px 28px;text-align:center;}
-.auth-card-icon{font-size:38px;margin-bottom:14px;}
+.auth-card-icon{height:38px;color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
 .auth-card-title{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;}
 .auth-card-body{font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 20px;}
 .auth-card-field{text-align:left;}
@@ -158,7 +158,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* The "check your email" panel that replaces the login form after a reset request. */
 .reset-sent{display:none;text-align:center;padding:6px 0 2px;}
 .reset-sent.is-on{display:block;}
-.reset-sent-icon{font-size:34px;margin-bottom:12px;}
+.reset-sent-icon{height:34px;color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+/* Maintenance screen — replaces two inline font-sizes that are now gone. */
+.maint-icon{color:var(--text-faint);margin-bottom:20px;display:flex;justify-content:center;}
 .reset-sent-title{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;}
 .reset-sent-body{font-size:13.5px;color:var(--text-muted);line-height:1.65;margin:0 0 20px;}
 .reset-sent-body span{font-weight:600;color:var(--text);word-break:break-all;}
