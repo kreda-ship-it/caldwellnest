@@ -625,7 +625,7 @@ function setApprovalsTab(tab) {
   const fBtn = document.getElementById('aApprovalFilterBtn');
   const fPanel = document.getElementById('aApprovalFilterPanel');
   if (fBtn) fBtn.style.display = tab === 'books' ? 'none' : '';
-  if (fPanel && tab === 'books') { fPanel.style.display = 'none'; fBtn && (fBtn.innerHTML = '&#9657; Filters'); }
+  if (fPanel && tab === 'books') { fPanel.style.display = 'none'; fBtn && (fBtn.innerHTML = icon('chevRight',13) + ' Filters'); }
   renderAApprovals();
 }
 
@@ -651,7 +651,7 @@ function renderAApprovals() {
         panelRows.push(`<div style="display:flex;gap:6px;flex-wrap:wrap">${slugs.map(s=>`<button class="filter-chip${_approvalSchoolFilter===s?' active':''}" onclick="_approvalSchoolFilter='${s}';renderAApprovals()">${slabel(s)}</button>`).join('')}</div>`);
       }
     } else {
-      panelRows.push(`<span class="school-chip">&#128274; ${aAdminSchool} only</span>`);
+      panelRows.push(`<span class="school-chip">${icon('lock',12)} ${aAdminSchool} only</span>`);
     }
 
     filterPanel.innerHTML = panelRows.join('');
@@ -664,7 +664,7 @@ function renderAApprovals() {
   if (_approvalCategoryFilter !== 'all') src = src.filter(l => l.category === _approvalCategoryFilter);
 
   if (!src.length) {
-    q.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-faint)"><div style="font-size:36px;margin-bottom:10px">&#9745;</div>No pending listings</div>';
+    q.innerHTML = '<div style="text-align:center;padding:48px;color:var(--text-faint)"><div style="margin-bottom:10px">' + icon('check',30) + '</div>No pending listings</div>';
     return;
   }
 
@@ -688,9 +688,9 @@ function renderAApprovals() {
           </div>
         </div>
         <div class="arow">
-          <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'pending')">&#9998; Edit</button>
-          <button class="btn-sm-a btn-a-danger" onclick="aOpenReject(${l.id})">&#10005; Reject</button>
-          <button class="btn-sm-a btn-a-success" onclick="aApprove(${l.id})">&#10003; Approve</button>
+          <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'pending')">${icon('pencil',14)} Edit</button>
+          <button class="btn-sm-a btn-a-danger" onclick="aOpenReject(${l.id})">${icon('x',14)} Reject</button>
+          <button class="btn-sm-a btn-a-success" onclick="aApprove(${l.id})">${icon('check',14)} Approve</button>
         </div>
       </div>
     </div>`).join('');
@@ -764,12 +764,12 @@ function renderABookApprovals() {
             </div>
           </div>
           <div class="arow">
-            <button class="btn-sm-a btn-a-danger" onclick="aOpenRejectBook(${b.id})">&#10005; Reject</button>
-            <button class="btn-sm-a btn-a-success" onclick="aApproveBook(${b.id})">&#10003; Approve</button>
+            <button class="btn-sm-a btn-a-danger" onclick="aOpenRejectBook(${b.id})">${icon('x',14)} Reject</button>
+            <button class="btn-sm-a btn-a-success" onclick="aApproveBook(${b.id})">${icon('check',14)} Approve</button>
           </div>
         </div>
       </div>`).join('')
-    : '<div style="text-align:center;padding:32px;color:var(--text-faint)"><div style="font-size:32px;margin-bottom:8px">&#9745;</div>No pending books</div>';
+    : '<div style="text-align:center;padding:32px;color:var(--text-faint)"><div style="margin-bottom:8px">' + icon('check',28) + '</div>No pending books</div>';
 
   const rowHtml = (b, actionBtn) => `<tr>
     <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title)}</td>
@@ -871,7 +871,7 @@ function toggleFilterPanel(panelId, btnId) {
   if (!panel) return;
   const opening = panel.style.display === 'none';
   panel.style.display = opening ? 'flex' : 'none';
-  if (btn) btn.innerHTML = opening ? '&#9663; Filters' : '&#9657; Filters';
+  if (btn) btn.innerHTML = opening ? icon('chevDown',13) + ' Filters' : icon('chevRight',13) + ' Filters';
 }
 function ensureFilterOpen(panelId, btnId) {
   const panel = document.getElementById(panelId);
@@ -934,18 +934,18 @@ function renderAListings() {
   const metaEl = document.getElementById('aListMeta');
   const isFiltered = schoolF || _listingTypeFilter !== 'all' || _listingStatusFilter !== 'all' || _listingMinRent !== '' || _listingMaxRent !== '';
   if (isFiltered) ensureFilterOpen('aListFilterPanel', 'aListFilterToggle');
-  if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">&#10005; Clear filters</button>` : ''}`;
+  if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">' + icon('x',13) + ' Clear filters</button>` : ''}`;
 
   // Table rows
   document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr>
-    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? '&#128204; ' : ''}${esc(l.title)}</td>
+    <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? icon('star',13) + ' ' : ''}${esc(l.title)}</td>
     <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
     <td><div style="font-size:13px">${esc(l.poster?.name || l.poster || '—')}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${esc(l.school.replace(/_/g,' '))}</div>` : ''}</td>
-    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">&#128221; ${esc(l.rejection_reason)}</div>`:''}</td>
+    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">' + icon('note',12) + ' ${esc(l.rejection_reason)}</div>`:''}</td>
     <td><div class="arow">
-      <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">&#9998; Edit</button>
-      ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : '&#128204; Pin'}</button>` : ''}
+      <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">${icon('pencil',14)} Edit</button>
+      ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : icon('star',13) + ' Pin'}</button>` : ''}
       ${l.status === 'approved' ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveListing(${l.id})">Remove</button>` : ''}
     </div></td>
   </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-faint)">No listings match the current filters.</td></tr>`;
@@ -1122,10 +1122,10 @@ async function renderAPinned() {
     el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);font-size:13px">No pinned listings yet.</div>';
   } else {
     const toolbar = `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 14px;gap:8px">
-      <span style="font-size:13px;font-weight:600;color:var(--pin)">&#128204; ${pins.length} featured listing${pins.length !== 1 ? 's' : ''}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--pin)">${icon('star',13)} ${pins.length} featured listing${pins.length !== 1 ? 's' : ''}</span>
       <div class="view-toggle">
-        <button class="view-btn ${_pinnedView === 'grid' ? 'active' : ''}" onclick="setPinnedView('grid')" title="Grid view">&#9632;&#9632;</button>
-        <button class="view-btn ${_pinnedView === 'list' ? 'active' : ''}" onclick="setPinnedView('list')" title="List view">&#9776;</button>
+        <button class="view-btn ${_pinnedView === 'grid' ? 'active' : ''}" onclick="setPinnedView('grid')" title="Grid view">${icon('grid',15)}</button>
+        <button class="view-btn ${_pinnedView === 'list' ? 'active' : ''}" onclick="setPinnedView('list')" title="List view">${icon('list',15)}</button>
       </div>
     </div>`;
 
@@ -1134,14 +1134,14 @@ async function renderAPinned() {
         pins.map(l => {
           const since = pinnedTimes[String(l.id)] ? `Pinned ${fmtActivityTime(pinnedTimes[String(l.id)])}` : '';
           return `<div style="background:var(--pin-pale);border:2px solid rgba(107,33,168,0.25);border-radius:var(--radius);padding:16px;position:relative;cursor:pointer;transition:box-shadow .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.boxShadow='0 2px 12px rgba(107,33,168,.15)'" onmouseout="this.style.boxShadow='none'">
-            <div style="position:absolute;top:11px;right:11px;font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:2px 8px;border-radius:10px">&#128204; FEATURED</div>
+            <div style="position:absolute;top:11px;right:11px;font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:2px 8px;border-radius:10px">${icon('star',10)} FEATURED</div>
             <div style="margin-bottom:8px">${categoryIcon(l.category, 24)}</div>
             <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${esc(l.title)} ${notLiveTag(l)}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">${esc(l.type)} · $${l.rent}/mo</div>
-            <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">&#128205; ${esc(l.location)}</div>
+            <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">${icon('mapPin',12)} ${esc(l.location)}</div>
             ${since ? `<div style="font-size:11px;color:var(--pin);opacity:.75;margin-bottom:12px">${since}</div>` : ''}
             <div class="arow" onclick="event.stopPropagation()">
-              <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">&#9998; Edit</button>
+              <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">${icon('pencil',14)} Edit</button>
               <button class="btn-sm-a btn-a-danger" onclick="aTogglePin(${l.id})">Unpin</button>
             </div>
           </div>`;
@@ -1155,10 +1155,10 @@ async function renderAPinned() {
             <div style="width:30px;text-align:center;flex-shrink:0">${categoryIcon(l.category, 20)}</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(l.title)} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span> ${notLiveTag(l)}</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(l.type)} · $${l.rent}/mo · &#128205; ${esc(l.location)}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(l.type)} · $${l.rent}/mo · ${icon('mapPin',12)} ${esc(l.location)}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
             </div>
             <div class="arow" onclick="event.stopPropagation()">
-              <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">&#9998; Edit</button>
+              <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'listing')">${icon('pencil',14)} Edit</button>
               <button class="btn-sm-a btn-a-danger" onclick="aTogglePin(${l.id})">Unpin</button>
             </div>
             <span style="font-size:14px;color:var(--text-faint);flex-shrink:0">›</span>
@@ -1177,7 +1177,7 @@ async function renderAPinned() {
               <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${categoryIcon(l.category, 14)} ${esc(l.title)}</div>
               <div style="font-size:11px;color:var(--text-faint)">$${l.rent}/mo · ${esc(l.type)}</div>
             </div>
-            <button class="btn-sm-a btn-a-pin" onclick="event.stopPropagation();aTogglePin(${l.id})">&#128204; Pin</button>
+            <button class="btn-sm-a btn-a-pin" onclick="event.stopPropagation();aTogglePin(${l.id})">${icon('star',13)} Pin</button>
           </div>`).join('')
       }</div>`
     : '<div style="padding:14px 0;color:var(--text-faint);font-size:13px">All approved listings are already pinned.</div>';
@@ -1328,13 +1328,13 @@ function buildStuFilterPanel(filterEl, schoolSlugs) {
   ];
   const flagOpts = [
     { v:'none',            l:'None'                },
-    { v:'has_appeal',      l:'&#9873; Open appeal' },
-    { v:'has_report_filed',l:'&#128270; Filed a report' },
+    { v:'has_appeal',      l: icon('flag',12) + ' Open appeal' },
+    { v:'has_report_filed',l: icon('search',12) + ' Filed a report' },
   ];
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `<div>${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `<div>${secHead('School')}<span class="school-chip">${icon('lock',12)} ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _stuSchoolFilter, '_setStuSchool')}</div>`;
   }
@@ -1370,7 +1370,7 @@ function buildStuActiveChips() {
   if (!chips.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.style.display = 'flex';
   el.innerHTML = chips.map(([label, fn]) =>
-    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">&#10005;</span></button>`
+    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">${icon('x',10)}</span></button>`
   ).join('') + (chips.length > 1
     ? `<button onclick="clearStuFilters()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:4px 8px;text-decoration:underline;align-self:center">Clear all</button>`
     : '');
@@ -1573,7 +1573,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
   const body = document.getElementById('aHistBody');
   if (!profile) {
     body.innerHTML = `<div class="tcard" style="padding:40px;text-align:center;color:var(--text-muted)">
-      <div style="font-size:40px;margin-bottom:12px">👤</div>
+      <div style="margin-bottom:12px">${icon('user',38)}</div>
       <div style="font-size:15px;font-weight:500">This account no longer exists.</div>
       <button onclick="aBackFromHistory()" style="margin-top:16px;background:var(--bg);border:1px solid var(--border);padding:9px 20px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">← Back</button>
     </div>`;
@@ -1620,7 +1620,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
         ${rBadge(r)}
       </div>
       ${r.details ? `<div style="font-size:12px;color:var(--text-muted);background:var(--bg);padding:8px 12px;border-radius:6px;line-height:1.5;width:100%">"${esc(r.details)}"</div>` : ''}
-      ${r.resolution_note ? `<div style="font-size:12px;color:var(--success);font-weight:500">✓ ${esc(r.resolution_note)}</div>` : ''}
+      ${r.resolution_note ? `<div style="font-size:12px;color:var(--success);font-weight:500">${icon('check',12)} ${esc(r.resolution_note)}</div>` : ''}
     </div>`;
 
   // suspension history tab
@@ -1741,8 +1741,8 @@ function buildListingsPaneHtml() {
   const toolbar = `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);gap:8px">
     <span style="font-size:12px;color:var(--text-muted)">${_histListings.length} listing${_histListings.length !== 1 ? 's' : ''}</span>
     <div class="view-toggle">
-      <button class="view-btn ${_histListingView === 'list' ? 'active' : ''}" id="hv-list" onclick="setHistListingView('list')" title="List view">&#9776;</button>
-      <button class="view-btn ${_histListingView === 'grid' ? 'active' : ''}" id="hv-grid" onclick="setHistListingView('grid')" title="Grid view">&#9632;&#9632;</button>
+      <button class="view-btn ${_histListingView === 'list' ? 'active' : ''}" id="hv-list" onclick="setHistListingView('list')" title="List view">${icon('list',15)}</button>
+      <button class="view-btn ${_histListingView === 'grid' ? 'active' : ''}" id="hv-grid" onclick="setHistListingView('grid')" title="Grid view">${icon('grid',15)}</button>
     </div>
   </div>`;
   if (_histListingView === 'grid') {
@@ -1774,7 +1774,7 @@ function buildBooksHistoryPaneHtml() {
   const sPill = s => aStatusPill(s, true); // compact — shared helper
   return _histBooks.map(b => `
     <div class="hist-row" onclick="openBookHistoryDrawer(${b.id})">
-      <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">&#128218;</div>
+      <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">${icon('book',22)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:500;font-size:14px">${esc(b.title)}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${b.book_type === 'course' ? 'Textbook' : 'Book'} · ${fmtDate(b.created_at)}</div>
@@ -1789,7 +1789,7 @@ async function openBookHistoryDrawer(bookId) {
   const { data: b } = await supabaseClient.from('book_listings').select('*').eq('id', bookId).single();
   if (!b) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this book.</div>'; return; }
   const sPill = s => aStatusPill(s);       // shared helper
-  document.getElementById('hDrawerTitle').innerHTML = `&#128218; ${esc(b.title)}`;
+  document.getElementById('hDrawerTitle').innerHTML = `${icon('book',16)} ${esc(b.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
     ${b.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(b.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerBookGalMain' })}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -1868,7 +1868,7 @@ async function openListingDrawer(listingId) {
       <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${esc(CATEGORY_LABELS[l.category] || l.category)}</span>
     </div>
     ${l.price ? `<div style="font-size:24px;font-weight:700;color:var(--brand);margin-bottom:6px">$${l.price}<span style="font-size:14px;font-weight:400;color:var(--text-muted)">/mo</span></div>` : ''}
-    ${l.location ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">📍 ${esc(l.location)}</div>` : ''}
+    ${l.location ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">${icon('mapPin',12)} ${esc(l.location)}</div>` : ''}
     ${l.description ? `<div style="font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">${esc(l.description)}</div>` : ''}
     ${l.tags && l.tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${l.tags.map(t => `<span class="atag">${esc(t)}</span>`).join('')}</div>` : ''}
     <div style="border-top:1px solid var(--border);padding-top:14px">
@@ -1900,7 +1900,7 @@ async function openReportDrawer(reportId) {
       <span style="font-size:12px;color:var(--text-faint)">${fmtDate(r.created_at)}</span>
     </div>
     ${r.details ? `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">"${esc(r.details)}"</div>` : ''}
-    ${r.resolution_note ? `<div style="font-size:13px;color:var(--success);font-weight:500;padding:10px 14px;background:#f0faf4;border-radius:var(--radius-sm);margin-bottom:16px">✓ ${esc(r.resolution_note)}</div>` : ''}
+    ${r.resolution_note ? `<div style="font-size:13px;color:var(--success);font-weight:500;padding:10px 14px;background:#f0faf4;border-radius:var(--radius-sm);margin-bottom:16px">${icon('check',12)} ${esc(r.resolution_note)}</div>` : ''}
     ${listing ? `<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Reported listing</div>
       <div class="hist-row" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;border-bottom:none;margin-bottom:0" onclick="openListingDrawer(${listing.id})">
@@ -2098,7 +2098,7 @@ async function renderAReports() {
           </div>`
         : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px" onclick="event.stopPropagation()">
             <div>
-              <span style="font-size:12px;color:${statusColor};font-weight:500">&#10003; ${esc(actionTaken)}</span>
+              <span style="font-size:12px;color:${statusColor};font-weight:500">${icon('check',12)} ${esc(actionTaken)}</span>
               ${r.suspension&&r.suspension.length>0?`<span style="font-size:12px;color:var(--danger);margin-left:8px">&#8594; <span class="stu-link-a" onclick="aOpenStudentHistory('${r.suspension[0].profile_id}')">view suspended student</span></span>`:''}
               <span style="font-size:11px;color:var(--text-faint);margin-left:8px">· ${fmtDate(r.resolved_at)}</span>
             </div>
@@ -2157,7 +2157,7 @@ async function renderAReports() {
           <div class="tcard-title">Open reports</div>
           <span style="font-size:12px;color:var(--danger);font-weight:600">${open.length} open</span>
         </div>
-        ${open.length ? open.map(card).join('') : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No open reports — all clear. &#10003;</p>'}
+        ${open.length ? open.map(card).join('') : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No open reports — all clear. ' + icon('check',13) + '</p>'}
       </div>
       <div class="tcard">
         <div class="tcard-head">
@@ -2188,7 +2188,7 @@ function buildRepFilterPanel(schoolSlugs) {
 
   let schoolSection = '';
   if (aAdminSchool) {
-    schoolSection = `${div}<div>${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
+    schoolSection = `${div}<div>${secHead('School')}<span class="school-chip">${icon('lock',12)} ${aAdminSchool} only</span></div>`;
   } else if (schoolSlugs.length > 1) {
     schoolSection = `${div}<div>${secHead('School')}${chipRow(schoolSlugs.map(s=>({v:s,l:toLabel(s)})), _reportSchoolFilter, '_setRepSchool')}</div>`;
   }
@@ -2216,7 +2216,7 @@ function buildRepActiveChips() {
   if (!chips.length) { el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='flex';
   el.innerHTML = chips.map(([label,fn]) =>
-    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">&#10005;</span></button>`
+    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">${icon('x',10)}</span></button>`
   ).join('') + (chips.length>1
     ? `<button onclick="clearRepFilters()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:4px 8px;text-decoration:underline;align-self:center">Clear all</button>`
     : '');
@@ -2307,7 +2307,7 @@ async function viewReportedListing(listingId) {
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:12px">${categoryIcon(l.category, 20)}</div>
     <div style="font-size:18px;font-weight:700;margin-bottom:4px">${esc(l.title)}</div>
-    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">&#128205; ${esc(l.location || '—')}</div>
+    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">${icon('mapPin',13)} ${esc(l.location || '—')}</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <span class="pill pill-active">$${l.price || l.rent || '—'}/mo</span>
       <span class="pill pill-active">${esc(l.type || '—')}</span>
@@ -2608,8 +2608,8 @@ function _setBLandingOpen(open) {
   if (!sec || !btn) return;
   sec.style.display = open ? '' : 'none';
   btn.innerHTML = open
-    ? '&#128214; Landing page added <span style="float:right;color:var(--brand)">&#10003; on</span>'
-    : '&#128214; Add landing page <span style="float:right;opacity:.5">optional</span>';
+    ? icon('book',13) + ' Landing page added <span style="float:right;color:var(--brand)">' + icon('check',12) + ' on</span>'
+    : icon('book',13) + ' Add landing page <span style="float:right;opacity:.5">optional</span>';
 }
 
 function toggleBLanding() {
@@ -2654,7 +2654,7 @@ async function renderBcastHistory() {
     return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666">Draft</span>`;
   };
   const typeBadge    = t => `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--border);color:var(--text-muted)">${t}</span>`;
-  const landingChip  = b => b.landing_body ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f7ff;color:#3B5BA5">&#128214; Landing page</span>` : '';
+  const landingChip  = b => b.landing_body ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f7ff;color:#3B5BA5">${icon('book',11)} Landing page</span>` : '';
   el.innerHTML = rows.map(b => {
     const subEsc = (b.subject || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     const schedLine  = b.scheduled_at ? `<div style="font-size:11px;color:var(--text-faint);margin-top:2px">Goes live: ${fmtDate(b.scheduled_at)}</div>` : '';
@@ -2711,9 +2711,9 @@ function _bUpdateBtn() {
   if (!btn) return;
   const val = document.getElementById('bScheduleAt')?.value;
   const future = val && new Date(val) > new Date();
-  if (_bEditId) btn.textContent = '✓ Update';
-  else if (future) btn.textContent = '⏱ Schedule';
-  else btn.innerHTML = '&#9993; Send Now';
+  if (_bEditId) btn.innerHTML = icon('check',14) + ' Update';
+  else if (future) btn.innerHTML = icon('clock',14) + ' Schedule';
+  else btn.innerHTML = icon('send',14) + ' Send Now';
 }
 
 function applyBTemplate(subject, body) {
@@ -2892,13 +2892,13 @@ function _reapplyAnaBreadcrumb(s) {
 
 function _anaDelta(curr, prev) {
   if (prev === 0 && curr === 0) return '';
-  if (prev === 0) return `<span style="color:var(--success)">&#9650; ${curr} vs prior period</span>`;
+  if (prev === 0) return `<span style="color:var(--success)">${icon('up',12)} ${curr} vs prior period</span>`;
   const diff = curr - prev;
   if (diff === 0) return `<span style="color:var(--text-faint)">same as prior period</span>`;
   const pct = Math.round(Math.abs(diff / prev) * 100);
   return diff > 0
-    ? `<span style="color:var(--success)">&#9650; ${diff} (${pct}%) vs prior period</span>`
-    : `<span style="color:var(--danger)">&#9660; ${Math.abs(diff)} (${pct}%) vs prior period</span>`;
+    ? `<span style="color:var(--success)">${icon('up',12)} ${diff} (${pct}%) vs prior period</span>`
+    : `<span style="color:var(--danger)">${icon('down',12)} ${Math.abs(diff)} (${pct}%) vs prior period</span>`;
 }
 
 async function buildAnalytics() {
@@ -3352,17 +3352,17 @@ async function renderHealth() {
   // ── DB ping ──────────────────────────────────────────────────────────────
   const dbStatusEl = document.getElementById('hDbStatus');
   const dbSubEl    = document.getElementById('hDbSub');
-  if (dbStatusEl) dbStatusEl.innerHTML = '<span style="font-size:14px">&#9644;</span>';
+  if (dbStatusEl) dbStatusEl.innerHTML = '&mdash;';
   const t0 = Date.now();
   const { error: pingErr } = await supabaseClient.from('profiles').select('id', { count: 'exact', head: true });
   const pingMs = Date.now() - t0;
   if (dbStatusEl) {
     if (pingErr) {
-      dbStatusEl.innerHTML = '&#9646; Error';
+      dbStatusEl.innerHTML = icon('alert',13) + ' Error';
       dbStatusEl.parentElement.classList.replace('asc-success', 'asc-danger');
       if (dbSubEl) dbSubEl.textContent = 'Could not reach database';
     } else {
-      dbStatusEl.innerHTML = '&#9646; Online';
+      dbStatusEl.innerHTML = icon('check',13) + ' Online';
       if (dbSubEl) dbSubEl.textContent = `Response: ${pingMs}ms`;
     }
   }
@@ -3500,7 +3500,7 @@ async function renderAppeals() {
               <option value="most">Most appeals</option>
               <option value="az">A &#8594; Z</option>
             </select>
-            <button id="appealFilterBtn" class="btn-sm-a btn-a-neutral" onclick="toggleFilterPanel('appealFilterPanel','appealFilterBtn')" style="white-space:nowrap">&#9657; Filters</button>
+            <button id="appealFilterBtn" class="btn-sm-a btn-a-neutral" onclick="toggleFilterPanel('appealFilterPanel','appealFilterBtn')" style="white-space:nowrap">${icon('chevRight',13)} Filters</button>
           </div>
         </div>
         <div id="appealFilterPanel" style="padding:10px 18px 14px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:12px"></div>
@@ -3599,7 +3599,7 @@ async function renderAppeals() {
         <div class="tcard-title">Needs action</div>
         <span style="font-size:12px;color:${openAppeals.length?'var(--danger)':'var(--success)'};font-weight:600">${openAppeals.length} open</span>
       </div>
-      ${openAppeals.length ? buildGroups(openAppeals, false) : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No open appeals — all clear. &#10003;</p>'}
+      ${openAppeals.length ? buildGroups(openAppeals, false) : '<p style="padding:16px 20px;color:var(--text-muted);font-size:13px">No open appeals — all clear. ' + icon('check',13) + '</p>'}
     </div>
     <div class="tcard">
       <div class="tcard-head">
@@ -3624,7 +3624,7 @@ function _renderAppealGroup(g, startCollapsed) {
   const statusHint = openCnt
     ? `<span style="color:var(--danger);font-weight:600">${openCnt} open</span>`
     : g.appeals.every(a=>a.status==='resolved_reinstated')
-    ? `<span style="color:#1a7a45;font-weight:500">Reinstated &#10003;</span>`
+    ? `<span style="color:#1a7a45;font-weight:500">Reinstated ${icon('check',12)}</span>`
     : g.appeals.every(a=>a.status==='resolved_upheld')
     ? `<span style="color:#888;font-weight:500">Upheld</span>`
     : `<span style="color:var(--text-muted)">Mixed</span>`;
@@ -3651,7 +3651,7 @@ function _renderAppealGroup(g, startCollapsed) {
 
 function _appealCard(a) {
   const isOpen = a.status === 'open';
-  const statusMap = { open:['#fde8e8','#c0392b','Open'], resolved_reinstated:['#e8f5e9','#1a7a45','Reinstated &#10003;'], resolved_upheld:['#f0f0f0','#888','Upheld'] };
+  const statusMap = { open:['#fde8e8','#c0392b','Open'], resolved_reinstated:['#e8f5e9','#1a7a45','Reinstated'], resolved_upheld:['#f0f0f0','#888','Upheld'] };
   const [sbg,sc,sl] = statusMap[a.status] || ['#f0f0f0','#888',a.status];
   const badge = `<span style="background:${sbg};color:${sc};border-radius:20px;padding:3px 11px;font-size:11px;font-weight:600;white-space:nowrap">${sl}</span>`;
 
@@ -3676,7 +3676,7 @@ function _appealCard(a) {
     <p style="color:var(--text-muted);font-size:13px;line-height:1.6;margin:0 0 12px">${esc(a.message || '—')}</p>
     ${isOpen
       ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-           <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">&#10003; Reinstate — grant appeal</button>
+           <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">${icon('check',13)} Reinstate — grant appeal</button>
            <button class="btn-sm-a btn-a-danger"  onclick="openUpholdForm('${a.id}')">Uphold — deny appeal</button>
          </div>
          <div id="uphold-form-${a.id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
@@ -3688,12 +3688,12 @@ function _appealCard(a) {
            </div>
          </div>`
       : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-           <button class="btn-sm-a btn-a-neutral" onclick="openAppealEdit('${a.id}','${a.profile_id}','${a.status}')">&#9998; Edit decision</button>
+           <button class="btn-sm-a btn-a-neutral" onclick="openAppealEdit('${a.id}','${a.profile_id}','${a.status}')">${icon('pencil',13)} Edit decision</button>
          </div>
          <div id="appeal-edit-${a.id}" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
            <div style="font-size:13px;font-weight:600;margin-bottom:10px">Change decision</div>
            <div style="display:flex;gap:8px;margin-bottom:10px">
-             <button class="filter-chip${a.status==='resolved_reinstated'?' active':''}" id="aed-${a.id}-r" onclick="selectAppealEdit('${a.id}','reinstated')">Reinstated &#10003;</button>
+             <button class="filter-chip${a.status==='resolved_reinstated'?' active':''}" id="aed-${a.id}-r" onclick="selectAppealEdit('${a.id}','reinstated')">Reinstated ${icon('check',12)}</button>
              <button class="filter-chip${a.status==='resolved_upheld'?' active':''}"    id="aed-${a.id}-u" onclick="selectAppealEdit('${a.id}','upheld')">Upheld</button>
            </div>
            <textarea id="aed-note-${a.id}" class="form-textarea" rows="2" maxlength="500" placeholder="Reason for changing the decision (required)…" style="margin-bottom:10px"></textarea>
@@ -3702,7 +3702,7 @@ function _appealCard(a) {
              <button class="btn-sm-a btn-a-neutral" onclick="document.getElementById('appeal-edit-${a.id}').style.display='none'">Cancel</button>
            </div>
          </div>`}
-    <button onclick="toggleAppealLog('${a.id}')" style="background:none;border:none;font-size:12px;color:var(--text-muted);cursor:pointer;padding:0;font-family:inherit" id="appeal-log-btn-${a.id}">&#9656; Decision history</button>
+    <button onclick="toggleAppealLog('${a.id}')" style="background:none;border:none;font-size:12px;color:var(--text-muted);cursor:pointer;padding:0;font-family:inherit" id="appeal-log-btn-${a.id}">${icon('chevRight',13)} Decision history</button>
     <div id="appeal-log-${a.id}" style="display:none;margin-top:8px;border-top:1px solid var(--border);padding-top:10px"></div>
   </div>`;
 }
@@ -3711,10 +3711,10 @@ function _buildAppealFilterPanel() {
   const el = document.getElementById('appealFilterPanel');
   if (!el) return;
   const secHead = aFieldLabel, chipRow = aChipRow; // shared — see top of the admin UI helpers
-  const statusOpts = [{v:'all',l:'All'},{v:'open',l:'Open'},{v:'reinstated',l:'Reinstated &#10003;'},{v:'upheld',l:'Upheld'}];
+  const statusOpts = [{v:'all',l:'All'},{v:'open',l:'Open'},{v:'reinstated',l:'Reinstated'},{v:'upheld',l:'Upheld'}];
   el.innerHTML = `<div>${secHead('Status')}${chipRow(statusOpts, _appealStatusFilter, '_setAppealStatus')}</div>`;
   if (aAdminSchool) {
-    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span class="school-chip">&#128274; ${aAdminSchool} only</span></div>`;
+    el.innerHTML += `<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">${secHead('School')}<span class="school-chip">${icon('lock',12)} ${aAdminSchool} only</span></div>`;
   }
 }
 
@@ -3722,13 +3722,13 @@ function _buildAppealActiveChips() {
   const el = document.getElementById('appealActiveChips');
   if (!el) return;
   const chips = [];
-  const statusLabels = { open:'Open', reinstated:'Reinstated ✓', upheld:'Upheld' };
+  const statusLabels = { open:'Open', reinstated:'Reinstated', upheld:'Upheld' };
   if (_appealSearch.trim())          chips.push([`Search: "${_appealSearch.trim()}"`,            '_appealClearSearch()']);
   if (_appealStatusFilter !== 'all') chips.push([`Status: ${statusLabels[_appealStatusFilter]}`, '_appealClearStatus()']);
   if (!chips.length) { el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='flex';
   el.innerHTML = chips.map(([label,fn]) =>
-    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">&#10005;</span></button>`
+    `<button class="filter-chip active" onclick="${fn}" style="display:flex;align-items:center;gap:4px">${label} <span style="font-size:10px;opacity:.65">${icon('x',10)}</span></button>`
   ).join('') + (chips.length>1
     ? `<button onclick="clearAppealFilters()" style="font-size:11px;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:4px 8px;text-decoration:underline;align-self:center">Clear all</button>`
     : '');
@@ -3817,12 +3817,12 @@ async function toggleAppealLog(id) {
   const btn   = document.getElementById(`appeal-log-btn-${id}`);
   if (logEl.style.display !== 'none') {
     logEl.style.display = 'none';
-    if (btn) btn.innerHTML = '&#9656; Decision history';
+    if (btn) btn.innerHTML = icon('chevRight',13) + ' Decision history';
     return;
   }
   logEl.innerHTML = '<div style="font-size:12px;color:var(--text-faint);padding:4px 0">Loading…</div>';
   logEl.style.display = 'block';
-  if (btn) btn.innerHTML = '&#9662; Decision history';
+  if (btn) btn.innerHTML = icon('chevDown',13) + ' Decision history';
 
   const { data: entries } = await supabaseClient
     .from('appeal_audit_log')
@@ -3835,9 +3835,9 @@ async function toggleAppealLog(id) {
     return;
   }
   const actionLabel = a => {
-    if (a === 'resolved_reinstated') return '&#10003; Decided: Reinstated';
+    if (a === 'resolved_reinstated') return icon('check',13) + ' Decided: Reinstated';
     if (a === 'resolved_upheld')     return 'Decided: Upheld';
-    if (a === 'decision_edited')     return '&#9998; Decision edited';
+    if (a === 'decision_edited')     return icon('pencil',13) + ' Decision edited';
     return a;
   };
   const statusLabel = s => s === 'resolved_reinstated' ? 'Reinstated' : s === 'resolved_upheld' ? 'Upheld' : (s || '—');

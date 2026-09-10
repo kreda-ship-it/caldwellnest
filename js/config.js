@@ -38,6 +38,44 @@ const CATEGORY_ICON = {
   books:              'M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z|M5 17.5h14'
 };
 
+// The one icon set the whole app draws from. Path data only — icon() wraps it.
+// Same 24px grid and stroke weight as the SVGs written directly into index.html,
+// so a generated icon and a hand-written one are the same drawing.
+const ICON_PATH = {
+  check:     'M20 6 9 17l-5-5',
+  x:         'M6 6l12 12|M18 6 6 18',
+  pencil:    'M12 19l7-7 3 3-7 7-3-3z|M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z',
+  star:      'M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z',
+  lock:      'M4 10.5h16v10.5H4z|M8 10.5V7a4 4 0 0 1 8 0v3.5',
+  mapPin:    'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z|M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  note:      'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|M14 2v6h6|M8 13h8|M8 17h5',
+  user:      'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2|M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+  book:      'M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z|M5 17.5h14',
+  grid:      'M3 3h7v7H3z|M14 3h7v7h-7z|M3 14h7v7H3z|M14 14h7v7h-7z',
+  list:      'M8 6h13|M8 12h13|M8 18h11|M3.5 6h.01|M3.5 12h.01|M3.5 18h.01',
+  up:        'M12 19V5|M5 12l7-7 7 7',
+  down:      'M12 5v14|M19 12l-7 7-7-7',
+  chevDown:  'M6 9l6 6 6-6',
+  chevRight: 'M9 6l6 6-6 6',
+  inbox:     'M22 12h-6l-2 3h-4l-2-3H2|M5.5 5.5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z',
+  flag:      'M4 22V4h9l1 2h6v10h-7l-1-2H4',
+  search:    'M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0z|M20 20l-3.4-3.4',
+  send:      'M21 3 10.5 13.5|M21 3l-6.5 18-4-7.5L3 9.5z',
+  dot:       'M12 12h.01',
+  clock:     'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z|M12 7v5l3 2',
+  alert:     'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z|M12 9v4.5|M12 17h.01'
+};
+
+// Wraps a registry entry as an inline SVG string. Unknown names return '' so a
+// typo leaves a gap rather than an error inside a template literal.
+function icon(name, size = 14) {
+  const d = ICON_PATH[name];
+  if (!d) return '';
+  const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
+         `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
 // Returns an inline SVG string for a category. Falls back to `other` so an
 // unknown category still draws something rather than an empty box.
 function categoryIcon(cat, size = 16) {
