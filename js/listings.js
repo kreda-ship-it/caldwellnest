@@ -560,20 +560,20 @@ function buildCatFiltersHTML(cat) {
 
 // Varied hero heights so the masonry columns look natural rather than a grid of
 // identical blocks. Cycled over however many cards we draw.
-const SK_HEROES = ['sk-hero-tall', 'sk-hero', 'sk-hero-short', 'sk-hero', 'sk-hero-short', 'sk-hero-tall'];
-
+// Mirrors listingCardHTML's shape, and has to keep doing so. A skeleton shaped differently
+// from what replaces it is worse than no skeleton: the page visibly jumps at the moment it
+// finishes loading, which reads as a glitch rather than as progress.
+//
+// The heroes used to come in three heights, because the old layout was masonry and uneven
+// heights were the whole point of it. They are one shape now, like the cards.
 function feedSkeletonHTML(n = 6) {
-  return Array.from({ length: n }, (_, i) => `<div class="sk-card" aria-hidden="true">
-    <div class="sk-head">
-      <div class="sk sk-avatar"></div>
-      <div><div class="sk sk-name"></div><div class="sk sk-sub"></div></div>
-    </div>
-    <div class="sk ${SK_HEROES[i % SK_HEROES.length]}"></div>
+  return Array.from({ length: n }, () => `<div class="sk-card" aria-hidden="true">
+    <div class="sk sk-hero"></div>
     <div class="sk-body">
-      <div class="sk sk-meta"></div>
+      <div class="sk sk-badge"></div>
       <div class="sk sk-title"></div>
-      <div class="sk sk-title-2"></div>
-      <div class="sk-foot"><div class="sk sk-price"></div><div class="sk sk-btn"></div></div>
+      <div class="sk sk-sub"></div>
+      <div class="sk sk-price"></div>
     </div>
   </div>`).join('');
 }
@@ -725,7 +725,10 @@ function renderListings() {
   const grid = document.getElementById('listingsGrid');
   grid.removeAttribute('aria-busy'); // real content from here on — skeletons are done
   if (filtered.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text-faint);column-span:all">
+    // grid-column, not column-span: the grid is a real CSS grid now, and column-span only
+    // ever meant anything under column-count. Left as it was, this would have sat squashed
+    // into the first column instead of spanning the row.
+    grid.innerHTML = `<div class="lc-empty">
       <div style="margin-bottom:12px;color:var(--text-faint)">${approved.length === 0 ? icon('inbox', 38) : icon('search', 38)}</div>
       <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
       ${!noFilters ? `<div style="font-size:13px;margin-bottom:16px">Try widening the price range or clearing a filter.</div><button onclick="clearListingFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
@@ -866,49 +869,51 @@ function priceLabel(l) {
 }
 
 function listingCardHTML(l, isPinned) {
-  const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
-  const catLabel = CATEGORY_LABELS[l.category] || 'Listing';
+  const catLabel  = catShort(l.category);
   const photoCount = l.photo_urls?.length || 0;
   // Books route to their own detail + contact path — ids are per-table sequences.
-  const openFn    = l.isBook ? 'openBookDetail' : 'openDetail';
-  const contactFn = l.isBook ? 'bContact' : 'sContact';
-  const messageBtn = !l.poster.official
-    ? `<button class="btn-contact" onclick="event.stopPropagation();${contactFn}(${l.id})">Message</button>` : '';
-  // Buyers should see a deal is already in progress BEFORE they open/message (Facebook
-  // Marketplace behavior — pending stays visible, badged, so people know to hurry or move on).
-  const pendingBadge = l.lifecycle_status === 'pending_sale'
-    ? '<span class="pin-badge" style="background:#3B5BA5">Pending sale</span>' : '';
+  const openFn = l.isBook ? 'openBookDetail' : 'openDetail';
+  const fav    = favButtonHTML(l.isBook ? 'book' : 'listing', l.id, 'lc-fav');
 
-  // HERO: a natural-ratio photo, or (no photo) a colored typographic panel where the title IS the design.
+  // Buyers should see a deal is already in progress BEFORE they open or message.
+  const badge = isPinned
+    ? `<span class="pin-badge">${icon('star', 10)} Featured</span>`
+    : l.lifecycle_status === 'pending_sale'
+      ? '<span class="pin-badge pin-badge-pending">Pending sale</span>' : '';
+
+  // HERO: a photo, or (no photo) a tinted panel where the title IS the design. Both are the
+  // same shape so the grid stays even — the old masonry let them be any height, which is
+  // exactly what made two columns impossible to line up.
+  //
+  // The category tint comes from data-cat on the card, not an inline style attribute. The
+  // colours still resolve to the --cat-* tokens; they are just applied by a stylesheet rule
+  // instead of being pasted into markup.
   const hero = photoCount
-    ? `<div class="lc-photo" style="background:${cat.bg}">
+    ? `<div class="lc-photo">
          <img src="${escAttr(l.photo_urls[0])}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
          ${photoCount > 1 ? `<span class="lc-count">${icon('image', 12)} ${photoCount}</span>` : ''}
-         ${isPinned ? '<span class="pin-badge">' + icon('star',10) + ' Featured</span>' : pendingBadge}
+         ${badge}${fav}
        </div>`
-    : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
-         <div class="lc-noimg-cat">${catLabel}</div>
+    : `<div class="lc-noimg">
          <div class="lc-noimg-title">${esc(l.title)}</div>
-         ${isPinned ? '<span class="pin-badge">' + icon('star',10) + ' Featured</span>' : pendingBadge}
+         ${badge}${fav}
        </div>`;
 
-  return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" tabindex="0" role="button" aria-label="${escAttr(l.title)}"
+  // What is NOT here, and where it went: the poster's avatar and name, the description, and
+  // the Message button. At two columns on a phone a card is about 170px wide, and all three
+  // were illegible or untappable at that size. Every one of them is on the detail view, which
+  // is one tap away and has the room to show them properly — including who posted it, which
+  // is the thing you actually want to check at the moment you are interested, not while
+  // scanning. The report flag went with the poster header; detail carries that too.
+  return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" data-cat="${escAttr(l.category)}"
+      tabindex="0" role="button" aria-label="${escAttr(l.title)}"
       onclick="${openFn}(${l.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openFn}(${l.id})}">
-    ${posterHeaderHTML(l)}
     ${hero}
     <div class="lc-body">
-      <div class="lc-meta">${photoCount ? `${catLabel} · ` : ''}${l.posted}</div>
+      <span class="lc-badge">${esc(catLabel)}</span>
       ${photoCount ? `<div class="lc-title">${esc(l.title)}</div>` : ''}
-      ${l.location ? `<div class="lc-loc">${icon('pin', 13)} ${esc(l.location)}</div>` : ''}
-      ${l.desc && l.desc !== 'No description.' ? `<div class="lc-desc${photoCount ? '' : ' lc-desc-tall'}">${esc(l.desc)}</div>` : ''}
-      <div class="lc-foot">
-        <div class="lc-price"${!photoCount ? ` style="color:${cat.text}"` : ''}>${priceLabel(l)}</div>
-        <!-- The star sits with the price and the message button, not floating on the photo.
-             A control over an image is invisible on a light photo and unreadable on a busy
-             one, and this card already has a report flag up there. -->
-        ${favButtonHTML(l.isBook ? 'book' : 'listing', l.id, 'lc-fav')}
-        ${messageBtn}
-      </div>
+      ${l.location ? `<div class="lc-loc">${icon('pin', 11)}<span>${esc(l.location)}</span></div>` : ''}
+      <div class="lc-price">${priceLabel(l)}</div>
     </div>
   </div>`;
 }

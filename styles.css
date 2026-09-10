@@ -300,19 +300,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cat-pill{flex:none;height:34px;padding:0 13px;border-radius:var(--radius-pill);border:none;
   display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;
   font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;
-  background:var(--pill-bg);color:var(--pill-fg);
+  background:var(--cat-tint);color:var(--cat-deep);
   transition:background var(--dur) var(--ease),color var(--dur) var(--ease);}
-.cat-pill.active{background:var(--pill-fg);color:#fff;}
+.cat-pill.active{background:var(--cat-deep);color:#fff;}
 .cat-pill:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
 
-.cat-pill[data-cat="all"]{--pill-bg:var(--bg-alt);--pill-fg:var(--text-muted);padding:0 15px;}
-.cat-pill[data-cat="all"].active{--pill-fg:var(--brand);}
-.cat-pill[data-cat="housing"]{--pill-bg:var(--cat-housing-bg);--pill-fg:var(--cat-housing-text);}
-.cat-pill[data-cat="clothing"]{--pill-bg:var(--cat-clothing-bg);--pill-fg:var(--cat-clothing-text);}
-.cat-pill[data-cat="technology"]{--pill-bg:var(--cat-technology-bg);--pill-fg:var(--cat-technology-text);}
-.cat-pill[data-cat="donation"]{--pill-bg:var(--cat-donation-bg);--pill-fg:var(--cat-donation-text);}
-.cat-pill[data-cat="books"]{--pill-bg:var(--cat-books-bg);--pill-fg:var(--cat-books-text);}
-.cat-pill[data-cat="other"]{--pill-bg:var(--cat-other-bg);--pill-fg:var(--cat-other-text);}
+/* ONE mapping from category to its two colours, read by anything carrying data-cat: the
+   pills above, and the listing card's tint panel and badge. Custom properties do nothing on
+   their own, so a bare attribute selector here is safe — an element only picks up a colour
+   when a rule actually asks for var(--cat-tint) or var(--cat-deep). */
+[data-cat="all"]       {--cat-tint:var(--bg-alt);                  --cat-deep:var(--text-muted);}
+[data-cat="housing"]   {--cat-tint:var(--cat-housing-bg);          --cat-deep:var(--cat-housing-text);}
+[data-cat="clothing"]  {--cat-tint:var(--cat-clothing-bg);         --cat-deep:var(--cat-clothing-text);}
+[data-cat="technology"]{--cat-tint:var(--cat-technology-bg);       --cat-deep:var(--cat-technology-text);}
+[data-cat="donation"]  {--cat-tint:var(--cat-donation-bg);         --cat-deep:var(--cat-donation-text);}
+[data-cat="books"]     {--cat-tint:var(--cat-books-bg);            --cat-deep:var(--cat-books-text);}
+[data-cat="other"]     {--cat-tint:var(--cat-other-bg);            --cat-deep:var(--cat-other-text);}
+/* Legacy rows only — this category can no longer be posted, but old listings still carry it. */
+[data-cat="organization_event"]{--cat-tint:var(--cat-organization_event-bg);--cat-deep:var(--cat-organization_event-text);}
+.cat-pill[data-cat="all"]{padding:0 15px;}
+.cat-pill[data-cat="all"].active{--cat-deep:var(--brand);}
 
 .cat-tabs{display:flex;gap:22px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
 .cat-tabs::-webkit-scrollbar{display:none;}
@@ -378,18 +385,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cat-pick-btn{display:flex;align-items:center;justify-content:center;min-height:64px;padding:18px 12px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;transition:transform .12s,box-shadow .15s;}
 .cat-pick-btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08);}
 /* Pinterest-style masonry via CSS multi-column: cards keep natural heights, next card slots up — no row gaps. */
-.listings-grid{column-count:3;column-gap:18px;}
-@media(max-width:1100px){.listings-grid{column-count:2;}}
-@media(max-width:680px){.listings-grid{column-count:1;}}
+/* A real grid, not CSS multi-column. The old masonry let every card be its own height,
+   which is precisely why two columns could never line up: column-count fills column one to
+   the bottom before starting column two, so "2 columns" read as one long strip beside
+   another. Cards are now a fixed shape and sit in rows.
+   Two columns is the floor, including on the narrowest phone — the approved design is a
+   scannable 2-up, and dropping to a single column would turn it back into a list. */
+.listings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;}
+@media(max-width:1100px){.listings-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:680px){.listings-grid{gap:12px;}}
 /* PINNED SECTION */
 .pinned-strip{margin-bottom:24px;}
 .pinned-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--pin);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
-.pinned-grid{column-count:3;column-gap:14px;}
-@media(max-width:1100px){.pinned-grid{column-count:2;}}
-@media(max-width:680px){.pinned-grid{column-count:1;}}
+.pinned-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;}
+@media(max-width:1100px){.pinned-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:680px){.pinned-grid{gap:12px;}}
 /* LISTING CARD */
-.listing-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:18px;transition:transform .2s,box-shadow .2s,border-color .2s;}
-.listing-card:hover{transform:translateY(-3px);border-color:var(--brand-light);box-shadow:0 8px 24px rgba(26,58,42,0.1);}
+.listing-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);
+  overflow:hidden;cursor:pointer;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease),border-color var(--dur) var(--ease);}
+.listing-card:hover{transform:translateY(-3px);border-color:var(--brand-light);box-shadow:var(--shadow-md);}
 .listing-card:focus-visible{outline:2px solid var(--brand-light);outline-offset:2px;}
 .listing-card.pinned-card{border:2px solid rgba(107,33,168,0.3);box-shadow:0 0 0 3px rgba(107,33,168,0.06);}
 /* Redesigned card — Instagram structure: poster header on top, photo-led hero, info below */
@@ -399,23 +414,40 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .lc-report{margin-left:auto;align-self:flex-start;background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:15px;line-height:1;padding:2px 4px;flex-shrink:0;font-family:inherit;}
 .lc-report:hover{color:var(--danger);}
 .trust-official{font-size:10px;font-weight:700;color:#fff;background:var(--pin);padding:1px 7px;border-radius:10px;letter-spacing:.02em;}
-.lc-photo{position:relative;line-height:0;background:#eee;}
-.lc-photo-img{width:100%;height:auto;display:block;max-height:420px;min-height:140px;object-fit:cover;}
+/* Both heroes are 4:3 so a row of cards lines up. aspect-ratio scales with the column, so
+   this holds from a 170px phone card to a 300px desktop one without a second breakpoint. */
+.lc-photo{position:relative;line-height:0;aspect-ratio:4/3;max-width:100%;background:var(--cat-tint,var(--bg-alt));}
+.lc-photo-img{width:100%;height:100%;display:block;object-fit:cover;}
 .lc-count{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;line-height:1.4;}
-.lc-noimg{position:relative;padding:18px 18px 18px;}
-.lc-noimg-cat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:8px;}
-.lc-noimg-title{font-family:'DM Serif Display',serif;font-size:27px;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
-.lc-body{padding:13px 14px 15px;}
-.lc-meta{font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:5px;}
-.lc-title{font-size:16px;font-weight:600;line-height:1.3;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.lc-loc{color:var(--text-muted);font-size:13px;margin-bottom:11px;display:flex;align-items:center;gap:4px;}
-.lc-desc{font-size:13px;line-height:1.45;color:var(--text-muted);margin-bottom:11px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.lc-desc-tall{-webkit-line-clamp:4;line-clamp:4;}
-.lc-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-.lc-price{font-family:'DM Serif Display',serif;font-size:20px;color:var(--brand);line-height:1;}
+.lc-noimg{position:relative;aspect-ratio:4/3;max-width:100%;padding:14px;display:flex;align-items:flex-end;
+  background:var(--cat-tint,var(--bg-alt));color:var(--cat-deep,var(--text));}
+.lc-noimg-title{font-family:'DM Serif Display',serif;font-size:var(--fs-heading);line-height:1.15;
+  display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.lc-body{padding:10px 12px 13px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;flex:1;}
+.lc-badge{background:var(--cat-tint,var(--bg-alt));color:var(--cat-deep,var(--text-muted));
+  font-size:10px;font-weight:700;padding:3px 9px;border-radius:var(--radius-pill);}
+.lc-title{font-size:13.5px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+/* The pin is a flex item and the place name is its own span, so the span is what truncates.
+   Ellipsis cannot apply to a bare text node sitting directly in a flex container, and a long
+   pickup spot on a 170px card is the normal case, not the edge one. align-self:stretch is
+   needed because .lc-body packs its children to the start. */
+.lc-loc{color:var(--text-muted);font-size:11.5px;display:flex;align-items:center;gap:4px;
+  align-self:stretch;min-width:0;max-width:100%;}
+.lc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.lc-title{align-self:stretch;}
+/* Pushed to the bottom so price sits on one line across a row of uneven titles. */
+.lc-price{margin-top:auto;}
+.lc-price{font-family:'DM Serif Display',serif;font-size:var(--fs-lead);color:var(--brand);line-height:1;}
 .lc-price span{font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text-muted);font-weight:400;}
 .lc-soft{font-family:'DM Serif Display',serif;font-size:18px;}
-@media(max-width:640px){.lc-photo-img{max-height:72vh;}}
+/* The save control sits ON the hero, over an opaque disc. It used to sit in the footer,
+   with a comment saying a control over an image is invisible on a light photo — true of a
+   bare icon, which is why this one has a solid backing of its own. The footer it lived in
+   no longer exists. */
+.lc-fav{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.94);color:var(--text-muted);box-shadow:var(--shadow-xs);z-index:1;}
+.lc-fav svg{width:15px;height:15px;}
+.pin-badge-pending{background:var(--accent-warm);}
 
 /* ---- LOADING SKELETONS -------------------------------------------------
    Grey placeholder cards shown while the feed's listings are still in flight
@@ -424,10 +456,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
    A light band sweeps across each block; that motion is what tells a student
    the page is working rather than frozen. Painted by feedSkeletonHTML() in
    js/listings.js and overwritten by renderListings(). */
-.sk-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:18px;}
-.sk-head{display:flex;align-items:center;gap:9px;padding:11px 13px;}
-.sk-body{padding:13px 14px 15px;}
-.sk-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;}
+.sk-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;}
+.sk-body{padding:10px 12px 13px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;}
 
 /* One shimmer rule covers every grey block, whatever its shape. */
 .sk{position:relative;overflow:hidden;background:#eceff0;border-radius:6px;}
@@ -437,17 +467,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @keyframes sk-sweep{100%{transform:translateX(100%);}}
 
 /* Each piece is named for the real element it stands in for. */
-.sk-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;}
-.sk-name{width:104px;height:11px;margin-bottom:5px;}
-.sk-sub{width:68px;height:9px;}
-.sk-hero{height:172px;border-radius:0;}
-.sk-hero-tall{height:238px;border-radius:0;}
-.sk-hero-short{height:128px;border-radius:0;}
-.sk-meta{width:38%;height:9px;margin-bottom:9px;}
-.sk-title{width:84%;height:14px;margin-bottom:7px;}
-.sk-title-2{width:56%;height:14px;}
-.sk-price{width:72px;height:19px;}
-.sk-btn{width:80px;height:30px;border-radius:15px;}
+/* Each block stands in for the real element at the same size, so nothing shifts on load. */
+.sk-hero{aspect-ratio:4/3;max-width:100%;border-radius:0;}
+.sk-badge{width:54px;height:16px;border-radius:var(--radius-pill);}
+.sk-title{width:88%;height:12px;}
+.sk-sub{width:56%;height:10px;}
+.sk-price{width:52px;height:16px;}
 
 /* --- Messages: conversation-list rows. Mirrors .convo-item's box exactly. --- */
 .sk-convo{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);}
@@ -483,7 +508,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 img{image-orientation:from-image;}
 .listing-img{height:155px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;overflow:hidden;}
 .listing-type-badge{position:absolute;top:12px;left:12px;background:var(--brand);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.03em;}
-.pin-badge{position:absolute;top:12px;right:12px;background:var(--pin);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
+/* Moved to the LEFT: top-right is the save control's corner now, and the two overlapped. */
+.pin-badge{position:absolute;top:8px;left:8px;background:var(--pin);color:#fff;font-size:10px;
+  font-weight:700;padding:3px 9px;border-radius:var(--radius-pill);z-index:1;}
 .listing-body{padding:16px;}
 .listing-title{font-weight:600;font-size:15px;margin-bottom:4px;}
 .listing-location{color:var(--text-muted);font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:4px;}
@@ -2249,8 +2276,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 @keyframes fav-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
 /* On a listing card it sits in the footer beside the price, so it is pushed to the right of
    the price and left of the message button. */
-.lc-fav { margin-left: auto; }
-.lc-foot .fav-btn + * { margin-left: 6px; }
+.lc-empty{grid-column:1 / -1;text-align:center;padding:60px 20px;color:var(--text-faint);}
+
+/* .lc-foot is gone — the card has no footer row any more. */
 
 
 /* ---------- A doorway icon in a page header ---------- */
@@ -2414,9 +2442,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .feed-more{display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;
   font-family:'DM Sans',sans-serif;font-size:var(--fs-small);font-weight:600;color:var(--brand);padding:0;}
 .feed-more:hover{color:var(--brand-mid);}
-/* The marketplace grid is a masonry column-count layout; on the feed it is a short
-   preview, so it gets fewer columns and cannot grow taller than a couple of rows. */
-.feed-grid{column-count:2;}
+/* Same card grid as the marketplace; on the feed it is a short preview, so it is pinned to
+   two columns at every width rather than widening to three. */
+.feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 .feed-events{display:flex;flex-direction:column;gap:var(--sp-3);}
 .feed-clubs{width:100%;display:flex;align-items:center;gap:var(--sp-3);text-align:left;cursor:pointer;
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4);
@@ -2429,5 +2457,5 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .feed-clubs-sub{font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;text-transform:none;letter-spacing:0;}
 .feed-clubs svg{flex:none;color:var(--text-faint);}
 @media(max-width:768px){
-  .feed-grid{column-count:1;}
+  .feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
