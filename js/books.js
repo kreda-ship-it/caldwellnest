@@ -296,7 +296,7 @@ async function bookLifecycleAction(id, newStatus) {
     before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus }
   });
   closeModal('bookDetailModal');
-  toast(newStatus === 'pending_sale' ? '✓ Marked pending sale' : '✓ Back to active');
+  toast(newStatus === 'pending_sale' ? 'Marked pending sale' : 'Back to active');
   await loadBooks();
   renderListings();
   if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
@@ -309,7 +309,7 @@ async function relistBook(id) {
   if (error) { toast('Could not relist — please try again.'); console.error('[relistBook]', error.message); return; }
   logEvent('book_relisted', { targetType: 'book_listing', targetId: id, before: { lifecycle_status: 'sold' }, after: { lifecycle_status: 'active' } });
   closeModal('bookDetailModal');
-  toast('✓ Book is live again');
+  toast('Book is live again');
   await loadBooks();
   renderListings();
   if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
@@ -445,7 +445,7 @@ async function submitBook() {
   }
   logEvent('book_submitted', { targetType: 'book_listing', targetId: data.id, targetLabel: title, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
   closePostBook();
-  toast(initialStatus === 'pending' ? '✓ Book submitted for admin review!' : '✓ Your book is live!');
+  toast(initialStatus === 'pending' ? 'Book submitted for admin review!' : 'Your book is live!');
   await loadBooks();
   renderListings(); // books live in the main grid now
 }

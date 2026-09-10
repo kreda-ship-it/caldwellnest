@@ -470,7 +470,7 @@ async function evRegister() {
     await evRefreshDetail();
     return;
   }
-  toast('✓ You are going');
+  toast('You are going');
   await evRefreshDetail();
   renderEvents();
 }
@@ -498,7 +498,7 @@ async function evImHere() {
     await evRefreshDetail();
     return;
   }
-  toast(data === 'checked_in' ? '✓ You are checked in' : '✓ They know you are here');
+  toast(data === 'checked_in' ? 'You are checked in' : 'They know you are here');
   await evRefreshDetail();
   renderEvents();
 }
@@ -879,7 +879,7 @@ async function evRate(eventId, rating) {
     return;
   }
   _evRated.set(eventId, { event_id: eventId, rating, comment: null });
-  toast('✓ Thank you');
+  toast('Thank you');
   evAskComment(eventId, rating);
   renderEvents();
   renderGoing();
@@ -895,7 +895,7 @@ async function evAskComment(eventId, rating) {
     .update({ comment: note.trim() }).eq('event_id', eventId).eq('user_id', getEffectiveUser().id);
   if (error) { console.error('[evAskComment]', error); return; }
   const row = _evRated.get(eventId); if (row) row.comment = note.trim();
-  toast('✓ Sent');
+  toast('Sent');
 }
 
 

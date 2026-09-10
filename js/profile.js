@@ -136,7 +136,11 @@ async function submitWaitlist() {
     errEl.textContent = 'Something went wrong. Please try again.'; errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Notify me when Nestrel launches here →';
   } else {
-    successEl.textContent = '✓ You\'re on the list! We\'ll reach out when Nestrel comes to ' + schoolName + '.';
+    // Icon and user text are set separately on purpose. schoolName is typed by the
+    // visitor, so it must never touch innerHTML; append() makes a text node, which
+    // renders any markup in it as the literal characters the person typed.
+    successEl.innerHTML = icon('check', 14) + ' ';
+    successEl.append("You're on the list! We'll reach out when Nestrel comes to " + schoolName + '.');
     successEl.style.display = 'block';
     btn.innerHTML = icon('check',13) + " You're on the waitlist";
     ['wEmail','wSchoolName'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -416,7 +420,7 @@ async function saveProfile() {
   closeModal('editProfileModal');
   renderProfile();
   updateSNav();
-  toast('Profile updated ✓');
+  toast('Profile updated');
 }
 
 function renderProfile() {

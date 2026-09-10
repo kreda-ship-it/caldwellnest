@@ -191,7 +191,7 @@ async function refreshAdmin() {
   }
   try {
     await adminReload({ reloadCache: true });
-    toast('✓ Refreshed');
+    toast('Refreshed');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.label || '&#8635; Refresh'; delete btn.dataset.busy; }
   }
@@ -704,7 +704,7 @@ async function aApprove(id) {
   DB.pending.splice(DB.pending.findIndex(x => x.id === id), 1);
   logAdminAction('approve_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { status: 'pending' }, after: { status: 'approved' } });
   updateAdminBadges(); renderAApprovals(); renderListings();
-  toast('✓ Listing approved — now live on student board');
+  toast('Listing approved — now live on student board');
 }
 
 async function aReturnToPending(id) {
@@ -801,7 +801,7 @@ async function aApproveBook(id) {
   logAdminAction('approve_book', { targetType: 'book_listing', targetId: id, targetLabel: b.title, before: { status: 'pending' }, after: { status: 'approved' } });
   updateAdminBadges(); renderAApprovals();
   await loadBooks(); renderListings(); // refresh the merged feed so the approval is visible without a reload
-  toast('✓ Book approved — now live on the Books board');
+  toast('Book approved — now live on the Books board');
 }
 
 function aOpenRejectBook(id) { aBookRejectId = id; _rejectTarget = 'book'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject book'; document.getElementById('rejConfirmBtn').textContent = 'Confirm rejection'; openModal('rejectModal'); }
@@ -1089,7 +1089,7 @@ async function saveAEdit() {
   logAdminAction('edit_listing', { targetType: 'listing', targetId: aEditId, targetLabel: newTitle, school: src.school, category: src.category, reason: newStatus === 'rejected' ? newRejReason : null, before: { status: oldStatus, title: oldTitle, price: oldPrice, location: oldLoc, description: oldDesc }, after: { status: newStatus, title: newTitle, price: newRent, location: newLoc, description: newDesc } });
   closeModal('aEditModal');
   renderAApprovals(); renderAListings(); renderListings(); updateAdminBadges();
-  toast('✓ Listing updated');
+  toast('Listing updated');
 }
 
 // ADMIN PINNED
@@ -2473,7 +2473,7 @@ function applyColors() {
   r.style.setProperty('--bg', curColors.bg);
   r.style.setProperty('--surface', curColors.surface);
   logAdminAction('color_edit', { targetType: 'system', meta: { section: 'colors' } });
-  toast('✓ Colors applied to student platform!');
+  toast('Colors applied to student platform!');
 }
 
 function resetColors() {
@@ -2507,7 +2507,7 @@ function applyContent() {
   DB.content.listSub = document.getElementById('txtLS').value;
   applyDBContent();
   logAdminAction('content_edit', { targetType: 'system', meta: { section: 'content' } });
-  toast('✓ Content applied to student platform!');
+  toast('Content applied to student platform!');
 }
 
 function selCardLayout(el) {
@@ -2523,7 +2523,7 @@ function applyLayout() {
   document.getElementById('pvBanner').style.display = (bt && bon) ? 'block' : 'none';
   document.getElementById('pvBanner').textContent = bt;
   logAdminAction('content_edit', { targetType: 'system', meta: { section: 'layout' } });
-  toast('✓ Layout applied!');
+  toast('Layout applied!');
 }
 
 // ============================================================
@@ -2839,7 +2839,7 @@ async function submitBcast(mode) {
     if (error) { toast('Could not send — please try again.'); console.error(error); return; }
     const logType = status === 'draft' ? 'broadcast_drafted' : status === 'scheduled' ? 'broadcast_scheduled' : 'broadcast_sent';
     logAdminAction(logType, { targetType: 'broadcast', targetLabel: sub, meta: { status, audience, type: bType } });
-    const labels = { sent: '✓ Broadcast sent!', draft: 'Draft saved', scheduled: '✓ Broadcast scheduled!' };
+    const labels = { sent: 'Broadcast sent', draft: 'Draft saved', scheduled: 'Broadcast scheduled' };
     toast(labels[status]);
   }
   resetBcastForm();
@@ -3314,7 +3314,7 @@ async function expData(type, fmt) {
 
   _downloadData(data, `caldwellnest-${type}`, fmt);
   logAdminAction('export', { targetType: 'system', meta: { export_type: type, format: fmt } });
-  toast(`✓ ${type} exported as ${fmt.toUpperCase()}`);
+  toast(`${type} exported as ${fmt.toUpperCase()}`);
 }
 
 async function expFull() {
@@ -3340,7 +3340,7 @@ async function expFull() {
   _downloadData(full, 'caldwellnest-full-backup', 'json');
   localStorage.setItem('cn_last_backup', new Date().toISOString());
   logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_backup', format: 'json' } });
-  toast('✓ Full backup downloaded');
+  toast('Full backup downloaded');
 }
 
 // STUDENT VERIFICATION removed 2026-07-13 (PENDING_VERIFY / renderVerify / verApprove / verDeny).

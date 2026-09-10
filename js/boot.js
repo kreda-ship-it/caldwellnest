@@ -158,7 +158,7 @@ if (!adminPreviewMode && !_recoveryMode) {
   }
   // Just clicked the email-verification link → Supabase set the session and redirected here.
   if (/[#&]type=signup/.test(window.location.hash)) {
-    toast('✓ Email verified — welcome to CaldwellNest!');
+    toast('Email verified — welcome to CaldwellNest!');
     history.replaceState(null, '', window.location.pathname + window.location.search);
   }
   checkStudentNotifications(session.user.id);

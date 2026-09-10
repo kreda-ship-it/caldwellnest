@@ -303,7 +303,7 @@ async function orgCreateChild(parentId, type) {
   }
   logEvent('org_created', { targetType: 'organization', targetLabel: name.trim(), school: parent.school,
                             after: { type, parent_id: parentId } });
-  toast(`✓ ${name.trim()} created`);
+  toast(`${name.trim()} created`);
   renderOrgs();
 }
 
@@ -319,7 +319,7 @@ async function orgSetActive(orgId, active) {
   logEvent(active ? 'org_reactivated' : 'org_deactivated',
     { targetType: 'organization', targetId: orgId, targetLabel: org.name, school: org.school,
       before: { is_active: !active }, after: { is_active: active } });
-  toast(active ? '✓ Reactivated' : '✓ Deactivated');
+  toast(active ? 'Reactivated' : 'Deactivated');
   renderOrgs();
 }
 
@@ -495,7 +495,7 @@ async function orgAddOfficer(orgId) {
   const org = _orgCtx?.orgs.get(orgId);
   logEvent('org_officer_added', { targetType: 'membership', targetId: orgId, targetLabel: email,
                                   school: org?.school, after: { role: 'officer' } });
-  toast('✓ Officer added');
+  toast('Officer added');
   clearOrgContext();
   orgTogglePanel(orgId); orgTogglePanel(orgId);   // close + reopen to repaint
 }
@@ -521,7 +521,7 @@ async function orgRemoveMember(membershipId, orgId) {
   if (error) { toast('Could not remove: ' + error.message); console.error('[orgRemoveMember]', error); return; }
   logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
                                    before: { status: 'active' }, after: { status: 'removed' } });
-  toast('✓ Removed');
+  toast('Removed');
   clearOrgContext();
   _orgOpenPanel = null;
   orgTogglePanel(orgId);
@@ -541,7 +541,7 @@ async function orgRestoreMember(membershipId, orgId) {
   if (error) { toast('Could not restore: ' + error.message); console.error('[orgRestoreMember]', error); return; }
   logEvent('org_member_restored', { targetType: 'membership', targetId: membershipId,
                                     before: { status: 'removed' }, after: { status: 'active' } });
-  toast('✓ Restored');
+  toast('Restored');
   clearOrgContext();
   _orgOpenPanel = null;
   orgTogglePanel(orgId);
@@ -595,7 +595,7 @@ async function orgAddSelf(orgId) {
 
   logEvent('org_self_added', { targetType: 'membership', targetId: orgId, targetLabel: org.name,
                                school: org.school, after: { role: 'officer', title: 'Administrator' } });
-  toast('✓ You are now an officer of ' + org.name);
+  toast('You are now an officer of ' + org.name);
   clearOrgContext();
   _orgOpenPanel = null;
   orgTogglePanel(orgId);
@@ -833,7 +833,7 @@ async function saveOcProfile() {
   logEvent('org_profile_updated', { targetType: 'organization', targetId: _ocOrgId,
                                     targetLabel: patch.name, school: before?.school,
                                     before: { name: before?.name }, after: { name: patch.name } });
-  toast('✓ Saved');
+  toast('Saved');
   await loadOrgContext(true);
   renderOrgConsole();
 }
@@ -894,7 +894,7 @@ async function ocApprove(membershipId) {
     .update({ status: 'active' }).eq('id', membershipId);
   if (error) { toast('Could not approve: ' + error.message); console.error('[ocApprove]', error); return; }
   logEvent('org_member_approved', { targetType: 'membership', targetId: membershipId });
-  toast('✓ Approved');
+  toast('Approved');
   renderOcMembers();
 }
 
@@ -909,7 +909,7 @@ async function ocRemove(membershipId) {
   if (error) { toast('Could not remove: ' + error.message); console.error('[ocRemove]', error); return; }
   logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
                                    before: { status: 'active' }, after: { status: 'removed' } });
-  toast('✓ Removed');
+  toast('Removed');
   clearOrgContext();
   await loadOrgContext();
   renderOcMembers();
@@ -1509,7 +1509,7 @@ async function ocSaveEvent(status = 'published') {
   _ocEvPhotos.forEach(ph => URL.revokeObjectURL(ph.preview));
   _ocEvPhotos = []; _ocEvRemoved = [];
   _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; _ocEvFormOpen = false;
-  toast(status === 'draft' ? '✓ Draft saved' : (editing ? '✓ Event updated' : '✓ Event published'));
+  toast(status === 'draft' ? 'Draft saved' : (editing ? 'Event updated' : 'Event published'));
   renderOcEvents();
 }
 
@@ -1737,7 +1737,7 @@ async function ocAddWalkIn(eventId) {
     { p_event_id: eventId, p_name: name, p_email: email });
   if (error) { toast('Could not add: ' + error.message); console.error('[ocAddWalkIn]', error); return; }
 
-  toast('✓ ' + name + ' added');
+  toast(name + ' added');
   await ocReloadRoster();
   // The box stays open and the cursor goes back to the name. Walk-ins arrive in a run — three
   // people from the same corridor — and closing the form after each one makes the officer
@@ -1769,7 +1769,7 @@ async function ocCopyEmails(id) {
   if (!emails) { toast('No email addresses to copy'); return; }
   try {
     await navigator.clipboard.writeText(emails);
-    toast('✓ Copied');
+    toast('Copied');
   } catch (e) {
     // Clipboard access needs a secure context and can be refused outright. Falling back to a
     // prompt is ugly and always works, which beats a button that silently does nothing.
@@ -1837,7 +1837,7 @@ async function ocEvDownloadQR(id) {
   a.href = c.toDataURL('image/png');
   a.download = `qr-${String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'event'}.png`;
   a.click();
-  toast('✓ QR sheet downloaded');
+  toast('QR sheet downloaded');
 }
 
 // Canvas has no line wrapping. A long event title would otherwise run off both edges of the
@@ -1868,7 +1868,7 @@ async function ocCancelEvent(id) {
 
   const { error } = await supabaseClient.rpc('cancel_event', { p_event_id: id, p_reason: reason.trim() });
   if (error) { toast('Could not cancel: ' + error.message); console.error('[ocCancelEvent]', error); return; }
-  toast('✓ Event cancelled');
+  toast('Event cancelled');
   renderOcEvents();
 }
 
@@ -2083,7 +2083,7 @@ async function ocCreatePost() {
 
   logEvent('org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
                                  school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType } });
-  toast('✓ Posted');
+  toast('Posted');
   renderOcPosts();
 }
 
@@ -2109,7 +2109,7 @@ async function ocDeletePost(postId) {
   const { error } = await supabaseClient.from('org_posts').delete().eq('id', postId);
   if (error) { toast('Could not delete: ' + error.message); console.error('[ocDeletePost]', error); return; }
   logEvent('org_post_deleted', { targetType: 'organization', targetId: _ocOrgId });
-  toast('✓ Deleted');
+  toast('Deleted');
   renderOcPosts();
 }
 
@@ -2142,7 +2142,7 @@ async function ocPickLogo(input) {
       .update({ logo_url: publicUrl }).eq('id', _ocOrgId);
     if (error) throw error;
 
-    toast('✓ Logo updated');
+    toast('Logo updated');
     await loadOrgContext(true);
     renderOrgConsole();
   } catch (e) {
@@ -2274,7 +2274,7 @@ async function ocUploadRecap(eventId, input) {
     await deleteListingPhotos(urls, 'event-media');
     toast('Could not attach: ' + error.message); console.error('[ocUploadRecap insert]', error); return;
   }
-  toast('✓ Added');
+  toast('Added');
   await renderOcEvents();
   ocPaintRecap();
 }

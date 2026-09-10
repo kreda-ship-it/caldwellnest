@@ -1044,7 +1044,7 @@ async function lifecycleAction(id, table, newStatus) {
   applyLocalLifecycleChange(id, { lifecycle_status: newStatus });
   logEvent(LIFECYCLE_EVENT_TYPES[newStatus] || 'listing_relisted', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus } });
   closeModal('detailModal');
-  toast('✓ Listing updated');
+  toast('Listing updated');
 }
 
 async function setListingDeadline(id) {
@@ -1062,7 +1062,7 @@ async function setListingDeadline(id) {
   applyLocalLifecycleChange(id, { expires_at: iso });
   logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: iso } });
   closeModal('detailModal');
-  toast('✓ Deadline set');
+  toast('Deadline set');
 }
 
 async function clearListingDeadline(id) {
@@ -1076,7 +1076,7 @@ async function clearListingDeadline(id) {
   applyLocalLifecycleChange(id, { expires_at: null });
   logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: null } });
   closeModal('detailModal');
-  toast('✓ Deadline cleared');
+  toast('Deadline cleared');
 }
 
 async function renewListing(id) {
@@ -1093,7 +1093,7 @@ async function renewListing(id) {
   applyLocalLifecycleChange(id, { lifecycle_status: 'active', expires_at: iso });
   logEvent('listing_renewed', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, after: { lifecycle_status: 'active', expires_at: iso } });
   closeModal('detailModal');
-  toast('✓ Listing renewed');
+  toast('Listing renewed');
 }
 
 async function sContact(listingId) {
@@ -1357,6 +1357,6 @@ async function submitListing() {
     renderListings();
   }
   closePostModal();
-  toast(initialStatus === 'pending' ? '✓ Listing submitted for admin review!' : '✓ Listing posted!');
+  toast(initialStatus === 'pending' ? 'Listing submitted for admin review!' : 'Listing posted!');
   if (currentRole === 'admin') updateAdminBadges();
 }

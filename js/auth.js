@@ -206,7 +206,7 @@ async function submitNewPassword() {
   }
 
   hideResetScreen();
-  await enterStudentSession(profile, user.id, 'Password updated ✓');
+  await enterStudentSession(profile, user.id, 'Password updated');
 }
 
 // ---- Email verification gate ----
