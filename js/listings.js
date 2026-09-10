@@ -579,13 +579,15 @@ function feedSkeletonHTML(n = 6) {
 }
 
 function showFeedSkeletons() {
-  const grid = document.getElementById('listingsGrid');
-  if (!grid || grid.children.length) return; // never clobber cards that are already up
-  grid.setAttribute('aria-busy', 'true');     // screen readers announce "busy", not the fake cards
-  grid.innerHTML = feedSkeletonHTML();
+  const host = document.getElementById('mkSections');
+  if (!host || host.children.length) return;  // never clobber cards that are already up
+  host.setAttribute('aria-busy', 'true');     // screen readers announce "busy", not the fake cards
+  // Wrapped in a grid of its own: #mkSections is a plain column of sections now, so
+  // skeletons dropped straight into it would stack one per row instead of filling a grid.
+  host.innerHTML = `<div class="listings-grid">${feedSkeletonHTML()}</div>`;
 }
 // Runs at load. Safe here because every <script> tag sits at the bottom of
-// index.html, so #listingsGrid already exists by the time this file executes.
+// index.html, so #mkSections already exists by the time this file executes.
 showFeedSkeletons();
 
 // THE keyword rule for a marketplace item, extracted so the feed and the search page cannot
@@ -713,29 +715,86 @@ function renderListings() {
     badge.style.display = panelCount ? 'inline-flex' : 'none';
   });
 
-  // Pinned strip — only when no filters active
+  // ---------------------------------------------------------------- sections
+  // One flat grid when the student has narrowed something, sections when they have not.
+  // Someone who picked a category asked a question and wants the answer in one list;
+  // splitting that answer across headings makes them read three lists to find out how many
+  // results there were.
   const noFilters = _filters.category === 'all' && !_filters.keyword && _filters.minPrice === null && _filters.maxPrice === null && !Object.keys(_filters.details).length;
-  const strip = document.getElementById('pinnedStrip');
-  if (pinnedFiltered.length && noFilters) {
-    strip.style.display = 'block';
-    document.getElementById('pinnedGrid').innerHTML = pinnedFiltered.map(l => listingCardHTML(l, true)).join('');
-  } else { strip.style.display = 'none'; }
+  const host = document.getElementById('mkSections');
+  if (!host) return;
+  host.removeAttribute('aria-busy'); // real content from here on — skeletons are done
 
-  // Regular grid
-  const grid = document.getElementById('listingsGrid');
-  grid.removeAttribute('aria-busy'); // real content from here on — skeletons are done
-  if (filtered.length === 0) {
-    // grid-column, not column-span: the grid is a real CSS grid now, and column-span only
-    // ever meant anything under column-count. Left as it was, this would have sat squashed
-    // into the first column instead of spanning the row.
-    grid.innerHTML = `<div class="lc-empty">
-      <div style="margin-bottom:12px;color:var(--text-faint)">${approved.length === 0 ? icon('inbox', 38) : icon('search', 38)}</div>
-      <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--text)">${approved.length === 0 ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
-      ${!noFilters ? `<div style="font-size:13px;margin-bottom:16px">Try widening the price range or clearing a filter.</div><button onclick="clearListingFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Clear filters</button>` : ''}
-    </div>`;
+  if (!filtered.length && !pinnedFiltered.length) {
+    host.innerHTML = mkEmptyHTML(approved.length === 0, noFilters);
     return;
   }
-  grid.innerHTML = sortListings(filtered).map(l => listingCardHTML(l, false)).join('');
+
+  if (!noFilters) {
+    const label = _filters.category !== 'all' ? (CATEGORY_LABELS[_filters.category] || 'Results') : 'Results';
+    const all = sortListings([...pinnedFiltered, ...filtered]);
+    host.innerHTML = mkSectionHTML('results', label, all, `${all.length} listing${all.length !== 1 ? 's' : ''}`);
+    return;
+  }
+
+  // The school split. Coordinates live on SCHOOLS, not on listings, so nothing here can rank
+  // one listing as physically nearer than another — "at your school" is the honest version of
+  // that idea, and it is the only one the data can actually answer. It also makes the school
+  // scope filter visible: without it, listings pulled in from a university 20 miles away sit
+  // in the same grid as ones from your own campus with nothing to tell them apart.
+  const mySchool = getEffectiveUser()?.school || null;
+  const atMine  = sortListings(filtered.filter(l => !mySchool || !l.school || l.school === mySchool));
+  const nearby  = sortListings(filtered.filter(l => mySchool && l.school && l.school !== mySchool));
+
+  host.innerHTML =
+      mkSectionHTML('featured', 'Featured', sortListings(pinnedFiltered))
+    + mkSectionHTML('school', mySchool ? 'At your school' : 'All listings', atMine)
+    + mkSectionHTML('nearby', 'From nearby campuses', nearby);
+}
+
+// How many cards a section shows before "See all". Three rows of two on a phone, two rows of
+// three on a desktop — enough to be worth scrolling, short enough that the next heading is
+// reachable without committing to the whole list.
+const MK_PREVIEW = 6;
+// Which sections the student has unfolded. Not persisted: it describes this visit to the
+// page, not a preference, and a section silently already-open on next launch would be a
+// small mystery rather than a convenience.
+const _mkOpen = {};
+
+function mkToggleSection(key) {
+  _mkOpen[key] = !_mkOpen[key];
+  renderListings();
+}
+
+function mkSectionHTML(key, title, items, meta) {
+  // A heading over nothing is worse than no heading — same rule the home feed follows.
+  if (!items.length) return '';
+  const open  = !!_mkOpen[key];
+  const more  = items.length > MK_PREVIEW;
+  const shown = open ? items : items.slice(0, MK_PREVIEW);
+  // Inside a section called Featured every card is featured, so the per-card badge would be
+  // repeating the heading. In the flat results list there is no heading saying it, so there
+  // the badge earns its place.
+  const badge = l => key === 'results' && l.pinned;
+  return `
+    <section class="mk-sec">
+      <div class="mk-sec-head">
+        <h2 class="mk-sec-title">${esc(title)}</h2>
+        ${meta ? `<span class="mk-sec-meta">${esc(meta)}</span>` : ''}
+        ${more ? `<button class="mk-sec-more${open ? ' open' : ''}" onclick="mkToggleSection('${key}')"
+            aria-expanded="${open}">${open ? 'Show less' : 'See all'}${icon('chevDown', 13)}</button>` : ''}
+      </div>
+      <div class="listings-grid">${shown.map(l => listingCardHTML(l, badge(l))).join('')}</div>
+    </section>`;
+}
+
+function mkEmptyHTML(nothingAtAll, noFilters) {
+  return `<div class="lc-empty">
+    <div class="lc-empty-icon">${nothingAtAll ? icon('inbox', 38) : icon('search', 38)}</div>
+    <div class="lc-empty-title">${nothingAtAll ? 'No listings yet — be the first to post one!' : 'No listings match these filters.'}</div>
+    ${!noFilters ? `<div class="lc-empty-sub">Try widening the price range or clearing a filter.</div>
+      <button class="lc-empty-btn" onclick="clearListingFilters()">Clear filters</button>` : ''}
+  </div>`;
 }
 
 // esc() and escAttr() live in js/utils.js so every file can use them.

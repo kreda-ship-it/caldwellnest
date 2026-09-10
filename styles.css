@@ -385,6 +385,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cat-pick-btn{display:flex;align-items:center;justify-content:center;min-height:64px;padding:18px 12px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;transition:transform .12s,box-shadow .15s;}
 .cat-pick-btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08);}
 /* Pinterest-style masonry via CSS multi-column: cards keep natural heights, next card slots up — no row gaps. */
+/* ------------------------------------------------------------------- MARKET SECTIONS
+   Featured, then At your school, then From nearby campuses — each with its own grid and its
+   own See-all. A section with nothing in it is not drawn at all, so these rules never have
+   to describe an empty state. */
+.mk-sec{margin-bottom:var(--sp-6);}
+.mk-sec:last-child{margin-bottom:0;}
+.mk-sec-head{display:flex;align-items:baseline;gap:var(--sp-2);margin-bottom:var(--sp-3);}
+.mk-sec-title{font-family:'DM Serif Display',serif;font-size:var(--fs-title);color:var(--brand);line-height:1.2;}
+.mk-sec-meta{font-size:var(--fs-small);color:var(--text-faint);white-space:nowrap;}
+/* Pushed to the right edge of the heading row, and kept on one line — "Show less" is wider
+   than "See all", and a button that changes width when tapped reads as the layout twitching. */
+.mk-sec-more{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:var(--sp-1);
+  background:none;border:none;padding:var(--sp-1) 0;cursor:pointer;white-space:nowrap;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-small);font-weight:600;color:var(--accent-warm);}
+.mk-sec-more:hover{color:var(--text);}
+.mk-sec-more:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+/* One chevron, turned over, rather than a second icon that has to be kept in step with it. */
+.mk-sec-more svg{transition:transform var(--dur) var(--ease);}
+.mk-sec-more.open svg{transform:rotate(180deg);}
+
+.lc-empty-icon{margin-bottom:var(--sp-3);color:var(--text-faint);}
+.lc-empty-title{font-size:var(--fs-body);font-weight:500;margin-bottom:var(--sp-2);color:var(--text);}
+.lc-empty-sub{font-size:var(--fs-small);margin-bottom:var(--sp-4);}
+.lc-empty-btn{background:none;border:1px solid var(--border);border-radius:var(--radius-pill);
+  padding:var(--sp-2) 18px;font-size:var(--fs-small);color:var(--text-muted);cursor:pointer;font-family:inherit;}
+.lc-empty-btn:hover{border-color:var(--brand-light);color:var(--text);}
+
 /* A real grid, not CSS multi-column. The old masonry let every card be its own height,
    which is precisely why two columns could never line up: column-count fills column one to
    the bottom before starting column two, so "2 columns" read as one long strip beside
@@ -395,11 +422,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media(max-width:1100px){.listings-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:680px){.listings-grid{gap:12px;}}
 /* PINNED SECTION */
-.pinned-strip{margin-bottom:24px;}
-.pinned-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--pin);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
-.pinned-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;}
-@media(max-width:1100px){.pinned-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media(max-width:680px){.pinned-grid{gap:12px;}}
 /* LISTING CARD */
 .listing-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);
   overflow:hidden;cursor:pointer;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);
