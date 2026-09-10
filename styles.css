@@ -211,16 +211,104 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .page.active{display:block;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 /* HERO */
-.hero{background:var(--brand);padding:64px 28px 72px;text-align:center;}
-.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;padding:5px 14px;border-radius:20px;margin-bottom:22px;border:1px solid rgba(255,255,255,0.15);}
-.hero h1{font-family:'DM Serif Display',serif;color:#fff;font-size:46px;line-height:1.1;margin-bottom:16px;}
-.hero h1 em{color:var(--accent);font-style:normal;}
-.hero p{color:rgba(255,255,255,0.7);font-size:17px;max-width:480px;margin:0 auto 32px;line-height:1.6;}
-.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
-.btn-primary{background:var(--accent);color:var(--brand);padding:13px 28px;border-radius:var(--radius-sm);font-weight:600;font-size:15px;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .18s;}
-.btn-primary:hover{background:#e09600;transform:translateY(-1px);}
-.btn-outline{background:transparent;color:#fff;padding:13px 28px;border-radius:var(--radius-sm);font-weight:500;font-size:15px;cursor:pointer;border:1.5px solid rgba(255,255,255,0.4);font-family:'DM Sans',sans-serif;transition:all .18s;}
-.btn-outline:hover{border-color:#fff;background:rgba(255,255,255,0.08);}
+/* The hero on a phone: one column, smaller headline, no mock. 56px display type set on a
+   390px screen breaks "One trusted hub" across three lines and pushes the buttons below the
+   fold, so the first thing a visitor sees becomes a fragment of a sentence. */
+@media(max-width:900px){
+  .hero{gap:var(--sp-5);padding:var(--sp-6) var(--sp-4);}
+  .hero-mock{display:none;}
+  .hero h1{font-size:38px;letter-spacing:-.5px;}
+  .hero-text{max-width:none;}
+  .hero-text p{font-size:var(--fs-body);}
+  .hero-cta{width:100%;}
+  .hero-cta .btn-primary,.hero-cta .btn-outline{flex:1;min-width:200px;justify-content:center;}
+}
+@media(max-width:420px){
+  .hero h1{font-size:32px;}
+  .hero-cta .btn-primary,.hero-cta .btn-outline{min-width:100%;}
+}
+
+/* ------------------------------------------------------------------- HERO PHONE MOCK
+   The product, drawn in CSS. Every colour is a token, so it repaints with the app instead of
+   becoming a screenshot of a version that no longer exists. Purely decorative: aria-hidden in
+   the markup, and not rendered at all on a phone. */
+.hero-mock{flex:none;width:300px;height:470px;background:var(--surface);border-radius:30px;
+  padding:9px;box-shadow:var(--shadow-lg);}
+.hm-screen{width:100%;height:100%;border-radius:23px;overflow:hidden;background:var(--bg);
+  display:flex;flex-direction:column;}
+.hm-top{flex:none;height:46px;background:var(--brand);display:flex;align-items:center;
+  justify-content:space-between;padding:0 14px;}
+.hm-wordmark{font-family:'DM Serif Display',serif;font-size:15px;color:#fff;}
+.hm-wordmark span{color:var(--accent);}
+.hm-avatar{width:22px;height:22px;border-radius:50%;background:var(--brand-light);}
+.hm-body{flex:1;min-height:0;overflow:hidden;padding:13px;display:flex;flex-direction:column;gap:12px;}
+.hm-greet{font-family:'DM Serif Display',serif;font-size:19px;color:var(--text);line-height:1.15;}
+.hm-chips{display:flex;gap:6px;}
+.hm-chip{flex:1;height:50px;border-radius:11px;}
+.hm-chip.c1{background:var(--cat-housing-bg);}
+.hm-chip.c2{background:var(--cat-donation-bg);}
+.hm-chip.c3{background:var(--cat-clothing-bg);}
+.hm-chip.c4{background:var(--cat-technology-bg);}
+.hm-card{background:var(--surface);border-radius:13px;overflow:hidden;box-shadow:var(--shadow-sm);}
+.hm-card-img{height:96px;background:linear-gradient(150deg,var(--cat-housing-bg) 0%,#BFCFC2 100%);}
+.hm-card-body{padding:9px 11px 11px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;}
+.hm-card-tag{background:var(--cat-housing-bg);color:var(--cat-housing-text);font-size:8.5px;
+  font-weight:700;padding:2px 7px;border-radius:var(--radius-pill);}
+.hm-card-title{font-size:12px;font-weight:600;color:var(--text);}
+.hm-card-price{font-family:'DM Serif Display',serif;font-size:16px;color:var(--brand);line-height:1;}
+.hm-club{background:var(--accent-pale);border-radius:13px;padding:10px 12px;display:flex;
+  align-items:center;justify-content:space-between;}
+.hm-club-title{font-family:'DM Serif Display',serif;font-size:13px;color:var(--brand);}
+.hm-club-btn{height:26px;padding:0 12px;border-radius:var(--radius-pill);background:var(--accent-warm);
+  color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;}
+.hm-tabs{flex:none;height:44px;background:var(--surface);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;padding:0 6px;}
+.hm-tab{width:17px;height:17px;border-radius:4px;background:var(--border);}
+.hm-tab.on{background:var(--brand);}
+.hm-plus{width:32px;height:32px;border-radius:50%;background:var(--brand);}
+
+/* ------------------------------------------------------------------------------ HERO
+   Was a dark green slab with centred white text. It is now the cream ground the rest of the
+   app stands on, with the product beside the words. The reason is not decoration: a green
+   slab was the first thing a visitor saw and nothing else in the app looked like it, so the
+   landing page and the product read as two different products. */
+.hero{background:var(--bg);padding:var(--sp-7) var(--sp-5) var(--sp-7);display:flex;
+  align-items:center;justify-content:center;gap:64px;flex-wrap:wrap;}
+.hero-text{flex:1;min-width:0;max-width:560px;display:flex;flex-direction:column;align-items:flex-start;}
+.hero-badge{display:inline-flex;align-items:center;gap:var(--sp-2);background:var(--brand-pale);
+  color:var(--cat-housing-text);font-size:var(--fs-small);font-weight:600;padding:8px 16px;
+  border-radius:var(--radius-pill);margin-bottom:var(--sp-5);}
+.hero h1{font-family:'DM Serif Display',serif;color:var(--text);font-size:56px;line-height:1.08;
+  letter-spacing:-1px;margin-bottom:var(--sp-4);}
+/* Italic, and terracotta rather than the yellow it used to be. On cream, yellow text is close
+   to unreadable — it only worked because it sat on a dark green slab. */
+.hero h1 em{color:var(--accent-warm);font-style:italic;}
+.hero-text p{color:var(--text-muted);font-size:var(--fs-lead);max-width:480px;line-height:1.7;margin:0;}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:var(--sp-5);}
+/* Specificity, not !important. These are <p> like the lead is, so they need to outrank
+   .hero-text p — one extra class does that and stays overridable later. */
+/* --text-muted, not --text-faint. Faint measures 2.9:1 on cream, which is below AA, and this
+   line is the page's actual promise — every member is .edu verified — not decoration. A trust
+   signal nobody can read is not a trust signal. (--text-faint fails AA wherever it carries
+   text; that is a whole-app problem for the accessibility pass, not just this line.) */
+.hero-text .hero-trust{display:flex;align-items:center;gap:9px;margin-top:var(--sp-5);
+  font-size:13.5px;color:var(--text-muted);}
+.hero-text .hero-byline{margin-top:var(--sp-5);font-size:var(--fs-small);color:var(--text-muted);}
+
+/* The primary action is brand green, not the accent yellow. Yellow on cream fails contrast
+   for the label; it was legible before only because the slab behind it was dark. */
+.btn-primary{background:var(--brand);color:#fff;padding:0 30px;height:54px;border-radius:var(--radius-pill);
+  font-weight:600;font-size:15.5px;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;
+  display:inline-flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(26,58,42,.24);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);}
+.btn-primary:hover{background:var(--brand-mid);transform:translateY(-1px);}
+.btn-primary:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+.btn-outline{background:transparent;color:var(--text);padding:0 26px;height:54px;
+  border-radius:var(--radius-pill);font-weight:500;font-size:15.5px;cursor:pointer;
+  border:1px solid var(--border);font-family:'DM Sans',sans-serif;display:inline-flex;
+  align-items:center;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease);}
+.btn-outline:hover{border-color:var(--brand-light);background:var(--bg-alt);}
+.btn-outline:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
 .hero-stats{display:flex;justify-content:center;gap:40px;margin-top:52px;padding-top:36px;border-top:1px solid rgba(255,255,255,0.12);flex-wrap:wrap;}
 .stat{text-align:center;}
 .stat-num{font-family:'DM Serif Display',serif;color:var(--accent);font-size:32px;}

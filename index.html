@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10o">
+<link rel="stylesheet" href="styles.css?v=2026-09-10q">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -67,16 +67,53 @@
   <!-- HOME -->
   <div id="page-home" class="page active">
 
-    <!-- HERO -->
+    <!-- HERO
+         The id sits on the SPAN inside the button, not on the button. applyDBContent() does
+         heroCta.textContent = c.cta, which replaces every child — an icon inside the element
+         holding that id would be wiped on load, the same trap toast() sets. -->
     <div class="hero">
-      <div class="hero-badge"><span class="live-dot"></span>Now live at Caldwell University</div>
-      <h1 id="heroH1">One trusted hub<br>for <em id="heroEm">campus life.</em></h1>
-      <p id="heroSub">Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.</p>
-      <div class="hero-cta">
-        <button class="btn-primary" id="heroCta" onclick="openModal('signupModal')">Get started free</button>
-        <button class="btn-outline" onclick="document.getElementById('for-schools').scrollIntoView({behavior:'smooth'})">Bring Nestrel to your school &#8595;</button>
+      <div class="hero-text">
+        <div class="hero-badge"><span class="live-dot"></span>Now live at Caldwell University</div>
+        <h1 id="heroH1">One trusted hub<br>for <em id="heroEm">campus life.</em></h1>
+        <p id="heroSub">Housing, marketplace, free stuff, events, and a verified student community &mdash; all in one place, just for your school.</p>
+        <div class="hero-cta">
+          <button class="btn-primary" onclick="openModal('signupModal')">
+            <span id="heroCta">Get started free</span>
+            <svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </button>
+          <button class="btn-outline" onclick="document.getElementById('for-schools').scrollIntoView({behavior:'smooth'})">Bring Nestrel to your school</button>
+        </div>
+        <p class="hero-trust">
+          <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          Every member is .edu verified. Students only.
+        </p>
+        <p class="hero-byline">By Amahle Digital Creatives</p>
       </div>
-      <p style="color:rgba(255,255,255,0.38);font-size:13px;margin-top:44px;margin-bottom:0;">By Amahle Digital Creatives</p>
+
+      <!-- A picture of the product, drawn in CSS rather than shipped as a screenshot: it stays
+           sharp on every display, weighs nothing, and cannot go stale the way an exported PNG
+           of last month's UI does. Decorative, so hidden from screen readers, and hidden
+           outright on a phone — a picture of a phone, inside a phone, is a joke at the
+           reader's expense and costs a screenful of height. -->
+      <div class="hero-mock" aria-hidden="true">
+        <div class="hm-screen">
+          <div class="hm-top"><span class="hm-wordmark">Nest<span>rel</span></span><span class="hm-avatar"></span></div>
+          <div class="hm-body">
+            <div class="hm-greet">Good morning, Kal</div>
+            <div class="hm-chips"><span class="hm-chip c1"></span><span class="hm-chip c2"></span><span class="hm-chip c3"></span><span class="hm-chip c4"></span></div>
+            <div class="hm-card">
+              <div class="hm-card-img"></div>
+              <div class="hm-card-body">
+                <span class="hm-card-tag">Housing</span>
+                <span class="hm-card-title">Single room, 8 min walk</span>
+                <span class="hm-card-price">$780</span>
+              </div>
+            </div>
+            <div class="hm-club"><span class="hm-club-title">Join a club</span><span class="hm-club-btn">Explore</span></div>
+          </div>
+          <div class="hm-tabs"><span class="hm-tab on"></span><span class="hm-tab"></span><span class="hm-plus"></span><span class="hm-tab"></span><span class="hm-tab"></span></div>
+        </div>
+      </div>
     </div>
 
     <!-- THE PROBLEM -->
