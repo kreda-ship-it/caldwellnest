@@ -2548,7 +2548,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .feed-sub{font-size:var(--fs-small);color:var(--text-muted);}
 .feed-sec{margin-bottom:var(--sp-6);}
 .feed-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-3);}
-.feed-title{font-family:'DM Serif Display',serif;font-size:var(--fs-title);}
+/* Same green as .mk-sec-title on the marketplace. These headings were inheriting --text,
+   so "Happening this week" and "New in marketplace" sat in near-black while "Featured" one
+   tap away was green — the same kind of heading in two colours. */
+.feed-title{font-family:'DM Serif Display',serif;font-size:var(--fs-title);color:var(--brand);}
 .feed-more{display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;
   font-family:'DM Sans',sans-serif;font-size:var(--fs-small);font-weight:600;color:var(--brand);padding:0;}
 .feed-more:hover{color:var(--brand-mid);}
