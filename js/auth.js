@@ -243,7 +243,7 @@ async function resendVerification() {
     return;
   }
   msg.style.color = 'var(--success)';
-  msg.textContent = '✓ Sent! Check your inbox (and spam).';
+  msg.innerHTML = icon('check',13) + ' Sent! Check your inbox (and spam).';
   _resendCooldown = 60; // client-side cooldown so the button can't be spammed
   const tick = () => {
     if (_resendCooldown <= 0) { clearInterval(_resendTimer); btn.disabled = false; btn.textContent = 'Resend email'; return; }

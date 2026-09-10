@@ -138,7 +138,7 @@ async function submitWaitlist() {
   } else {
     successEl.textContent = '✓ You\'re on the list! We\'ll reach out when Nestrel comes to ' + schoolName + '.';
     successEl.style.display = 'block';
-    btn.textContent = '✓ You\'re on the waitlist';
+    btn.innerHTML = icon('check',13) + " You're on the waitlist";
     ['wEmail','wSchoolName'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('wRole').value = '';
   }
@@ -223,8 +223,8 @@ async function checkEmailAvailability(raw) {
     }
 
     const { data } = await supabaseClient.rpc('check_email_available', { email_to_check: val });
-    if (data === false) { statusEl.textContent = '✗ already registered'; statusEl.style.color = 'var(--danger)'; }
-    else { statusEl.textContent = '✓'; statusEl.style.color = 'var(--success)'; }
+    if (data === false) { statusEl.innerHTML = icon('x',12) + ' already registered'; statusEl.style.color = 'var(--danger)'; }
+    else { statusEl.innerHTML = icon('check',13); statusEl.style.color = 'var(--success)'; }
   }, 400);
 }
 
@@ -234,13 +234,13 @@ async function checkUsernameAvailability(raw) {
   clearTimeout(_usernameTimer);
   if (!val) { statusEl.textContent = ''; return; }
   if (!USERNAME_RE.test(val) || RESERVED_USERNAMES.has(val)) {
-    statusEl.textContent = '✗'; statusEl.style.color = 'var(--danger)'; return;
+    statusEl.innerHTML = icon('x',13); statusEl.style.color = 'var(--danger)'; return;
   }
   statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
   _usernameTimer = setTimeout(async () => {
     const { data } = await supabaseClient.rpc('check_username_available', { username_to_check: val });
-    if (data === false) { statusEl.textContent = '✗ taken'; statusEl.style.color = 'var(--danger)'; }
-    else { statusEl.textContent = '✓ available'; statusEl.style.color = 'var(--success)'; }
+    if (data === false) { statusEl.innerHTML = icon('x',12) + ' taken'; statusEl.style.color = 'var(--danger)'; }
+    else { statusEl.innerHTML = icon('check',12) + ' available'; statusEl.style.color = 'var(--success)'; }
   }, 400);
 }
 
@@ -293,7 +293,7 @@ async function viewStudentProfile(profileId) {
       <div>
         <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2">${esc(displayName)}</div>
         ${p.username ? `<div style="font-size:13px;color:var(--brand);font-weight:500;margin-top:2px">@${esc(p.username)}</div>` : ''}
-        <div class="edu-badge" style="margin-top:6px">&#10003; .edu verified</div>
+        <div class="edu-badge" style="margin-top:6px">${icon('check',12)} .edu verified</div>
       </div>
     </div>
     ${p.bio ? `<div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:14px">${esc(p.bio)}</div>` : ''}
@@ -332,13 +332,13 @@ async function checkEditUsernameAvailability(raw) {
   statusEl.textContent = '';
   if (!val) return;
   const u = getEffectiveUser();
-  if (u && val === u.username) { statusEl.textContent = '✓'; statusEl.style.color = 'var(--success)'; return; }
-  if (!USERNAME_RE.test(val) || RESERVED_USERNAMES.has(val)) { statusEl.textContent = '✗'; statusEl.style.color = 'var(--danger)'; return; }
+  if (u && val === u.username) { statusEl.innerHTML = icon('check',13); statusEl.style.color = 'var(--success)'; return; }
+  if (!USERNAME_RE.test(val) || RESERVED_USERNAMES.has(val)) { statusEl.innerHTML = icon('x',13); statusEl.style.color = 'var(--danger)'; return; }
   statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
   _epUsernameTimer = setTimeout(async () => {
     const { data } = await supabaseClient.rpc('check_username_available', { username_to_check: val });
-    if (data === false) { statusEl.textContent = '✗ taken'; statusEl.style.color = 'var(--danger)'; }
-    else { statusEl.textContent = '✓ available'; statusEl.style.color = 'var(--success)'; }
+    if (data === false) { statusEl.innerHTML = icon('x',12) + ' taken'; statusEl.style.color = 'var(--danger)'; }
+    else { statusEl.innerHTML = icon('check',12) + ' available'; statusEl.style.color = 'var(--success)'; }
   }, 400);
 }
 
