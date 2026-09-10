@@ -1141,6 +1141,20 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .nav-bell:hover { color: #fff; }
 
+/* Desktop destination links. .nav-btn is what the ≤768px rule hides, so these disappear
+   on a phone and the bottom bar carries the same five places instead. */
+.nav-link{background:none;color:rgba(255,255,255,0.8);}
+.nav-link:hover{color:#fff;}
+/* Post is an action, not a destination — so it is the one filled thing in the bar, and
+   it is the desktop counterpart of the + in the middle of the phone bar. */
+.nav-post{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--brand);
+  font-weight:600;padding:7px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-small);}
+.nav-post:hover{background:#ffb61f;}
+/* The unread count keeps the amber it had as a tab badge; .notif-badge alone is the red
+   used for notifications, and the two should not look like the same kind of alert. */
+.notif-badge-msg{background:var(--accent);color:var(--brand);}
+
 .notif-badge {
   display: none;                 /* .show is added only when the count is > 0 */
   position: absolute; top: -2px; right: -2px;

@@ -42,7 +42,6 @@ function showPage(name) {
 // at app open; popping it again on every Home tap reads as the app refusing to let you
 // browse. The wordmark in the top bar remains the way back to the landing page.
 function goHome() {
-  _mTabIntent = 'home';
   const known = getEffectiveUser() || getPriorUser();
   // Home is its own page now. It used to be the marketplace grid, which made Home and
   // Market the same screen with a different tab lit — the thing this bar is being fixed
@@ -54,7 +53,6 @@ function goHome() {
 // Home shows — so two of the five bottom tabs did the same thing and only the highlight
 // differed. That is the costume Events was in before it got its own section.
 function goSearch(focus = true) {
-  _mTabIntent = 'search';
   // Arriving with the cursor already in the box. Somebody who taps a search control has
   // decided to type — asking them to tap a second time inside the page they just opened is a
   // tap that carries no decision. renderSearch() does the focusing, because the input does
@@ -63,26 +61,24 @@ function goSearch(focus = true) {
   showPage('search');
 }
 
-// Highlights the mobile bottom-bar tab matching the current page. Events has its own page
-// since 2026-09-07, so it is a plain name match now — it used to be inferred from an active
-// marketplace category, which was the clearest sign that the tab was a filter in costume.
-// Home and Search still share page-listings, so the tab the student tapped (_mTabIntent)
-// decides between those two.
+// Highlights the mobile bottom-bar tab matching the current page. A plain name match
+// now: every tab has its own page, so nothing has to be inferred from what the student
+// last tapped.
 function updateMTabbar(name) {
   const tabId = (name === 'home' || name === 'feed') ? 'mtab-home'
-    : name === 'search' ? 'mtab-search'
-    : name === 'events' ? 'mtab-events'
-    : name === 'listings' ? (_mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')
-    : name === 'messages' ? 'mtab-messages'
-    : null; // profile & other pages: no tab highlighted
+    : name === 'listings' ? 'mtab-market'
+    : name === 'events'   ? 'mtab-events'
+    : name === 'profile'  ? 'mtab-you'
+    : null; // search, messages, org pages: reached from the top bar, so no tab lights
   document.querySelectorAll('#mTabbar .m-tab').forEach(t => t.classList.toggle('active', t.id === tabId));
 }
+
 
 // One source of truth for the unread-message count on both the desktop nav badge
 // and the mobile Messages tab badge.
 function updateMsgBadges() {
   const show = sUnreadCount > 0;
-  ['msgBadge', 'mMsgBadge'].forEach(id => {
+  ['msgBadge'].forEach(id => {
     const b = document.getElementById(id);
     if (b) { b.textContent = sUnreadCount; b.style.display = show ? 'inline' : 'none'; }
   });
