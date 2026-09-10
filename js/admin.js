@@ -335,10 +335,9 @@ async function buildTypeChart() {
   const mx = Math.max(...sorted.map(e => e[1]), 1);
   el.innerHTML = sorted.map(([cat, n]) => {
     const label = CATEGORY_LABELS[cat] || cat;
-    const emoji = CATEGORY_EMOJI[cat] || '📦';
-    const clickHandler = cat === 'books' ? 'goToBookApprovals()' : `goToListingsFiltered(null,'${cat}')`;
+        const clickHandler = cat === 'books' ? 'goToBookApprovals()' : `goToListingsFiltered(null,'${cat}')`;
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer" title="View ${label} listings" onclick="${clickHandler}">
-      <div style="width:22px;text-align:center;font-size:14px">${emoji}</div>
+      <div style="width:22px;text-align:center">${categoryIcon(cat, 15)}</div>
       <div style="width:90px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${label}</div>
       <div style="flex:1;height:18px;background:var(--bg);border-radius:4px;overflow:hidden">
         <div style="height:100%;width:${Math.round((n/mx)*100)}%;background:var(--brand-light);border-radius:4px;transition:width .4s"></div>
@@ -641,7 +640,7 @@ function renderAApprovals() {
     // Category filter — always show if there are any pending listings
     const cats = ['all', ...new Set(DB.pending.map(l => l.category).filter(Boolean))];
     if (cats.length > 1) {
-      panelRows.push(`<div style="display:flex;gap:6px;flex-wrap:wrap">${cats.map(c => `<button class="filter-chip${_approvalCategoryFilter===c?' active':''}" onclick="_approvalCategoryFilter='${c}';renderAApprovals()">${c === 'all' ? 'All types' : (CATEGORY_EMOJI[c]||'') + ' ' + (CATEGORY_LABELS[c]||c)}</button>`).join('')}</div>`);
+      panelRows.push(`<div style="display:flex;gap:6px;flex-wrap:wrap">${cats.map(c => `<button class="filter-chip${_approvalCategoryFilter===c?' active':''}" onclick="_approvalCategoryFilter='${c}';renderAApprovals()">${c === 'all' ? 'All types' : categoryIcon(c, 13) + ' ' + (CATEGORY_LABELS[c]||c)}</button>`).join('')}</div>`);
     }
 
     // School filter — super-admin only, multiple schools
@@ -1136,7 +1135,7 @@ async function renderAPinned() {
           const since = pinnedTimes[String(l.id)] ? `Pinned ${fmtActivityTime(pinnedTimes[String(l.id)])}` : '';
           return `<div style="background:var(--pin-pale);border:2px solid rgba(107,33,168,0.25);border-radius:var(--radius);padding:16px;position:relative;cursor:pointer;transition:box-shadow .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.boxShadow='0 2px 12px rgba(107,33,168,.15)'" onmouseout="this.style.boxShadow='none'">
             <div style="position:absolute;top:11px;right:11px;font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:2px 8px;border-radius:10px">&#128204; FEATURED</div>
-            <div style="font-size:26px;margin-bottom:8px">${l.emoji || '🏠'}</div>
+            <div style="margin-bottom:8px">${categoryIcon(l.category, 24)}</div>
             <div style="font-weight:600;font-size:14px;margin-bottom:4px;padding-right:72px;line-height:1.3">${esc(l.title)} ${notLiveTag(l)}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">${esc(l.type)} · $${l.rent}/mo</div>
             <div style="font-size:12px;color:var(--text-faint);margin-bottom:${since ? '4' : '12'}px">&#128205; ${esc(l.location)}</div>
@@ -1153,7 +1152,7 @@ async function renderAPinned() {
         pins.map(l => {
           const since = pinnedTimes[String(l.id)] ? `Pinned ${fmtActivityTime(pinnedTimes[String(l.id)])}` : '';
           return `<div class="hist-row" style="align-items:center" onclick="openListingDrawer(${l.id})">
-            <div style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${l.emoji || '🏠'}</div>
+            <div style="width:30px;text-align:center;flex-shrink:0">${categoryIcon(l.category, 20)}</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(l.title)} <span style="font-size:10px;font-weight:700;background:var(--pin);color:#fff;padding:1px 7px;border-radius:10px">FEATURED</span> ${notLiveTag(l)}</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(l.type)} · $${l.rent}/mo · &#128205; ${esc(l.location)}${since ? ` · <span style="color:var(--pin);opacity:.8">${since}</span>` : ''}</div>
@@ -1175,7 +1174,7 @@ async function renderAPinned() {
         avail.map(l => `
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;transition:border-color .15s" onclick="openListingDrawer(${l.id})" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
             <div style="flex:1;min-width:0">
-              <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.emoji || ''} ${esc(l.title)}</div>
+              <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${categoryIcon(l.category, 14)} ${esc(l.title)}</div>
               <div style="font-size:11px;color:var(--text-faint)">$${l.rent}/mo · ${esc(l.type)}</div>
             </div>
             <button class="btn-sm-a btn-a-pin" onclick="event.stopPropagation();aTogglePin(${l.id})">&#128204; Pin</button>
@@ -1749,7 +1748,7 @@ function buildListingsPaneHtml() {
   if (_histListingView === 'grid') {
     return toolbar + `<div class="hist-grid">${_histListings.map(l => `
       <div class="hist-card" onclick="openListingDrawer(${l.id})">
-        <div style="font-size:30px;margin-bottom:10px">${l.emoji || '🏠'}</div>
+        <div style="margin-bottom:10px">${categoryIcon(l.category, 26)}</div>
         <div style="font-weight:600;font-size:14px;line-height:1.3;margin-bottom:6px">${esc(l.title)}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${esc(CATEGORY_LABELS[l.category] || l.category)}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:wrap">
@@ -1760,7 +1759,7 @@ function buildListingsPaneHtml() {
   }
   return toolbar + _histListings.map(l => `
     <div class="hist-row" onclick="openListingDrawer(${l.id})">
-      <div style="font-size:24px;width:34px;text-align:center;flex-shrink:0">${l.emoji || '🏠'}</div>
+      <div style="width:34px;text-align:center;flex-shrink:0">${categoryIcon(l.category, 22)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:500;font-size:14px">${esc(l.title)}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(CATEGORY_LABELS[l.category] || l.category)} · ${fmtDate(l.created_at)}</div>
@@ -1861,7 +1860,7 @@ async function openListingDrawer(listingId) {
         </div>`;
       }).join('')}
     </div>` : '';
-  document.getElementById('hDrawerTitle').innerHTML = `${l.emoji || '🏠'} ${esc(l.title)}`;
+  document.getElementById('hDrawerTitle').innerHTML = `${categoryIcon(l.category, 16)} ${esc(l.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
     ${l.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerGalMain' })}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -1905,7 +1904,7 @@ async function openReportDrawer(reportId) {
     ${listing ? `<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Reported listing</div>
       <div class="hist-row" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;border-bottom:none;margin-bottom:0" onclick="openListingDrawer(${listing.id})">
-        <div style="font-size:22px;width:30px;text-align:center;flex-shrink:0">${listing.emoji || '🏠'}</div>
+        <div style="width:30px;text-align:center;flex-shrink:0">${categoryIcon(listing.category, 20)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:500">${esc(listing.title)}</div>
           <div style="font-size:12px;color:var(--text-muted)">by ${esc(listing.poster_name || '—')}</div>
@@ -2060,7 +2059,7 @@ async function renderAReports() {
     const posterName   = r.listing?.poster_name || '—';
     const posterId     = r.listing?.poster_id  || null;
     const listingExists= !!r.listing;
-    const listingEmoji = r.listing?.emoji || '🏠';
+    const listingEmoji = categoryIcon(r.listing?.category, 14);
     const statusColor  = isOpen ? '#c0392b' : r.status === 'dismissed' ? '#888' : '#1a7a45';
     const statusBg     = isOpen ? '#fde8e8' : r.status === 'dismissed' ? '#f0f0f0' : '#e8f5e9';
     const statusLabel  = isOpen ? 'Open' : r.status === 'dismissed' ? 'Dismissed' : 'Actioned';
@@ -2306,7 +2305,7 @@ async function viewReportedListing(listingId) {
   }
 
   body.innerHTML = `
-    <div style="font-size:22px;text-align:center;margin-bottom:12px">${l.emoji || '🏠'}</div>
+    <div style="text-align:center;margin-bottom:12px">${categoryIcon(l.category, 20)}</div>
     <div style="font-size:18px;font-weight:700;margin-bottom:4px">${esc(l.title)}</div>
     <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">&#128205; ${esc(l.location || '—')}</div>
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
@@ -3047,9 +3046,8 @@ async function buildAnalytics() {
       const tmx = Math.max(...types.map(t=>t[1]));
       typeEl.innerHTML = types.map(([cat, count]) => {
         const label = CATEGORY_LABELS[cat] || cat;
-        const emoji = CATEGORY_EMOJI[cat] || '📦';
-        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" title="Filter listings to ${label}" onclick="_anaNavSource='analytics';goToListingsFiltered(null,'${cat}')">
-          <div style="width:20px;text-align:center;font-size:14px;flex-shrink:0">${emoji}</div>
+                return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" title="Filter listings to ${label}" onclick="_anaNavSource='analytics';goToListingsFiltered(null,'${cat}')">
+          <div style="width:20px;text-align:center;flex-shrink:0">${categoryIcon(cat, 15)}</div>
           <div style="width:110px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${label}</div>
           <div style="flex:1;height:22px;background:var(--bg);border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.round((count/tmx)*100)}%;background:var(--brand-light);border-radius:4px;transition:width .4s"></div>

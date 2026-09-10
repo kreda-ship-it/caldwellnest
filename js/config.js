@@ -21,6 +21,32 @@ const TERMS_VERSION = '2026-09-01';
 const CONSENT_LOGGING_SINCE = '2026-09-01';
 
 const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
+// Icons for the same seven categories, as SVG path data. Kept beside the labels
+// and colours because the category vocabulary belongs in one place.
+//
+// These are DISPLAY only. The `emoji` column on listings still exists and is
+// still written on insert — it is simply no longer what the admin dashboard
+// draws, because an emoji cannot inherit a colour or a stroke weight, and
+// renders differently on every operating system.
+const CATEGORY_ICON = {
+  housing:            'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z|M9 21v-7h6v7',
+  clothing:           'M8.4 3 4.5 5.4V10h3v11h9V10h3V5.4L15.6 3a3.7 3.7 0 0 1-7.2 0z',
+  technology:         'M2.5 4.5h19v12h-19z|M8.5 21h7|M12 16.5V21',
+  donation:           'M3 9h18v3.5H3z|M4.6 12.5V21h14.8v-8.5|M12 9v12',
+  organization_event: 'M3 4.5h18v17H3z|M3 10h18|M8 2v4|M16 2v4',
+  other:              'M20.6 13.4 12 4.8H4.8V12l8.6 8.6a1.5 1.5 0 0 0 2.1 0l5.1-5.1a1.5 1.5 0 0 0 0-2.1z|M8.4 8.4h.01',
+  books:              'M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z|M5 17.5h14'
+};
+
+// Returns an inline SVG string for a category. Falls back to `other` so an
+// unknown category still draws something rather than an empty box.
+function categoryIcon(cat, size = 16) {
+  const d = CATEGORY_ICON[cat] || CATEGORY_ICON.other;
+  const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
+         `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.
