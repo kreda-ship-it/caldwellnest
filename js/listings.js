@@ -139,6 +139,21 @@ function restoreListingFilters() {
   renderDeepFilters();
 }
 
+// Builds the category strip once, then keeps the highlight in step with _filters.category.
+// Rebuilding on every render would be cheap enough, but it would also throw away the button
+// the student just tapped mid-click.
+function renderCategoryChips() {
+  const wrap = document.getElementById('sCategoryChips');
+  if (!wrap) return;
+  if (!wrap.children.length) {
+    wrap.innerHTML = [['all', 'All'], ...BROWSE_CATEGORIES.map(c => [c, CATEGORY_LABELS[c] || c])]
+      .map(([v, label]) => `<button class="cat-tab" data-cat="${v}" onclick="setListingCat('${v}',this)">${esc(label)}</button>`)
+      .join('');
+  }
+  const active = _filters.category || 'all';
+  wrap.querySelectorAll('.cat-tab').forEach(b => b.classList.toggle('active', b.dataset.cat === active));
+}
+
 function setListingCat(cat, el) {
   _filters.category = cat;
   _filters.details = {};  // clear category-specific filters on category switch
@@ -582,6 +597,7 @@ function matchItemKeyword(l, keyword) {
 }
 
 function renderListings() {
+  renderCategoryChips();
   // Saved HERE rather than in each setter, and that is the point: six functions change
   // _filters and every one of them ends by calling this. A save in each would be six places
   // to keep in step, and the seventh filter somebody adds would be the one that forgets.

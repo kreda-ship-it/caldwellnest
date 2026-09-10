@@ -86,6 +86,15 @@ const CATEGORY_ICON = {
 };
 function catIcon(category, size = 18) { return icon(CATEGORY_ICON[category] || 'tag', size); }
 
+// The categories the marketplace browses by, in the order the strip shows them — which is
+// deliberately the same order the post picker offers, so what you can post and what you can
+// filter by are visibly the same set.
+//
+// organization_event is NOT here. Events have their own tab, their own page and their own
+// table; leaving the chip in made Events a destination and a filter at once. Legacy rows
+// with that category still appear under All.
+const BROWSE_CATEGORIES = ['housing', 'clothing', 'technology', 'donation', 'books', 'other'];
+
 const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
 // Soft, tonal background + deep same-hue text for photo-less listing cards (typography-as-hero).
 // All backgrounds sit in the same lightness band so the set reads as one family, not a rainbow.

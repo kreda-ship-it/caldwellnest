@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10g">
+<link rel="stylesheet" href="styles.css?v=2026-09-10h">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -272,19 +272,6 @@
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
         </button>
       </div>
-      <!-- The category strip appears here too, on desktop. Events is reached BY clicking a
-           category, so landing on a page with no categories would strand the student with no
-           way back to Housing. -->
-      <div class="cat-tabs ev-cat-tabs">
-        <button class="cat-tab" onclick="setListingCat('all');showPage('listings')">All</button>
-        <button class="cat-tab" onclick="setListingCat('housing');showPage('listings')">Housing</button>
-        <button class="cat-tab" onclick="setListingCat('clothing');showPage('listings')">Clothing</button>
-        <button class="cat-tab" onclick="setListingCat('technology');showPage('listings')">Technology</button>
-        <button class="cat-tab" onclick="setListingCat('donation');showPage('listings')">Free items</button>
-        <button class="cat-tab active">Events</button>
-        <button class="cat-tab" onclick="setListingCat('books');showPage('listings')">Books</button>
-        <button class="cat-tab" onclick="setListingCat('other');showPage('listings')">Other</button>
-      </div>
       <div id="evFeed"></div>
     </div>
   </div>
@@ -304,16 +291,10 @@
           <button class="btn-sm-s btn-green" onclick="requireAuth('postListing')">+ Post a listing</button>
         </div>
       </div>
-      <div class="cat-tabs" id="sCategoryChips">
-        <button class="cat-tab active" onclick="setListingCat('all',this)">All</button>
-        <button class="cat-tab" onclick="setListingCat('housing',this)">Housing</button>
-        <button class="cat-tab" onclick="setListingCat('clothing',this)">Clothing</button>
-        <button class="cat-tab" onclick="setListingCat('technology',this)">Technology</button>
-        <button class="cat-tab" onclick="setListingCat('donation',this)">Free items</button>
-        <button class="cat-tab" onclick="showPage('events')">Events</button>
-        <button class="cat-tab" onclick="setListingCat('books',this)">Books</button>
-        <button class="cat-tab" onclick="setListingCat('other',this)">Other</button>
-      </div>
+      <!-- Filled by renderCategoryChips() from BROWSE_CATEGORIES. Written out by hand it
+           was eight buttons duplicated on two pages, and Events was in both — a
+           destination wearing a filter's clothes. -->
+      <div class="cat-tabs" id="sCategoryChips"></div>
       <!-- Books merged into the main grid 2026-07-10 — book filters live in the Filters drawer now -->
       <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
         <span id="sActiveTags" style="display:contents;"></span>
@@ -1726,13 +1707,13 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-10f"></script>
+<script src="js/config.js?v=2026-09-10g"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
 <script src="js/favorites.js?v=2026-09-09g"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-10b"></script>
 <script src="js/profile.js?v=2026-09-10b"></script>
-<script src="js/listings.js?v=2026-09-10d"></script>
+<script src="js/listings.js?v=2026-09-10e"></script>
 <script src="js/books.js?v=2026-09-07a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-10b"></script>

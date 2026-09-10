@@ -1689,7 +1689,6 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    what does it cost". Sharing a card would have forced both into whichever shape was written
    first.
    ============================================================ */
-.ev-cat-tabs { margin-bottom: 18px; }
 
 /* A poster-first feed is a COLUMN, not a page-width table. At full width a 4:5 poster is
    either enormous or, worse, sits in the corner of a card with a field of white beside it —
@@ -1781,7 +1780,6 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                 font-weight: 600; cursor: pointer; font-family: inherit; }
 
 @media (max-width: 768px) {
-  .ev-cat-tabs { display: none; }   /* the bottom tab bar is the phone's entry point */
   #evFeed { max-width: none; }      /* the phone IS the column */
 }
 
