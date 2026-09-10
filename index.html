@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10c">
+<link rel="stylesheet" href="styles.css?v=2026-09-10d">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -508,7 +508,7 @@
           <div class="a-admin-info"><div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:500">Admin</div><div style="color:rgba(255,255,255,0.4);font-size:11px">Super admin</div></div>
         </div>
         <button class="btn-logout-a" onclick="aLogout()">&#8592; Log out</button>
-        <button class="btn-logout-a" style="margin-top:4px;color:rgba(255,255,255,0.7);" onclick="enterStudentPreview()">&#128101; Switch to student view</button>
+        <button class="btn-logout-a" style="margin-top:4px;color:rgba(255,255,255,0.7);" onclick="enterStudentPreview()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"/><circle cx="11" cy="8" r="3.2"/><path d="M19.5 20v-1.2a3 3 0 0 0-2.2-2.9"/></svg> Switch to student view</button>
       </div>
     </div>
     <div class="a-main">
@@ -517,8 +517,8 @@
         <div class="a-topbar-right">
           <span class="note-xs">Live data</span>
           <button class="btn-sm-a btn-a-neutral" id="adminRefreshBtn" onclick="refreshAdmin()">&#8635; Refresh</button>
-          <button class="btn-sm-a btn-a-brand" onclick="toggleAI()">&#129302; NestBot</button>
-          <button class="btn-sm-a btn-a-neutral" onclick="enterStudentPreview()">&#128065; Student view</button>
+          <button class="btn-sm-a btn-a-brand" onclick="toggleAI()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><path d="M12 8V4M9 4h6"/></svg> NestBot</button>
+          <button class="btn-sm-a btn-a-neutral" onclick="enterStudentPreview()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Student view</button>
         </div>
       </div>
       <div class="a-content">
@@ -559,7 +559,7 @@
           <div class="tcard">
             <div class="tcard-head">
               <div class="tcard-title">Approvals</div>
-              <button id="aApprovalFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aApprovalFilterPanel','aApprovalFilterBtn')">&#9657; Filters</button>
+              <button id="aApprovalFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aApprovalFilterPanel','aApprovalFilterBtn')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Filters</button>
             </div>
             <div style="display:flex;gap:6px;padding:10px 18px 0;">
               <button id="aApprovalTab-listings" class="filter-chip active" onclick="setApprovalsTab('listings')">Listings</button>
@@ -577,19 +577,19 @@
               <div class="tcard-title">All listings</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <input class="a-sbar" id="aListSearch" placeholder="Search..." oninput="renderAListings()">
-                <button id="aListFilterToggle" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleAListFilters()">&#9657; Filters</button>
+                <button id="aListFilterToggle" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleAListFilters()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Filters</button>
               </div>
             </div>
             <div id="aListFilterPanel" style="padding:10px 18px 14px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="filter-row-label">TYPE</span>
                 <button class="filter-chip active" id="aTypeChip-all"               onclick="setAListFilter('type','all')">All</button>
-                <button class="filter-chip"        id="aTypeChip-housing"            onclick="setAListFilter('type','housing')">&#127968; Housing</button>
-                <button class="filter-chip"        id="aTypeChip-clothing"           onclick="setAListFilter('type','clothing')">&#128085; Clothing</button>
-                <button class="filter-chip"        id="aTypeChip-technology"         onclick="setAListFilter('type','technology')">&#128187; Technology</button>
-                <button class="filter-chip"        id="aTypeChip-donation"           onclick="setAListFilter('type','donation')">&#127873; Free items</button>
-                <button class="filter-chip"        id="aTypeChip-organization_event" onclick="setAListFilter('type','organization_event')">&#128227; Events</button>
-                <button class="filter-chip"        id="aTypeChip-other"              onclick="setAListFilter('type','other')">&#127991; Other</button>
+                <button class="filter-chip"        id="aTypeChip-housing"            onclick="setAListFilter('type','housing')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg> Housing</button>
+                <button class="filter-chip"        id="aTypeChip-clothing"           onclick="setAListFilter('type','clothing')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.4 3 4.5 5.4V10h3v11h9V10h3V5.4L15.6 3a3.7 3.7 0 0 1-7.2 0z"/></svg> Clothing</button>
+                <button class="filter-chip"        id="aTypeChip-technology"         onclick="setAListFilter('type','technology')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="12" rx="2"/><path d="M8.5 21h7M12 16.5V21"/></svg> Technology</button>
+                <button class="filter-chip"        id="aTypeChip-donation"           onclick="setAListFilter('type','donation')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M2 9h20v4H2zM12 9v12"/><path d="M12 9S9.8 4.5 7.9 4.5a2.3 2.3 0 0 0 0 4.5"/><path d="M12 9s2.2-4.5 4.1-4.5a2.3 2.3 0 0 1 0 4.5"/></svg> Free items</button>
+                <button class="filter-chip"        id="aTypeChip-organization_event" onclick="setAListFilter('type','organization_event')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> Events</button>
+                <button class="filter-chip"        id="aTypeChip-other"              onclick="setAListFilter('type','other')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 4.8H4.8V12l8.6 8.6a1.5 1.5 0 0 0 2.1 0l5.1-5.1a1.5 1.5 0 0 0 0-2.1z"/><line x1="8.4" y1="8.4" x2="8.41" y2="8.4"/></svg> Other</button>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="filter-row-label">STATUS</span>
@@ -597,7 +597,7 @@
                 <button class="filter-chip"        id="aStatusChip-approved" onclick="setAListFilter('status','approved')">Approved</button>
                 <button class="filter-chip"        id="aStatusChip-pending"  onclick="setAListFilter('status','pending')">Pending</button>
                 <button class="filter-chip"        id="aStatusChip-rejected" onclick="setAListFilter('status','rejected')">Rejected</button>
-                <button class="filter-chip"        id="aStatusChip-pinned"   onclick="setAListFilter('status','pinned')">&#128204; Pinned</button>
+                <button class="filter-chip"        id="aStatusChip-pinned"   onclick="setAListFilter('status','pinned')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Pinned</button>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="filter-row-label">SCHOOL</span>
@@ -620,7 +620,7 @@
           <div id="aRemovedWrap" style="margin-top:16px;display:none">
             <div class="tcard">
               <div class="tcard-head">
-                <div class="tcard-title">&#128465; Removed listings</div>
+                <div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 21 6"/><path d="M8 6V4h8v2M6 6l1 15h10l1-15"/></svg> Removed listings</div>
                 <span id="aRemovedCount" style="font-size:12px;color:var(--text-muted);font-weight:500"></span>
               </div>
               <div class="table-scroll"><table><thead><tr><th>Title</th><th>Type</th><th>Rent</th><th>Poster</th><th>Removed</th><th>Actions</th></tr></thead><tbody id="aRemovedTb"></tbody></table></div>
@@ -630,7 +630,7 @@
 
         <!-- PINNED -->
         <div class="a-section" id="asec-pinned">
-          <div style="margin-bottom:14px;padding:11px 14px;background:var(--pin-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--pin);border:1px solid rgba(107,33,168,0.2);">&#128204; Pinned listings appear at the top of the student board with a Featured badge. Max 3 at a time. Changes are live immediately.</div>
+          <div style="margin-bottom:14px;padding:11px 14px;background:var(--pin-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--pin);border:1px solid rgba(107,33,168,0.2);"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Pinned listings appear at the top of the student board with a Featured badge. Max 3 at a time. Changes are live immediately.</div>
           <div id="aPinnedGrid"></div>
           <div style="margin-top:18px"><div style="font-size:14px;font-weight:600;margin-bottom:12px">Approved listings — click to pin</div><div id="aPinAllGrid"></div></div>
         </div>
@@ -649,7 +649,7 @@
                   <option value="za">Z &#8594; A</option>
                   <option value="listings">Most listings</option>
                 </select>
-                <button id="aStuFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aStuFilterPanel','aStuFilterBtn')">&#9657; Filters</button>
+                <button id="aStuFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aStuFilterPanel','aStuFilterBtn')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Filters</button>
               </div>
             </div>
             <div id="aStuFilterPanel" style="padding:10px 18px 14px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:12px"></div>
@@ -669,7 +669,7 @@
         <div class="a-section" id="asec-orgs"></div>
 
         <div class="a-section" id="asec-messages">
-          <div style="margin-bottom:12px;padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);border:1px solid #f5c977;">&#9888; Message logs visible to admins only. Governed by privacy policy.</div>
+          <div style="margin-bottom:12px;padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);border:1px solid #f5c977;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Message logs visible to admins only. Governed by privacy policy.</div>
           <div class="tcard">
             <div class="tcard-head"><div class="tcard-title">Conversations</div><input class="a-sbar" placeholder="Search..." oninput="aft('aMsgTb',this.value)"></div>
             <div class="table-scroll"><table><thead><tr><th>Participants</th><th>Re: Listing</th><th>Messages</th><th>Last active</th><th>Status</th><th>Actions</th></tr></thead><tbody id="aMsgTb"></tbody></table></div>
@@ -689,7 +689,7 @@
                   <option value="reporter">By reporter</option>
                   <option value="listing">By listing</option>
                 </select>
-                <button id="aReportFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aReportFilterPanel','aReportFilterBtn')">&#9657; Filters</button>
+                <button id="aReportFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('aReportFilterPanel','aReportFilterBtn')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Filters</button>
               </div>
             </div>
             <div id="aReportFilterPanel" style="padding:10px 18px 14px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:12px"></div>
@@ -704,13 +704,13 @@
 
         <!-- SITE EDITOR -->
         <div class="a-section" id="asec-editor">
-          <div style="margin-bottom:14px;padding:10px 14px;background:var(--accent-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--warning);border:1px solid #f5c977;">&#9999; Changes update the live student interface instantly. Switch to student view to see results.</div>
+          <div style="margin-bottom:14px;padding:10px 14px;background:var(--accent-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--warning);border:1px solid #f5c977;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg> Changes update the live student interface instantly. Switch to student view to see results.</div>
           <div class="ed-layout">
             <div class="ed-panel">
               <div class="ed-tabs">
-                <button class="ed-tab active" onclick="edTab('colors',this)">&#127912; Colors</button>
-                <button class="ed-tab" onclick="edTab('content',this)">&#9998; Content</button>
-                <button class="ed-tab" onclick="edTab('layout',this)">&#9726; Layout</button>
+                <button class="ed-tab active" onclick="edTab('colors',this)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.7 6 10.5a6 6 0 0 1-12 0C6 9.7 12 3 12 3z"/></svg> Colors</button>
+                <button class="ed-tab" onclick="edTab('content',this)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg> Content</button>
+                <button class="ed-tab" onclick="edTab('layout',this)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> Layout</button>
               </div>
               <div class="ed-body" id="edColors">
                 <div class="es-title">Theme presets</div>
@@ -720,7 +720,7 @@
                 <div class="c-row"><span class="c-label">Accent / CTA</span><div style="display:flex;align-items:center;gap:8px;"><div class="c-swatch" style="background:#f0a500"><input type="color" id="cAccent" value="#f0a500" oninput="liveCol('accent',this.value)"></div><span class="note-xs" id="cAccentV">#f0a500</span></div></div>
                 <div class="c-row"><span class="c-label">Background</span><div style="display:flex;align-items:center;gap:8px;"><div class="c-swatch" style="background:#f5f7f6"><input type="color" id="cBg" value="#f5f7f6" oninput="liveCol('bg',this.value)"></div><span class="note-xs" id="cBgV">#f5f7f6</span></div></div>
                 <div class="c-row"><span class="c-label">Card surface</span><div style="display:flex;align-items:center;gap:8px;"><div class="c-swatch" style="background:#fff"><input type="color" id="cSurface" value="#ffffff" oninput="liveCol('surface',this.value)"></div><span class="note-xs" id="cSurfaceV">#ffffff</span></div></div>
-                <button class="apply-btn-e" onclick="applyColors()">&#10003; Apply to student platform</button>
+                <button class="apply-btn-e" onclick="applyColors()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Apply to student platform</button>
                 <button class="reset-btn-e" onclick="resetColors()">&#8635; Reset defaults</button>
               </div>
               <div class="ed-body" id="edContent" style="display:none">
@@ -735,7 +735,7 @@
                 <div class="es-title">Listings page</div>
                 <div class="ced-item"><div class="ced-label">Page title</div><input class="ced-input" id="txtLT" value="Housing listings" oninput="liveContent()"></div>
                 <div class="ced-item"><div class="ced-label">Page subtitle</div><input class="ced-input" id="txtLS" value="Caldwell University students only" oninput="liveContent()"></div>
-                <button class="apply-btn-e" onclick="applyContent()">&#10003; Apply content</button>
+                <button class="apply-btn-e" onclick="applyContent()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Apply content</button>
               </div>
               <div class="ed-body" id="edLayout" style="display:none">
                 <div class="es-title">Announcement banner</div>
@@ -743,22 +743,22 @@
                 <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:14px;"><input type="checkbox" id="bannerOn"> Enable banner</label>
                 <div class="es-title">Card display</div>
                 <div style="display:flex;gap:8px;margin-bottom:14px;">
-                  <div onclick="selCardLayout(this,'grid')" id="layoutGrid" style="flex:1;padding:10px;background:var(--brand-pale);border:2px solid var(--brand);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--brand)">&#9783; Grid</div>
-                  <div onclick="selCardLayout(this,'list')" id="layoutList" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-muted)">&#9776; List</div>
+                  <div onclick="selCardLayout(this,'grid')" id="layoutGrid" style="flex:1;padding:10px;background:var(--brand-pale);border:2px solid var(--brand);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--brand)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg> Grid</div>
+                  <div onclick="selCardLayout(this,'list')" id="layoutList" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-muted)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3.5" y1="6" x2="3.51" y2="6"/><line x1="3.5" y1="12" x2="3.51" y2="12"/><line x1="3.5" y1="18" x2="3.51" y2="18"/></svg> List</div>
                 </div>
-                <button class="apply-btn-e" onclick="applyLayout()">&#10003; Apply layout</button>
+                <button class="apply-btn-e" onclick="applyLayout()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Apply layout</button>
               </div>
             </div>
             <!-- LIVE PREVIEW -->
             <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">&#128065; Live preview — reflects student board</div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Live preview — reflects student board</div>
               <div class="pv-frame" id="pvFrame">
                 <div class="pv-nav" id="pvNav"><div class="pv-logo" id="pvLogo">Caldwell<em>Nest</em></div><div style="display:flex;gap:6px;"><div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 10px;font-size:11px;color:#fff;">Browse</div><div style="background:var(--accent);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--brand);font-weight:600;">Sign up</div></div></div>
                 <div class="pv-hero-d" id="pvHeroDiv"><h1 id="pvH1">One trusted hub<br>for <em id="pvH2">campus life.</em></h1><p id="pvSub">Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.</p><div class="pv-cta-d" id="pvCta">Get started free</div></div>
                 <div class="pv-body"><div id="pvBanner" style="display:none;background:var(--accent-pale);border:1px solid #f5c977;border-radius:7px;padding:7px 11px;font-size:11px;color:var(--warning);margin-bottom:10px;"></div>
                 <div class="pv-cards">
-                  <div class="pv-card"><div class="pv-card-img">&#127968;</div><div class="pv-card-body"><div class="pv-card-title">Sunny private room</div><div class="pv-card-price">$750<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
-                  <div class="pv-card"><div class="pv-card-img">&#128101;</div><div class="pv-card-body"><div class="pv-card-title">Shared room near CU</div><div class="pv-card-price">$480<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
+                  <div class="pv-card"><div class="pv-card-img"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="pv-card-body"><div class="pv-card-title">Sunny private room</div><div class="pv-card-price">$750<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
+                  <div class="pv-card"><div class="pv-card-img"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"/><circle cx="11" cy="8" r="3.2"/><path d="M19.5 20v-1.2a3 3 0 0 0-2.2-2.9"/></svg></div><div class="pv-card-body"><div class="pv-card-title">Shared room near CU</div><div class="pv-card-price">$480<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
                 </div></div>
               </div>
             </div>
@@ -773,30 +773,30 @@
             <div class="tcard tcard-flush">
               <div class="tcard-head">
                 <div class="tcard-title" id="bFormTitle">New broadcast</div>
-                <button id="bCancelEditBtn" class="btn-sm-a btn-a-neutral" onclick="resetBcastForm()" style="display:none">&#10005; Cancel edit</button>
+                <button id="bCancelEditBtn" class="btn-sm-a btn-a-neutral" onclick="resetBcastForm()" style="display:none"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> Cancel edit</button>
               </div>
               <div style="padding:18px;">
                 <div class="form-group">
                   <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Message type</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bTypeRow">
-                    <div class="msg-type-btn active-type" onclick="selBType(this,'announcement')">&#128226; Announcement</div>
-                    <div class="msg-type-btn" onclick="selBType(this,'warning')">&#9888; Warning</div>
+                    <div class="msg-type-btn active-type" onclick="selBType(this,'announcement')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg> Announcement</div>
+                    <div class="msg-type-btn" onclick="selBType(this,'warning')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Warning</div>
                     <div class="msg-type-btn" onclick="selBType(this,'reminder')">&#8987; Reminder</div>
-                    <div class="msg-type-btn" onclick="selBType(this,'feature')">&#127381; Feature</div>
+                    <div class="msg-type-btn" onclick="selBType(this,'feature')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg> Feature</div>
                   </div>
                 </div>
                 <div class="form-group">
                   <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Display as</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bDisplayRow">
-                    <div class="msg-type-btn" onclick="setBDisplayType(this,'banner')">&#128204; Banner</div>
-                    <div class="msg-type-btn" onclick="setBDisplayType(this,'notification')">&#128276; Notification</div>
+                    <div class="msg-type-btn" onclick="setBDisplayType(this,'banner')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Banner</div>
+                    <div class="msg-type-btn" onclick="setBDisplayType(this,'notification')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notification</div>
                     <div class="msg-type-btn active-type" onclick="setBDisplayType(this,'both')">Both</div>
                   </div>
                 </div>
                 <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="bSubject" placeholder="e.g. New listings this week!"></div>
                 <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="bBody" rows="4" placeholder="Write your message to students..."></textarea></div>
                 <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
-                  <button type="button" id="bLandingToggle" onclick="toggleBLanding()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;">&#128214; Add landing page <span style="float:right;opacity:.5">optional</span></button>
+                  <button type="button" id="bLandingToggle" onclick="toggleBLanding()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z"/><path d="M5 17.5h14"/></svg> Add landing page <span style="float:right;opacity:.5">optional</span></button>
                   <div id="bLandingSection" style="display:none;margin-top:12px;">
                     <div class="form-group"><label class="form-label">Landing page title <span class="label-hint">(optional — defaults to subject)</span></label><input class="form-input" id="bLandingTitle" placeholder="e.g. Everything you need to know about housing this semester"></div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
@@ -829,7 +829,7 @@
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;">
                   <button class="btn-sm-a btn-a-neutral" style="padding:11px;font-size:14px;border-radius:var(--radius-sm);" onclick="submitBcast('draft')">Save Draft</button>
-                  <button id="bSendBtn" style="padding:11px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="submitBcast('send')">&#9993; Send Now</button>
+                  <button id="bSendBtn" style="padding:11px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="submitBcast('send')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="3" x2="10.5" y2="13.5"/><polygon points="21 3 14.5 21 10.5 13.5 3 9.5 21 3"/></svg> Send Now</button>
                 </div>
               </div>
             </div>
@@ -908,7 +908,7 @@
           </div>
           <!-- Listings by category -->
           <div class="chart-card" style="margin-bottom:20px">
-            <div class="chart-title">Listings by category <span id="anaTypeClear" style="display:none;font-size:11px;font-weight:500;color:var(--brand);cursor:pointer;margin-left:8px" onclick="_listingTypeFilter='all';document.getElementById('anaTypeClear').style.display='none';renderAListings()">&#10005; clear filter</span></div>
+            <div class="chart-title">Listings by category <span id="anaTypeClear" style="display:none;font-size:11px;font-weight:500;color:var(--brand);cursor:pointer;margin-left:8px" onclick="_listingTypeFilter='all';document.getElementById('anaTypeClear').style.display='none';renderAListings()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> clear filter</span></div>
             <div id="aTypeChart" style="margin-top:8px"></div>
             <div style="font-size:11px;color:var(--text-faint);margin-top:8px">Click a bar to filter the Listings section to that category.</div>
           </div>
@@ -926,7 +926,7 @@
               <div class="tcard-title">Activity log</div>
               <div style="display:flex;gap:8px;align-items:center">
                 <input class="a-sbar" id="actSearch" placeholder="Search…" oninput="_actPage=0;renderAActivity()">
-                <button id="actFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('actFilterPanel','actFilterBtn')">&#9657; Filters</button>
+                <button id="actFilterBtn" class="btn-sm-a btn-a-neutral btn-nowrap" onclick="toggleFilterPanel('actFilterPanel','actFilterBtn')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Filters</button>
                 <button class="btn-sm-a btn-a-neutral" onclick="exportActivityLog()">&#8675; Export CSV</button>
               </div>
             </div>
@@ -937,7 +937,7 @@
                 <input type="date" id="actDateFrom" oninput="_actPage=0;renderAActivity()" style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
                 <span style="font-size:12px;color:var(--text-faint)">To</span>
                 <input type="date" id="actDateTo" oninput="_actPage=0;renderAActivity()" style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)">
-                <button class="btn-sm-a btn-a-neutral" id="actClearBtn" onclick="clearActFilters()" style="display:none;font-size:12px">&#10005; Clear</button>
+                <button class="btn-sm-a btn-a-neutral" id="actClearBtn" onclick="clearActFilters()" style="display:none;font-size:12px"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> Clear</button>
               </div>
             </div>
             <div style="padding:6px 18px;font-size:12px;color:var(--text-faint);min-height:28px" id="actMeta"></div>
@@ -949,35 +949,35 @@
         <!-- DATA EXPORT -->
         <div class="a-section" id="asec-exports">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;">
-            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title">&#128101; Students</div></div>
+            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"/><circle cx="11" cy="8" r="3.2"/><path d="M19.5 20v-1.2a3 3 0 0 0-2.2-2.9"/></svg> Students</div></div>
               <div class="exp-body"><p class="exp-desc">Export all student profiles — name, email, major, year, listing count, join date, status.</p>
-              <div class="exp-count">&#128196; <span id="expStudentCount">0</span> records</div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expStudentCount">0</span> records</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="expData('students','csv')">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('students','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title">&#127968; Listings</div></div>
+            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg> Listings</div></div>
               <div class="exp-body"><p class="exp-desc">Export all listings — title, type, rent, location, desc, status, poster, date.</p>
-              <div class="exp-count">&#128196; <span id="expListCount">0</span> records · includes all statuses</div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expListCount">0</span> records · includes all statuses</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="expData('listings','csv')">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('listings','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title">&#128172; Conversations</div></div>
+            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> Conversations</div></div>
               <div class="exp-body"><p class="exp-desc">Export conversation metadata — participants, listing, message count, last active. No message content.</p>
-              <div class="exp-count">&#128196; <span id="expConvoCount">0</span> conversations · metadata only</div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expConvoCount">0</span> conversations · metadata only</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="expData('convos','csv')">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('convos','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title">&#128681; Reports</div></div>
+            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4h9l1 2h6v10h-7l-1-2H4"/></svg> Reports</div></div>
               <div class="exp-body"><p class="exp-desc">Export all filed reports — reporter, target, listing, details, date, status.</p>
-              <div class="exp-count">&#128196; <span id="expRepCount">0</span> reports</div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expRepCount">0</span> reports</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="expData('reports','csv')">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('reports','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title">&#128200; Activity log</div></div>
+            <div class="tcard tcard-flush"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Activity log</div></div>
               <div class="exp-body"><p class="exp-desc">Full admin activity log — approvals, rejections, edits, suspensions, color changes.</p>
-              <div class="exp-count">&#128196; <span id="expLogCount">0</span> entries</div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expLogCount">0</span> entries</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="exportActivityLog()">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('log','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard" style="margin-bottom:0;border:2px solid var(--brand-light);"><div class="tcard-head"><div class="tcard-title">&#128230; Full platform backup</div></div>
+            <div class="tcard" style="margin-bottom:0;border:2px solid var(--brand-light);"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Full platform backup</div></div>
               <div class="exp-body"><p class="exp-desc">Complete JSON snapshot of all platform data — students, listings, messages, reports, logs.</p>
-              <div class="exp-count">&#128196; All records · Full backup</div>
-              <button style="width:100%;padding:9px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="expFull()">&#128230; Export full backup (JSON)</button></div></div>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> All records · Full backup</div>
+              <button style="width:100%;padding:9px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="expFull()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Export full backup (JSON)</button></div></div>
           </div>
         </div>
 
@@ -992,7 +992,7 @@
           <div class="a-stats" style="margin-bottom:20px;">
             <div class="asc asc-success">
               <div class="asc-label">Database</div>
-              <div class="asc-num" id="hDbStatus" style="font-size:18px;margin-top:4px;">&#9644;</div>
+              <div class="asc-num" id="hDbStatus" style="font-size:18px;margin-top:4px;">&mdash;</div>
               <div class="asc-sub" id="hDbSub">Checking…</div>
             </div>
             <div class="asc">

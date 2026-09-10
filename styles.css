@@ -648,6 +648,8 @@ img{image-orientation:from-image;}
 .a-nav-item.active{background:rgba(255,255,255,0.16);color:#fff;}
 .n-icon{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;}
 .n-icon svg{display:block;}
+/* Inline icon: rides the text baseline inside a button, chip or heading. */
+.ico{display:inline-block;vertical-align:-2px;flex:none;}
 .n-badge{background:var(--accent);color:var(--brand);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:auto;}
 .n-badge.red{background:#e74c3c;color:#fff;}
 .a-sidebar-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,0.1);}
