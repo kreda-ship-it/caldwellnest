@@ -28,7 +28,7 @@ const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'
 // still written on insert — it is simply no longer what the admin dashboard
 // draws, because an emoji cannot inherit a colour or a stroke weight, and
 // renders differently on every operating system.
-const CATEGORY_ICON = {
+const CATEGORY_ICON_PATH = {
   housing:            'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z|M9 21v-7h6v7',
   clothing:           'M8.4 3 4.5 5.4V10h3v11h9V10h3V5.4L15.6 3a3.7 3.7 0 0 1-7.2 0z',
   technology:         'M2.5 4.5h19v12h-19z|M8.5 21h7|M12 16.5V21',
@@ -84,7 +84,7 @@ function icon(name, size = 14, filled = false) {
 // Returns an inline SVG string for a category. Falls back to `other` so an
 // unknown category still draws something rather than an empty box.
 function categoryIcon(cat, size = 16) {
-  const d = CATEGORY_ICON[cat] || CATEGORY_ICON.other;
+  const d = CATEGORY_ICON_PATH[cat] || CATEGORY_ICON_PATH.other;
   const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
   return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
          `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
