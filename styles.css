@@ -2,10 +2,17 @@
    SHARED TOKENS
 ============================================================ */
 :root {
-  --brand:#1a3a2a; --brand-mid:#2d6148; --brand-light:#4a9470; --brand-pale:#e8f4ee;
-  --accent:#f0a500; --accent-pale:#fff8e6;
-  --text:#1a1a1a; --text-muted:#5a6670; --text-faint:#9aa5ad;
-  --bg:#f5f7f6; --surface:#fff; --border:#e2e8e4;
+  /* The warm swap, 2026-09-10. Brand green and amber are UNCHANGED — the identity was
+     never the problem. What moved is the ground it sits on: a cool grey-green page with
+     neutral ink became warm cream with warm ink, which is what made the mockups feel like
+     a place rather than a form. Values only; nothing here can move a pixel. */
+  --brand:#1a3a2a; --brand-mid:#2d6148; --brand-light:#3e7a5c; --brand-pale:#e4ede5;
+  --accent:#f0a500; --accent-pale:#fdf3df;
+  /* Terracotta. Defined now, spent later — links and secondary actions are still brand
+     green, and repainting them is a change of its own rather than a side effect of this. */
+  --accent-warm:#c2603c;
+  --text:#241f1a; --text-muted:#6e655c; --text-faint:#9a9188;
+  --bg:#faf7f0; --bg-alt:#f3ede2; --surface:#fff; --border:#eae3d8;
   --radius:14px; --radius-sm:8px;
   --danger:#c0392b; --danger-pale:#fdf0ee;
   --warning:#d4860a; --warning-pale:#fff8e6;
@@ -22,20 +29,20 @@
 
      Soft, tonal backgrounds with a deep same-hue text, all in one lightness band
      so the set reads as one family rather than a rainbow. */
-  --cat-housing-bg:#E7F0EA;            --cat-housing-text:#1F4435;             /* sage          */
+  --cat-housing-bg:#E4EDE5;            --cat-housing-text:#2C5741;             /* sage          */
   --cat-clothing-bg:#F6E9EC;           --cat-clothing-text:#7A3B4A;            /* dusty rose    */
-  --cat-technology-bg:#E8EEF5;         --cat-technology-text:#2C476A;          /* slate blue    */
-  --cat-donation-bg:#F7EFE1;           --cat-donation-text:#6B5128;            /* warm sand     */
-  --cat-organization_event-bg:#EFEAF6; --cat-organization_event-text:#473A6B;  /* muted lavender*/
+  --cat-technology-bg:#E3EAF2;         --cat-technology-text:#3F5871;          /* slate blue    */
+  --cat-donation-bg:#F7EFE1;           --cat-donation-text:#7A5B2E;            /* warm sand     */
+  --cat-organization_event-bg:#EDE7F3; --cat-organization_event-text:#4A3D6E;  /* muted lavender*/
   --cat-books-bg:#EEF1E2;              --cat-books-text:#4F5C28;               /* moss/olive    */
-  --cat-other-bg:#EEEEEA;              --cat-other-text:#45453E;               /* warm greige   */
+  --cat-other-bg:#EEEBE4;              --cat-other-text:#4A423B;               /* warm greige   */
 
   /* Book-TYPE colours (textbook vs other book). Same deal: js/books.js BOOK_COLORS and the
      .btype-* classes both read these, so there is one place to change them. They deliberately
      have their own variables rather than borrowing --cat-technology-*/--cat-donation-*, so
      recolouring a category can never silently recolour the book-type buttons. */
-  --btype-course-bg:#E8EEF5;           --btype-course-text:#2C476A;            /* slate blue    */
-  --btype-other-bg:#F7EFE1;            --btype-other-text:#6B5128;             /* warm sand     */
+  --btype-course-bg:#E3EAF2;           --btype-course-text:#3F5871;            /* slate blue    */
+  --btype-other-bg:#F7EFE1;            --btype-other-text:#7A5B2E;             /* warm sand     */
 
   /* ---- SCALES ------------------------------------------------------------
      Phase 0, 2026-09-10. Definitions only — nothing reads these yet, so adding
@@ -1008,7 +1015,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .exp-count{font-size:12px;color:var(--text-faint);margin-bottom:12px;}
 .exp-actions{display:flex;gap:8px;}
 .exp-btn{flex:1;padding:9px;}
-.bg-alt{background:var(--bg);}
+.bg-alt{background:var(--bg-alt);}
 .bg-surface{background:var(--surface);}
 .check-label{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;}
 .modal-narrow{max-width:420px;}

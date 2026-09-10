@@ -379,7 +379,7 @@ const ACTION_META = {
   export:               { label: 'Data exported',           color: '#117A65' },
   return_to_pending:    { label: 'Returned to pending',     color: '#d4860a' },
   undo_action:          { label: 'Action undone',           color: '#d4860a' },
-  student_signup:       { label: 'New student signup',      color: '#4a9470' },
+  student_signup:       { label: 'New student signup',      color: '#3e7a5c' },
   listing_submitted:    { label: 'Listing submitted',       color: '#d4860a' },
   book_submitted:       { label: 'Book submitted',          color: '#d4860a' },
   // Student lifecycle actions (Session C4) — written via logEvent(), never undoable
@@ -2426,13 +2426,15 @@ async function exportActivityLog() {
 // ADMIN — SITE EDITOR (live updates student interface)
 // ============================================================
 const PRESETS = [
-  { name:'Forest',brand:'#1a3a2a',accent:'#f0a500',bg:'#f5f7f6',surface:'#fff' },
+  // Forest is the app's own palette. It has to match :root, or an admin who clicks it
+  // (or Reset) would quietly put the whole student platform back to the old grey ground.
+  { name:'Forest',brand:'#1a3a2a',accent:'#f0a500',bg:'#faf7f0',surface:'#fff' },
   { name:'Ocean',brand:'#1a3a5c',accent:'#f0a500',bg:'#f0f5fa',surface:'#fff' },
   { name:'Berry',brand:'#5c1a4a',accent:'#f0a500',bg:'#faf5f9',surface:'#fff' },
   { name:'Slate',brand:'#2c3e50',accent:'#e74c3c',bg:'#f4f6f8',surface:'#fff' },
   { name:'Gold',brand:'#7d5a00',accent:'#2d9e5c',bg:'#fdfbf5',surface:'#fff' },
 ];
-let curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#f5f7f6', surface:'#ffffff' };
+let curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#faf7f0', surface:'#ffffff' };
 
 function buildPresets() {
   document.getElementById('presetRow').innerHTML = PRESETS.map((p, i) => `<div class="pdot" style="background:${p.brand}" title="${p.name}" onclick="applyPreset(${i})"></div>`).join('');
@@ -2475,10 +2477,10 @@ function applyColors() {
 }
 
 function resetColors() {
-  curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#f5f7f6', surface:'#ffffff' };
+  curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#faf7f0', surface:'#ffffff' };
   const r = document.documentElement;
   r.style.setProperty('--brand','#1a3a2a'); r.style.setProperty('--brand-mid','#2d6148');
-  r.style.setProperty('--accent','#f0a500'); r.style.setProperty('--bg','#f5f7f6'); r.style.setProperty('--surface','#ffffff');
+  r.style.setProperty('--accent','#f0a500'); r.style.setProperty('--bg','#faf7f0'); r.style.setProperty('--surface','#ffffff');
   updatePreview(); toast('Colors reset');
 }
 
