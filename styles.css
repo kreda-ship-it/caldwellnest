@@ -36,6 +36,55 @@
      recolouring a category can never silently recolour the book-type buttons. */
   --btype-course-bg:#E8EEF5;           --btype-course-text:#2C476A;            /* slate blue    */
   --btype-other-bg:#F7EFE1;            --btype-other-text:#6B5128;             /* warm sand     */
+
+  /* ---- SCALES ------------------------------------------------------------
+     Phase 0, 2026-09-10. Definitions only — nothing reads these yet, so adding
+     them changes nothing on screen. Later phases spend them instead of inventing
+     numbers, which is how 29 font sizes and 28 one-off shadows happened.
+
+     Breakpoints deliberately are NOT here: a custom property cannot be used
+     inside a @media query. The three the layout is settling on are
+       <= 768px    phone    (the bottom tab bar switches on here)
+       769-1100px  tablet
+       >= 1101px   desktop
+     — write those literally, and do not add a fourth. */
+
+  /* Type — 7 steps, replacing sizes from 9px to 72px, odd halves included. */
+  --fs-display:32px;   /* page titles, serif           */
+  --fs-title:24px;     /* section heads, serif         */
+  --fs-heading:19px;   /* card and feed heads, serif   */
+  --fs-lead:16px;      /* listing titles, lead copy    */
+  --fs-body:15px;      /* body — the current base      */
+  --fs-small:13px;     /* meta lines, buttons          */
+  --fs-micro:11px;     /* labels, badges, tab captions */
+
+  /* Space — one rhythm for padding, margin and gap. */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px;
+
+  /* Radius — --radius and --radius-sm above are unchanged and still correct. */
+  --radius-lg:20px;
+  --radius-pill:999px;
+
+  /* Elevation — 4 steps. --shadow-md is the .listing-card:hover shadow already
+     used further down; the other three are new. */
+  --shadow-xs:0 1px 2px rgba(22,33,28,.06);
+  --shadow-sm:0 2px 8px rgba(22,33,28,.07);
+  --shadow-md:0 8px 24px rgba(26,58,42,.10);
+  --shadow-lg:0 16px 48px rgba(22,33,28,.16);
+
+  /* Motion */
+  --dur-fast:.12s; --dur:.18s; --dur-slow:.28s;
+  --ease:cubic-bezier(.2,.8,.2,1);
+
+  /* Focus — defined now, applied in the accessibility pass. Today there are
+     9 `outline:none` against only 6 :focus-visible rules, so some controls
+     disappear when you tab to them. */
+  --focus-ring:2px solid var(--brand-light);
+  --focus-offset:2px;
+
+  /* Hit target — the floor for anything tappable. */
+  --tap-min:44px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;}
