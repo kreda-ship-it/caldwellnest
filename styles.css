@@ -643,7 +643,8 @@ img{image-orientation:from-image;}
 .a-nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:rgba(255,255,255,0.65);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
 .a-nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
 .a-nav-item.active{background:rgba(255,255,255,0.16);color:#fff;}
-.n-icon{font-size:14px;width:20px;text-align:center;}
+.n-icon{width:20px;height:20px;flex:none;display:flex;align-items:center;justify-content:center;}
+.n-icon svg{display:block;}
 .n-badge{background:var(--accent);color:var(--brand);font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:auto;}
 .n-badge.red{background:#e74c3c;color:#fff;}
 .a-sidebar-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,0.1);}
