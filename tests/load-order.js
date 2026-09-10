@@ -149,5 +149,38 @@ if (ran) {
   }
 }
 
+// ------------------------------------------------ 5. calls trapped in template literal TEXT
+// A quirk of how the emoji-to-icon conversion was done, and it has bitten twice. Replacing a
+// glyph with `${icon('flag',14)}` is correct inside a template literal; rewriting it to
+// `' + icon('flag',14) + '` is correct inside a single-quoted string. Applying the second
+// repair to the first kind of string turns working code into literal characters, and the
+// button then renders the text  ' + icon('flag',14) + ' Report this listing.
+//
+// It parses, so node --check is happy. It only shows up by looking at the screen — which is
+// how it survived: the detail modal's Report link and two admin controls shipped that way.
+//
+// Two signals together, because either alone is noisy. The call must sit immediately after
+// a '>' — the damage only ever happened where a glyph followed markup — and the line must
+// also contain a backtick, since a legitimate concatenation of this shape lives in a plain
+// single-quoted string and never shares a line with one.
+//
+// Matching only the first half flags `'v' + esc(v)` inside a ${...}, which is correct code.
+// An earlier attempt used a string/template state machine and drifted on regex literals,
+// reporting ordinary code as broken. A check you learn to ignore is worse than no check.
+{
+  const suspects = [];
+  for (const f of files) {
+    fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n').forEach((ln, i) => {
+      if (/>['"] \+ (icon|catIcon|esc|escAttr)\(/.test(ln) && ln.includes('`')) {
+        suspects.push(`${f}:${i + 1}`);
+      }
+    });
+  }
+  suspects.length
+    ? fail(`call(s) may be trapped as text inside a template literal: ${suspects.join(', ')}\n` +
+           `        Inside a template literal use \${icon('name',14)}, not ' + icon('name',14) + '.`)
+    : pass('no icon()/esc() calls trapped in template literal text');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

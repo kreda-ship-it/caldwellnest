@@ -959,7 +959,7 @@ function openDetail(id) {
       ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${esc(l.desc)}</div>
       ${messageBtn}
-      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">' + icon('flag',14) + ' Report this listing</button></div>` : ''}
+      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">${icon('flag',14)} Report this listing</button></div>` : ''}
       ${ownerManagePanelHtml(l)}
     </div>`;
   openModal('detailModal');

@@ -934,7 +934,7 @@ function renderAListings() {
   const metaEl = document.getElementById('aListMeta');
   const isFiltered = schoolF || _listingTypeFilter !== 'all' || _listingStatusFilter !== 'all' || _listingMinRent !== '' || _listingMaxRent !== '';
   if (isFiltered) ensureFilterOpen('aListFilterPanel', 'aListFilterToggle');
-  if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">' + icon('x',13) + ' Clear filters</button>` : ''}`;
+  if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">${icon('x',13)} Clear filters</button>` : ''}`;
 
   // Table rows
   document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr>
@@ -942,7 +942,7 @@ function renderAListings() {
     <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
     <td><div style="font-size:13px">${esc(l.poster?.name || l.poster || '—')}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${esc(l.school.replace(/_/g,' '))}</div>` : ''}</td>
-    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">' + icon('note',12) + ' ${esc(l.rejection_reason)}</div>`:''}</td>
+    <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">${icon('note',12)} ${esc(l.rejection_reason)}</div>`:''}</td>
     <td><div class="arow">
       <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">${icon('pencil',14)} Edit</button>
       ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : icon('star',13) + ' Pin'}</button>` : ''}
