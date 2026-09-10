@@ -19,9 +19,43 @@ function feedGreeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
+// The feed's own event card, and deliberately NOT evCardHTML.
+//
+// The Events page shows a 4:5 portrait poster, which is right there — an event flyer is a
+// portrait thing and that page is where you go to look at them. On the feed it was wrong: a
+// column of tall posters next to a 2-up grid of short landscape listing cards made one page
+// look like two pages stitched together.
+//
+// This is the compact card from the approved feed mockup: a short banner carrying the date,
+// then title, time, host and type. Same card language as the marketplace grid beside it.
+function feedEventCardHTML(e) {
+  const org = _evOrgs.get(e.org_id);
+  const d = new Date(e.starts_at);
+  // Explicit short weekday rather than evDayLabel(), which says "Today"/"Tomorrow" — useful
+  // in a sentence, but this is a date block where the day number sits underneath.
+  const dow = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+  const type = (EV_TYPES.find(([v]) => v === e.event_type) || [])[1] || '';
+  const who  = org?.name ? ' · ' + org.name : '';
+  return `
+    <button class="fev-card" onclick="evOpen(${e.id})">
+      <div class="fev-banner"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
+        ${e.poster_url ? `<img class="fev-img" src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
+        <span class="fev-date"><span class="fev-dow">${esc(dow)}</span><span class="fev-day">${d.getDate()}</span></span>
+      </div>
+      <div class="fev-body">
+        <span class="fev-title">${esc(e.title)}</span>
+        <span class="fev-when">${esc(evTime(e.starts_at) + who)}</span>
+        ${type ? `<span class="fev-type">${esc(type)}</span>` : ''}
+      </div>
+    </button>`;
+}
+
 // Events inside the next seven days. Anything further out belongs on the Events page:
 // a home feed that lists something three weeks away is padding, not news.
-function feedUpcoming(limit = 2) {
+//
+// Six rather than two now that the row scrolls sideways — a horizontal strip that cannot be
+// scrolled is just two cards with wasted space to their right.
+function feedUpcoming(limit = 6) {
   const now = Date.now();
   const week = now + 7 * 24 * 60 * 60 * 1000;
   return (_evFeed || [])
@@ -108,5 +142,5 @@ async function renderFeed() {
   const soon = feedUpcoming();
   if (!soon.length) return;
   slot.innerHTML = feedSection('Happening this week', 'All events', "showPage('events')",
-    `<div class="feed-events">${soon.map(e => evCardHTML(e)).join('')}</div>`);
+    `<div class="feed-events">${soon.map(e => feedEventCardHTML(e)).join('')}</div>`);
 }

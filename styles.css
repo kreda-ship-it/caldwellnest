@@ -1200,7 +1200,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--card, #fff);
+  background: var(--surface);
 }
 .org-row-off { opacity: .55; }
 
@@ -1229,7 +1229,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    Filled rather than outlined, so a row of five identical buttons has an obvious first
    choice instead of making the officer read all five every time. */
 .org-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
-.org-btn-go:hover { background: var(--brand-dark, #2f4a86); border-color: var(--brand-dark, #2f4a86); color: #fff; }
+.org-btn-go:hover { background: var(--brand); border-color: var(--brand); color: #fff; }
 
 .org-panel:not(:empty) {
   margin: 4px 0 8px 24px; padding: 12px 14px;
@@ -1247,7 +1247,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .org-input {
   flex: 1; padding: 7px 10px; font-size: 13px;
   border: 1px solid var(--border); border-radius: 6px;
-  background: var(--card, #fff); color: var(--text);
+  background: var(--surface); color: var(--text);
 }
 .org-empty { padding: 16px; font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 
@@ -1356,7 +1356,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-input {
   width: 100%; padding: 9px 11px; font: inherit; font-size: 14px;
   border: 1px solid var(--border); border-radius: 7px;
-  background: var(--card, #fff); color: var(--text);
+  background: var(--surface); color: var(--text);
 }
 .oc-input:disabled { background: var(--bg); color: var(--text-muted); cursor: not-allowed; }
 .oc-save { margin-top: 6px; }
@@ -1400,7 +1400,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    object-fit: cover crops rather than distorting, so a landscape photo dropped in by an
    officer fills the frame instead of stretching a face sideways. */
 .oc-ev-poster { aspect-ratio: 4/5; border-radius: 10px; overflow: hidden;
-                background: var(--surface-2); }
+                background: var(--bg-alt); }
 .oc-ev-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* The generated poster. Three placed things and nothing else: the org at the top, the title
@@ -1488,7 +1488,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    thumbnail under your finger move somewhere else between taps. */
 .oc-ev-strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; }
 .oc-ev-thumb { position: relative; flex: 0 0 82px; height: 102px; border-radius: 8px;
-               overflow: hidden; background: var(--surface-2); }
+               overflow: hidden; background: var(--bg-alt); }
 .oc-ev-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .oc-ev-cover { position: absolute; left: 0; bottom: 0; width: 100%; padding: 3px 0;
                font-size: 10px; text-align: center; background: rgba(0,0,0,.62); color: #fff;
@@ -1512,7 +1512,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   width: 100%; margin-bottom: 8px; padding: 14px;
   border: 1px solid var(--border); border-radius: 9px;
-  background: var(--card, #fff); cursor: pointer; text-align: left;
+  background: var(--surface); cursor: pointer; text-align: left;
 }
 .oc-pick-row:hover { border-color: var(--brand, #3B5BA5); background: var(--brand-pale, #eef3ff); }
 .oc-pick-name { font-size: 14px; font-weight: 600; color: var(--text); }
@@ -1521,7 +1521,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }
 
 /* ── Org console: posts, polls, logo ───────────────────────────────────────── */
-.oc-composer { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 20px; background: var(--card, #fff); }
+.oc-composer { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 20px; background: var(--surface); }
 .oc-composer .oc-input { margin-bottom: 8px; }
 .oc-type-row { display: flex; gap: 6px; margin-bottom: 10px; }
 .oc-type {
@@ -1606,10 +1606,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 .ff-btn-ghost:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
 .ff-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
-.ff-btn-go:hover { background: var(--brand-dark, #2f4a86); border-color: var(--brand-dark, #2f4a86); }
+.ff-btn-go:hover { background: var(--brand); border-color: var(--brand); }
 .ff-btn:disabled { opacity: .6; cursor: default; }
 
-.oc-post { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--card, #fff); }
+.oc-post { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--surface); }
 /* Urgent is a left rail, not a filled card. A red block behind body text hurts to read, and
    an urgent post is the one people most need to actually read. */
 .oc-post-urgent { border-left: 3px solid #c0392b; }
@@ -1840,8 +1840,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
           color: var(--text-muted); background: var(--bg); }
 
-.ev-card { border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
-           background: var(--card, #fff); margin-bottom: 14px; }
+.ev-card { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;
+           background: var(--surface); margin-bottom: var(--sp-4); box-shadow: var(--shadow-sm); }
 
 /* The org row is first, above the poster, because "who is running this" is the question the
    verified badge answers and it should be answered before the poster is admired. */
@@ -1849,7 +1849,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
           border: 0; border-bottom: 1px solid var(--border); background: none;
           cursor: pointer; font-family: inherit; text-align: left; }
 .ev-org-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
-.ev-org-logo-blank { background: var(--surface-2, #e9e9ef); display: inline-block; }
+.ev-org-logo-blank { background: var(--bg-alt); display: inline-block; }
 .ev-org-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .ev-verified { font-size: 11px; color: #fff; background: var(--brand, #3B5BA5);
                width: 15px; height: 15px; border-radius: 50%; display: inline-flex;
@@ -1858,7 +1858,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* 4:5 portrait, the aspect the event-media bucket exists to keep consistent. */
 /* No max-height. The column above caps the width, and the ratio does the rest — a max-height
    as well would fight the ratio and letterbox the poster at some widths and not others. */
-.ev-poster { position: relative; aspect-ratio: 4/5; background: var(--surface-2); }
+.ev-poster { position: relative; aspect-ratio: 4/5; background: var(--bg-alt); }
 /* The tappable area is a child, so the save button sitting over it is not inside the thing
    that opens the event — no stopPropagation needed to keep one from firing the other. */
 .ev-poster-hit { position: absolute; inset: 0; cursor: pointer; }
@@ -1932,7 +1932,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
                  background: #fdecec; color: #c0392b; font-size: 13px; line-height: 1.6; }
 
 .evd-poster { aspect-ratio: 4/5; max-height: 380px; border-radius: 12px; overflow: hidden;
-              background: var(--surface-2); }
+              background: var(--bg-alt); }
 .evd-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .evd-org { border: 0; border-bottom: 1px solid var(--border); padding: 12px 0; }
 .evd-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.2;
@@ -1963,7 +1963,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
            cursor: pointer; font-family: inherit; border: 1px solid var(--border);
            background: var(--bg); color: var(--text); }
 .evd-btn-go { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
-.evd-btn-go:hover { background: var(--brand-dark, #2f4a86); }
+.evd-btn-go:hover { background: var(--brand); }
 .evd-btn-ghost { flex: none; padding: 10px 14px; font-size: 13px; font-weight: 500; }
 .evd-btn:disabled { opacity: .55; cursor: default; }
 .evd-going { flex: 1; font-size: 15px; font-weight: 600; color: var(--brand, #3B5BA5); }
@@ -1973,7 +1973,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    it, and the reason is that the star and the register button differ on exactly this point. */
 .evd-privacy { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
 .evd-note { margin-top: 20px; padding: 12px 14px; border-radius: 10px;
-            background: var(--surface-2, #f4f4f7); font-size: 13px; color: var(--text-muted);
+            background: var(--bg-alt); font-size: 13px; color: var(--text-muted);
             line-height: 1.6; }
 
 /* Both of these are STATES, not messages. A toast would fade while the student is still
@@ -2028,7 +2028,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .op-past .op-event { opacity: .68; }
 
 .op-post { padding: 14px; margin-bottom: 8px; border: 1px solid var(--border);
-           border-radius: 12px; background: var(--card, #fff); }
+           border-radius: 12px; background: var(--surface); }
 .op-post.is-urgent { border-color: #c0392b; }
 .op-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .op-post-date { margin-left: auto; font-size: 11px; color: var(--text-faint); }
@@ -2090,7 +2090,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
               color: var(--brand, #3B5BA5); }
 .oc-recap-lab { font-size: 13px; color: var(--text-muted); }
 .oc-recap-c { padding: 10px 12px; margin-bottom: 6px; border-radius: 10px;
-              background: var(--surface-2, #f4f4f7); font-size: 13px; line-height: 1.6;
+              background: var(--bg-alt); font-size: 13px; line-height: 1.6;
               color: var(--text); }
 
 
@@ -2224,12 +2224,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .op-event, .go-row, .sq-row {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px;
   margin-bottom: 8px; border: 1px solid var(--border); border-radius: 12px;
-  background: var(--card, #fff); cursor: pointer; font-family: inherit; text-align: left;
+  background: var(--surface); cursor: pointer; font-family: inherit; text-align: left;
 }
 .op-event:hover, .go-row:hover, .sq-row:hover { border-color: var(--brand, #3B5BA5); }
 
 .op-event-thumb, .go-thumb, .sq-thumb {
-  border-radius: 8px; flex: none; overflow: hidden; background: var(--surface-2);
+  border-radius: 8px; flex: none; overflow: hidden; background: var(--bg-alt);
 }
 .op-event-thumb img, .go-thumb img, .sq-thumb img {
   width: 100%; height: 100%; object-fit: cover; display: block;
@@ -2344,7 +2344,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .sq-tile-card { position: relative; cursor: pointer; }
 .sq-tile-img { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden;
                display: flex; align-items: center; justify-content: center;
-               background: var(--surface-2); transition: transform .16s ease; }
+               background: var(--bg-alt); transition: transform .16s ease; }
 .sq-tile-card:hover .sq-tile-img { transform: translateY(-2px); }
 .sq-tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* A photoless tile was a 26px glyph marooned on a pale square. Large and faint, the icon
@@ -2428,7 +2428,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    lost. Full-bleed border under the row so the tabs read as a divider between the
    introduction and the content, which is the job they are doing. */
 .pf-tabs { display: flex; position: sticky; top: 0; z-index: 3; margin-top: 14px;
-           background: var(--card, #fff); border-bottom: 1px solid var(--border); }
+           background: var(--surface); border-bottom: 1px solid var(--border); }
 .pf-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
           padding: 13px 6px; border: 0; background: none; cursor: pointer; font-family: inherit;
           font-size: 13px; font-weight: 600; color: var(--text-faint);
@@ -2467,7 +2467,35 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* Same card grid as the marketplace; on the feed it is a short preview, so it is pinned to
    two columns at every width rather than widening to three. */
 .feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-.feed-events{display:flex;flex-direction:column;gap:var(--sp-3);}
+/* A sideways strip, not a stack. Tall portrait posters in a column beside the marketplace's
+   2-up grid of short landscape cards made the feed look like two pages stitched together.
+   The Events page keeps the poster treatment — a flyer is a portrait thing and that is the
+   page you go to in order to look at them. */
+.feed-events{display:flex;gap:var(--sp-3);overflow-x:auto;scrollbar-width:none;padding:2px 0;}
+.feed-events::-webkit-scrollbar{display:none;}
+.fev-card{flex:0 0 214px;max-width:214px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);cursor:pointer;
+  padding:0;text-align:left;font-family:inherit;display:block;
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);}
+.fev-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.fev-card:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+.fev-banner{height:76px;position:relative;background:var(--bg-alt);}
+.fev-img{width:100%;height:100%;object-fit:cover;display:block;}
+/* The date block reads as a torn-off calendar square sitting on the banner, which is why it
+   keeps a solid ground of its own rather than being written straight onto the artwork. */
+.fev-date{position:absolute;top:9px;left:9px;width:40px;background:var(--surface);
+  border-radius:9px;padding:4px 0 5px;box-shadow:var(--shadow-xs);
+  display:flex;flex-direction:column;align-items:center;}
+.fev-dow{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--accent-warm);}
+.fev-day{font-family:'DM Serif Display',serif;font-size:17px;color:var(--accent-warm);line-height:1.05;}
+.fev-body{padding:9px 12px 11px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;}
+/* Clamped so a long title cannot make one card taller than the rest of the row. */
+.fev-title{font-size:14px;font-weight:600;color:var(--text);line-height:1.25;align-self:stretch;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.fev-when{font-size:11.5px;color:var(--text-muted);align-self:stretch;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fev-type{background:var(--brand-pale);color:var(--brand-mid);font-size:10.5px;font-weight:600;
+  padding:3px 9px;border-radius:var(--radius-pill);}
 .feed-clubs{width:100%;display:flex;align-items:center;gap:var(--sp-3);text-align:left;cursor:pointer;
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4);
   font-family:'DM Sans',sans-serif;}
