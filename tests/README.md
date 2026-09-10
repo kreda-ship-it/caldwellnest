@@ -47,3 +47,35 @@ have found that until a student noticed.
   things. If `display:none` lived in a class, that reset would re-hide them. Leave those inline.
 - **Check for class-name collisions before adding a rule.** Appending `.foo{...}` when `.foo`
   already exists silently overrides it everywhere, because later rules win.
+
+---
+
+## `load-order.js` — does the app still boot?
+
+```bash
+node tests/load-order.js     # exits 1 on failure, so it can gate a commit
+```
+
+Reads the `<script src="js/…">` tags out of `index.html`, concatenates those files **in that
+order into one scope**, and runs them in a stubbed DOM. Then it checks the functions the app
+navigates by are defined, and that every icon name asked for anywhere exists in `ICON`.
+
+**Why the "one scope" part matters.** The `js/` files are plain scripts, not modules, so they
+all share one global scope. Two files can each be perfectly valid alone and still break the app
+together — a `const` declared in two files is a `SyntaxError`, and **the file that loses does
+not execute at all**. `node --check` reads one file at a time and cannot see it.
+
+**It has already earned its keep.** Adding `CATEGORY_ICON` to `config.js` when `listings.js`
+already had one stopped `listings.js` from ever running, which removed `showPage`, `goHome` and
+`renderListings`. The symptom was logging in and staying on the landing page. No error banner,
+nothing in the UI — the student simply did not move. This finds it in about a second, and names
+both files.
+
+### What it will and will not catch
+- **Will:** duplicate `const`/`let`/`class` across files, anything that throws at load, a core
+  navigation function going missing, an `icon('name')` with no entry in the registry.
+- **Will not:** anything that only happens on click, on data, or after a network round-trip. The
+  DOM is a permissive stub — it answers every query with the same fake element. This proves the
+  app *boots*, not that it *works*.
+
+Run it after any change to `js/`, and always before a commit that adds a top-level `const`.
