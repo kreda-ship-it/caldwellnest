@@ -228,7 +228,7 @@ function evCardHTML(e, past = false) {
           ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
           : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
         <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>
-        ${org?.is_verified ? '<span class="ev-verified" title="Verified organization">&#10003;</span>' : ''}
+        ${org?.is_verified ? '<span class="ev-verified" title="Verified organization">' + icon('check',10) + '</span>' : ''}
       </button>
 
       <div class="ev-poster">
@@ -330,7 +330,7 @@ function evPaintDetail() {
       ${org?.logo_url ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
                       : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
       <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>
-      ${org?.is_verified ? '<span class="ev-verified">&#10003;</span>' : ''}
+      ${org?.is_verified ? icon('check',10) : ''}
     </button>
 
     <h2 class="evd-title">${esc(e.title)}</h2>
@@ -351,7 +351,7 @@ function evPaintDetail() {
 
     ${videos.map(v => `
       <a class="evd-video" href="${escAttr(v.url)}" target="_blank" rel="noopener noreferrer">
-        <span class="evd-video-play">&#9654;</span>
+        <span class="evd-video-play">${icon('play',13,true)}</span>
         <span>Watch on ${esc(evVideoHost(v.url))}</span>
       </a>`).join('')}
 
@@ -370,7 +370,7 @@ function evRegisterBlockHTML(e) {
   // Already through the door. Nothing to offer and nothing to undo — a student who wants out
   // after arriving is talking to the officer, not to a button.
   if (mine && (mine.status === 'checked_in' || mine.status === 'walk_in')) {
-    return '<div class="evd-here">You are checked in &#10003;</div>';
+    return '<div class="evd-here">You are checked in ' + icon('check',14) + '</div>';
   }
 
   // PERSISTENT, not a toast. The student tapped a button and now has to stand there while
@@ -392,7 +392,7 @@ function evRegisterBlockHTML(e) {
         </div>
         <p class="evd-privacy">Tell the organizers you have arrived. They confirm it at the door.</p>` : ''}
       <div class="evd-reg">
-        <div class="evd-going">You are going &#10003;</div>
+        <div class="evd-going">You are going ${icon('check',14)}</div>
         <button class="evd-btn evd-btn-ghost" onclick="evUnregister()">Cancel my place</button>
       </div>
       ${evPrivacyLine()}`;
@@ -731,7 +731,7 @@ function goingRowHTML(e, reg) {
   // quietly removing it would mean they turn up.
   const rated = _evRated.get(e.id);
   const rate = rated
-    ? `<span class="go-state go-rated">You rated it ${'&#9733;'.repeat(rated.rating)}</span>`
+    ? `<span class="go-state go-rated">You rated it ${icon('starFill',12,true).repeat(rated.rating)}</span>`
     : evCanRate(e, reg)
       ? `<div class="go-rate"><span class="go-rate-q">Rate it</span>${evStarsHTML(e.id, 0)}</div>`
       : (e.has_ended && ['checked_in', 'walk_in'].includes(reg?.status)
@@ -740,7 +740,7 @@ function goingRowHTML(e, reg) {
   const state = e.status === 'cancelled'
     ? `<span class="go-state go-off">Cancelled${e.cancelled_reason ? ' · ' + esc(e.cancelled_reason) : ''}</span>`
     : (reg?.status === 'checked_in' || reg?.status === 'walk_in')
-      ? '<span class="go-state go-in">You were there &#10003;</span>'
+      ? '<span class="go-state go-in">You were there ' + icon('check',12) + '</span>'
       : reg?.status === 'self_reported'
         ? '<span class="go-state">Waiting to be confirmed</span>'
         : e.has_ended ? '<span class="go-state go-off">Did not check in</span>' : '';
@@ -837,7 +837,7 @@ function evStarsHTML(eventId, value) {
   return `<div class="ev-stars" id="evStars-${eventId}">${
     [1, 2, 3, 4, 5].map(n =>
       `<button class="ev-star-btn${n <= value ? ' is-on' : ''}" aria-label="${n} out of 5"
-               onclick="evRate(${eventId}, ${n})">&#9733;</button>`).join('')
+               onclick="evRate(${eventId}, ${n})>${icon('starFill',18,true)}</button>`).join('')
   }</div>`;
 }
 

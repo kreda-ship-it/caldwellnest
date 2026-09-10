@@ -63,16 +63,21 @@ const ICON_PATH = {
   send:      'M21 3 10.5 13.5|M21 3l-6.5 18-4-7.5L3 9.5z',
   dot:       'M12 12h.01',
   clock:     'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z|M12 7v5l3 2',
-  alert:     'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z|M12 9v4.5|M12 17h.01'
+  alert:     'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z|M12 9v4.5|M12 17h.01',
+  // A second tick offset behind the first — the read receipt everyone already knows.
+  checkDouble: 'M1.5 12.5 5 16l7.5-8.5|M11 12.5l3.5 3.5L22 7.5',
+  play:      'M7 4.5v15l12-7.5z',
+  starFill:  'M12 2.6l2.8 6 6.4.8-4.7 4.5 1.2 6.5L12 17.2 6.3 20.4l1.2-6.5L2.8 9.4l6.4-.8z'
 };
 
 // Wraps a registry entry as an inline SVG string. Unknown names return '' so a
 // typo leaves a gap rather than an error inside a template literal.
-function icon(name, size = 14) {
+function icon(name, size = 14, filled = false) {
   const d = ICON_PATH[name];
   if (!d) return '';
   const paths = d.split('|').map(p => `<path d="${p}"/>`).join('');
-  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" ` +
+  const fill = filled ? 'currentColor' : 'none';
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" ` +
          `stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 

@@ -156,7 +156,7 @@ function _dirCardHtml(o) {
       ${logo}
       <div class="dir-body">
         ${crumb}
-        <h3 class="dir-name">${esc(o.name)}${o.is_verified ? '<span class="dir-verified" title="Verified by the university">✓</span>' : ''}</h3>
+        <h3 class="dir-name">${esc(o.name)}${o.is_verified ? '<span class="dir-verified" title="Verified by the university">' + icon('check',11) + '</span>' : ''}</h3>
         ${o.description ? `<p class="dir-desc">${esc(o.description)}</p>` : ''}
         <div class="dir-meta"><span class="dir-type">${esc(o.type)}</span><span class="dir-dot">·</span><span class="dir-count" data-count="${o.id}">${count}</span></div>
       </div>
@@ -349,7 +349,7 @@ function orgPagePaint() {
       <div class="op-head-text">
         ${crumbs.length ? `<div class="dir-crumb">${crumbs.map(esc).join(' <span class="dir-sep">›</span> ')}</div>` : ''}
         <h1 class="op-name">${esc(o.name)}${
-          o.is_verified ? '<span class="dir-verified" title="Verified by the university">✓</span>' : ''}</h1>
+          o.is_verified ? '<span class="dir-verified" title="Verified by the university">' + icon('check',11) + '</span>' : ''}</h1>
         <div class="op-meta">${esc(o.type)} <span class="dir-dot">·</span>
           <span data-count="${o.id}">${o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`}</span></div>
       </div>

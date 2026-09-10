@@ -790,7 +790,7 @@ function posterHeaderHTML(l) {
       <div class="poster-head-name">${esc(p.name)}${trustBadgeHTML(p)}</div>
       ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
     </div>
-    ${eu && eu.id !== l.poster_id && !p.official && !l.isBook ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">&#9873;</button>` : ''}
+    ${eu && eu.id !== l.poster_id && !p.official && !l.isBook ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">${icon('flag',15)}</button>` : ''}
   </div>`;
 }
 
@@ -874,12 +874,12 @@ function listingCardHTML(l, isPinned) {
     ? `<div class="lc-photo" style="background:${cat.bg}">
          <img src="${escAttr(l.photo_urls[0])}" alt="${escAttr(l.title)}" loading="lazy" class="lc-photo-img">
          ${photoCount > 1 ? `<span class="lc-count">${ico('image', 12)} ${photoCount}</span>` : ''}
-         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
+         ${isPinned ? '<span class="pin-badge">' + icon('star',10) + ' Featured</span>' : pendingBadge}
        </div>`
     : `<div class="lc-noimg" style="background:${cat.bg};color:${cat.text}">
          <div class="lc-noimg-cat">${catLabel}</div>
          <div class="lc-noimg-title">${esc(l.title)}</div>
-         ${isPinned ? '<span class="pin-badge">&#128204; Featured</span>' : pendingBadge}
+         ${isPinned ? '<span class="pin-badge">' + icon('star',10) + ' Featured</span>' : pendingBadge}
        </div>`;
 
   return `<div class="listing-card${isPinned ? ' pinned-card' : ''}" tabindex="0" role="button" aria-label="${escAttr(l.title)}"
@@ -943,13 +943,13 @@ function openDetail(id) {
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <div class="detail-price">${priceLabel(l)}</div>
         <span class="pill pill-active">${esc(l.type)}</span>
-        ${l.pinned ? '<span class="pill pill-pinned">&#128204; Featured</span>' : ''}
+        ${l.pinned ? '<span class="pill pill-pinned">' + icon('star',11) + ' Featured</span>' : ''}
         ${(() => { if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) { const [bg, col, label] = listingLifecycleBadge(l); return `<span class="pill" style="background:${bg};color:${col}">${label}</span>`; } return ''; })()}
       </div>
       ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${esc(l.desc)}</div>
       ${messageBtn}
-      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">&#9873; Report this listing</button></div>` : ''}
+      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">' + icon('flag',14) + ' Report this listing</button></div>` : ''}
       ${ownerManagePanelHtml(l)}
     </div>`;
   openModal('detailModal');

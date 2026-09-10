@@ -395,7 +395,7 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     }
     const mine = m.sender_id === eu.id;
     const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? '&#10003;&#10003;' : '&#10003;'}</span>` : '';
+    const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? icon('checkDouble',15) : icon('check',13)}</span>` : '';
     const isCard = m.message_type === 'listing';
     const body = isCard ? listingCardHtml(m.listing_id) : esc(m.content); // listingCardHtml builds its own escaped HTML
     parts.push(`<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"><div class="bubble ${mine ? 'mine' : 'theirs'}${isCard ? ' bubble-listing' : ''}">${quoteHtml(m.reply_to)}${body}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`);
@@ -442,7 +442,7 @@ async function sMsg() {
   appendDateDivider(msgs, new Date());
   const div = document.createElement('div'); div.className = 'msg-row mine';
   if (sent) div.dataset.mid = sent.id;
-  div.innerHTML = `<div class="bubble mine">${quote}${esc(text)}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
+  div.innerHTML = `<div class="bubble mine">${quote}${esc(text)}<span class="bubble-meta">${time}<span class="ticks">${icon('check',13)}</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
   msgs.appendChild(div);
   scrollChat();
   renderConvos();
@@ -580,7 +580,7 @@ async function sendListingMsg(listingId) {
     sMsgCache[sent.id] = { content: l.title, senderId: eu.id };
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const div = document.createElement('div'); div.className = 'msg-row mine'; div.dataset.mid = sent.id;
-    div.innerHTML = `<div class="bubble mine bubble-listing">${listingCardHtml(l.id)}<span class="bubble-meta">${time}<span class="ticks">&#10003;</span></span></div>`;
+    div.innerHTML = `<div class="bubble mine bubble-listing">${listingCardHtml(l.id)}<span class="bubble-meta">${time}<span class="ticks">${icon('check',13)}</span></span></div>`;
     msgs.appendChild(div);
     scrollChat();
   }
@@ -625,7 +625,7 @@ function handleSeenUpdate(payload) {
   const eu = getEffectiveUser();
   if (!m || !eu || !m.seen_at || m.sender_id !== eu.id) return;
   const tick = document.querySelector(`.msg-row[data-mid="${m.id}"] .ticks`);
-  if (tick) { tick.innerHTML = '&#10003;&#10003;'; tick.classList.add('seen'); }
+  if (tick) { tick.innerHTML = icon('checkDouble',15); tick.classList.add('seen'); }
 }
 
 // Tappable banner for a message arriving while the user is anywhere but the Messages page.
