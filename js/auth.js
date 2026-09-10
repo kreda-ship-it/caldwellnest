@@ -66,7 +66,7 @@ async function enterStudentPreview() {
   document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
   updateSNav();
-  showPage('listings');
+  showPage('feed');
 }
 
 function switchBackToAdmin() {
@@ -101,7 +101,7 @@ async function sLogout() {
   // should greet them. Only "Not you?" forgets. A known student gets the welcome-back login
   // over the feed; a stranger gets the Join us landing.
   const prior = getPriorUser();
-  if (prior) { showPage('listings'); openModal('loginModal'); }
+  if (prior) { showPage('feed'); openModal('loginModal'); }
   else showPage('home');
   toast('Logged out');
 }
@@ -353,7 +353,7 @@ async function doSignup() {
   updateSNav();
   toast('Welcome to CaldwellNest, ' + first + '!');
   await loadListings();
-  showPage('listings');
+  showPage('feed');
   startGlobalMsgListener(authData.user.id);
   startNotifListener(authData.user.id);
   startProfileListener(authData.user.id);
@@ -420,7 +420,7 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
   // this is where they get sent back to THAT EVENT rather than dumped on the home feed,
   // which is the single most likely thing to make a QR feel broken at a real door.
   // Placed in enterStudentSession() because it is the one path login and signup share.
-  if (!evResumeIntent()) showPage('listings');
+  if (!evResumeIntent()) showPage('feed');
   checkStudentNotifications(userId);
   startGlobalMsgListener(userId);
   startNotifListener(userId);

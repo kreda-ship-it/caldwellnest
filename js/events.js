@@ -18,26 +18,16 @@ let _evDetail = null;      // the event currently open in the detail modal
 let _evRated  = new Map(); // event id -> this student's own feedback row
 let _evShowPast = false;
 
-async function renderEvents() {
-  const wrap = document.getElementById('evFeed');
-  if (!wrap) return;
-  wrap.innerHTML = '<div class="ev-note">Loading…</div>';
-
-  // Boot paints the last-visited page BEFORE the session has resolved, so this can run with no
-  // user and no grant — visible_events is granted to authenticated only, so the query returns
-  // nothing and the empty state would say "Nothing on yet". That is a lie: it is not that
-  // there are no events, it is that we cannot see them yet. Saying so and letting boot's async
-  // block re-render is both honest and correct for a genuinely signed-out visitor.
+// Fetches this school's events into _evFeed / _evPast and loads the companion data the
+// cards need. Split out of renderEvents() so the home feed can show the same events
+// without painting the Events page — one query and one shape, rather than a second copy
+// of the select that drifts the first time a column is added.
+//
+// Returns a reason rather than throwing, because "signed out" and "query failed" need
+// different words on screen and only the caller knows where those words go.
+async function loadEvents() {
   const eu = getEffectiveUser();
-  if (!eu) {
-    wrap.innerHTML = `
-      <div class="ev-empty">
-        <div class="ev-empty-title">What's happening</div>
-        <p>Sign in to see events posted by clubs and departments.</p>
-        <button class="ev-empty-btn" onclick="requireAuth()">Sign in</button>
-      </div>`;
-    return;
-  }
+  if (!eu) return { ok: false, reason: 'signed-out' };
 
   const { data, error } = await supabaseClient
     .from('visible_events')
@@ -47,10 +37,7 @@ async function renderEvents() {
     .eq('school', eu.school || 'caldwell')
     .order('starts_at', { ascending: true });
 
-  if (error) {
-    wrap.innerHTML = '<div class="ev-note">Could not load events. Pull down to try again.</div>';
-    console.error('[renderEvents]', error); return;
-  }
+  if (error) { console.error('[loadEvents]', error); return { ok: false, reason: 'error' }; }
 
   const rows = data || [];
   // is_browsable already means "published and not over". Filtering on it rather than on
@@ -61,12 +48,42 @@ async function renderEvents() {
                 .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
   await Promise.all([evLoadOrgs(rows), loadFavorites(true), evLoadGoing(), evLoadRated()]);
+  return { ok: true };
+}
+
+async function renderEvents() {
+  const wrap = document.getElementById('evFeed');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="ev-note">Loading…</div>';
+
+  const res = await loadEvents();
+
+  // Boot paints the last-visited page BEFORE the session has resolved, so this can run with no
+  // user and no grant — visible_events is granted to authenticated only, so the query returns
+  // nothing and the empty state would say "Nothing on yet". That is a lie: it is not that
+  // there are no events, it is that we cannot see them yet. Saying so and letting boot's async
+  // block re-render is both honest and correct for a genuinely signed-out visitor.
+  if (!res.ok && res.reason === 'signed-out') {
+    wrap.innerHTML = `
+      <div class="ev-empty">
+        <div class="ev-empty-title">What's happening</div>
+        <p>Sign in to see events posted by clubs and departments.</p>
+        <button class="ev-empty-btn" onclick="requireAuth()">Sign in</button>
+      </div>`;
+    return;
+  }
+  if (!res.ok) {
+    wrap.innerHTML = '<div class="ev-note">Could not load events. Pull down to try again.</div>';
+    return;
+  }
+
   evPaint();
   // Painted after the feed rather than inside it: it needs two more queries, and holding the
   // whole feed back for a prompt would make the common case — nothing to rate — slower for
   // everybody.
   evPaintAsk();
 }
+
 
 // Org name, logo and verified badge come from org_directory — the same public view the Clubs
 // page reads. The verified badge is the answer to "is this a real club or someone's

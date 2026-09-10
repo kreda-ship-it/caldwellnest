@@ -117,7 +117,8 @@ try {
 // failure mode this harness was written for.
 if (ran) {
   const required = ['showPage', 'goHome', 'goSearch', 'renderListings', 'updateSNav',
-                    'enterStudentSession', 'icon', 'catIcon', 'toast', 'openModal'];
+                    'enterStudentSession', 'icon', 'catIcon', 'toast', 'openModal',
+                    'renderFeed', 'loadEvents'];
   const missing = required.filter(fn => typeof ctx[fn] !== 'function');
   missing.length
     ? fail(`missing after load: ${missing.join(', ')}`)

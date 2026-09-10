@@ -19,6 +19,10 @@ function showPage(name) {
   if (name === 'messages') { renderConvos(); markActiveConvoSeen(); } // returning to an already-open thread reads it; badges come from refreshUnread (DB)
   if (name === 'profile') renderProfile();
   if (name === 'listings') renderListings();
+  // Same shape as messages and events: page-feed is an empty shell until renderFeed()
+  // fills it, so a bare showPage() would restore a page that looks like a feed with
+  // nothing in it.
+  if (name === 'feed') renderFeed();
   // Same shape as messages and profile above: page-events is an empty div until renderEvents()
   // fills it, so a bare showPage() would restore a page that looks like a feed with nothing
   // in it. boot.js's page restore needs the same line for the same reason.
@@ -40,7 +44,10 @@ function showPage(name) {
 function goHome() {
   _mTabIntent = 'home';
   const known = getEffectiveUser() || getPriorUser();
-  showPage(known ? 'listings' : 'home');
+  // Home is its own page now. It used to be the marketplace grid, which made Home and
+  // Market the same screen with a different tab lit — the thing this bar is being fixed
+  // to stop. Strangers still get the landing page: they have nothing to have a feed of.
+  showPage(known ? 'feed' : 'home');
 }
 
 // Search is its own page since 2026-09-08. It used to show page-listings — the same screen
@@ -62,7 +69,7 @@ function goSearch(focus = true) {
 // Home and Search still share page-listings, so the tab the student tapped (_mTabIntent)
 // decides between those two.
 function updateMTabbar(name) {
-  const tabId = name === 'home' ? 'mtab-home'
+  const tabId = (name === 'home' || name === 'feed') ? 'mtab-home'
     : name === 'search' ? 'mtab-search'
     : name === 'events' ? 'mtab-events'
     : name === 'listings' ? (_mTabIntent === 'home' ? 'mtab-home' : 'mtab-search')

@@ -44,7 +44,7 @@ if (!adminPreviewMode && !_recoveryMode) {
   restoreListingFilters();
   const _rp = sessionStorage.getItem('cn_last_page');
   if (_rp && _rp !== 'home' && document.getElementById('page-' + _rp)) showPage(_rp);
-  else if (getPriorUser()) showPage('listings');
+  else if (getPriorUser()) showPage('feed');
 }
 
 (async () => {
@@ -69,7 +69,7 @@ if (!adminPreviewMode && !_recoveryMode) {
     if (prior) {
       // STATE B — this device knows someone, but the session is gone or expired.
       // Feed behind, welcome-back login in front. Never the "Join us" pitch: they joined.
-      if (onPrivatePage || !lastPage) showPage('listings');
+      if (onPrivatePage || !lastPage) showPage('feed');
       openModal('loginModal');
     } else if (onPrivatePage) {
       // STATE C — nobody known here, and we're sitting on a page that needs an account.
@@ -154,7 +154,7 @@ if (!adminPreviewMode && !_recoveryMode) {
       } catch (e) { /* corrupt saved value — ignore, student just sees the convo list */ }
     }
   } else {
-    showPage('listings');
+    showPage('feed');
   }
   // Just clicked the email-verification link → Supabase set the session and redirected here.
   if (/[#&]type=signup/.test(window.location.hash)) {

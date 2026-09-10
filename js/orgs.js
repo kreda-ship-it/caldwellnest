@@ -677,7 +677,7 @@ async function orgConsoleRestore() {
   await loadOrgContext(true);
   const stillMine = id && orgMemberships().some(m => m.role === 'officer' && m.org_id === id);
   if (stillMine) { orgConsoleOpen(id); return; }
-  showPage('listings');
+  showPage('feed');
 }
 
 function orgConsolePick(mine) {

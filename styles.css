@@ -2297,3 +2297,36 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .pf-head { gap: 14px; }
   .pf-name { font-size: 21px; }
 }
+
+
+/* ============================================================
+   HOME FEED  (js/feed.js)
+   The Home tab's own page. Sections are drawn only when they have something in
+   them, so these rules never have to style an empty state.
+============================================================ */
+.feed-hello{margin-bottom:var(--sp-5);}
+.feed-greet{font-family:'DM Serif Display',serif;font-size:var(--fs-display);line-height:1.1;margin-bottom:var(--sp-1);}
+.feed-sub{font-size:var(--fs-small);color:var(--text-muted);}
+.feed-sec{margin-bottom:var(--sp-6);}
+.feed-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-3);}
+.feed-title{font-family:'DM Serif Display',serif;font-size:var(--fs-title);}
+.feed-more{display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-small);font-weight:600;color:var(--brand);padding:0;}
+.feed-more:hover{color:var(--brand-mid);}
+/* The marketplace grid is a masonry column-count layout; on the feed it is a short
+   preview, so it gets fewer columns and cannot grow taller than a couple of rows. */
+.feed-grid{column-count:2;}
+.feed-events{display:flex;flex-direction:column;gap:var(--sp-3);}
+.feed-clubs{width:100%;display:flex;align-items:center;gap:var(--sp-3);text-align:left;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4);
+  font-family:'DM Sans',sans-serif;}
+.feed-clubs:hover{border-color:var(--brand-light);}
+.feed-clubs-icon{flex:none;width:40px;height:40px;border-radius:var(--radius-sm);background:var(--brand-pale);
+  color:var(--brand);display:flex;align-items:center;justify-content:center;}
+.feed-clubs-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.feed-clubs-title{font-size:var(--fs-small);font-weight:600;color:var(--text);}
+.feed-clubs-sub{font-size:var(--fs-micro);color:var(--text-muted);line-height:1.45;text-transform:none;letter-spacing:0;}
+.feed-clubs svg{flex:none;color:var(--text-faint);}
+@media(max-width:768px){
+  .feed-grid{column-count:1;}
+}
