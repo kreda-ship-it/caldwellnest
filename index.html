@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-11k">
+<link rel="stylesheet" href="styles.css?v=2026-09-11l">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -525,10 +525,12 @@
      ADMIN APP
 ============================================================ -->
 <div id="adminApp">
+  <!-- Phone only: the dimmed page behind the open admin drawer. Tapping it closes the drawer. -->
+  <div class="a-drawer-backdrop" id="adminDrawerBackdrop" onclick="closeAdminDrawer()" hidden></div>
   <div class="a-layout">
-    <div class="a-sidebar">
+    <div class="a-sidebar" id="adminSidebar">
       <div class="a-logo" style="display:flex;align-items:center;justify-content:space-between;">
-        <div><div class="a-logo-text">Caldwell<span>Nest</span></div><div class="a-logo-sub">Admin Panel</div><div id="adminSchoolCtx" style="display:none;font-size:10px;color:rgba(255,255,255,0.45);margin-top:5px;letter-spacing:.02em;"></div></div>
+        <div><div class="a-logo-text">Nest<span>rel</span></div><div class="a-logo-sub">Admin</div><div id="adminSchoolCtx" style="display:none;font-size:10px;color:rgba(255,255,255,0.45);margin-top:5px;letter-spacing:.02em;"></div></div>
         <button class="a-sidebar-toggle" id="adminSidebarToggle" onclick="toggleAdminSidebar()">&#8249;</button>
       </div>
       <div class="a-nav">
@@ -564,12 +566,17 @@
     </div>
     <div class="a-main">
       <div class="a-topbar">
-        <div class="a-topbar-title" id="aTopTitle">Dashboard</div>
+        <div class="a-topbar-left">
+          <!-- Phone only. Below 769px the sidebar is a drawer, and this is how it opens. -->
+          <button class="a-menu-btn" id="adminMenuBtn" onclick="openAdminDrawer()" aria-label="Open the admin menu"
+                  aria-controls="adminSidebar" aria-expanded="false"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+          <div class="a-topbar-title" id="aTopTitle">Dashboard</div>
+        </div>
         <div class="a-topbar-right">
-          <span class="note-xs">Live data</span>
+          <span class="note-xs a-top-note">Live data</span>
           <button class="btn-sm-a btn-a-neutral" id="adminRefreshBtn" onclick="refreshAdmin()">&#8635; Refresh</button>
           <button class="btn-sm-a btn-a-brand" onclick="toggleAI()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><path d="M12 8V4M9 4h6"/></svg> NestBot</button>
-          <button class="btn-sm-a btn-a-neutral" onclick="enterStudentPreview()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Student view</button>
+          <button class="btn-sm-a btn-a-neutral a-top-student" onclick="enterStudentPreview()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Student view</button>
         </div>
       </div>
       <div class="a-content">
@@ -1782,7 +1789,7 @@
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
-<script src="js/admin.js?v=2026-09-10k"></script>
+<script src="js/admin.js?v=2026-09-11a"></script>
 <script src="js/orgs.js?v=2026-09-11d"></script>
 <script src="js/events.js?v=2026-09-11c"></script>
 <script src="js/search.js?v=2026-09-10f"></script>

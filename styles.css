@@ -860,6 +860,11 @@ img{image-orientation:from-image;}
 .btn-logout-a{width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,0.07);border:none;border-radius:var(--radius-sm);color:rgba(255,255,255,0.55);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
 .btn-logout-a:hover{background:rgba(255,255,255,0.13);color:#fff;}
 .a-main{margin-left:240px;flex:1;min-height:100vh;transition:margin-left .2s ease;}
+/* The icon-strip collapse is a DESKTOP idea, so every rule for it lives inside this query. On a
+   phone the sidebar is a drawer and always shows the full, labelled menu, even when the strip was
+   chosen on a laptop. The main area's margin follows the sidebar here too — it used to be set
+   inline from JS, which would have beaten the phone rule that takes it away. */
+@media(min-width:769px){
 /* Admin sidebar collapsed (icon-only strip) */
 .a-sidebar.a-collapsed{width:52px;}
 .a-sidebar.a-collapsed .a-logo{justify-content:center;padding:14px 0;}
@@ -874,6 +879,8 @@ img{image-orientation:from-image;}
 /* Tooltips — only visible in collapsed mode */
 .a-sidebar.a-collapsed .a-nav-item::after{content:attr(data-tooltip);position:absolute;left:54px;top:50%;transform:translateY(-50%);background:#1a1a2e;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:200;border:1px solid rgba(255,255,255,0.12);box-shadow:0 2px 8px rgba(0,0,0,0.2);}
 .a-sidebar.a-collapsed .a-nav-item:hover::after,.a-sidebar.a-collapsed .a-nav-item:focus::after{opacity:1;}
+.a-sidebar.a-collapsed + .a-main{margin-left:52px;}
+}
 /* Admin sidebar toggle button */
 .a-sidebar-toggle{background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:17px;padding:3px 7px;border-radius:4px;transition:all .15s;font-family:'DM Sans',sans-serif;line-height:1;flex-shrink:0;}
 .a-sidebar-toggle:hover{background:rgba(255,255,255,0.1);color:#fff;}
@@ -881,6 +888,33 @@ img{image-orientation:from-image;}
 .a-topbar-title{font-size:16px;font-weight:600;}
 .a-topbar-right{display:flex;align-items:center;gap:8px;}
 .a-content{padding:24px;}
+.a-topbar-left{display:flex;align-items:center;gap:6px;min-width:0;}
+.a-menu-btn{display:none;}
+/* Shown only by the hidden attribute being removed (closeAdminDrawer puts it back). Between the
+   page (sidebar 50, sticky top bar 40) and every pop-up (500). */
+.a-drawer-backdrop{position:fixed;inset:0;z-index:60;background:rgba(20,18,15,.42);}
+
+/* ---------------------------------------------------------------- ADMIN ON A PHONE
+   Until this block the admin had no phone layout at all: a 240px sidebar fixed to the left edge
+   left about 150px of a 390px screen for everything else. Below 769px the sidebar slides in as a
+   drawer from a menu button, and the content takes the full width. */
+@media(max-width:768px){
+  .a-sidebar{width:280px;max-width:85vw;height:100vh;height:100dvh;z-index:70;
+    transform:translateX(-100%);transition:transform var(--dur-slow) var(--ease);}
+  .a-sidebar.is-open{transform:none;box-shadow:var(--shadow-lg);}
+  /* The strip toggle is meaningless when the whole sidebar is already a drawer. */
+  .a-sidebar-toggle{display:none;}
+  .a-main{margin-left:0;}
+  .a-menu-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;
+    margin-left:-8px;border:0;border-radius:10px;background:none;color:var(--text);cursor:pointer;}
+  .a-menu-btn:focus-visible{outline:var(--focus-ring);outline-offset:0;}
+  .a-topbar{padding:0 12px;}
+  .a-topbar-title{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* "Live data" is a label, and Student view is in the drawer's footer — neither earns top-bar
+     width on a phone. Refresh and NestBot stay. */
+  .a-top-note,.a-top-student{display:none;}
+  .a-content{padding:16px;}
+}
 .a-section{display:none;}.a-section.active{display:block;animation:fi .2s ease;}
 @keyframes fi{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 

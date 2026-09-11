@@ -12,7 +12,8 @@ function toggleAdminSidebar() {
   const main = document.querySelector('.a-main');
   const btn = document.getElementById('adminSidebarToggle');
   const isCollapsed = sidebar.classList.toggle('a-collapsed');
-  main.style.marginLeft = isCollapsed ? '52px' : '240px';
+  // The main area's margin follows from CSS (.a-sidebar.a-collapsed + .a-main), not from an
+  // inline style: an inline margin-left set here would beat the phone rule that removes it.
   btn.textContent = isCollapsed ? '›' : '‹';
   localStorage.setItem('cn_admin_sidebar', isCollapsed ? 'collapsed' : 'open');
 }
@@ -88,7 +89,6 @@ async function initAdmin() {
     const btn = document.getElementById('adminSidebarToggle');
     sidebar.style.transition = 'none';
     sidebar.classList.add('a-collapsed');
-    main.style.marginLeft = '52px';
     if (btn) btn.textContent = '›';
     setTimeout(() => sidebar.style.transition = '', 10);
   }
@@ -3873,6 +3873,35 @@ const _agoMap = {
 };
 // The one and only ago(). Switches the visible admin section, sets the title, and calls
 // that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.
+// ---------------------------------------------------------------- phone: the sidebar as a drawer
+// Below 769px the sidebar is off-canvas (styles.css) and these open and close it. The icon-strip
+// collapse above is a desktop preference and its CSS applies only from 769px up, so on a phone
+// the drawer is always the full, labelled menu whatever was chosen on a laptop.
+function openAdminDrawer() {
+  const side = document.getElementById('adminSidebar');
+  if (!side) return;
+  side.classList.add('is-open');
+  document.getElementById('adminDrawerBackdrop').hidden = false;
+  document.getElementById('adminMenuBtn')?.setAttribute('aria-expanded', 'true');
+  document.body.style.overflow = 'hidden';      // the page behind should not scroll under a thumb
+  document.addEventListener('keydown', _adminDrawerEsc);
+  (side.querySelector('.a-nav-item.active') || side.querySelector('.a-nav-item'))?.focus();
+}
+
+function closeAdminDrawer() {
+  const side = document.getElementById('adminSidebar');
+  if (!side || !side.classList.contains('is-open')) return;   // desktop, or already shut
+  side.classList.remove('is-open');
+  document.getElementById('adminDrawerBackdrop').hidden = true;
+  const btn = document.getElementById('adminMenuBtn');
+  btn?.setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
+  document.removeEventListener('keydown', _adminDrawerEsc);
+  if (btn && btn.offsetParent) btn.focus();     // back to where the officer opened it from
+}
+
+function _adminDrawerEsc(e) { if (e.key === 'Escape') closeAdminDrawer(); }
+
 function ago(s, btn) {
   document.querySelectorAll('.a-section').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.a-nav-item').forEach(x => x.classList.remove('active'));
@@ -3888,4 +3917,5 @@ function ago(s, btn) {
   if (backBar) backBar.style.display = (_anaNavSource === 'analytics' && s !== 'analytics') ? 'block' : 'none';
   if (_agoMap[s]) _agoMap[s]();
   updateDrillCtx();
+  closeAdminDrawer();   // choosing a section on a phone puts the menu away
 }
