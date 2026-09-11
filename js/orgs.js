@@ -830,46 +830,93 @@ const OC_FIELDS = [
   ['handshake_url',   'Handshake link',  'url'],
 ];
 
-function renderOcProfile() {
-  const org = _orgCtx.orgs.get(_ocOrgId);
-  const canEdit = orgCanAct('manage_members', _ocOrgId);
+// The organization's profile exactly as the database holds it, loaded when Profile opens. The
+// form is drawn from this and saving is diffed against it.
+let _ocProfileRow = null;
 
-  document.getElementById('ocBody').innerHTML = `
+async function renderOcProfile() {
+  const orgId = _ocOrgId;
+  const canEdit = orgCanAct('manage_members', orgId);
+  const body = document.getElementById('ocBody');
+  body.innerHTML = '<div class="oc-note" id="ocProfileLoading">Loading profile…</div>';
+
+  // The whole row, fetched here. The form used to fill itself from the org context, which is
+  // loaded for permissions and carries only id, name, slug, type, logo and flags — so seven of
+  // its nine fields always drew EMPTY, and saving wrote every empty box back as NULL. An officer
+  // who opened Profile to fix a typo in the name erased the description, email, website and
+  // Instagram the club page shows students. It had been that way since the console shipped
+  // (2f2ad8a): the context's select (80b265e) was written first and never had these columns.
+  const cols = [...new Set(['id', 'name', 'slug', 'type', 'is_verified', 'logo_url', ...OC_FIELDS.map(([k]) => k)])];
+  const { data: row, error } = await supabaseClient.from('organizations')
+    .select(cols.join(', ')).eq('id', orgId).maybeSingle();
+  // Painted only if the officer is still here — same organization, and this section's loading
+  // note still on screen. Otherwise a slow reply would draw over whatever they moved on to.
+  if (_ocOrgId !== orgId || !document.getElementById('ocProfileLoading')) return;
+  if (error || !row) {
+    _ocProfileRow = null;
+    // No form at all rather than an empty one: an empty form is an invitation to overwrite.
+    body.innerHTML = '<div class="oc-note">Could not load this organization’s profile. Reload to try again — nothing has been changed.</div>';
+    if (error) console.error('[renderOcProfile]', error);
+    return;
+  }
+  _ocProfileRow = row;
+
+  body.innerHTML = `
     <div class="oc-logo-row">
-      <div class="oc-logo">${org.logo_url
-        ? `<img src="${escAttr(org.logo_url)}" alt="${escAttr(org.name)}">`
-        : `<span class="oc-logo-empty">${esc((org.name || '?').slice(0, 2).toUpperCase())}</span>`}</div>
+      ${_dirLogoHTML(row, 'oc-logo')}
       ${canEdit ? `<label class="org-btn oc-logo-btn">Change logo
         <input type="file" accept="image/*" hidden onchange="ocPickLogo(this)">
       </label>` : ''}
     </div>
     <div class="oc-meta">
-      <span class="org-badge ${org.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${org.is_verified ? 'verified' : 'unverified'}</span>
-      <span class="oc-meta-type">${esc(org.type)}</span>
-      <span class="oc-meta-slug">/${esc(org.slug)}</span>
+      <span class="org-badge ${row.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${row.is_verified ? 'verified' : 'unverified'}</span>
+      <span class="oc-meta-type">${esc(row.type)}</span>
+      <span class="oc-meta-slug">/${esc(row.slug)}</span>
     </div>
     ${OC_FIELDS.map(([k, label, type]) => `
       <label class="oc-field">
         <span class="oc-label">${label}</span>
         ${type === 'textarea'
-          ? `<textarea class="oc-input" id="oc-${k}" rows="3" ${canEdit ? '' : 'disabled'}>${esc(org[k] || '')}</textarea>`
-          : `<input class="oc-input" id="oc-${k}" type="${type}" value="${escAttr(org[k] || '')}" autocomplete="off" ${canEdit ? '' : 'disabled'}>`}
+          ? `<textarea class="oc-input" id="oc-${k}" rows="3" ${canEdit ? '' : 'disabled'}>${esc(row[k] || '')}</textarea>`
+          : `<input class="oc-input" id="oc-${k}" type="${type}" value="${escAttr(row[k] || '')}" autocomplete="off" ${canEdit ? '' : 'disabled'}>`}
       </label>`).join('')}
     ${canEdit
       ? '<button class="btn-full oc-save" onclick="saveOcProfile()">Save changes</button>'
       : '<div class="oc-note">You can see this organization but not edit it. Editing needs the “manage members” permission.</div>'}
+    <div class="oc-note">Office, phone and Handshake link are kept on file but are not shown on your club page yet.</div>
     <div class="oc-note">The name is what students see. The slug is fixed once created — it is half of the organization’s address and changing it would break every link to it.</div>`;
 }
 
 async function saveOcProfile() {
-  const patch = {};
-  OC_FIELDS.forEach(([k]) => {
-    const el = document.getElementById('oc-' + k);
-    if (el) patch[k] = el.value.trim() || null;
-  });
-  if (!patch.name) { toast('An organization needs a name'); return; }
+  const row = _ocProfileRow;
+  // Saving needs the row the form was drawn from, for this organization. Without it there is
+  // nothing to compare against — which is exactly how blanks used to be written over real values.
+  if (!row || row.id !== _ocOrgId) { toast('Reload the profile before saving'); return; }
 
-  const before = _orgCtx.orgs.get(_ocOrgId);
+  const patch = {};
+  for (const [k, label, type] of OC_FIELDS) {
+    const el = document.getElementById('oc-' + k);
+    if (!el) continue;
+    const raw = el.value.trim() || null;
+    // Only what the officer changed is sent. A field they did not touch is not part of the write,
+    // so no value can be lost to a box that failed to fill.
+    if (raw === (row[k] ?? null)) continue;
+    let v = raw;
+    // A changed web address must be one. The club page already refuses to link anything that is
+    // not http(s) — that kept students safe — but an officer who typed javascript:… or a typo would
+    // simply have watched their link disappear. Saying so now is the useful half. Stored normalised
+    // ("chessclub.org" becomes https://chessclub.org/), the same link the club page draws.
+    if (v && type === 'url') {
+      const u = safeUrl(v);
+      if (!u) { toast(`${label} has to be a web address, like https://example.com`); return; }
+      v = u;
+    }
+    patch[k] = v;
+  }
+  if ('name' in patch && !patch.name) { toast('An organization needs a name'); return; }
+  const keys = Object.keys(patch);
+  if (!keys.length) { toast('Nothing has changed'); return; }
+
   const { error } = await supabaseClient.from('organizations').update(patch).eq('id', _ocOrgId);
   if (error) {
     // RLS refusing here is the system working: the client mirror said yes, the database is the
@@ -879,8 +926,8 @@ async function saveOcProfile() {
     return;
   }
   logEvent('org_profile_updated', { targetType: 'organization', targetId: _ocOrgId,
-                                    targetLabel: patch.name, school: before?.school,
-                                    before: { name: before?.name }, after: { name: patch.name } });
+                                    targetLabel: patch.name || row.name, school: _orgCtx.orgs.get(_ocOrgId)?.school,
+                                    before: Object.fromEntries(keys.map(k => [k, row[k] ?? null])), after: patch });
   toast('Saved');
   await loadOrgContext(true);
   renderOrgConsole();
@@ -916,24 +963,33 @@ async function renderOcMembers() {
   // Same rule as the admin panel: your own row carries no Remove control, because
   // guard_org_self_removal() refuses it and a button that can only produce an error is not
   // a feature. See sql/2026-09-06_guard_self_removal.sql.
+  // An initial on a tinted circle, like the directory's tiles: the tint is picked from the id, so a
+  // person keeps one colour, and a roster reads as people rather than as a column of text.
+  const initials = s => (s || '?').split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+  const tintOf = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) % 997; return (h % 6) + 1; };
   const row = m => {
     const mine = m.user_id && m.user_id === _orgCtx?.userId;
+    const name = m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)');
     return `
     <div class="oc-member">
-      <span class="oc-member-who">${esc(m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)'))}</span>
+      <span class="oc-member-av dir-logo-none" data-tint="${tintOf(m.user_id || m.pending_email)}" aria-hidden="true">${esc(initials(name))}</span>
+      <span class="oc-member-who">${esc(name)}</span>
       <span class="oc-member-role">${esc(m.title || m.role)}</span>
       ${m.status === 'pending'
-        ? `<button class="org-btn" onclick="ocApprove(${m.id})">Approve</button>`
+        ? `<button class="org-btn org-btn-go" onclick="ocApprove(${m.id})">Approve</button>`
         : ''}
       ${mine
         ? '<span class="org-roster-self">You</span>'
         : `<button class="org-btn org-btn-warn" onclick="ocRemove(${m.id})">Remove</button>`}
     </div>`; };
 
+  // Requests sit in a warm card above the members, so someone waiting to be let in is the first
+  // thing an officer sees rather than a line they might scroll past.
   body.innerHTML =
-    (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>` + pending.map(row).join('') : '') +
+    (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>
+       <div class="oc-member-list is-pending">${pending.map(row).join('')}</div>` : '') +
     `<div class="oc-subhead">Members (${active.length})</div>` +
-    (active.length ? active.map(row).join('') : '<div class="oc-note">No members yet.</div>') +
+    (active.length ? `<div class="oc-member-list">${active.map(row).join('')}</div>` : '<div class="oc-note">No members yet.</div>') +
     `<div class="oc-note">Adding officers and changing permissions needs the \u201Cmanage admins\u201D permission, and is done from the admin page for now. Removing someone keeps a record that they served \u2014 they can be restored from the admin page. You cannot remove your own officer role; another officer, or someone in the organization above this one, has to do it.</div>`;
 }
 

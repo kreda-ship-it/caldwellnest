@@ -1333,7 +1333,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   border-radius: 20px; font-size: 10px; font-weight: 600; vertical-align: middle;
 }
 .org-badge-ok  { background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); }
-.org-badge-off { background: #f3f4f6; color: #6b7280; }
+.org-badge-off { background: var(--bg-alt); color: var(--text-muted); }
 
 .org-btn {
   padding: 6px 11px; font-size: 12px; font-weight: 500;
@@ -1489,8 +1489,8 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    column that had failed to load the rest of itself. */
 .oc-body { padding: 18px; max-width: var(--col-work); margin-inline: auto; }
 .oc-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-.oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-faint); }
-.oc-meta-slug { font-size: 12px; color: var(--text-faint); font-family: ui-monospace, monospace; }
+.oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.oc-meta-slug { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; }
 
 .oc-field { display: block; margin-bottom: 14px; }
 .oc-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
@@ -1588,9 +1588,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    and a Manage menu in front of them would slow down the moment that matters most.
    Two classes, so these outrank the shared .org-btn wherever it sits — which means
    .org-btn-go has to be restated here or Publish would lose its green. */
-.oc-ev-actions .org-btn, .oc-post-actions .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+.oc-ev-actions .org-btn, .oc-post-actions .org-btn, .oc-member .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
                           background: var(--surface); font-size: 12px; }
-.oc-ev-actions .org-btn-go, .oc-post-actions .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
+.oc-ev-actions .org-btn-go, .oc-post-actions .org-btn-go, .oc-member .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
 
 /* The registration list, expanded under one event at a time. */
 .oc-ev-roster { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -1657,10 +1657,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   color: var(--text-muted); margin: 18px 0 8px;
 }
 
-.oc-member { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.oc-member-list { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+                  overflow: hidden; margin-bottom: 6px; }
+/* Someone waiting to be let in, on a warm ground so the request is the first thing seen. */
+.oc-member-list.is-pending { background: var(--accent-pale); }
+.oc-member { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .oc-member:last-of-type { border-bottom: none; }
-.oc-member-who  { flex: 1; font-size: 13px; color: var(--text); }
-.oc-member-role { font-size: 11px; color: var(--text-faint); }
+.oc-member-av { flex: none; width: 34px; height: 34px; border-radius: 50%; }
+.oc-member-av.dir-logo-none { font-size: 12px; font-weight: 700; }
+.oc-member-who  { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text);
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-member-role { flex: none; font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+                  background: var(--bg-alt); padding: 2px 8px; border-radius: var(--radius-pill);
+                  text-transform: capitalize; }
 
 .oc-pick { padding: 18px; max-width: 480px; }
 .oc-pick-row {
@@ -1800,13 +1809,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-opt-count { position: relative; font-weight: 600; color: var(--text-muted); }
 
 .oc-logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+/* The club's tile from _dirLogoHTML(): an <img> when there is a logo, otherwise its initial on
+   the club's tint — the same tile as the directory, the club page and the console's band. */
 .oc-logo {
-  width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--brand-pale, #eef3ff); border: 1px solid var(--border);
+  width: 64px; height: 64px; border-radius: 16px; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; object-fit: cover;
+  background: var(--bg-alt); border: 1px solid var(--border);
 }
-.oc-logo img { width: 100%; height: 100%; object-fit: cover; }
-.oc-logo-empty { font-size: 20px; font-weight: 700; color: var(--brand, #3B5BA5); }
+.oc-logo.dir-logo-none { font-size: 24px; }
 .oc-logo-btn { cursor: pointer; }
 
 /* ── Organization directory (2026-09-06) ──────────────────────────────────────
@@ -2001,7 +2011,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    replaces so the column does not jump. */
 .org-roster-self {
   font-family: inherit; font-size: 11px; font-weight: 600;
-  color: var(--text-faint); letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase;
   padding: 6px 10px; flex-shrink: 0;
 }
 
