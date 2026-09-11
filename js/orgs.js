@@ -656,16 +656,17 @@ async function orgConsoleOpen(orgId) {
   else if (mine.length === 1) _ocOrgId = mine[0].org_id;
   else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
 
-  // The remembered section, falling back to posts. renderOrgConsole() corrects it anyway if
+  // The remembered section, falling back to Events — the first tab. renderOrgConsole() corrects it anyway if
   // this officer cannot reach it — a flag revoked since the last visit lands them on the
   // first section they can actually open rather than on an empty page.
-  _ocSection = loadUiState('ocSection:' + _ocOrgId, 'posts');
+  _ocSection = loadUiState('ocSection:' + _ocOrgId, 'events');
   // Remembered so a refresh returns here rather than to the feed. showPage() already stores
   // 'org-console' as the last page; on its own that is not enough, because the console markup
   // is an empty shell until an organization has been chosen.
   try { sessionStorage.setItem('cn_oc_org', String(_ocOrgId)); } catch (e) { /* private mode */ }
   showPage('org-console');
   renderOrgConsole();
+  ocLoadStats(_ocOrgId);   // not awaited: the console is usable before its numbers arrive
 }
 
 // Called by boot.js when the remembered page is the console. Falls back to the feed rather
@@ -684,6 +685,7 @@ function orgConsolePick(mine) {
   showPage('org-console');
   document.getElementById('ocIdentity').textContent = 'Choose an organization';
   document.getElementById('ocNav').innerHTML = '';
+  const st = document.getElementById('ocStats'); if (st) st.hidden = true;   // no org chosen yet
   document.getElementById('ocBody').innerHTML =
     '<div class="oc-pick">' + mine.map(m => `
       <button class="oc-pick-row" onclick="orgConsoleOpen(${m.org_id})">
@@ -702,13 +704,14 @@ function orgConsoleSwitch() {
 // from orgCanAct() rather than from the org's type. A department officer and a club officer
 // see different consoles because they hold different flags, not because of what the row says.
 function orgConsoleSections() {
+  // In the mockup's order: the work first (Events, Posts), then the people, then the club's own
+  // details. Built from orgCanAct(), not from the org's type — a department officer and a club
+  // officer see different consoles because they hold different flags.
   const s = [];
-  if (orgCanAct('post', _ocOrgId)) s.push({ id: 'posts', label: 'Posts' });
-  s.push({ id: 'profile', label: 'Org profile' });
+  if (orgCanAct('manage_events', _ocOrgId))  s.push({ id: 'events',  label: 'Events' });
+  if (orgCanAct('post', _ocOrgId))           s.push({ id: 'posts',   label: 'Posts' });
   if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
-  // Events, Registrations, Check-in and Analytics arrive with workstreams 3 and 6. They are
-  // listed so the shape of the console is visible, and disabled so nothing pretends to work.
-  if (orgCanAct('manage_events', _ocOrgId)) s.push({ id: 'events', label: 'Events' });
+  s.push({ id: 'profile', label: 'Profile' });
   // Analytics arrives with workstream 6. Listed so the shape of the console is visible, and
   // disabled so nothing pretends to work.
   s.push({ id: 'analytics', label: 'Analytics', soon: 'workstream 6' });
@@ -717,11 +720,19 @@ function orgConsoleSections() {
 
 function renderOrgConsole() {
   const org = _orgCtx?.orgs.get(_ocOrgId);
-  if (!org) { toast('That organization is no longer available'); showPage('listings'); return; }
+  if (!org) { toast('That organization is no longer available'); goHome(); return; }
 
   const me = _orgCtx.grants.get(_ocOrgId);
-  document.getElementById('ocIdentity').innerHTML =
-    `${esc(org.name)} <span class="oc-sep">·</span> <span class="oc-role">${esc(me?.title || me?.role || 'Administrator')}</span>`;
+  // The club's own tile — _dirLogoHTML() from orgdir.js, so a club wears the same tint in the
+  // console as in the directory and on its page — then its name and the officer's role.
+  document.getElementById('ocIdentity').innerHTML = `
+    ${_dirLogoHTML(org, 'oc-id-logo')}
+    <div class="oc-id-text">
+      <div class="oc-id-name">${esc(org.name)}</div>
+      <div class="oc-id-meta"><span class="oc-role-pill">${esc(me?.title || me?.role || 'Administrator')}</span>${
+        org.type ? `<span class="oc-id-type">${esc(org.type)}</span>` : ''}</div>
+    </div>`;
+  ocPaintStats();
 
   // Nothing to switch to is not a button. It used to render always and toast "you are only an
   // officer of one organization", which is the common case — a control whose usual answer is
@@ -758,6 +769,43 @@ function renderOrgConsole() {
     events:  renderOcEvents,
   };
   (OC_RENDER[_ocSection] || renderOcProfile)();
+}
+
+// Followers, upcoming events and their RSVPs. The org context carries none of them, so they are
+// fetched once per open. Painted only if BOTH queries succeed — a failed query is not zero — and
+// only if the officer is still looking at the same organization when the answer comes back: a
+// quick Switch must not paint one club's numbers under another club's name.
+let _ocStats = null;
+async function ocLoadStats(orgId) {
+  const el = document.getElementById('ocStats');
+  if (el) el.hidden = true;
+  const [dir, evs] = await Promise.all([
+    supabaseClient.from('org_directory').select('follower_count').eq('id', orgId).maybeSingle(),
+    supabaseClient.from('visible_events').select('going_count, is_browsable').eq('org_id', orgId),
+  ]);
+  if (orgId !== _ocOrgId) return;
+  if (dir.error || evs.error || !dir.data) {
+    if (dir.error || evs.error) console.error('[ocLoadStats]', dir.error || evs.error);
+    return;
+  }
+  const upcoming = (evs.data || []).filter(e => e.is_browsable);
+  _ocStats = {
+    orgId,
+    followers: Number(dir.data.follower_count) || 0,
+    upcoming:  upcoming.length,
+    rsvps:     upcoming.reduce((n, e) => n + (Number(e.going_count) || 0), 0),
+  };
+  ocPaintStats();
+}
+
+// The club page's light-ruled stat columns (.op-stat), reused so both surfaces read alike.
+function ocPaintStats() {
+  const el = document.getElementById('ocStats');
+  if (!el) return;
+  if (!_ocStats || _ocStats.orgId !== _ocOrgId) { el.hidden = true; return; }
+  const stat = (n, label) => `<div class="op-stat"><span class="op-stat-n">${n}</span><span class="op-stat-l">${label}</span></div>`;
+  el.innerHTML = stat(_ocStats.followers, 'Followers') + stat(_ocStats.upcoming, 'Upcoming') + stat(_ocStats.rsvps, 'RSVPs');
+  el.hidden = false;
 }
 
 function orgConsoleGo(section) {

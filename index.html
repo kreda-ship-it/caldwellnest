@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-11g">
+<link rel="stylesheet" href="styles.css?v=2026-09-11h">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -49,13 +49,21 @@
   </nav>
   <!-- ORG CONSOLE — a separate surface, not a separate login. Rendered by js/orgs.js. -->
   <div id="page-org-console" class="page">
+    <!-- The way out sits above the organization, like the mockup's "Back to Nestrel". It goes
+         HOME: it used to call showPage('listings'), which since Home got its own feed means an
+         officer leaving their club's console landed in the marketplace. -->
+    <div class="oc-top">
+      <button class="oc-back" onclick="goHome()">&#8249; Back to Nestrel</button>
+      <button class="oc-switch" id="ocSwitchBtn" hidden onclick="orgConsoleSwitch()">Switch org</button>
+    </div>
+    <!-- Sticky, and it must stay that way: every action in here is taken ON BEHALF of an
+         organization, and §3 is explicit that which one may never be ambiguous. -->
     <div class="oc-bar">
       <div class="oc-identity" id="ocIdentity"></div>
-      <div class="oc-bar-actions">
-        <button class="org-btn" id="ocSwitchBtn" hidden onclick="orgConsoleSwitch()">Switch org</button>
-        <button class="org-btn" onclick="showPage('listings')">Exit console</button>
-      </div>
     </div>
+    <!-- Hidden until its numbers arrive, and left hidden if they fail: a failed query is not
+         zero followers. Filled by ocPaintStats(). -->
+    <div class="oc-stats" id="ocStats" hidden></div>
     <div class="oc-nav" id="ocNav"></div>
     <div class="oc-body" id="ocBody"></div>
   </div>
@@ -1775,7 +1783,7 @@
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
 <script src="js/admin.js?v=2026-09-10k"></script>
-<script src="js/orgs.js?v=2026-09-10k"></script>
+<script src="js/orgs.js?v=2026-09-11a"></script>
 <script src="js/events.js?v=2026-09-11c"></script>
 <script src="js/search.js?v=2026-09-10f"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>

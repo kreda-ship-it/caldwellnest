@@ -1437,27 +1437,51 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The identity bar is sticky on purpose. Every action taken in here is taken ON
    BEHALF of an organization, and the plan (§3) is explicit that it must never be
    ambiguous which one — so it stays on screen while the body scrolls. */
+.oc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 12px 18px 4px; }
+.oc-back { border: 0; background: none; padding: 6px 0; cursor: pointer; font-family: inherit;
+           font-size: 13.5px; color: var(--text-muted); }
+.oc-back:hover { color: var(--text); }
+.oc-switch { height: 30px; padding: 0 12px; border-radius: var(--radius-pill); cursor: pointer;
+             border: 1px solid var(--border); background: var(--surface); font-family: inherit;
+             font-size: 12px; font-weight: 600; color: var(--text); }
+.oc-switch:hover { border-color: var(--brand-light); }
+/* The band on the cream page, not a green slab: the green is the student app's own bar on
+   desktop, and two green bars stacked read as one broken one. It keeps its stickiness. */
 .oc-bar {
   position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 14px 18px; margin-bottom: 4px;
-  background: var(--brand, #3B5BA5); color: #fff;
+  padding: 10px 18px 12px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
 }
-.oc-identity { flex: 1; font-size: 15px; font-weight: 600; min-width: 180px; }
-.oc-sep  { opacity: .5; margin: 0 2px; }
-.oc-role { font-weight: 400; opacity: .85; }
-.oc-bar-actions { display: flex; gap: 8px; }
-.oc-bar .org-btn { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); color: #fff; }
-.oc-bar .org-btn:hover { background: rgba(255,255,255,.24); border-color: #fff; }
+.oc-identity { display: flex; align-items: center; gap: 13px; min-width: 0;
+                font-size: 15px; font-weight: 600; color: var(--text); }
+.oc-id-logo { width: 50px; height: 50px; border-radius: 15px; object-fit: cover; flex: none; }
+.oc-id-logo.dir-logo-none { font-size: 19px; }
+.oc-id-text { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.oc-id-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; font-weight: 400;
+              line-height: 1.12; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-id-meta { display: flex; align-items: center; gap: 8px; }
+/* The warm-sand category pair, 5.47:1. The mockup's own ochre was 4.38:1 — under AA for text
+   this small. */
+.oc-role-pill { background: var(--cat-donation-bg); color: var(--cat-donation-text);
+                font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+                padding: 3px 8px; border-radius: var(--radius-pill); }
+.oc-id-type { font-size: 12px; font-weight: 400; color: var(--text-muted); text-transform: capitalize; }
+.oc-stats { display: flex; padding: 14px 18px 4px; }
 
-.oc-nav { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 18px; border-bottom: 1px solid var(--border); }
+/* One row that scrolls sideways on a phone rather than wrapping into two — five tabs at 390px
+   wrapped into a ragged second line that looked like a second menu. */
+.oc-nav { display: flex; gap: 24px; padding: 0 18px; border-bottom: 1px solid var(--border);
+          overflow-x: auto; scrollbar-width: none; }
+.oc-nav::-webkit-scrollbar { display: none; }
 .oc-tab {
-  padding: 10px 14px; font-size: 13px; font-weight: 500;
-  background: none; border: none; border-bottom: 2px solid transparent;
+  flex: none; white-space: nowrap; padding: 12px 0 11px; margin-bottom: -1px;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  background: none; border: none; border-bottom: 2.5px solid transparent;
   color: var(--text-muted); cursor: pointer;
 }
 .oc-tab:hover { color: var(--text); }
-.oc-tab.active { color: var(--brand, #3B5BA5); border-bottom-color: var(--brand, #3B5BA5); }
+.oc-tab.active { color: var(--brand); font-weight: 600; border-bottom-color: var(--brand); }
 /* Listed so the shape of the console is visible, disabled so nothing pretends to work. */
 .oc-tab-soon { opacity: .4; cursor: not-allowed; }
 
