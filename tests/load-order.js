@@ -62,7 +62,7 @@ const ctx = {
   addEventListener() {}, removeEventListener() {},
   supabase: { createClient: () => supabaseStub },
   alert() {}, confirm: () => true, prompt: () => null,
-  URLSearchParams, Date, Math, JSON, Promise, Object, Array, String, Number, Boolean,
+  URL, URLSearchParams, Date, Math, JSON, Promise, Object, Array, String, Number, Boolean,
   RegExp, Error, Map, Set, WeakMap, isNaN, parseInt, parseFloat, encodeURIComponent,
   decodeURIComponent, Intl, TextEncoder, TextDecoder, btoa: (s) => s, atob: (s) => s,
 };
@@ -202,6 +202,34 @@ if (ran) {
     leaks.length ? fail(`renderListingGrid: ${leaks.join('; ')}`) : pass('hostile listing title and photo URL stay text in renderListingGrid');
   } catch (e) {
     fail(`renderListingGrid could not be exercised: ${e.message}`);
+  }
+}
+
+// ------------------------------------------------ 7. a typed URL cannot become script
+// safeUrl() guards hrefs built from what a student typed — first a club's website on its own
+// page, which officers set and every visitor is invited to click. escAttr() alone keeps a value
+// inside href="…" but cannot stop javascript:… from being a valid href. Found 2026-09-11 while
+// rebuilding that page's contact rows.
+if (ran) {
+  try {
+    const cases = [
+      ['javascript:alert(1)', 'blocked'], [' JavaScript:alert(1)', 'blocked'],
+      ['data:text/html,<b>x</b>', 'blocked'], ['vbscript:msgbox(1)', 'blocked'],
+      ['java\nscript:alert(1)', 'never-script'], ['', 'blocked'],
+      ['https://caldwell.edu/chess', 'kept'], ['chessclub.org', 'kept'],
+    ];
+    const bad = [];
+    for (const [input, want] of cases) {
+      const out = vm.runInContext(`safeUrl(${JSON.stringify(input)})`, ctx);
+      const ok = want === 'kept' ? /^https?:\/\//.test(out)
+               : want === 'blocked' ? out === ''
+               : out === '' || /^https?:\/\//.test(out);
+      if (!ok) bad.push(`${JSON.stringify(input)} -> ${JSON.stringify(out)}`);
+    }
+    bad.length ? fail(`safeUrl let something through: ${bad.join('; ')}`)
+               : pass('safeUrl keeps http(s) and blocks javascript:, data:, vbscript: and the whitespace tricks');
+  } catch (e) {
+    fail(`safeUrl could not be exercised: ${e.message}`);
   }
 }
 

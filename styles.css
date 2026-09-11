@@ -2166,26 +2166,32 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
            font-family: inherit; font-size: 13px; color: var(--text-muted); }
 .op-back:hover { color: var(--brand, #3B5BA5); }
 
-.op-head { display: flex; align-items: flex-start; gap: 16px; }
-.op-logo { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; flex: none; }
-.op-logo-none { display: flex; align-items: center; justify-content: center;
-                background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5);
-                font-size: 28px; font-weight: 600; }
+/* The club's own colour. orgPagePaint() sets data-tint on #orgPageBody — the same tint the club's
+   tile carries in the directory — so the band, the logo tile and every date block below inherit
+   one colour. Decorative: org_directory has no cover image to show here. */
+.op-cover { height: 150px; border-radius: var(--radius-lg);
+            background: linear-gradient(150deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 65%),
+                        var(--tint-bg, var(--brand-pale)); }
+/* The logo sits on the band's lower edge, ringed in the page colour so it reads as lifted off it. */
+.op-head { display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+           margin-top: -42px; position: relative; }
+.op-logo { width: 74px; height: 74px; border-radius: 22px; object-fit: cover; flex: none;
+            background: var(--surface); box-shadow: 0 0 0 4px var(--bg); }
+/* The initial tile comes from _dirLogoHTML(), so it shares the directory's tint; this only
+   scales its letter up to the bigger tile. Two classes, to outrank .dir-logo-none. */
+.op-logo.dir-logo-none { font-size: 28px; font-weight: 600; }
 .op-head-text { flex: 1; min-width: 0; }
 .op-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.2;
            color: var(--text); margin: 2px 0 4px; }
 .op-meta { font-size: 13px; color: var(--text-muted); text-transform: capitalize; }
 
-.op-desc { font-size: 15px; line-height: 1.75; color: var(--text); margin: 18px 0 10px; }
-.op-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
-.op-contact a { color: var(--brand, #3B5BA5); text-decoration: none; }
-.op-contact a:hover { text-decoration: underline; }
+.op-desc { font-size: 14px; line-height: 1.65; color: var(--text); margin: 16px 0 0; }
 
 .op-sec { margin-top: 30px; }
 /* Section headings are a rung above the rows beneath them, in the same small-caps register the
    console uses, so the page reads as sections rather than as one long column. */
 .op-sec-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-                color: var(--text-faint); margin: 0 0 12px; }
+                color: var(--text-muted); margin: 0 0 12px; }
 
 .op-officers { display: flex; flex-wrap: wrap; gap: 10px; }
 .op-officer { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
@@ -2194,20 +2200,51 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* A compact row, not the feed's full-height poster. This page is a summary of an
    organization; a column of posters would bury the description under the events. */
-/* Sizes only. The shared shape is in the compact-row block near the end of this file. */
-.op-event-thumb { width: 56px; height: 70px; }
+/* A date block where the poster thumbnail was: on a page that is a summary of one club, WHEN is
+   what the rows are for, and the date reads at a glance where a poster at 56px does not. The
+   tint is the club's, inherited from #orgPageBody. */
+.op-date { flex: none; width: 48px; height: 52px; border-radius: 12px; display: flex;
+           flex-direction: column; align-items: center; justify-content: center;
+           background: var(--tint-bg, var(--brand-pale)); color: var(--tint-fg, var(--brand-mid)); }
+.op-date-dow { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; }
+.op-date-day { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; line-height: 1.05; }
+.op-going { color: var(--brand); font-weight: 600; }
 .op-past .op-event { opacity: .68; }
 
 .op-post { padding: 14px; margin-bottom: 8px; border: 1px solid var(--border);
-           border-radius: 12px; background: var(--surface); }
+           border-radius: 14px; background: var(--surface); }
 .op-post.is-urgent { border-color: #c0392b; }
 .op-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.op-post-date { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.op-post-date { margin-left: auto; font-size: 11px; color: var(--text-muted); }
 .op-post-title { font-size: 15px; font-weight: 600; color: var(--text); }
 .op-post-body { font-size: 14px; line-height: 1.7; color: var(--text-muted); margin-top: 4px;
                 white-space: pre-wrap; }
 
 .op-note { padding: 16px 0; font-size: 13px; color: var(--text-muted); }
+
+/* STATS — the profile's light-ruled columns, not a box. Each counts something on this page. */
+.op-stats { display: flex; margin-top: 16px; }
+.op-stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+           border-right: 1px solid var(--border); }
+.op-stat:last-child { border-right: 0; }
+.op-stat-n { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; line-height: 1.15;
+             color: var(--text); font-variant-numeric: tabular-nums; }
+.op-stat-l { font-size: 11px; color: var(--text-muted); }
+/* Follow at full width — on this page it is THE action, not one button in a row of cards. */
+.op-follow-row { display: flex; margin-top: 16px; }
+.op-follow-row .dir-follow { flex: 1; height: 46px; font-size: 14.5px; }
+/* Contact, as rows in one card rather than links strung together with dots. Only the rows that
+   exist are drawn — an empty "Website —" says nothing but that a form was skipped. */
+.op-info { margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
+           border-radius: 14px; overflow: hidden; }
+.op-info-row { display: flex; align-items: center; gap: 12px; padding: 12px 15px;
+               border-bottom: 1px solid var(--border); }
+.op-info-row:last-child { border-bottom: 0; }
+.op-info-k { flex: none; font-size: 13.5px; color: var(--text); }
+.op-info-v { flex: 1; min-width: 0; text-align: right; font-size: 12.5px; color: var(--text-muted);
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-info-v a { color: var(--brand); text-decoration: none; }
+.op-info-v a:hover { text-decoration: underline; }
 
 @media (max-width: 560px) {
   .op-head { flex-wrap: wrap; }
@@ -2399,10 +2436,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .op-event:hover, .go-row:hover, .sq-row:hover { border-color: var(--brand, #3B5BA5); }
 
-.op-event-thumb, .go-thumb, .sq-thumb {
+.go-thumb, .sq-thumb {
   border-radius: 8px; flex: none; overflow: hidden; background: var(--bg-alt);
 }
-.op-event-thumb img, .go-thumb img, .sq-thumb img {
+.go-thumb img, .sq-thumb img {
   width: 100%; height: 100%; object-fit: cover; display: block;
 }
 

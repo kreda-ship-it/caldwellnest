@@ -287,6 +287,8 @@ function _dirPaintFollow(orgId, org, following) {
   if (!org) return;
   const txt = org.follower_count === 1 ? '1 follower' : `${org.follower_count || 0} followers`;
   document.querySelectorAll(`[data-count="${orgId}"]`).forEach(el => { el.textContent = txt; });
+  // The club page shows the bare number in its stats row, under a Followers label.
+  document.querySelectorAll(`[data-count-n="${orgId}"]`).forEach(el => { el.textContent = org.follower_count || 0; });
 }
 
 
@@ -364,40 +366,60 @@ async function orgPageLoadFollow(orgId) {
 function orgPagePaint() {
   const o = _opOrg;
   const following = _dirFollows.has(o.id);
-
   const crumbs = [o.grandparent_name, o.parent_name].filter(Boolean);
-  const logo = o.logo_url
-    ? `<img class="op-logo" src="${escAttr(o.logo_url)}" alt="">`
-    : `<div class="op-logo op-logo-none">${esc((o.name || '?').charAt(0).toUpperCase())}</div>`;
 
   // Contact rows are only drawn when they exist. An empty "Website —" line tells a student
   // nothing except that the club did not fill in a form.
-  const contact = [
-    o.contact_email ? `<a href="mailto:${escAttr(o.contact_email)}">${esc(o.contact_email)}</a>` : '',
-    o.website ? `<a href="${escAttr(o.website)}" target="_blank" rel="noopener noreferrer">Website</a>` : '',
-    o.instagram ? `<a href="https://instagram.com/${escAttr(String(o.instagram).replace(/^@/, ''))}" target="_blank" rel="noopener noreferrer">@${esc(String(o.instagram).replace(/^@/, ''))}</a>` : '',
+  //
+  // The website goes through safeUrl(). escAttr() stops a value breaking OUT of href="…", but
+  // javascript:… needs no breaking out — it is a well-formed href that runs when clicked. The
+  // website is typed by club officers, who are students, into a link every visitor is invited
+  // to click; the database takes direct writes, so the check has to live where the link is built.
+  const site = safeUrl(o.website);
+  const ig = o.instagram ? String(o.instagram).replace(/^@/, '').trim() : '';
+  const info = [
+    o.contact_email ? ['Email', `<a href="mailto:${escAttr(o.contact_email)}">${esc(o.contact_email)}</a>`] : null,
+    site ? ['Website', `<a href="${escAttr(site)}" target="_blank" rel="noopener noreferrer">${esc(new URL(site).host)}</a>`] : null,
+    ig ? ['Instagram', `<a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener noreferrer">@${esc(ig)}</a>`] : null,
   ].filter(Boolean);
 
   const upcoming = _opEvents.filter(e => e.is_browsable)
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const past = _opEvents.filter(e => e.has_ended && e.status === 'published');
+  const followers = Number(o.follower_count) || 0;
 
-  document.getElementById('orgPageBody').innerHTML = `
+  // Three counts, each of something this page actually shows. Announcements are deliberately
+  // not one of them: that query stops at 10, so its length is not the club's total. Followers
+  // carries data-count-n so a follow updates the number in place (see _dirPaintFollow).
+  const body = document.getElementById('orgPageBody');
+  // The club's own tint — the same one its tile has in the directory — inherited from here by
+  // the cover band, the logo tile and every date block on the page.
+  body.setAttribute('data-tint', String(((Number(o.id) || 0) % 6) + 1));
+  body.innerHTML = `
+    <div class="op-cover" aria-hidden="true"></div>
     <header class="op-head">
-      ${logo}
+      ${_dirLogoHTML(o, 'op-logo')}
       <div class="op-head-text">
         ${crumbs.length ? `<div class="dir-crumb">${crumbs.map(esc).join(' <span class="dir-sep">›</span> ')}</div>` : ''}
         <h1 class="op-name">${esc(o.name)}${
-          o.is_verified ? '<span class="dir-verified" title="Verified by the university">' + icon('check',11) + '</span>' : ''}</h1>
-        <div class="op-meta">${esc(o.type)} <span class="dir-dot">·</span>
-          <span data-count="${o.id}">${o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`}</span></div>
+          o.is_verified ? `<span class="dir-verified" title="Verified by the university">${icon('check', 11)}</span>` : ''}</h1>
+        <div class="op-meta">${esc(o.type)}</div>
       </div>
-      <button class="dir-follow${following ? ' is-following' : ''}" data-follow="${o.id}"
-              onclick="orgDirToggleFollow(${o.id})">${_dirFollowLabel(following)}</button>
     </header>
 
+    <div class="op-stats">
+      <div class="op-stat"><span class="op-stat-n" data-count-n="${Number(o.id)}">${followers}</span><span class="op-stat-l">Followers</span></div>
+      <div class="op-stat"><span class="op-stat-n">${upcoming.length}</span><span class="op-stat-l">Upcoming</span></div>
+      <div class="op-stat"><span class="op-stat-n">${past.length}</span><span class="op-stat-l">Past events</span></div>
+    </div>
+    <div class="op-follow-row">
+      <button class="dir-follow${following ? ' is-following' : ''}" data-follow="${Number(o.id)}"
+              onclick="orgDirToggleFollow(${Number(o.id)})">${_dirFollowLabel(following)}</button>
+    </div>
+
     ${o.description ? `<p class="op-desc">${esc(o.description)}</p>` : ''}
-    ${contact.length ? `<div class="op-contact">${contact.join('<span class="dir-dot">·</span>')}</div>` : ''}
+    ${info.length ? `<div class="op-info">${info.map(([k, v]) =>
+      `<div class="op-info-row"><span class="op-info-k">${k}</span><span class="op-info-v">${v}</span></div>`).join('')}</div>` : ''}
 
     ${_opOfficers.length ? `
       <section class="op-sec">
@@ -410,7 +432,7 @@ function orgPagePaint() {
       </section>` : ''}
 
     <section class="op-sec">
-      <h2 class="op-sec-title">Upcoming</h2>
+      <h2 class="op-sec-title">Upcoming${upcoming.length ? ` · ${upcoming.length}` : ''}</h2>
       ${upcoming.length ? upcoming.map(orgPageEventHTML).join('')
                         : '<div class="op-note">Nothing scheduled right now.</div>'}
     </section>
@@ -442,17 +464,22 @@ function orgPagePaint() {
 // full-height posters would bury the description and the contact details under the events.
 function orgPageEventHTML(e) {
   const d = new Date(e.starts_at);
-  const when = d.toLocaleString(undefined,
-    { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const dow = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+  // Time, place and — when registration is open — the headcount, on one line. The date is in
+  // the block beside it, so it is not written out a second time.
+  const bits = [evTime(e.starts_at), e.location].filter(Boolean).map(esc);
+  if (e.registration_open && e.going_count) bits.push(`${Number(e.going_count)} going`);
+  // No RSVP button on the row, although the mockup drew one: registering shows the organizers
+  // your name and email, and §4.1 wants that said under the button before the tap — which
+  // the event's detail view does. The row opens it.
+  const mine = _evGoing.has(e.id) ? `<div class="op-event-when"><span class="op-going">You're going ${icon('check', 12)}</span></div>` : '';
   return `
-    <button class="op-event" onclick="evOpen(${e.id})">
-      <div class="op-event-thumb"${e.poster_url ? '' : ` style="background:${eventGradient(e.id)}"`}>
-        ${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}
-      </div>
+    <button class="op-event" onclick="evOpen(${Number(e.id)})">
+      <div class="op-date"><span class="op-date-dow">${esc(dow)}</span><span class="op-date-day">${d.getDate()}</span></div>
       <div class="op-event-text">
         <div class="op-event-title">${esc(e.title)}</div>
-        <div class="op-event-when">${esc(when)}</div>
-        <div class="op-event-where">${esc(e.location)}</div>
+        <div class="op-event-where">${bits.join(' · ')}</div>
+        ${mine}
       </div>
     </button>`;
 }

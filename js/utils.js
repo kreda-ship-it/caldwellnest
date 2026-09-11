@@ -22,6 +22,21 @@ function esc(s) {
 // Also covers user-influenced URLs, where a stray " would break out of the attribute.
 function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
+// For an href built from something a person typed. escAttr() keeps a value inside href="…", but
+// javascript:alert(1) needs no breaking out — it is a well-formed URL that runs when clicked. So
+// the value is PARSED and only http(s) survives. A bare "chessclub.org" is given https:// first,
+// because that is what someone typing a website means. Returns '' for anything else — callers
+// draw no link at all rather than a broken one. Guarded by check 7 in tests/load-order.js.
+function safeUrl(u) {
+  const raw = String(u || '').trim();
+  if (!raw) return '';
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : 'https://' + raw;
+  try {
+    const url = new URL(withScheme);
+    return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+  } catch { return ''; }
+}
+
 // prepLoginModal (auth.js) applies the "welcome back, <name>" treatment when this device
 // remembers a prior student. Hooking it here means all eight routes into the login modal
 // behave the same. Both callees live in later files, which is fine: they are only *called*
