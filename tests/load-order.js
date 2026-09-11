@@ -233,5 +233,33 @@ if (ran) {
   }
 }
 
+// ------------------------------------------------ 8. every inline handler calls something real
+// An onclick naming a function that nothing defines does nothing when tapped: no error on screen,
+// just a dead button. It parses, it renders, it looks right. Found 2026-09-11 — every draft
+// event's green "Publish" button called ocEvPublish(), which had never been written.
+//
+// typeof is asked of the sandbox rather than of the global object, so a handler that calls a
+// top-level const arrow function counts as defined too. `var` is here for the CSS var(--x) that
+// sits inside some inline style strings, and prompt() is the browser's own.
+if (ran) {
+  const BUILTIN = new Set(['event', 'this', 'if', 'return', 'confirm', 'alert', 'prompt', 'setTimeout',
+    'clearTimeout', 'history', 'location', 'Number', 'String', 'Boolean', 'JSON', 'Math', 'Date', 'parseInt',
+    'parseFloat', 'isNaN', 'encodeURIComponent', 'decodeURIComponent', 'console', 'requestAnimationFrame',
+    'Promise', 'Object', 'Array', 'typeof', 'new', 'void', 'var']);
+  const sources = [['index.html', html], ...files.map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')])];
+  const dead = new Set();
+  for (const [f, s] of sources) {
+    for (const m of s.matchAll(/\bon(?:click|change|input|submit|keydown|keyup|blur|focus)\s*=\s*"([^"]*)"/g)) {
+      for (const [, name] of m[1].matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(/g)) {
+        if (BUILTIN.has(name)) continue;
+        if (vm.runInContext(`typeof ${name}`, ctx) === 'function') continue;
+        dead.add(`${name}() at ${f}:${s.slice(0, m.index).split('\n').length}`);
+      }
+    }
+  }
+  dead.size ? fail(`inline handler(s) call a function that does not exist: ${[...dead].join(', ')}`)
+            : pass('every inline handler calls a function that exists');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

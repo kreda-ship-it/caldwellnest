@@ -1069,34 +1069,101 @@ async function renderOcEvents() {
     };
   });
 
-  // Upcoming ascending — the next thing to happen is the thing an officer is working on.
-  // Past descending, because the most recent one is the one with photos to upload.
-  const upcoming = _ocEvents.filter(e => !e._past).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
-  const past     = _ocEvents.filter(e =>  e._past);
-
-  // The form opens on demand rather than sitting permanently above the list. With one event an
-  // always-open composer is harmless; with twenty it pushes everything the officer came to look
-  // at below the fold. Editing and duplicating force it open, because they have nowhere else to
-  // put their values.
+  // One full-width action at the top, as the mockup has it, instead of a heading that repeated
+  // the Events tab directly above it. Hidden while the form is open — the form IS the new event.
+  // The form opens on demand rather than sitting permanently above the list: with twenty
+  // events an always-open composer pushes everything the officer came to look at below the
+  // fold. Editing and duplicating force it open, because they have nowhere else to put values.
   const formOpen = _ocEvFormOpen || _ocEvEditId || _ocEvDraft;
-
   body.innerHTML = `
-    <div class="oc-ev-head">
-      <div class="oc-ev-head-title">Events</div>
-      ${formOpen ? '' : `<button class="org-btn org-btn-go" onclick="ocEvOpenForm()">+ New event</button>`}
-    </div>
-    ${formOpen ? ocEventFormHTML() : ''}
-    ${upcoming.length ? `<div class="oc-ev-group">Upcoming · ${upcoming.length}</div>
-      ${upcoming.map(ocEventCardHTML).join('')}` : ''}
-    ${past.length ? `<div class="oc-ev-group">Past · ${past.length}</div>
-      ${past.map(ocEventCardHTML).join('')}` : ''}
-    ${_ocEvents.length ? '' : `<div class="oc-ev-empty">Nothing scheduled yet.<br>
-      <span class="note-xs">Events you publish appear to students in their own feed.</span></div>`}`;
+    ${formOpen ? ocEventFormHTML() : '<button class="oc-ev-cta" onclick="ocEvOpenForm()">+ New event</button>'}
+    <div id="ocEvList"></div>`;
+  ocEvPaintList();
 
   // The strip is filled after innerHTML rather than inside the template, because the previews
   // are object URLs held in memory and the existing media comes from the loaded rows — two
   // sources that only the painter knows how to merge.
   ocEvPaintPhotos();
+}
+
+// Which bucket the list shows. Not persisted: it describes this visit, and a console that
+// reopened on Past would look as if the club had nothing coming up.
+let _ocEvFilter = 'upcoming';
+
+// Every event in exactly one place. Drafts are their own bucket whatever their date — a draft is
+// unfinished work, not something that is happening. Cancelled events stay in Upcoming or Past by
+// date, wearing their red chip, because the people registered for them still need to find them.
+function ocEvBuckets() {
+  const drafts   = _ocEvents.filter(e => e.status === 'draft');
+  const upcoming = _ocEvents.filter(e => e.status !== 'draft' && !e._past)
+                     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past     = _ocEvents.filter(e => e.status !== 'draft' && e._past);   // query order: newest first
+  return { upcoming, drafts, past };
+}
+
+function ocEvSetFilter(f) { _ocEvFilter = f; ocEvPaintList(); }
+
+// The list under the form, painted on its own. A filter tap redraws only this, so an officer
+// halfway through the form does not lose what they typed because they glanced at the drafts.
+function ocEvPaintList() {
+  const host = document.getElementById('ocEvList');
+  if (!host) return;
+  if (!_ocEvents.length) {
+    host.innerHTML = `<div class="oc-ev-empty">Nothing scheduled yet.<br>
+      <span class="note-xs">Events you publish appear to students in their own feed.</span></div>`;
+    return;
+  }
+  const b = ocEvBuckets();
+  if (!b[_ocEvFilter]) _ocEvFilter = 'upcoming';
+  const chip = (key, label) => {
+    const on = _ocEvFilter === key;
+    return `<button class="oc-ev-filter${on ? ' is-on' : ''}" aria-pressed="${on}"
+              onclick="ocEvSetFilter('${key}')">${label}<span class="oc-ev-count">${b[key].length}</span></button>`;
+  };
+  const EMPTY = {
+    upcoming: 'Nothing coming up. Publish a draft, or start a new event.',
+    drafts:   'No drafts. Save an event as a draft to finish it later.',
+    past:     'Nothing has ended yet. Events move here once they are over.',
+  };
+  const list = b[_ocEvFilter];
+  host.innerHTML = `
+    <div class="oc-ev-filters">${chip('upcoming', 'Upcoming')}${chip('drafts', 'Drafts')}${chip('past', 'Past')}</div>
+    ${list.length ? list.map(ocEventCardHTML).join('') : `<div class="oc-ev-empty">${EMPTY[_ocEvFilter]}</div>`}`;
+}
+
+// Publishing a draft from its card. This button existed on every draft and called a function
+// that had never been written, so it did nothing at all; check 8 in tests/load-order.js now
+// catches that kind of dead button.
+//
+// A saved draft already has a title, date, place and kind — ocSaveEvent() will not save one
+// without them — so the only thing left to check is what can go stale while a draft sits: its
+// date. A draft for last Tuesday opens in the editor with a note instead of being published as
+// something that has already happened.
+//
+// The update only succeeds while the row is STILL a draft, so two officers pressing Publish at
+// once cannot both believe they did it. It logs as the form does for the same act (publishing a
+// draft through Edit is event_edited), so the activity log reads the same whichever button.
+async function ocEvPublish(id) {
+  const ev = _ocEvents.find(e => e.id === id);
+  if (!ev || ev.status !== 'draft') { renderOcEvents(); return; }
+  if (new Date(ev.starts_at) <= new Date()) {
+    toast("This draft's date has already passed — change it, then publish");
+    ocEvEdit(id);
+    return;
+  }
+  const { data, error } = await supabaseClient.from('events')
+    .update({ status: 'published', updated_at: new Date().toISOString() })
+    .eq('id', id).eq('status', 'draft').select('id');
+  if (error) { toast('Could not publish: ' + error.message); console.error('[ocEvPublish]', error); return; }
+  if (!data || !data.length) { toast('That draft was already published or removed'); renderOcEvents(); return; }
+  logEvent('event_edited', {
+    targetType: 'event', targetId: id, targetLabel: ev.title,
+    school: _orgCtx.orgs.get(_ocOrgId)?.school,
+    before: { status: 'draft' }, after: { status: 'published' },
+  });
+  toast('Event published');
+  _ocEvFilter = 'upcoming';   // follow it to where it now lives
+  renderOcEvents();
 }
 
 // The seven from §4.2 of the plan. Slug stored, label shown — the slug is what the student
@@ -1558,6 +1625,7 @@ async function ocSaveEvent(status = 'published') {
   _ocEvPhotos = []; _ocEvRemoved = [];
   _ocEvEditId = null; _ocEvDraft = null; _ocEvOpen = {}; _ocEvFormOpen = false;
   toast(status === 'draft' ? 'Draft saved' : (editing ? 'Event updated' : 'Event published'));
+  _ocEvFilter = status === 'draft' ? 'drafts' : 'upcoming';   // show the officer where it went
   renderOcEvents();
 }
 

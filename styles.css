@@ -1508,18 +1508,23 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-ev-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
 /* ---------- Events section ---------- */
-.oc-ev-head { display: flex; align-items: center; justify-content: space-between;
-              gap: 12px; margin-bottom: 4px; }
-.oc-ev-head-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px;
-                    color: var(--text); }
-/* Group labels are a rung ABOVE the cards in the hierarchy, so they are set in small caps
-   with letter-spacing rather than as another line of body text. Without that they read as
-   the first line of the card underneath them. */
-.oc-ev-group { margin: 22px 0 10px; font-size: 11px; font-weight: 600; letter-spacing: .08em;
-               text-transform: uppercase; color: var(--text-faint); }
+/* One full-width action above the list, as the mockup has it. */
+.oc-ev-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+             height: 46px; margin-bottom: 14px; border: 0; border-radius: var(--radius-pill);
+             background: var(--brand); color: #fff; cursor: pointer; font-family: inherit;
+             font-size: 14px; font-weight: 600; }
+.oc-ev-cta:hover { background: var(--brand-mid); }
+.oc-ev-cta:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.oc-ev-filters { margin-bottom: 12px; }
+/* Each bucket carries its count, so an officer can see there are drafts waiting without
+   opening them. */
+.oc-ev-count { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px;
+               margin-left: 6px; border-radius: 9px; background: var(--bg-alt); color: var(--text-muted);
+               font-size: 10.5px; font-weight: 700; text-align: center; }
+.oc-ev-filter.is-on .oc-ev-count { background: rgba(255,255,255,.22); color: #fff; }
 .oc-ev-empty { margin-top: 18px; padding: 26px 18px; text-align: center; font-size: 14px;
                color: var(--text-muted); border: 1px dashed var(--border);
-               border-radius: var(--radius-sm); line-height: 1.7; }
+               border-radius: 14px; line-height: 1.7; }
 
 /* The card is a two-column grid on anything wider than a phone: poster left at a fixed
    width, everything else right. Fixed rather than proportional so a row of cards has one
@@ -1527,7 +1532,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    that makes it look unconsidered. */
 .oc-ev-card { display: grid; grid-template-columns: 132px 1fr; gap: 16px; padding: 14px;
               margin-bottom: 12px; border: 1px solid var(--border);
-              border-radius: var(--radius-sm); background: var(--surface); }
+              border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .oc-ev-card.is-cancelled { border-color: var(--danger, #c0392b); opacity: .78; }
 @media (max-width: 560px) {
   /* One column on a phone. The poster keeps its 4:5 shape but stops being a stripe down the
@@ -1571,11 +1576,19 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-ev-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
 .oc-ev-when  { margin-top: 4px; font-size: 13px; color: var(--text); }
 .oc-ev-where { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
-.oc-ev-facts { margin-top: 8px; font-size: 12px; color: var(--text-faint); }
+.oc-ev-facts { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
 .oc-ev-reason { margin-top: 8px; font-size: 12px; color: var(--danger, #c0392b); line-height: 1.6; }
 /* Pushed to the bottom of the card so the action row sits on one line across every card in
    the list, whatever length the text above it happens to be. */
 .oc-ev-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 12px; }
+/* Seven tools in a row read as a toolbar when they are small pills rather than seven boxes.
+   Every one stays visible: "Who's coming" and QR are what an officer reaches for at the door,
+   and a Manage menu in front of them would slow down the moment that matters most.
+   Two classes, so these outrank the shared .org-btn wherever it sits — which means
+   .org-btn-go has to be restated here or Publish would lose its green. */
+.oc-ev-actions .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+                          background: var(--surface); font-size: 12px; }
+.oc-ev-actions .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
 
 /* The registration list, expanded under one event at a time. */
 .oc-ev-roster { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -2072,14 +2085,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ev-meta-text > .ev-foot:first-child { margin-top: 0; }
 /* The filter row. White chips on the cream page, like the mockup; .evs-chip supplies the shape
    and the selected state the search already uses, so both filter UIs look like one thing. */
-.ev-chips, .dir-chips { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none;
+.ev-chips, .dir-chips, .oc-ev-filters { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none;
             padding: 2px 0 var(--sp-2); }
-.ev-chips::-webkit-scrollbar, .dir-chips::-webkit-scrollbar { display: none; }
+.ev-chips::-webkit-scrollbar, .dir-chips::-webkit-scrollbar, .oc-ev-filters::-webkit-scrollbar { display: none; }
 /* Two classes, not one: the shared .evs-chip base further down would otherwise win on source
    order and paint these cream with its own padding — which is what the 5.2 Events chips
    actually shipped with until 5.3a. The .is-on rules below carry the same weight and come
    later, so a selected chip still turns green. */
-.ev-chips .ev-fchip, .dir-chips .dir-chip { flex: none; white-space: nowrap; background: var(--surface); height: 34px;
+.ev-chips .ev-fchip, .dir-chips .dir-chip, .oc-ev-filters .oc-ev-filter { flex: none; white-space: nowrap; background: var(--surface); height: 34px;
             padding: 0 15px; font-size: 12.5px; font-weight: 600; }
 .ev-note-btn { background: none; border: 0; padding: 0; margin-left: 4px; cursor: pointer;
                font: inherit; font-weight: 600; color: var(--accent-warm); }
@@ -2364,7 +2377,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .evs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Base shared with .sq-chip — see the shared block at the end of this file. Only the
    selected state is particular to the events search, which is the only one that filters. */
-.evs-chip.is-on, .dir-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5);
+.evs-chip.is-on, .dir-chip.is-on, .oc-ev-filter.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5);
                   color: #fff; }
 
 .evs-count { margin: 20px 0 4px; font-size: 12px; color: var(--text-muted); }
@@ -2482,12 +2495,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .sq-row-sub { margin-top: 2px; }
 
 /* One chip. The events search and the search page had identical copies. */
-.evs-chip, .sq-chip, .dir-chip {
+.evs-chip, .sq-chip, .dir-chip, .oc-ev-filter {
   padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
   font-family: inherit; border: 1px solid var(--border); background: var(--bg);
   color: var(--text);
 }
-.evs-chip:hover, .sq-chip:hover, .dir-chip:hover { border-color: var(--brand, #3B5BA5); }
+.evs-chip:hover, .sq-chip:hover, .dir-chip:hover, .oc-ev-filter:hover { border-color: var(--brand, #3B5BA5); }
 /* Selected. The marketplace search narrows in place now, so its chips need the same on-state
    the events search chips already had — one chip style, one selected look. */
 .sq-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }
