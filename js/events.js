@@ -17,6 +17,12 @@ let _evGoing  = new Map(); // event id -> this student's own registration row
 let _evDetail = null;      // the event currently open in the detail modal
 let _evRated  = new Map(); // event id -> this student's own feedback row
 let _evShowPast = false;
+// The on-page filter chips (evFeedChipsHTML). NOT the search's state: search resets on open and
+// replaces the whole feed, these narrow the feed in place. Not persisted either — a filter
+// describes this visit, and a feed silently narrowed on the next launch would look as if
+// events had disappeared.
+let _evFeedType = null;
+let _evFeedWhen = null;
 
 // Fetches this school's events into _evFeed / _evPast and loads the companion data the
 // cards need. Split out of renderEvents() so the home feed can show the same events
@@ -153,9 +159,13 @@ function evPaint() {
     return;
   }
 
-  let html = '<div id="evAskSlot"></div>';
+  // The chips narrow the upcoming list in place. They are drawn only when there is an upcoming
+  // list to narrow, and they go with the rest of the feed while search is open, so the page
+  // never shows two sets of filters at once.
+  const rows = evMatchEvents(_evFeed, { type: _evFeedType, when: _evFeedWhen });
+  let html = (_evFeed.length ? evFeedChipsHTML() : '') + '<div id="evAskSlot"></div>';
   let lastKey = null;
-  for (const e of _evFeed) {
+  for (const e of rows) {
     const key = evDayKey(e.starts_at);
     if (key !== lastKey) {
       html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`;
@@ -165,6 +175,8 @@ function evPaint() {
   }
 
   if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
+  else if (!rows.length) html += `<div class="ev-note">No events match these filters.
+    <button class="ev-note-btn" onclick="evFeedSet('all')">Show all</button></div>`;
 
   // Past events are behind a chip, not in the list. The photo count is the reason anyone
   // taps it — a past event with recap photos is worth looking at, and one without is not.
@@ -192,6 +204,37 @@ function evTogglePast(btn) {
   const el = document.querySelector('.ev-past');
   if (el) el.hidden = !_evShowPast;
   if (btn) btn.textContent = `${_evShowPast ? 'Hide' : 'Show'} past events · ${_evPast.length}`;
+}
+
+// "6:00 PM – 9:00 PM". The end is shown only when it falls on the same day: a range that
+// crosses midnight, printed as two bare times, reads as if the event ends before it starts.
+function evTimeRange(e) {
+  const start = evTime(e.starts_at);
+  if (!e.ends_at || evDayKey(e.ends_at) !== evDayKey(e.starts_at)) return start;
+  return `${start} – ${evTime(e.ends_at)}`;
+}
+
+// One compact row, like the marketplace's. Kind chips appear only for kinds that actually have
+// something coming up, so no chip leads to an empty list; the time chips always show.
+function evFeedChipsHTML() {
+  const kinds = EV_TYPES.filter(([v]) => _evFeed.some(e => e.event_type === v));
+  const chip = (kind, value, label) => {
+    const on = kind === 'all'  ? !_evFeedType && !_evFeedWhen
+             : kind === 'when' ? _evFeedWhen === value
+             :                   _evFeedType === value;
+    return `<button class="evs-chip ev-fchip${on ? ' is-on' : ''}" aria-pressed="${on}"
+              onclick="evFeedSet('${kind}', '${value}')">${label}</button>`;
+  };
+  return `<div class="ev-chips">${chip('all', '', 'All')}${chip('when', 'week', 'This week')}`
+       + `${chip('when', 'weekend', 'This weekend')}${kinds.map(([v, l]) => chip('type', v, l)).join('')}</div>`;
+}
+
+// A time chip and a kind chip combine; tapping an active chip clears it; All clears both.
+function evFeedSet(kind, value) {
+  if (kind === 'all')  { _evFeedType = null; _evFeedWhen = null; }
+  if (kind === 'when') _evFeedWhen = _evFeedWhen === value ? null : value;
+  if (kind === 'type') _evFeedType = _evFeedType === value ? null : value;
+  evPaint();
 }
 
 function evCardHTML(e, past = false) {
@@ -222,21 +265,34 @@ function evCardHTML(e, past = false) {
   // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so
   // the null check comes first — treating them alike would print "0 spots left" on an event
   // with no limit at all.
+  const type = (EV_TYPES.find(([v]) => v === e.event_type) || [])[1] || '';
+  // Built as HTML rather than a joined string so the numbers can be bold. Every value is a
+  // database count or a fixed phrase — no student-typed text — and the counts go through
+  // Number(), so there is nothing here to escape.
   const bits = [];
-  if (e.registration_open && e.going_count) bits.push(`${e.going_count} going`);
+  if (_evGoing.has(e.id)) bits.push(`<span class="ev-going">You're going ${icon('check', 12)}</span>`);
+  if (e.registration_open && e.going_count) bits.push(`<strong>${Number(e.going_count)}</strong> going`);
   if (e.registration_open && e.seats_left !== null && e.seats_left !== undefined) {
-    bits.push(e.seats_left === 0 ? 'full' : `${e.seats_left} spot${e.seats_left === 1 ? '' : 's'} left`);
+    bits.push(e.seats_left === 0 ? 'full'
+      : `<strong>${Number(e.seats_left)}</strong> spot${e.seats_left === 1 ? '' : 's'} left`);
   }
-  if (_evGoing.has(e.id)) bits.unshift('You are going');
-  const seats = bits.length ? `<span class="ev-seats">${esc(bits.join(' · '))}</span>` : '';
+  const seats = bits.length ? `<span class="ev-seats">${bits.join(' · ')}</span>` : '';
+  const foot = (type || seats)
+    ? `<div class="ev-foot">${type ? `<span class="ev-type">${esc(type)}</span>` : ''}${seats}</div>` : '';
 
-  // Built once so the row can be left out entirely when it is empty. A photo card carries its
-  // title and time here; a generated-poster card carries them on the poster and often has
-  // nothing to put in this row at all.
+  // A photo card carries its title, time and place here. A generated-poster card already prints
+  // all three on the poster, so it gets only the footer — a card should say each thing once.
+  // The date is not repeated at all: the day label above the group already says it.
+  //
+  // No "I'm going" button on the card, although the mockup drew one. Registering tells the
+  // organizers your name and email, and §4.1 requires that to be stated directly under the
+  // button BEFORE the tap — which the detail view does (evPrivacyLine). A one-tap button here
+  // would skip it.
   const metaText = (e.poster_url
     ? `<div class="ev-title">${esc(e.title)}</div>
-       <div class="ev-when">${esc(evTime(e.starts_at))} · ${esc(e.location)}</div>`
-    : '') + seats;
+       <div class="ev-row">${icon('clock', 13)}<span>${esc(evTimeRange(e))}</span></div>
+       ${e.location ? `<div class="ev-row">${icon('mapPin', 13)}<span>${esc(e.location)}</span></div>` : ''}`
+    : '') + foot;
 
   return `
     <article class="ev-card${past ? ' is-past' : ''}">
