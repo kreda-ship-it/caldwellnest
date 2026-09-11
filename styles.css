@@ -894,6 +894,15 @@ img{image-orientation:from-image;}
    page (sidebar 50, sticky top bar 40) and every pop-up (500). */
 .a-drawer-backdrop{position:fixed;inset:0;z-index:60;background:rgba(20,18,15,.42);}
 
+/* Broadcast: compose beside a 340px preview on a wide screen. It was an inline grid with
+   min-width:680px, so anything narrower was pushed sideways, and between 769px and about 1000px
+   the compose column was squeezed to around 150px. Below 1024px it stacks instead. */
+.a-bc-layout{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;}
+@media(max-width:1023px){.a-bc-layout{grid-template-columns:1fr;}}
+/* A two-up row of fields that stacks on a phone. Its column split lived in an inline style,
+   which no phone rule can override, so it lives here now. */
+.a-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
 /* ---------------------------------------------------------------- ADMIN ON A PHONE
    Until this block the admin had no phone layout at all: a 240px sidebar fixed to the left edge
    left about 150px of a 390px screen for everything else. Below 769px the sidebar slides in as a
@@ -914,6 +923,12 @@ img{image-orientation:from-image;}
      width on a phone. Refresh and NestBot stay. */
   .a-top-note,.a-top-student{display:none;}
   .a-content{padding:16px;}
+  .a-2col{grid-template-columns:1fr;}
+  /* Tables scroll inside their own box instead of widening the page. Six of the admin's eight
+     tables had no scroll wrapper, so on a phone each one dragged the whole screen sideways. As a
+     block the table keeps its rows and columns; only the overflow is contained. It outranks the
+     global table{width:100%} on specificity, wherever that sits. */
+  .a-content table{display:block;overflow-x:auto;max-width:100%;}
 }
 .a-section{display:none;}.a-section.active{display:block;animation:fi .2s ease;}
 @keyframes fi{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
@@ -1053,6 +1068,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ai-fab:hover{transform:scale(1.08);background:var(--brand-mid);}
 .ai-fab-badge{position:absolute;top:-1px;right:-1px;width:16px;height:16px;background:var(--accent);border-radius:50%;font-size:9px;font-weight:700;color:var(--brand);display:flex;align-items:center;justify-content:center;}
 .ai-chat{position:fixed;bottom:86px;right:26px;width:350px;height:490px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:0 16px 48px rgba(0,0,0,0.18);z-index:300;display:none;flex-direction:column;overflow:hidden;}
+/* Directly after the rule it narrows, on purpose: the admin's phone block sits earlier in this
+   file, and a same-weight override there would lose to this rule on source order. */
+@media(max-width:768px){.ai-chat{left:12px;right:12px;width:auto;bottom:84px;height:min(490px,calc(100dvh - 140px));}}
 .ai-chat.open{display:flex;}
 .ai-chat-head{background:var(--brand);padding:13px 15px;display:flex;align-items:center;gap:10px;}
 .ai-chat-av{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--brand);}

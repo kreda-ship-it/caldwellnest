@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-11l">
+<link rel="stylesheet" href="styles.css?v=2026-09-11m">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -826,7 +826,7 @@
         <!-- BROADCAST -->
         <div class="a-section" id="asec-broadcast">
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-          <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start;min-width:680px;">
+          <div class="a-bc-layout">
             <!-- Compose -->
             <div class="tcard tcard-flush">
               <div class="tcard-head">
@@ -857,7 +857,7 @@
                   <button type="button" id="bLandingToggle" onclick="toggleBLanding()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z"/><path d="M5 17.5h14"/></svg> Add landing page <span style="float:right;opacity:.5">optional</span></button>
                   <div id="bLandingSection" style="display:none;margin-top:12px;">
                     <div class="form-group"><label class="form-label">Landing page title <span class="label-hint">(optional — defaults to subject)</span></label><input class="form-input" id="bLandingTitle" placeholder="e.g. Everything you need to know about housing this semester"></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                    <div class="a-2col" style="align-items:start;">
                       <div>
                         <label class="form-label">Content <span class="label-hint">(markdown)</span></label>
                         <div style="font-size:11px;color:var(--text-faint);margin-bottom:6px;">Use # Heading, **bold**, *italic*, [link](url), - list item</div>
@@ -875,7 +875,7 @@
                     <option>All students</option><option>Nursing majors only</option><option>Students without listings</option><option>New students (this week)</option>
                   </select>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                <div class="a-2col" style="margin-bottom:16px;">
                   <div>
                     <label class="form-label">Schedule for <span class="label-hint">(optional)</span></label>
                     <input class="form-input" type="datetime-local" id="bScheduleAt" oninput="_bUpdateBtn()" style="margin-bottom:0">
