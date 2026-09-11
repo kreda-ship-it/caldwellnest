@@ -1087,8 +1087,6 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 }
 .m-tabbar{display:none;}
 /* Mobile-only brand text ("CaldwellNest") — swapped in for the desktop logo ≤768px */
-.s-logo-m{display:none;font-family:'DM Serif Display',serif;color:#fff;font-size:20px;letter-spacing:-.5px;cursor:pointer;}
-.s-logo-m span{color:var(--accent);}
 
 @media(max-width:768px){
   /* TOP BAR — the existing .s-nav becomes a fixed 56px app bar */
@@ -1102,8 +1100,11 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .s-nav.m-hidden{transform:translateY(-100%);}
   /* .s-nav left the normal flow (fixed), so push the app content down to start below it */
   #studentApp{padding-top:calc(var(--m-topbar-h) + env(safe-area-inset-top));}
-  .s-logo{display:none;}
-  .s-logo-m{display:inline;}
+  /* One wordmark, resized — not a second copy swapped in. The phone used to show a separate
+     .s-logo-m element, and the two drifted: desktop said "Nestrel", the phone still said
+     "CaldwellNest". The bare .s-logo{display:none} that did the swap also hid the FOOTER
+     wordmark on every phone. 20px is what the phone copy already used. */
+  .s-logo{font-size:20px;}
   /* Browse & Messages moved into the bottom tab bar */
   #navUser .nav-btn{display:none;}
   /* BOTTOM TAB BAR — always visible, never hides on scroll */
