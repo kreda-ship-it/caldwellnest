@@ -1509,12 +1509,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* ---------- Events section ---------- */
 /* One full-width action above the list, as the mockup has it. */
-.oc-ev-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+.oc-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
              height: 46px; margin-bottom: 14px; border: 0; border-radius: var(--radius-pill);
              background: var(--brand); color: #fff; cursor: pointer; font-family: inherit;
              font-size: 14px; font-weight: 600; }
-.oc-ev-cta:hover { background: var(--brand-mid); }
-.oc-ev-cta:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.oc-cta:hover { background: var(--brand-mid); }
+.oc-cta:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+/* The honest line under "+ New post" about what posting does and does not do. */
+.oc-post-note { margin: -4px 2px 16px; font-size: 12.5px; line-height: 1.55; color: var(--text-muted); }
 .oc-ev-filters { margin-bottom: 12px; }
 /* Each bucket carries its count, so an officer can see there are drafts waiting without
    opening them. */
@@ -1586,9 +1588,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    and a Manage menu in front of them would slow down the moment that matters most.
    Two classes, so these outrank the shared .org-btn wherever it sits — which means
    .org-btn-go has to be restated here or Publish would lose its green. */
-.oc-ev-actions .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+.oc-ev-actions .org-btn, .oc-post-actions .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
                           background: var(--surface); font-size: 12px; }
-.oc-ev-actions .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
+.oc-ev-actions .org-btn-go, .oc-post-actions .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
 
 /* The registration list, expanded under one event at a time. */
 .oc-ev-roster { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -1674,7 +1676,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }
 
 /* ── Org console: posts, polls, logo ───────────────────────────────────────── */
-.oc-composer { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 20px; background: var(--surface); }
+.oc-composer { border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 14px; margin-bottom: 20px; background: var(--surface); }
 .oc-composer .oc-input { margin-bottom: 8px; }
 .oc-type-row { display: flex; gap: 6px; margin-bottom: 10px; }
 .oc-type {
@@ -1762,12 +1764,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ff-btn-go:hover { background: var(--brand); border-color: var(--brand); }
 .ff-btn:disabled { opacity: .6; cursor: default; }
 
-.oc-post { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; background: var(--surface); }
+.oc-post { border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 14px; margin-bottom: 12px; background: var(--surface); }
 /* Urgent is a left rail, not a filled card. A red block behind body text hurts to read, and
    an urgent post is the one people most need to actually read. */
 .oc-post-urgent { border-left: 3px solid #c0392b; }
 .oc-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
-.oc-post-date { margin-left: auto; font-size: 11px; color: var(--text-faint); }
+.oc-post-date { margin-left: auto; font-size: 11px; color: var(--text-muted); }
 .oc-post-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
 .oc-post-body { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
 .oc-post-actions { display: flex; gap: 6px; margin-top: 11px; }

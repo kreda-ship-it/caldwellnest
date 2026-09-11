@@ -971,7 +971,16 @@ let _ocPosts = [];   // [{post, options:[], votes:[], myVote}]
 
 async function renderOcPosts() {
   const body = document.getElementById('ocBody');
-  body.innerHTML = '<div class="oc-note">Loading posts…</div>';
+  // Two regions: the top (a button, or the composer) and the list. A refresh after a pin, a
+  // delete or a vote repaints the LIST only, so a half-written post survives an officer tidying
+  // the posts beneath it — the whole section used to be redrawn, taking the draft with it.
+  // The shell is rebuilt on entering the section, and whenever the organization changes: a post
+  // typed for one club must never sit in the composer when the officer is acting as another.
+  if (!document.getElementById('ocPostList') || _ocPostShellOrg !== _ocOrgId) {
+    _ocPostShellOrg = _ocOrgId; _ocPostFormOpen = false; _ocType = 'announcement';
+    body.innerHTML = '<div id="ocPostTop"></div><div id="ocPostList"><div class="oc-note">Loading posts…</div></div>';
+    ocPostPaintTop();
+  }
 
   const { data: posts, error } = await supabaseClient
     .from('org_posts')
@@ -979,7 +988,7 @@ async function renderOcPosts() {
     .eq('org_id', _ocOrgId)
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
-  if (error) { body.innerHTML = '<div class="oc-note">Could not load posts.</div>'; console.error('[renderOcPosts]', error); return; }
+  if (error) { document.getElementById('ocPostList').innerHTML = '<div class="oc-note">Could not load posts.</div>'; console.error('[renderOcPosts]', error); return; }
 
   const pollIds = (posts || []).filter(p => p.type === 'poll').map(p => p.id);
   let options = [], votes = [];
@@ -1002,9 +1011,7 @@ async function renderOcPosts() {
     myVote:  votes.find(v => v.post_id === p.id && v.user_id === user?.id) || null,
   }));
 
-  body.innerHTML = ocComposerHTML() + (_ocPosts.length
-    ? _ocPosts.map(ocPostCardHTML).join('')
-    : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>');
+  ocPostPaintList();
 }
 
 // ---------- Events ----------
@@ -1076,7 +1083,7 @@ async function renderOcEvents() {
   // fold. Editing and duplicating force it open, because they have nowhere else to put values.
   const formOpen = _ocEvFormOpen || _ocEvEditId || _ocEvDraft;
   body.innerHTML = `
-    ${formOpen ? ocEventFormHTML() : '<button class="oc-ev-cta" onclick="ocEvOpenForm()">+ New event</button>'}
+    ${formOpen ? ocEventFormHTML() : '<button class="oc-cta" onclick="ocEvOpenForm()">+ New event</button>'}
     <div id="ocEvList"></div>`;
   ocEvPaintList();
 
@@ -2064,15 +2071,20 @@ function ocEventCardHTML(e) {
 }
 
 function ocComposerHTML() {
+  // Drawn FROM _ocType. It used to hard-code Announcement as selected and the poll options as
+  // hidden, while _ocType kept whatever it was last set to — so after an officer posted a poll,
+  // the next post showed Announcement but went out as a poll with its options hidden, and was
+  // refused for having fewer than two. The UI shows the state; it does not assume it.
+  const poll = _ocType === 'poll';
   return `
     <div class="oc-composer">
       <div class="oc-type-row">
-        <button class="oc-type active" id="oc-t-announcement" onclick="ocSetType('announcement')">Announcement</button>
-        <button class="oc-type" id="oc-t-poll" onclick="ocSetType('poll')">Poll</button>
+        <button class="oc-type${poll ? '' : ' active'}" id="oc-t-announcement" onclick="ocSetType('announcement')">Announcement</button>
+        <button class="oc-type${poll ? ' active' : ''}" id="oc-t-poll" onclick="ocSetType('poll')">Poll</button>
       </div>
       <input class="oc-input" id="ocTitle" placeholder="Title" autocomplete="off">
       <textarea class="oc-input" id="ocBodyText" rows="3" placeholder="Say more (optional)"></textarea>
-      <div id="ocPollFields" class="oc-poll-fields" hidden>
+      <div id="ocPollFields" class="oc-poll-fields"${poll ? '' : ' hidden'}>
         <input class="oc-input" id="ocOpt1" placeholder="Option 1" autocomplete="off">
         <input class="oc-input" id="ocOpt2" placeholder="Option 2" autocomplete="off">
         <input class="oc-input" id="ocOpt3" placeholder="Option 3 (optional)" autocomplete="off">
@@ -2086,11 +2098,44 @@ function ocComposerHTML() {
       </div>
       <div class="oc-note">Pinning replaces whatever is currently pinned — one per organization, so the pin keeps meaning something.
         “Urgent” shows a red marker to students who open the app; it does <strong>not</strong> email or notify anyone yet.</div>
-      <button class="btn-full oc-save" onclick="ocCreatePost()">Post</button>
+      <div class="ff-actions">
+        <button class="ff-btn ff-btn-ghost" onclick="ocPostCloseForm()">Cancel</button>
+        <button class="ff-btn ff-btn-go" id="ocPostBtn" onclick="ocCreatePost()">Post</button>
+      </div>
     </div>`;
 }
 
 let _ocType = 'announcement';
+// Whether the composer is showing, and which organization the section was drawn for.
+let _ocPostFormOpen = false;
+let _ocPostShellOrg = null;
+
+// The button, or the composer. The line under the button is the truth about reach: nothing
+// emails or notifies followers when a club posts — the approved mockup said announcements "go to
+// your followers", and that is not something this app does yet.
+function ocPostPaintTop() {
+  const top = document.getElementById('ocPostTop');
+  if (!top) return;
+  top.innerHTML = _ocPostFormOpen ? ocComposerHTML() : `
+    <button class="oc-cta" onclick="ocPostOpenForm()">+ New post</button>
+    <p class="oc-post-note">Posts appear on your club's page. They don't notify followers yet.</p>`;
+}
+
+function ocPostPaintList() {
+  const host = document.getElementById('ocPostList');
+  if (!host) return;
+  host.innerHTML = _ocPosts.length
+    ? _ocPosts.map(ocPostCardHTML).join('')
+    : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>';
+}
+
+// A new post starts as an announcement, whatever the last one was.
+function ocPostOpenForm() {
+  _ocPostFormOpen = true; _ocType = 'announcement';
+  ocPostPaintTop();
+  document.getElementById('ocTitle')?.focus();
+}
+function ocPostCloseForm() { _ocPostFormOpen = false; ocPostPaintTop(); }
 function ocSetType(t) {
   _ocType = t;
   document.getElementById('oc-t-announcement').classList.toggle('active', t === 'announcement');
@@ -2154,6 +2199,11 @@ async function ocCreatePost() {
     : [];
   if (_ocType === 'poll' && opts.length < 2) { toast('A poll needs at least two options'); return; }
 
+  // Disabled while it works: without this a double tap posted the same announcement twice.
+  const btn = document.getElementById('ocPostBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+  const restore = () => { if (btn) { btn.disabled = false; btn.textContent = 'Post'; } };
+
   const { data: { user } } = await supabaseClient.auth.getUser();
   const wantPin = document.getElementById('ocPinned').checked;
 
@@ -2174,7 +2224,7 @@ async function ocCreatePost() {
     created_by: user?.id || null,
   }).select('id').single();
 
-  if (error) { toast('Could not post: ' + error.message); console.error('[ocCreatePost]', error); return; }
+  if (error) { restore(); toast('Could not post: ' + error.message); console.error('[ocCreatePost]', error); return; }
 
   if (opts.length) {
     const { error: oe } = await supabaseClient.from('poll_options')
@@ -2184,6 +2234,7 @@ async function ocCreatePost() {
     // of one action and Supabase gives us no transaction across two calls.
     if (oe) {
       await supabaseClient.from('org_posts').delete().eq('id', post.id);
+      restore();
       toast('Could not save the poll options — nothing was posted');
       console.error('[ocCreatePost options]', oe);
       return;
@@ -2192,6 +2243,8 @@ async function ocCreatePost() {
 
   logEvent('org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
                                  school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType } });
+  _ocType = 'announcement'; _ocPostFormOpen = false;
+  ocPostPaintTop();
   toast('Posted');
   renderOcPosts();
 }
