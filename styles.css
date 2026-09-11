@@ -8,6 +8,11 @@
      a place rather than a form. Values only; nothing here can move a pixel. */
   --brand:#1a3a2a; --brand-mid:#2d6148; --brand-light:#3e7a5c; --brand-pale:#e4ede5;
   --accent:#f0a500; --accent-pale:#fdf3df;
+  /* The accent when it has to be READ on a light ground. #f0a500 is 1.95:1 on cream — fine as
+     a fill behind dark text, unreadable as text itself. This is the ochre the approved phone
+     header uses for "rel": 3.83:1, still unmistakably the yellow family. It does not follow
+     the Site Editor's accent setting; if an admin changes the accent, revisit this. */
+  --accent-ink:#a87309;
   /* Terracotta. Defined now, spent later — links and secondary actions are still brand
      green, and repainting them is a change of its own rather than a side effect of this. */
   --accent-warm:#c2603c;
@@ -1105,6 +1110,24 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
      "CaldwellNest". The bare .s-logo{display:none} that did the swap also hid the FOOTER
      wordmark on every phone. 20px is what the phone copy already used. */
   .s-logo{font-size:20px;}
+  /* THE PHONE BAR IS CREAM (option C). Desktop and the admin sidebar keep the green, so the
+     brand stays on screen somewhere. Every rule is scoped under .s-nav on purpose: .s-logo
+     span is also the footer wordmark, which sits on a dark band and must keep its yellow.
+
+     Each line below exists because a white-on-green rule goes invisible on cream:
+     the bells were 80% white, "Log in" was 80% white, "Admin" was a translucent white pill,
+     and Sign up's yellow fill is 1.95:1 against cream — its shape would vanish. */
+  .s-nav{background:var(--bg);border-bottom:1px solid var(--border);}
+  .s-nav .s-logo{color:var(--brand);}
+  .s-nav .s-logo span{color:var(--accent-ink);}
+  .s-nav .nav-bell{color:#4a423b;}
+  .s-nav .nav-bell:hover{color:var(--text);}
+  .s-nav .nav-ghost{color:#4a423b;}
+  .s-nav .nav-ghost:hover{background:var(--bg-alt);color:var(--text);}
+  .s-nav .nav-solid{background:var(--brand);color:#fff;}
+  .s-nav .nav-solid:hover{background:var(--brand-mid);}
+  .s-nav .switch-interface{background:transparent;border-color:var(--border);color:#4a423b;}
+  .s-nav .switch-interface:hover{background:var(--bg-alt);color:var(--text);}
   /* Browse & Messages moved into the bottom tab bar */
   #navUser .nav-btn{display:none;}
   /* BOTTOM TAB BAR — always visible, never hides on scroll */
