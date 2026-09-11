@@ -727,6 +727,10 @@ function listingLifecycleBadge(l) {
 }
 
 function renderListingGrid(listings, isOwn) {
+  // Everything a student typed is escaped on the way in. viewStudentProfile() draws someone
+  // ELSE's listings with this, so a raw title would be markup authored by a stranger running in
+  // the viewer's browser, and a raw photo URL could close src="…" and add an attribute of its
+  // own. Guarded by check 6 in tests/load-order.js.
   if (!listings || !listings.length) {
     return `<div style="text-align:center;padding:28px 0;color:var(--text-faint);font-size:13px">
       ${isOwn ? `No listings yet. <a onclick="openModal('postModal')" style="color:var(--brand);cursor:pointer">Post one now →</a>` : 'No active listings yet.'}
@@ -737,10 +741,10 @@ function renderListingGrid(listings, isOwn) {
     const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
     const rent = l.rent ? (l.category === 'housing' ? `$${l.rent}/mo` : `$${l.rent}`) : '';
     const inner = l.photo_urls?.[0]
-      ? `<img src="${l.photo_urls[0]}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(l.title)}">
-         <div class="lg-cap"><div class="lg-cap-title">${l.title}</div><div class="lg-cap-rent">${rent}</div></div>`
-      : `<div class="lg-fill" style="background:${cat.bg};color:${cat.text}"><div class="lg-fill-title">${l.title}</div></div>
-         <div class="lg-cap"><div class="lg-cap-rent">${rent}</div></div>`;
+      ? `<img src="${escAttr(l.photo_urls[0])}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(l.title)}">
+         <div class="lg-cap"><div class="lg-cap-title">${esc(l.title)}</div><div class="lg-cap-rent">${esc(rent)}</div></div>`
+      : `<div class="lg-fill" style="background:${cat.bg};color:${cat.text}"><div class="lg-fill-title">${esc(l.title)}</div></div>
+         <div class="lg-cap"><div class="lg-cap-rent">${esc(rent)}</div></div>`;
     return `<div class="lg-cell" onclick="${l.isBook ? 'openBookDetail' : 'openDetail'}(${l.id})">
       ${inner}
       ${isOwn ? `<div class="lg-badge" style="background:${bg};color:${col}">${label}</div>` : ''}

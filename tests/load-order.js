@@ -182,5 +182,28 @@ if (ran) {
     : pass('no icon()/esc() calls trapped in template literal text');
 }
 
+// ------------------------------------------------ 6. another student's text stays text
+// renderListingGrid() draws a student's listings on THEIR profile — and viewStudentProfile()
+// uses it for someone ELSE's, so whatever a student types into a title is rendered in the
+// browser of every visitor. It wrote the title and the photo URL into innerHTML unescaped.
+// Found 2026-09-11 while wiring the profile counts; xss-test.html never exercised this path,
+// which is why it survived. The two payloads are the two ways in: markup in a title, and a
+// quote in a photo URL that closes src="…" and opens an attribute of its own.
+if (ran) {
+  const TITLE = '<img src=x onerror=alert(1)>';
+  const URL_  = 'x" onerror="alert(1)';
+  ctx.__hostile = [
+    { id: 1, title: TITLE, category: 'housing', rent: 5, photo_urls: [URL_], lifecycle_status: 'active', status: 'approved' },
+    { id: 2, title: TITLE, category: 'housing', rent: 5, photo_urls: [],     lifecycle_status: 'sold',   status: 'approved' },
+  ];
+  try {
+    const out = vm.runInContext('renderListingGrid(__hostile, false) + renderListingGrid(__hostile, true)', ctx);
+    const leaks = [out.includes(TITLE) && 'title rendered as markup', out.includes(URL_) && 'photo URL broke out of src'].filter(Boolean);
+    leaks.length ? fail(`renderListingGrid: ${leaks.join('; ')}`) : pass('hostile listing title and photo URL stay text in renderListingGrid');
+  } catch (e) {
+    fail(`renderListingGrid could not be exercised: ${e.message}`);
+  }
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);
