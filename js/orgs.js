@@ -1548,13 +1548,6 @@ async function ocToggleRoster(id) {
   ocPaintRoster();
 }
 
-const OC_REG_LABEL = {
-  registered:    'Registered',
-  self_reported: 'Said they are here',
-  checked_in:    'Checked in',
-  walk_in:       'Walk-in',
-  cancelled:     'Cancelled',
-};
 
 // The row whose Undo is still showing, and the timer that takes it away.
 //

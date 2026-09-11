@@ -11,8 +11,6 @@
 // ============================================================
 // ── Messaging sidebar collapse ──────────────────────────────
 let msgSidebarPinned = true;
-let msgOpenTimer = null;
-let msgCloseTimer = null;
 
 function toggleMsgSidebar() {
   const sidebar = document.getElementById('msgSidebar');

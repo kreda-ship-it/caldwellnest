@@ -107,7 +107,6 @@ function updateMsgBadges() {
   }, { passive: true });
 })();
 
-function guestBrowse() { showPage('listings'); }
 function requireAuth(action) {
   if (!getEffectiveUser()) { openModal('loginModal'); return false; }
   if (action === 'postListing') openModal('postModal');
@@ -165,10 +164,6 @@ function setListingCat(cat, el) {
   // derives it from _filters.category — one place that decides, instead of four that guess.
   renderDeepFilters();
   renderListings();
-}
-function onListingSearch(val) {
-  clearTimeout(_kwTimer);
-  _kwTimer = setTimeout(() => { _filters.keyword = val.trim().toLowerCase(); renderListings(); }, 250);
 }
 function clearListingCat() {
   _filters.category = 'all';
@@ -850,22 +845,6 @@ function posterSchoolLine(l) {
   return name + dist;
 }
 
-// Instagram-style poster header that sits on TOP of each card. Compact, supporting — never the hero.
-function posterHeaderHTML(l) {
-  const p = l.poster;
-  const eu = getEffectiveUser();
-  const clickable = !p.official && l.poster_id;
-  const schoolLine = posterSchoolLine(l);
-  return `<div class="poster-head"${clickable ? ` onclick="event.stopPropagation();viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
-    ${avatarHTML(p, 32)}
-    <div style="min-width:0">
-      <div class="poster-head-name">${esc(p.name)}${trustBadgeHTML(p)}</div>
-      ${schoolLine ? `<div class="poster-head-sub">${schoolLine}</div>` : ''}
-    </div>
-    ${eu && eu.id !== l.poster_id && !p.official && !l.isBook ? `<button class="lc-report" onclick="event.stopPropagation();openReportModal(${l.id})" title="Report this listing" aria-label="Report listing">${icon('flag',15)}</button>` : ''}
-  </div>`;
-}
-
 // ---- Appealing a moderated listing ----
 // Reuses the existing appeals table and admin queue rather than building a parallel system:
 // same row shape as a suspension appeal, with listing_id set instead of suspension_history_id.
@@ -1322,14 +1301,6 @@ function renderPhotoPreviews() {
 function removeListingPhoto(i) {
   _pendingPhotoFiles.splice(i, 1);
   renderPhotoPreviews();
-}
-
-function clearListingPhoto() {
-  _pendingPhotoFiles = [];
-  const inp = document.getElementById('pPhotoInput');
-  if (inp) inp.value = '';
-  const prev = document.getElementById('pPhotoPreview');
-  if (prev) prev.innerHTML = '';
 }
 
 async function submitListing() {

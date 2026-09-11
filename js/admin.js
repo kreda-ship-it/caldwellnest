@@ -347,8 +347,6 @@ async function buildTypeChart() {
   }).join('');
 }
 
-function alItem(a) { return `<div class="al-item"><div class="al-dot" style="background:${escAttr(a.color)}"></div><div class="al-text">${esc(a.text)}</div><div class="al-time">${esc(a.time)}</div></div>`; }
-
 // ── Activity log helpers ─────────────────────────────────────────────────────
 const ACTION_META = {
   approve_listing:      { label: 'Listing approved',        color: '#1a7a45' },
@@ -1393,12 +1391,6 @@ function clearStuFilters() {
   _stuYearFilter = 'all'; _stuMajorSearch = ''; _stuFlagFilter = 'none'; _stuSort = 'newest';
   const si = document.getElementById('stuSearchInput'); if (si) si.value = '';
   const ss = document.getElementById('stuSortSelect');  if (ss) ss.value = 'newest';
-  renderAStudents();
-}
-
-function setStudentFilter(school, status) {
-  if (school !== null) _stuSchoolFilter = school;
-  if (status !== null) _stuStatusFilter = status;
   renderAStudents();
 }
 
