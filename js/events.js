@@ -374,6 +374,10 @@ function evPaintDetail() {
   const e = _evDetail;
   const org = _evOrgs.get(e.org_id);
   const images = e._media.filter(m => m.kind === 'image');
+  // Every video href goes through safeUrl(). The console only accepts Instagram, YouTube and
+  // TikTok links, which keeps javascript: out of the form — but event_media.url has no check, so a
+  // direct write would put a script URL behind "Watch on …" for every visitor. A link that
+  // fails the check is dropped rather than drawn broken.
   const videos = e._media.filter(m => m.kind === 'video_link');
 
   const starts = new Date(e.starts_at);
@@ -422,10 +426,10 @@ function evPaintDetail() {
       images.map(m => `<img src="${escAttr(m.url)}" alt="${escAttr(m.caption || '')}" loading="lazy">`).join('')
     }</div>` : ''}
 
-    ${videos.map(v => `
-      <a class="evd-video" href="${escAttr(v.url)}" target="_blank" rel="noopener noreferrer">
+    ${videos.map(v => safeUrl(v.url)).filter(Boolean).map(href => `
+      <a class="evd-video" href="${escAttr(href)}" target="_blank" rel="noopener noreferrer">
         <span class="evd-video-play">${icon('play',13,true)}</span>
-        <span>Watch on ${esc(evVideoHost(v.url))}</span>
+        <span>Watch on ${esc(evVideoHost(href))}</span>
       </a>`).join('')}
 
     ${evRegisterBlockHTML(e)}`;
