@@ -368,9 +368,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .mk-post{flex:none;}
 
 /* ------------------------------------------------------------------ CATEGORY PILL ROW
-   One compact row that scrolls sideways, per the approved mockup. Deliberately NOT the
-   .cat-tab underline style: those classes are the club directory's filter row, and
-   restyling them here would repaint a page this change has no business touching.
+   One compact row that scrolls sideways, per the approved mockup. (The club directory's filter row used the old .cat-tab underline style
+   until 5.3a moved it to chips; those rules went with it.)
 
    Each pill names its own two colours through --pill-bg / --pill-fg, so the shared rules
    below stay at three, and selecting a pill just swaps which of its two colours is the
@@ -412,11 +411,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .cat-pill[data-cat="all"]{padding:0 15px;}
 .cat-pill[data-cat="all"].active{--cat-deep:var(--brand);}
 
-.cat-tabs{display:flex;gap:22px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;}
-.cat-tabs::-webkit-scrollbar{display:none;}
-.cat-tab{background:none;border:none;border-bottom:2px solid transparent;padding:0 0 10px;margin-bottom:-1px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:color .15s,border-color .15s;}
-.cat-tab:hover{color:var(--text);}
-.cat-tab.active{color:var(--brand);font-weight:600;border-bottom-color:var(--brand);}
 /* Primary Filters button */
 .filters-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;flex-shrink:0;transition:border-color .15s,background .15s;}
 .filters-btn:hover{border-color:var(--brand);}
@@ -1797,9 +1791,40 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
   color: var(--text-faint); pointer-events: none; display: flex;
 }
-.dir-search { margin-bottom: 0; width: 100%; padding-left: 38px; }
+/* The mockup's white pill. The <form> shell around the input is an autofill guard — Chrome
+   pools inputs outside a form and pours saved credentials into the first visible one — and it
+   is untouched here. */
+.dir-search { margin-bottom: 0; width: 100%; padding-left: 40px; height: 44px;
+              border-radius: var(--radius-pill); background: var(--surface); }
 
 .dir-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* FOLLOWING — the clubs you follow, as tiles above the list, on the unfiltered directory only. */
+.dir-following { margin: 2px 0 18px; }
+.dir-fol-lab { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+               color: var(--text-muted); margin-bottom: 10px; }
+.dir-fol-row { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.dir-fol-row::-webkit-scrollbar { display: none; }
+.dir-fol { flex: none; width: 104px; display: flex; flex-direction: column; align-items: center;
+           gap: 8px; padding: 13px 8px; background: var(--surface); border: 1px solid var(--border);
+           border-radius: 16px; cursor: pointer; font-family: inherit; }
+.dir-fol:hover { border-color: var(--brand-light); }
+.dir-fol:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.dir-fol-logo { width: 44px; height: 44px; border-radius: 14px; object-fit: cover; }
+.dir-fol .dir-logo-none { font-size: 14px; }
+.dir-fol-name { font-size: 11.5px; font-weight: 600; color: var(--text); text-align: center;
+                line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+                -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Six tints for the initial tiles, borrowed from the category tokens so they stay in the
+   palette. A separate attribute from data-cat on purpose: a club is not "housing", and a
+   future reader should not have to wonder why it says so. */
+[data-tint="1"]{--tint-bg:var(--cat-housing-bg);   --tint-fg:var(--cat-housing-text);}
+[data-tint="2"]{--tint-bg:var(--cat-clothing-bg);  --tint-fg:var(--cat-clothing-text);}
+[data-tint="3"]{--tint-bg:var(--cat-technology-bg);--tint-fg:var(--cat-technology-text);}
+[data-tint="4"]{--tint-bg:var(--cat-donation-bg);  --tint-fg:var(--cat-donation-text);}
+[data-tint="5"]{--tint-bg:var(--cat-books-bg);     --tint-fg:var(--cat-books-text);}
+[data-tint="6"]{--tint-bg:var(--cat-other-bg);     --tint-fg:var(--cat-other-text);}
 
 /* One object repeated, so the edges, baselines and inner padding match from
    card to card and the follow button sits in the same place on every row. */
@@ -1809,16 +1834,16 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 16px;
 }
 
 .dir-logo {
-  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  width: 48px; height: 48px; border-radius: 15px;
   object-fit: cover; flex-shrink: 0; background: var(--bg);
 }
 .dir-logo-none {
   display: flex; align-items: center; justify-content: center;
-  background: var(--brand-pale); color: var(--brand-mid);
+  background: var(--tint-bg, var(--brand-pale)); color: var(--tint-fg, var(--brand-mid));
   font-size: 20px; font-weight: 700;
 }
 
@@ -1828,7 +1853,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    so it sits above the name rather than below it — read before the club, the
    way it is spoken: Caldwell University > Student Life > Chess Club. */
 .dir-crumb {
-  font-size: 11px; color: var(--text-faint); margin-bottom: 3px;
+  font-size: 11px; color: var(--text-muted); margin-bottom: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .dir-sep { opacity: .6; padding: 0 1px; }
@@ -1849,7 +1874,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   overflow: hidden;
 }
 
-.dir-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.dir-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .dir-type { text-transform: capitalize; }
 .dir-dot { opacity: .5; }
 .dir-count { font-variant-numeric: tabular-nums; }
@@ -2023,10 +2048,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .ev-meta-text > .ev-foot:first-child { margin-top: 0; }
 /* The filter row. White chips on the cream page, like the mockup; .evs-chip supplies the shape
    and the selected state the search already uses, so both filter UIs look like one thing. */
-.ev-chips { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none;
+.ev-chips, .dir-chips { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none;
             padding: 2px 0 var(--sp-2); }
-.ev-chips::-webkit-scrollbar { display: none; }
-.ev-fchip { flex: none; white-space: nowrap; background: var(--surface); height: 34px;
+.ev-chips::-webkit-scrollbar, .dir-chips::-webkit-scrollbar { display: none; }
+/* Two classes, not one: the shared .evs-chip base further down would otherwise win on source
+   order and paint these cream with its own padding — which is what the 5.2 Events chips
+   actually shipped with until 5.3a. The .is-on rules below carry the same weight and come
+   later, so a selected chip still turns green. */
+.ev-chips .ev-fchip, .dir-chips .dir-chip { flex: none; white-space: nowrap; background: var(--surface); height: 34px;
             padding: 0 15px; font-size: 12.5px; font-weight: 600; }
 .ev-note-btn { background: none; border: 0; padding: 0; margin-left: 4px; cursor: pointer;
                font: inherit; font-weight: 600; color: var(--accent-warm); }
@@ -2274,7 +2303,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .evs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 /* Base shared with .sq-chip — see the shared block at the end of this file. Only the
    selected state is particular to the events search, which is the only one that filters. */
-.evs-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5);
+.evs-chip.is-on, .dir-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5);
                   color: #fff; }
 
 .evs-count { margin: 20px 0 4px; font-size: 12px; color: var(--text-muted); }
@@ -2392,12 +2421,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .sq-row-sub { margin-top: 2px; }
 
 /* One chip. The events search and the search page had identical copies. */
-.evs-chip, .sq-chip {
+.evs-chip, .sq-chip, .dir-chip {
   padding: 8px 13px; font-size: 13px; border-radius: 999px; cursor: pointer;
   font-family: inherit; border: 1px solid var(--border); background: var(--bg);
   color: var(--text);
 }
-.evs-chip:hover, .sq-chip:hover { border-color: var(--brand, #3B5BA5); }
+.evs-chip:hover, .sq-chip:hover, .dir-chip:hover { border-color: var(--brand, #3B5BA5); }
 /* Selected. The marketplace search narrows in place now, so its chips need the same on-state
    the events search chips already had — one chip style, one selected look. */
 .sq-chip.is-on { background: var(--brand, #3B5BA5); border-color: var(--brand, #3B5BA5); color: #fff; }

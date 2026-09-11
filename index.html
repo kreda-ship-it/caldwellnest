@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-11e">
+<link rel="stylesheet" href="styles.css?v=2026-09-11f">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -264,12 +264,18 @@
           </form>
         </div>
       </div>
-      <div class="cat-tabs">
-        <button class="cat-tab dir-filter active" onclick="orgDirSetType('all',this)">All</button>
-        <button class="cat-tab dir-filter" onclick="orgDirSetType('club',this)">Clubs</button>
-        <button class="cat-tab dir-filter" onclick="orgDirSetType('department',this)">Departments</button>
-        <button class="cat-tab dir-filter" onclick="orgDirSetType('office',this)">Offices</button>
+      <!-- One compact row of chips, like the marketplace and events. Which chip is lit is decided
+           in renderOrgDirectory() from _dirType — not here, and not in the click handler — so a
+           sign-out that resets the filter cannot leave a different chip lit than the list obeys. -->
+      <div class="dir-chips">
+        <button class="dir-chip is-on" data-dirtype="all" aria-pressed="true" onclick="orgDirSetType('all')">All</button>
+        <button class="dir-chip" data-dirtype="club" aria-pressed="false" onclick="orgDirSetType('club')">Clubs</button>
+        <button class="dir-chip" data-dirtype="department" aria-pressed="false" onclick="orgDirSetType('department')">Departments</button>
+        <button class="dir-chip" data-dirtype="office" aria-pressed="false" onclick="orgDirSetType('office')">Offices</button>
       </div>
+      <!-- The clubs you follow, kept close to hand. Filled by _dirPaintFollowing(), and empty — so
+           not there at all — while you follow nothing, are searching, or have a filter on. -->
+      <div id="orgDirFollowing"></div>
       <div id="orgDirList" class="dir-list"></div>
     </div>
   </div>
@@ -1772,7 +1778,7 @@
 <script src="js/orgs.js?v=2026-09-10k"></script>
 <script src="js/events.js?v=2026-09-11b"></script>
 <script src="js/search.js?v=2026-09-10f"></script>
-<script src="js/orgdir.js?v=2026-09-10a"></script>
+<script src="js/orgdir.js?v=2026-09-11a"></script>
 <script src="js/feed.js?v=2026-09-10b"></script>
   <script src="js/boot.js?v=2026-09-10e"></script>
 

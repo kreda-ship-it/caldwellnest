@@ -83,6 +83,19 @@ async function renderOrgDirectory() {
   const host = document.getElementById('orgDirList');
   if (!host) return;
 
+  // The lit chip is DERIVED from _dirType on every render, the loading and empty states
+  // included. It used to be set by the click handler, so anything that reset the filter without
+  // a click — clearOrgDirectory() on sign-out — left the old tab lit over an unfiltered list.
+  document.querySelectorAll('[data-dirtype]').forEach(b => {
+    const on = b.getAttribute('data-dirtype') === _dirType;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  // Cleared up front as well as painted below: the strip is DOM, and clearOrgDirectory() only
+  // resets variables, so after a sign-out the previous student's follows would otherwise sit
+  // there through a failed load.
+  _dirPaintFollowing();
+
   if (_dirOrgs === null) {
     host.innerHTML = '<div class="dir-empty">Loading organizations…</div>';
     const ok = await loadOrgDirectory();
@@ -104,6 +117,7 @@ async function renderOrgDirectory() {
   // way round it stays on "Loading…" forever for exactly the two cases where the student
   // most needs to be told what happened.
   _dirUpdateCount(list.length);
+  _dirPaintFollowing();
 
   // Three different empty states, because they mean three different things and one message
   // for all of them sends the reader looking in the wrong place.
@@ -143,11 +157,7 @@ function _dirCardHtml(o) {
     ? `<div class="dir-crumb">${crumbs.map(c => esc(c)).join(' <span class="dir-sep">›</span> ')}</div>`
     : '';
 
-  // An org with no logo gets its initial on a tinted square, the same idea as a student
-  // avatar. A broken image is worse than no image.
-  const logo = o.logo_url
-    ? `<img class="dir-logo" src="${escAttr(o.logo_url)}" alt="" loading="lazy">`
-    : `<div class="dir-logo dir-logo-none">${esc((o.name || '?').charAt(0).toUpperCase())}</div>`;
+  const logo = _dirLogoHTML(o, 'dir-logo');
 
   const count = o.follower_count === 1 ? '1 follower' : `${o.follower_count || 0} followers`;
 
@@ -172,11 +182,37 @@ function _dirCardHtml(o) {
 // ------------------------------------------------------------
 function orgDirSearch(value) { _dirQuery = value || ''; renderOrgDirectory(); }
 
-function orgDirSetType(type, btn) {
+function orgDirSetType(type) {
   _dirType = type;
-  document.querySelectorAll('.dir-filter').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderOrgDirectory();
+  renderOrgDirectory();   // which chip is lit is decided there, from _dirType
+}
+
+// An org with no logo gets its initial on a tinted square, like a student avatar. The tint comes
+// from the id, so a club keeps the same colour everywhere it appears and neighbouring rows
+// usually differ. A broken image is worse than no image.
+function _dirLogoHTML(o, cls) {
+  return o.logo_url
+    ? `<img class="${cls}" src="${escAttr(o.logo_url)}" alt="" loading="lazy">`
+    : `<div class="${cls} dir-logo-none" data-tint="${((Number(o.id) || 0) % 6) + 1}">${esc((o.name || '?').charAt(0).toUpperCase())}</div>`;
+}
+
+// The clubs you follow, as tiles above the list. Only on the unfiltered directory: while a
+// search or a type filter is on, the list IS the answer, and a strip of other clubs above it
+// would be noise about a question the student is not asking.
+function _dirPaintFollowing() {
+  const host = document.getElementById('orgDirFollowing');
+  if (!host) return;
+  const mine = (_dirOrgs || []).filter(o => _dirFollows.has(o.id));
+  if (!mine.length || _dirQuery.trim() || _dirType !== 'all') { host.innerHTML = ''; return; }
+  host.innerHTML = `
+    <div class="dir-following">
+      <div class="dir-fol-lab">Following · ${mine.length}</div>
+      <div class="dir-fol-row">${mine.map(o => `
+        <button class="dir-fol" onclick="orgPageOpen(${Number(o.id)})">
+          ${_dirLogoHTML(o, 'dir-fol-logo')}
+          <span class="dir-fol-name">${esc(o.name)}</span>
+        </button>`).join('')}</div>
+    </div>`;
 }
 
 
@@ -245,6 +281,9 @@ function _dirPaintFollow(orgId, org, following) {
     btn.innerHTML = _dirFollowLabel(following);
     btn.classList.toggle('is-following', following);
   });
+  // Before the early return: the strip reads _dirFollows, not org, and runs on the rollback
+  // path too, so a failed follow takes its tile back out.
+  _dirPaintFollowing();
   if (!org) return;
   const txt = org.follower_count === 1 ? '1 follower' : `${org.follower_count || 0} followers`;
   document.querySelectorAll(`[data-count="${orgId}"]`).forEach(el => { el.textContent = txt; });
