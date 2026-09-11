@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-10s">
+<link rel="stylesheet" href="styles.css?v=2026-09-11a">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -121,7 +121,7 @@
       <div class="home-section-inner">
         <h2 class="home-h2">The problem we lived</h2>
         <p class="home-lead">Looking for housing or campus resources meant scrolling Facebook Marketplace, sending cold DMs to strangers, or hoping someone posted in an overflowing group chat. No way to verify anyone was a student. No moderation. No safety. Just chaos.</p>
-        <div class="hiw-grid" style="margin-top:36px;">
+        <div class="hiw-grid">
           <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M3 21 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M3 3l5 5"/></svg></div><div class="hiw-card-title">Scattered across apps</div><div class="hiw-card-text">GroupMe, Facebook, Snapchat — no one place to find housing, deals, or campus resources.</div></div>
           <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z"/><line x1="9.7" y1="9.7" x2="14.3" y2="14.3"/><line x1="14.3" y1="9.7" x2="9.7" y2="14.3"/></svg></div><div class="hiw-card-title">No verification</div><div class="hiw-card-text">No way to know if someone was actually a student. Scams and strangers everywhere.</div></div>
           <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg></div><div class="hiw-card-title">Built for everyone else</div><div class="hiw-card-text">Existing platforms weren't designed for students. Verified campus community was an afterthought.</div></div>
@@ -130,14 +130,14 @@
     </div>
 
     <!-- HOW IT WORKS -->
-    <div class="home-section bg-surface">
+    <div class="home-section">
       <div class="home-section-inner">
         <h2 class="home-h2">How it works</h2>
         <p class="home-lead">Three steps to your verified campus hub</p>
-        <div class="hiw-grid" style="margin-top:36px;">
-          <div class="hiw-card bg-alt hiw-card-link" role="button" tabindex="0" onclick="openModal('signupModal')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('signupModal')}"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg></div><div class="hiw-card-title">1. Sign up with your .edu</div><div class="hiw-card-text">We verify your email and match you to your school's hub. Students only — no outsiders.</div><span class="hiw-card-cta">Create your account &#8594;</span></div>
-          <div class="hiw-card bg-alt"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="hiw-card-title">2. Your campus hub opens</div><div class="hiw-card-text">Housing, marketplace, free stuff, events — all verified, all in one place, all your school.</div></div>
-          <div class="hiw-card bg-alt"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><div class="hiw-card-title">3. Connect safely</div><div class="hiw-card-text">Browse, post, and message through built-in chat. No strangers, no sharing your number until you're ready.</div></div>
+        <div class="hiw-grid">
+          <div class="hiw-card hiw-card-link" role="button" tabindex="0" onclick="openModal('signupModal')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('signupModal')}"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg></div><div class="hiw-card-title">1. Sign up with your .edu</div><div class="hiw-card-text">We verify your email and match you to your school's hub. Students only — no outsiders.</div><span class="hiw-card-cta">Create your account &#8594;</span></div>
+          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="hiw-card-title">2. Your campus hub opens</div><div class="hiw-card-text">Housing, marketplace, free stuff, events — all verified, all in one place, all your school.</div></div>
+          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><div class="hiw-card-title">3. Connect safely</div><div class="hiw-card-text">Browse, post, and message through built-in chat. No strangers, no sharing your number until you're ready.</div></div>
         </div>
       </div>
     </div>
@@ -159,7 +159,7 @@
     </div>
 
     <!-- WHO IT'S FOR -->
-    <div class="home-section bg-surface">
+    <div class="home-section">
       <div class="home-section-inner">
         <h2 class="home-h2">Who Nestrel is for</h2>
         <p class="home-lead">Designed for the whole campus community.</p>
@@ -172,11 +172,11 @@
     </div>
 
     <!-- CALDWELLNEST FLAGSHIP -->
-    <div class="home-section" style="background:var(--brand);">
-      <div class="home-section-inner" style="text-align:center;">
-        <div style="display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;margin-bottom:22px;">Live now</div>
-        <h2 style="font-family:'DM Serif Display',serif;font-size:32px;color:#fff;margin-bottom:14px;">CaldwellNest — our flagship</h2>
-        <p style="color:rgba(255,255,255,0.7);font-size:16px;max-width:520px;margin:0 auto 32px;line-height:1.8;">Caldwell University is Nestrel's first partner school. CaldwellNest is live for current Caldwell students — housing, marketplace, messaging, and more, all .edu verified.</p>
+    <div class="home-section band-dark">
+      <div class="home-section-inner band-center">
+        <div class="band-badge">Live now</div>
+        <h2 class="band-h2">CaldwellNest — our flagship</h2>
+        <p class="band-lead">Caldwell University is Nestrel's first partner school. CaldwellNest is live for current Caldwell students — housing, marketplace, messaging, and more, all .edu verified.</p>
         <button class="btn-primary" onclick="openModal('signupModal')">Join CaldwellNest &#8594;</button>
       </div>
     </div>
@@ -184,9 +184,9 @@
     <!-- FOR SCHOOLS -->
     <div id="for-schools" class="home-section bg-alt">
       <div class="home-section-inner">
-        <div style="max-width:620px;">
-          <h2 class="home-h2" style="text-align:left;">Bring Nestrel to your school</h2>
-          <p style="color:var(--text-muted);font-size:16px;line-height:1.8;margin-bottom:24px;">Nestrel deploys a fully branded, moderated campus hub at your school — no IT work, no code, no overhead. Students get a verified community on day one.</p>
+        <div class="home-narrow">
+          <h2 class="home-h2 home-h2-left">Bring Nestrel to your school</h2>
+          <p class="home-prose">Nestrel deploys a fully branded, moderated campus hub at your school — no IT work, no code, no overhead. Students get a verified community on day one.</p>
           <ul class="school-list">
             <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Branded per school — your name, your identity</span></li>
             <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>.edu email verification built in</span></li>
@@ -194,35 +194,35 @@
             <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Housing, marketplace, free stuff, events, and more</span></li>
             <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Deployed in days, not months</span></li>
           </ul>
-          <a class="btn-primary" href="mailto:amahledigitalcreatives@gmail.com" style="display:inline-block;margin-top:28px;text-decoration:none;">Email us to get started &#8594;</a>
-          <p style="color:var(--text-faint);font-size:13px;margin-top:10px;">amahledigitalcreatives@gmail.com &nbsp;&#183;&nbsp; We reply within 1–2 business days</p>
+          <a class="btn-primary home-cta" href="mailto:amahledigitalcreatives@gmail.com">Email us to get started &#8594;</a>
+          <p class="home-note">amahledigitalcreatives@gmail.com &nbsp;&#183;&nbsp; We reply within 1–2 business days</p>
         </div>
       </div>
     </div>
 
     <!-- ABOUT -->
-    <div class="home-section bg-surface">
-      <div class="home-section-inner" style="max-width:660px;">
-        <h2 class="home-h2" style="text-align:left;">Built by a student, for students</h2>
-        <p style="color:var(--text-muted);font-size:16px;line-height:1.8;margin-bottom:18px;">I'm Kal, the founder of Nestrel. I built this because I lived the problem — trying to find housing and campus resources as a Caldwell University student using a mess of group chats, Facebook posts, and blind trust.</p>
-        <p style="color:var(--text-muted);font-size:16px;line-height:1.8;">Nestrel is built and run by <strong style="color:var(--text);">Amahle Digital Creatives</strong> — an independent studio focused on tools that actually serve student communities. CaldwellNest is our first deployment, and we're just getting started.</p>
+    <div class="home-section">
+      <div class="home-section-inner home-inner-narrow">
+        <h2 class="home-h2 home-h2-left">Built by a student, for students</h2>
+        <p class="home-prose">I'm Kal, the founder of Nestrel. I built this because I lived the problem — trying to find housing and campus resources as a Caldwell University student using a mess of group chats, Facebook posts, and blind trust.</p>
+        <p class="home-prose">Nestrel is built and run by <strong class="home-strong">Amahle Digital Creatives</strong> — an independent studio focused on tools that actually serve student communities. CaldwellNest is our first deployment, and we're just getting started.</p>
       </div>
     </div>
 
     <!-- CONTACT -->
-    <div class="home-section" style="background:var(--bg);text-align:center;">
+    <div class="home-section bg-alt home-center">
       <div class="home-section-inner">
         <h2 class="home-h2">Get in touch</h2>
-        <p style="color:var(--text-muted);font-size:16px;max-width:480px;margin:0 auto 28px;line-height:1.7;">Questions, partnerships, feedback — we'd love to hear from you.</p>
-        <a class="btn-primary" href="mailto:amahledigitalcreatives@gmail.com" style="text-decoration:none;display:inline-block;">amahledigitalcreatives@gmail.com</a>
-        <p style="color:var(--text-faint);font-size:13px;margin-top:12px;">We reply within 1–2 business days</p>
+        <p class="home-lead home-lead-gap">Questions, partnerships, feedback — we'd love to hear from you.</p>
+        <a class="btn-primary home-cta-email" href="mailto:amahledigitalcreatives@gmail.com">amahledigitalcreatives@gmail.com</a>
+        <p class="home-note">We reply within 1–2 business days</p>
       </div>
     </div>
 
     <!-- FOOTER -->
     <footer class="site-footer">
       <div class="footer-inner">
-        <span class="s-logo" style="font-size:18px;cursor:default;">Nest<span>rel</span></span>
+        <span class="s-logo">Nest<span>rel</span></span>
         <div class="footer-links">
           <a href="terms.html" target="_blank">Terms &amp; Conditions</a>
           <a href="privacy.html" target="_blank">Privacy Policy</a>

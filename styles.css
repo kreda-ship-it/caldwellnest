@@ -795,26 +795,26 @@ img{image-orientation:from-image;}
 .lg-badge{position:absolute;top:5px;right:5px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:8px;letter-spacing:.02em;}
 .section-divider{height:1px;background:var(--border);margin:20px 0;}
 /* HOW IT WORKS */
-.hiw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;}
-.hiw-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:24px;}
-.hiw-icon{width:44px;height:44px;background:var(--brand-pale);color:var(--brand);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.hiw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:36px;}
+.hiw-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px 26px 30px;box-shadow:var(--shadow-sm);}
+.hiw-icon{width:46px;height:46px;background:var(--brand-pale);color:var(--brand);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
 /* SCHOOL PICKER DROPDOWN */
 .school-option{padding:10px 14px;cursor:pointer;font-size:14px;color:var(--text);border-bottom:1px solid var(--border);}
 .school-option:last-child{border-bottom:none;}
 .school-option:hover{background:var(--bg);}
 /* HOME SECTIONS */
-.home-section{padding:72px 24px;}
+.home-section{padding:var(--sp-7) var(--sp-5);background:var(--bg);}
 .home-section-inner{max-width:900px;margin:0 auto;}
-.home-h2{font-family:'DM Serif Display',serif;font-size:32px;text-align:center;margin-bottom:12px;}
+.home-h2{font-family:'DM Serif Display',serif;font-size:clamp(28px,4vw,38px);line-height:1.15;text-align:center;margin-bottom:var(--sp-3);}
 .home-lead{text-align:center;color:var(--text-muted);font-size:16px;max-width:600px;margin:0 auto;line-height:1.7;}
 .feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:36px;}
-.feat-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:24px;}
-.feat-icon{height:26px;color:var(--brand);display:flex;align-items:center;margin-bottom:12px;}
-.feat-name{font-weight:600;font-size:15px;margin-bottom:6px;}
+.feat-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:26px;box-shadow:var(--shadow-sm);}
+.feat-icon{width:46px;height:46px;border-radius:14px;background:var(--brand-pale);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.feat-name{font-family:'DM Serif Display',serif;font-size:var(--fs-heading);margin-bottom:6px;}
 .feat-desc{font-size:14px;color:var(--text-muted);line-height:1.6;}
 .who-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:36px;}
-.who-card{background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);padding:28px;text-align:center;}
-.who-icon{height:34px;color:var(--brand);display:flex;align-items:center;margin-bottom:14px;}
+.who-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px;text-align:center;box-shadow:var(--shadow-sm);}
+.who-icon{width:52px;height:52px;border-radius:16px;background:var(--brand-pale);color:var(--brand);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
 .who-name{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;}
 .who-desc{font-size:14px;color:var(--text-muted);line-height:1.7;margin:0;}
 .school-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;}
@@ -828,6 +828,9 @@ img{image-orientation:from-image;}
 .footer-links a{color:rgba(255,255,255,0.65);font-size:14px;text-decoration:none;}
 .footer-links a:hover{color:#fff;}
 .footer-copy{color:rgba(255,255,255,0.4);font-size:13px;margin:0;}
+/* Two classes so it outranks any bare .s-logo rule wherever it sits in the file, including
+   the phone header's resize. The footer wordmark is smaller and is not a link. */
+.site-footer .s-logo{font-size:18px;cursor:default;}
 
 /* ============================================================
    ADMIN INTERFACE
@@ -1181,13 +1184,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    showing them. Those inline styles are load-bearing. */
 
 .label-hint{font-weight:400;color:var(--text-faint);}
-.hiw-card-title{font-weight:600;font-size:15px;margin-bottom:6px;}
+.hiw-card-title{font-family:'DM Serif Display',serif;font-size:21px;line-height:1.2;margin-bottom:var(--sp-2);}
 .hiw-card-text{font-size:14px;color:var(--text-muted);line-height:1.6;}
 /* A how-it-works card that is itself a button (the "Sign up with your .edu" one).
    The whole card is the tap target — the link line below is the visible cue. */
 .hiw-card-link{cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
-.hiw-card-link:hover,.hiw-card-link:focus-visible{border-color:var(--brand);box-shadow:0 4px 14px rgba(0,0,0,.07);transform:translateY(-2px);}
-.hiw-card-cta{display:inline-flex;align-items:center;gap:5px;margin-top:12px;font-size:13px;font-weight:600;color:var(--brand);}
+.hiw-card-link:hover,.hiw-card-link:focus-visible{border-color:var(--brand-light);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.hiw-card-cta{display:inline-flex;align-items:center;gap:5px;margin-top:12px;font-size:13.5px;font-weight:600;color:var(--accent-warm);}
 .hiw-card-link:hover .hiw-card-cta{gap:9px;}
 .exp-body{padding:16px;}
 .exp-desc{font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;}
@@ -1195,7 +1198,53 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .exp-actions{display:flex;gap:8px;}
 .exp-btn{flex:1;padding:9px;}
 .bg-alt{background:var(--bg-alt);}
-.bg-surface{background:var(--surface);}
+
+/* ------------------------------------------------------------------ LANDING, BELOW THE FOLD
+   Sections alternate cream and sand; the cards are the white thing. Pure-white sections
+   were the one surface on the page that appears nowhere in the app itself.
+
+   THE DARK BAND. .btn-primary became brand green in 4.1 so it would read on cream — which
+   made it brand green on a brand-green band: 1.00:1, a button whose shape had vanished and
+   whose label floated on nothing. On a dark band the primary action flips to the accent,
+   6.0:1 against the band and 6.0:1 for its own label. The focus ring flips to white for the
+   same reason: the usual --brand-light ring is 2.4:1 against this ground. */
+.home-section.band-dark{background:var(--brand);color:#fff;}
+.band-center{text-align:center;}
+.band-badge{display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  color:rgba(255,255,255,.85);font-size:var(--fs-small);font-weight:500;padding:5px 14px;
+  border-radius:var(--radius-pill);margin-bottom:var(--sp-5);}
+.band-h2{font-family:'DM Serif Display',serif;font-size:clamp(28px,4vw,38px);color:#fff;
+  line-height:1.15;margin-bottom:var(--sp-3);}
+.band-lead{color:rgba(255,255,255,.72);font-size:var(--fs-lead);max-width:520px;
+  margin:0 auto var(--sp-6);line-height:1.7;}
+.band-dark .btn-primary{background:var(--accent);color:var(--brand);box-shadow:0 6px 20px rgba(0,0,0,.25);}
+.band-dark .btn-primary:hover{background:#e09600;}
+.band-dark .btn-primary:focus-visible{outline-color:#fff;}
+
+.home-inner-narrow{max-width:660px;}
+.home-narrow{max-width:620px;}
+.home-h2-left{text-align:left;}
+.home-center{text-align:center;}
+.home-prose{color:var(--text-muted);font-size:var(--fs-lead);line-height:1.8;margin-bottom:var(--sp-5);}
+.home-prose:last-child{margin-bottom:0;}
+.home-strong{color:var(--text);}
+.home-lead-gap{margin-bottom:var(--sp-6);}
+.home-cta{margin-top:var(--sp-6);text-decoration:none;}
+.home-cta-email{text-decoration:none;}
+/* Muted, not faint: "we reply within 1-2 business days" is a promise, and --text-faint
+   measures 2.9:1 on these grounds. */
+.home-note{color:var(--text-muted);font-size:var(--fs-small);margin-top:var(--sp-3);}
+
+@media(max-width:640px){
+  .home-section{padding:var(--sp-6) var(--sp-4);}
+  .hiw-grid,.feat-grid,.who-grid{gap:var(--sp-3);}
+  .hiw-card{padding:22px 20px 24px;}
+  /* The email address IS the label, and at 15.5px it is wider than some phone columns.
+     Let it wrap inside a taller button rather than overflow the page sideways. */
+  .home-cta-email{height:auto;min-height:54px;padding:12px 22px;white-space:normal;
+    overflow-wrap:anywhere;text-align:center;justify-content:center;max-width:100%;}
+}
+
 .check-label{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;}
 .modal-narrow{max-width:420px;}
 .table-scroll{overflow-x:auto;}
