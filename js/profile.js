@@ -434,9 +434,11 @@ function renderProfile() {
 
   const unEl = document.getElementById('profileUsername');
   if (u.username) {
-    unEl.innerHTML = `<span style="font-size:14px;color:var(--brand);font-weight:500">@${esc(u.username)}</span>`;
+    unEl.innerHTML = `<span class="pf-at">@${esc(u.username)}</span>`;
   } else {
-    unEl.innerHTML = `<a onclick="openEditProfile()" style="font-size:13px;color:var(--brand);cursor:pointer;font-weight:500">+ Pick a username</a>`;
+    // A <button>, not an <a> with no href: an anchor without an href is not focusable, so this
+    // prompt could not be reached from a keyboard at all.
+    unEl.innerHTML = `<button class="pf-pick" onclick="openEditProfile()">+ Pick a username</button>`;
   }
 
   const bioEl = document.getElementById('profileBio');
@@ -481,6 +483,7 @@ async function renderMyListingsGrid(u) {
   if (!grid) return;
   const mine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
   grid.innerHTML = renderListingGrid(mine, true); // paint immediately; books join in a beat
+  pfCount('listings', mine.length);
   const { data: books, error } = await supabaseClient.from('book_listings')
     .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
   if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
@@ -488,6 +491,7 @@ async function renderMyListingsGrid(u) {
   const merged = [...mine, ...books.map(bookAsListing)]
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   grid.innerHTML = renderListingGrid(merged, true);
+  pfCount('listings', merged.length);
 }
 
 
@@ -500,6 +504,16 @@ async function renderMyListingsGrid(u) {
 //
 // Which tab you were on is WHERE YOU WERE, so it is sessionStorage — it survives a reload and
 // dies with the tab, per the rule on saveUiState().
+// Each pane reports the number it actually DREW — renderMyListingsGrid here, renderSaved() in
+// favorites.js, renderGoing() in events.js — instead of profile.js counting the data itself.
+// Counting here would mean copying each pane's visibility rule (what is live, what has ended,
+// what was withdrawn), and two copies of a rule is the drift bug this codebase keeps having to
+// fix. A count that comes from the list cannot disagree with the list.
+function pfCount(tab, n) {
+  const el = document.getElementById('pfCount-' + tab);
+  if (el) el.textContent = n;
+}
+
 function profileTab(tab, restoring = false) {
   const tabs = ['listings', 'saved', 'going'];
   if (!tabs.includes(tab)) tab = 'listings';

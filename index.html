@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>CaldwellNest</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-11c">
+<link rel="stylesheet" href="styles.css?v=2026-09-11d">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -382,44 +382,58 @@
   <!-- PROFILE -->
   <div id="page-profile" class="page">
     <div class="profile-wrap">
-      <div class="profile-card">
-        <!-- HEADER. Avatar and counts on one row, identity beneath, one action button — the
-             shape Instagram and TikTok settled on, and for the reason they did: the header is
-             an introduction, not the page. Everything a student actually came to DO is in the
-             tabs below, and a header that fills the screen pushes all of it under the fold.
-
-             Identity fields start EMPTY on purpose. Boot paints this page before the Supabase
-             session is restored and renderProfile() bails until it has a user, so sample text
-             here would stay on screen reading as "you are logged in as someone else". -->
-        <!-- Avatar beside the name, and no counts row. The counts duplicated the tab bar
-             directly beneath them — two controls for one destination, which is a decision
-             about how to get somewhere that the student should not have to make. The tabs
-             won because they also hold the content. -->
-        <div class="pf-head">
+      <!-- HEADER. Avatar beside the name, identity beneath it. No surrounding box: the page
+           stands on the cream ground like every other page, and the light rules between the
+           counts below are the only structure it needs.
+           Identity fields start EMPTY on purpose. Boot paints this page before the Supabase
+           session is restored and renderProfile() bails until it has a user, so sample text
+           here would stay on screen reading as "you are logged in as someone else".
+           renderProfile() writes six of these ids with no null check — keep every one. -->
+      <div class="pf-head">
+        <div class="pf-avatar-wrap">
           <div class="profile-avatar-lg" id="profileAvatar"></div>
-          <div class="pf-id">
-            <div class="pf-name" id="profileName"></div>
-            <div class="pf-handle" id="profileUsername"></div>
-            <div class="pf-meta" id="profileInfo"></div>
-          </div>
+          <!-- Edit lives ON the avatar, as chosen in the mockup review. It LOOKS 25px but takes
+               taps across 44px (see .pf-edit-badge::before) — a small mark, not a small target. -->
+          <button class="pf-edit-badge" onclick="openEditProfile()" aria-label="Edit profile" title="Edit profile">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </button>
         </div>
+        <div class="pf-id">
+          <div class="pf-name" id="profileName"></div>
+          <div class="pf-handle-row">
+            <span class="pf-handle" id="profileUsername"></span>
+            <span class="edu-badge pf-edu"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>.edu verified</span>
+          </div>
+          <div class="pf-meta" id="profileInfo"></div>
+          <div class="pf-email" id="profileEmail"></div>
+        </div>
+      </div>
+      <div class="pf-bio" id="profileBio" style="display:none"></div>
 
-        <div class="pf-bio" id="profileBio" style="display:none"></div>
-        <div class="pf-verified"><span class="edu-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>.edu verified</span>
-          <span class="pf-email" id="profileEmail"></span></div>
+      <!-- COUNTS. Three columns with light rules between them and no box, as chosen. Each opens
+           its tab: profileTab() lights anything carrying data-pftab, so these and the tab bar
+           stay in step with no second piece of code. Each number is reported by the pane that
+           draws it (pfCount), so a count can never disagree with the list beneath it. -->
+      <div class="pf-counts">
+        <button class="pf-count is-on" data-pftab="listings" onclick="profileTab('listings')"><span class="pf-count-n" id="pfCount-listings">&ndash;</span><span class="pf-count-l">Listings</span></button>
+        <button class="pf-count" data-pftab="saved" onclick="profileTab('saved')"><span class="pf-count-n" id="pfCount-saved">&ndash;</span><span class="pf-count-l">Saved</span></button>
+        <button class="pf-count" data-pftab="going" onclick="profileTab('going')"><span class="pf-count-n" id="pfCount-going">&ndash;</span><span class="pf-count-l">Going</span></button>
+      </div>
 
-        <button class="pf-edit" onclick="openEditProfile()">Edit profile</button>
-        <div class="pf-consent" id="profileConsent"></div>
+      <!-- CLUBS, ABOVE the tabs, as chosen: a doorway out to the campus, not one of your own
+           collections, so it does not belong beneath them. The officer-console button travels
+           with it — both are about organizations. -->
+      <button class="profile-row" onclick="orgDirGo()">
+          <span class="profile-row-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
+          <span class="profile-row-body">
+            <span class="profile-row-title">Clubs &amp; organizations</span>
+            <span class="profile-row-sub">Browse what&#8217;s on campus and follow the ones you care about</span>
+          </span>
+          <span class="profile-row-chev" aria-hidden="true">&#8250;</span>
+        </button>
+      <div id="orgConsoleEntry"></div>
 
-        <!-- TAB BAR. Icons with labels, an underline on the active one, and the SAME three
-             destinations as the counts above. It sticks to the top of the scroll area, which
-             is what makes a long list of saved things navigable rather than a place you get
-             lost in.
-
-             The tabs never disappear. Saved and Going used to hide themselves when empty,
-             which is right for a stacked section and wrong for navigation: a bar whose items
-             come and go is not a bar you can learn. The emptiness lives inside the tab now. -->
-        <div class="pf-tabs" role="tablist">
+      <div class="pf-tabs" role="tablist">
           <button class="pf-tab is-on" data-pftab="listings" role="tab" onclick="profileTab('listings')">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <span>Listings</span>
@@ -436,27 +450,13 @@
             <span>Going</span>
           </button>
         </div>
+      <div class="pf-pane" id="pfPane-listings"><div id="myListings"></div></div>
+      <div class="pf-pane" id="pfPane-saved" hidden><div id="mySaved"></div></div>
+      <div class="pf-pane" id="pfPane-going" hidden><div id="myGoing"></div></div>
 
-        <div class="pf-pane" id="pfPane-listings"><div id="myListings"></div></div>
-        <div class="pf-pane" id="pfPane-saved" hidden><div id="mySaved"></div></div>
-        <div class="pf-pane" id="pfPane-going" hidden><div id="myGoing"></div></div>
-        <div class="section-divider"></div>
-        <!-- The directory's entry point on mobile, where the bottom bar has no free slot.
-             Shown to EVERY student, unlike the console row below it: browsing clubs is what
-             the hierarchy exists for, and being an officer is the rare case. -->
-        <button class="profile-row" onclick="orgDirGo()">
-          <span class="profile-row-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
-          <span class="profile-row-body">
-            <span class="profile-row-title">Clubs &amp; organizations</span>
-            <span class="profile-row-sub">Browse what&#8217;s on campus and follow the ones you care about</span>
-          </span>
-          <span class="profile-row-chev" aria-hidden="true">&#8250;</span>
-        </button>
-        <!-- Filled by renderOrgConsoleEntry() in js/orgs.js, and left empty for the
-             overwhelming majority of students, who are officers of nothing. -->
-        <div id="orgConsoleEntry"></div>
-        <button class="btn-full" style="background:var(--bg);color:var(--text-muted);border:1px solid var(--border);margin-top:16px;" onclick="sLogout()">Log out</button>
-        <!-- The only route to the legal pages once a student is signed in: the site footer
+      <div class="section-divider"></div>
+      <button class="btn-full pf-logout" onclick="sLogout()">Log out</button>
+      <!-- The only route to the legal pages once a student is signed in: the site footer
              lives inside #page-home, which a logged-in student never sees again. Same
              target="_blank" as the signup consent row — leaving the SPA would drop them
              back at the entry router. -->
@@ -465,13 +465,12 @@
           <span aria-hidden="true">&#183;</span>
           <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
         </div>
-        <!-- Filled by renderProfile(). Stays empty for accounts created before consent was
-             recorded — an empty line is the honest answer there, not "not accepted". -->
-        <div class="profile-consent" id="profileConsent"></div>
-      </div>
+      <!-- The ONLY #profileConsent now. There used to be a second one up under the Edit button,
+           and getElementById returned that one — so "You accepted these on…" printed a screen
+           away from the two links "these" refers to, and this one was always empty. -->
+      <div class="profile-consent" id="profileConsent"></div>
     </div>
   </div>
-
   <!-- MOBILE BOTTOM TAB BAR — hidden on desktop (see "MOBILE APP CHROME" in styles.css) -->
   <!-- MOBILE BOTTOM TAB BAR — five destinations, the same five the desktop bar shows.
        Search and Messages moved to the top bar: they are things you reach FROM a page,
@@ -1761,17 +1760,17 @@
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
 <script src="js/config.js?v=2026-09-10g"></script>
 <script src="js/utils.js?v=2026-09-09a"></script>
-<script src="js/favorites.js?v=2026-09-09g"></script>
+<script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-06b"></script>
 <script src="js/auth.js?v=2026-09-10e"></script>
-<script src="js/profile.js?v=2026-09-10e"></script>
+<script src="js/profile.js?v=2026-09-11a"></script>
 <script src="js/listings.js?v=2026-09-10k"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-10k"></script>
 <script src="js/admin.js?v=2026-09-10k"></script>
 <script src="js/orgs.js?v=2026-09-10k"></script>
-<script src="js/events.js?v=2026-09-10e"></script>
+<script src="js/events.js?v=2026-09-11a"></script>
 <script src="js/search.js?v=2026-09-10f"></script>
 <script src="js/orgdir.js?v=2026-09-10a"></script>
 <script src="js/feed.js?v=2026-09-10b"></script>

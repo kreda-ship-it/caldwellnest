@@ -714,7 +714,7 @@ async function renderGoing() {
   // decided not to do is not a useful part of your own profile. A cancelled EVENT is a
   // different thing entirely and stays — see below.
   const live = (regs || []).filter(r => r.status !== 'cancelled');
-  if (!live.length) { wrap.innerHTML = emptyHTML; return; }
+  if (!live.length) { wrap.innerHTML = emptyHTML; pfCount('going', 0); return; }
 
   const { data: evs } = await supabaseClient
     .from('visible_events')
@@ -723,7 +723,7 @@ async function renderGoing() {
     .in('id', live.map(r => r.event_id));
 
   const rows = evs || [];
-  if (!rows.length) { wrap.innerHTML = emptyHTML; return; }
+  if (!rows.length) { wrap.innerHTML = emptyHTML; pfCount('going', 0); return; }
   await Promise.all([evLoadOrgs(rows), evLoadRated()]);
 
   const byId = new Map(live.map(r => [r.event_id, r]));
@@ -736,6 +736,9 @@ async function renderGoing() {
     upcoming.map(e => goingRowHTML(e, byId.get(e.id))).join('') +
     (past.length ? `<div class="go-head">Already happened</div>` : '') +
     past.map(e => goingRowHTML(e, byId.get(e.id))).join('');
+  // The error return above leaves the count alone on purpose: a failed query is not zero events,
+  // and printing 0 would state something the app does not know.
+  pfCount('going', rows.length);
 }
 
 function goingRowHTML(e, reg) {

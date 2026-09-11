@@ -149,6 +149,7 @@ async function renderSaved() {
   if (!_favs.size) {
     wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved yet</div>
       <p>Tap the star on anything — a listing, a book, an event — and it waits for you here.</p></div>`;
+    pfCount('saved', 0);
     return;
   }
 
@@ -181,6 +182,7 @@ async function renderSaved() {
   if (!total) {
     wrap.innerHTML = `<div class="sq-empty"><div class="sq-empty-t">Nothing saved is still available</div>
       <p>Things you starred have sold, been taken down, or already happened.</p></div>`;
+    pfCount('saved', 0);
     return;
   }
 
@@ -188,6 +190,9 @@ async function renderSaved() {
     savedSection('Listings', goods, l => sqRowHTML(l, `openDetail(${l.id})`)) +
     savedSection('Books',    books, l => sqRowHTML(l, `openBookDetail(${l.id})`)) +
     savedSection('Events',   events, e => sqEventRowHTML(e));
+  // What was drawn, not what was starred: a saved item that has since sold or ended is left out
+  // above, and the count on the profile has to agree with the list a student can see.
+  pfCount('saved', total);
 }
 
 function savedSection(label, rows, render) {
