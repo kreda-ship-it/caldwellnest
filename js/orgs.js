@@ -1609,20 +1609,13 @@ async function ocSaveEvent(status = 'published') {
     capacity,
   };
 
-  // updated_at is set by hand because nothing sets it for us: the column defaults to now()
-  // on INSERT and no trigger touches it afterwards, so without this an edited event would
-  // claim it had not changed since the day it was created.
-  const { data: ev, error } = editing
-    ? await supabaseClient.from('events').update({ ...row, updated_at: new Date().toISOString() })
-        .eq('id', editing).select('id').single()
-    : await supabaseClient.from('events').insert({
-        ...row,
-        org_id: _ocOrgId,
-        school: _orgCtx.orgs.get(_ocOrgId)?.school,  // overwritten by events_set_school; sent to satisfy NOT NULL
-        created_by: user?.id,
-      }).select('id').single();
-
-  // Uploaded BEFORE the event row, because the bucket folders by organization rather than by
+  // This block used to sit AFTER the write below, and that is why an uploaded photo never
+  // appeared: the cover was assigned to the row object down there, after the database had
+  // already been sent it. It was computed correctly and then thrown away, so every card and
+  // the detail view fell back to the generated gradient. The comment here always described
+  // this order — the code had drifted out of step with it.
+  //
+  // Uploaded before the event row, because the bucket folders by organization rather than by
   // event: nothing here needs an event id. That ordering is what makes the failure recoverable
   // in the right direction — a failed row leaves files we can delete, where a failed upload
   // after a successful insert would leave an event whose poster silently never appears.
@@ -1640,6 +1633,19 @@ async function ocSaveEvent(status = 'published') {
   const cover = keptExisting[0] || uploaded[0] || null;
   if (cover) row.poster_url = cover;
   else if (editing) row.poster_url = null;   // every photo removed: fall back to the gradient
+
+  // updated_at is set by hand because nothing sets it for us: the column defaults to now()
+  // on INSERT and no trigger touches it afterwards, so without this an edited event would
+  // claim it had not changed since the day it was created.
+  const { data: ev, error } = editing
+    ? await supabaseClient.from('events').update({ ...row, updated_at: new Date().toISOString() })
+        .eq('id', editing).select('id').single()
+    : await supabaseClient.from('events').insert({
+        ...row,
+        org_id: _ocOrgId,
+        school: _orgCtx.orgs.get(_ocOrgId)?.school,  // overwritten by events_set_school; sent to satisfy NOT NULL
+        created_by: user?.id,
+      }).select('id').single();
 
   if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
   if (error) {
