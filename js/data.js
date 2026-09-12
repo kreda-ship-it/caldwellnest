@@ -6,7 +6,7 @@
 // depend on that. Load order is set in index.html; boot.js must stay last.
 // ============================================================
 
-// Marker email that identifies a listing posted via the official CaldwellNest identity.
+// Marker email that identifies a listing posted via the official Nestrel identity.
 const OFFICIAL_POSTER_EMAIL = 'official@caldwellnest.com';
 
 // Builds the canonical in-memory poster object for a listing.
@@ -107,7 +107,7 @@ async function loadListings() {
   const rows = data || [];
 
   // Live-join poster profiles so avatar + name + trust info are a single source of truth
-  // (update your picture → next load every card reflects it). Official CaldwellNest posts
+  // (update your picture → next load every card reflects it). Official Nestrel posts
   // are detected by their marker email and SKIP the join, so the real admin behind the
   // official identity is never exposed.
   const realPosterIds = [...new Set(rows

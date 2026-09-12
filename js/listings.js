@@ -824,7 +824,7 @@ function avatarHTML(p, size) {
 
 // The small trust marker shown after a poster's name (Official only — every student is verified, so no tick on listings).
 function trustBadgeHTML(p) {
-  if (p.official) return `<span class="trust-official" title="Official CaldwellNest account">Official</span>`;
+  if (p.official) return `<span class="trust-official" title="Official Nestrel account">Official</span>`;
   return '';
 }
 
@@ -964,7 +964,7 @@ function detailPosterHTML(l) {
   const school = schoolBadgeHTML(l);
   const trust = p.official ? `<span class="trust-official">Official</span>` : '';
   const since = p.memberSince
-    ? `On CaldwellNest since ${new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+    ? `On Nestrel since ${new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
     : (p.official ? 'Official account' : '');
   return `<div class="detail-poster"${clickable ? ` onclick="viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
     ${avatarHTML(p, 46)}

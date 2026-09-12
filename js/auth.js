@@ -351,7 +351,7 @@ async function doSignup() {
   sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, username, major, year, initials, color, school: _selectedSchool.slug };
   closeModal('signupModal');
   updateSNav();
-  toast('Welcome to CaldwellNest, ' + first + '!');
+  toast('Welcome to Nestrel, ' + first + '!');
   await loadListings();
   showPage('feed');
   startGlobalMsgListener(authData.user.id);
@@ -673,7 +673,7 @@ function updateSNav() {
 
 function getCNIdentity() {
   return {
-    name: localStorage.getItem('cn_official_name') || 'CaldwellNest',
+    name: localStorage.getItem('cn_official_name') || 'Nestrel',
     initials: localStorage.getItem('cn_official_initials') || 'CN',
     color: localStorage.getItem('cn_official_color') || '#7c3aed'
   };

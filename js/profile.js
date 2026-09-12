@@ -6,7 +6,7 @@
 // depend on that. Load order is set in index.html; boot.js must stay last.
 // ============================================================
 
-const RESERVED_USERNAMES = new Set(['admin','caldwellnest','nestbot','support','official','mod','moderator','help','staff']);
+const RESERVED_USERNAMES = new Set(['admin','nestrel','caldwellnest','nestbot','support','official','mod','moderator','help','staff']);
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,19}$/;
 
 // SCHOOL PICKER ─────────────────────────────────────────────

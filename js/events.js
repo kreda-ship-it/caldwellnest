@@ -613,7 +613,7 @@ function evDownloadIcs() {
   // CRLF line endings are required by the iCalendar spec, and some calendar apps genuinely
   // reject a file that uses bare newlines.
   const ics = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CaldwellNest//Events//EN',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nestrel//Events//EN',
     'BEGIN:VEVENT',
     `UID:event-${e.id}@caldwellnest`,
     `DTSTAMP:${evUtcStamp(new Date())}`,

@@ -64,7 +64,7 @@ async function renderSearch() {
   if (!getEffectiveUser()) {
     wrap.innerHTML = `
       <div class="sq-empty">
-        <div class="sq-empty-t">Search CaldwellNest</div>
+        <div class="sq-empty-t">Search Nestrel</div>
         <p>Sign in to search listings, books and events.</p>
         <button class="ev-empty-btn" onclick="requireAuth()">Sign in</button>
       </div>`;

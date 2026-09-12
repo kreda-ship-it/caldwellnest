@@ -2382,7 +2382,7 @@ async function exportActivityLog() {
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = `caldwellnest-activity-${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `nestrel-activity-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   toast('Activity log exported');
 }
@@ -2455,7 +2455,7 @@ function edTab(t, btn) {
 }
 
 function liveContent() {
-  const name = document.getElementById('txtName').value || 'CaldwellNest';
+  const name = document.getElementById('txtName').value || 'Nestrel';
   const tag = document.getElementById('txtTag').value || 'Nest';
   document.getElementById('pvLogo').innerHTML = name.includes(tag) ? name.replace(tag, `<em>${tag}</em>`) : name;
   document.getElementById('pvH1').innerHTML = `${document.getElementById('txtH1').value || 'One trusted hub'}<br>for <em id="pvH2">${document.getElementById('txtH2').value || 'campus life.'}</em>`;
@@ -2496,30 +2496,30 @@ function applyLayout() {
 // ============================================================
 const BCAST_TEMPLATES = [
   // — General
-  { icon:'&#127968;', label:'New listings available',     body:'Hey! New housing listings are available this week on CaldwellNest. Log in to browse and connect.' },
+  { icon:'&#127968;', label:'New listings available',     body:'Hey! New housing listings are available this week on Nestrel. Log in to browse and connect.' },
   { icon:'&#9989;',   label:'Verify your .edu email',     body:'Reminder: please verify your @caldwell.edu email to keep your account active.' },
   { icon:'&#9888;',   label:'Community guidelines',       body:'A reminder to keep all messages and listings respectful. Violations will result in account review.' },
-  { icon:'&#127881;', label:'Welcome new students',       body:"Welcome to CaldwellNest! Browse listings, post rooms, and message other students. Good luck finding your place!" },
+  { icon:'&#127881;', label:'Welcome new students',       body:"Welcome to Nestrel! Browse listings, post rooms, and message other students. Good luck finding your place!" },
   // — Welcome / Onboarding
-  { icon:'&#128588;', label:"You're in!",                 body:"You just joined CaldwellNest — the one place built for Caldwell students to find housing, connect with classmates, and post what you've got. Take a look around, and reach out if you need anything." },
+  { icon:'&#128588;', label:"You're in!",                 body:"You just joined Nestrel — the one place built for Caldwell students to find housing, connect with classmates, and post what you've got. Take a look around, and reach out if you need anything." },
   { icon:'&#128203;', label:'Complete your profile',      body:"Quick tip: adding your major and year to your profile helps other students know who they're connecting with. Takes 30 seconds — tap your avatar to get started." },
   // — Seasonal
   { icon:'&#128218;', label:'Welcome back — new semester',body:'New semester, fresh start! Housing listings are live for [semester]. Browse now before the good ones go fast.' },
-  { icon:'&#127937;', label:'End of semester',            body:"Wrapping up [semester]? If you're moving out or passing on a room, post it on CaldwellNest — someone needs exactly what you've got." },
-  { icon:'&#9749;',   label:'Finals week',                body:"Finals week is here — hang in there. CaldwellNest will be right here when it's over. Good luck from the whole team. 🤞" },
-  { icon:'&#9728;',   label:'Summer break',               body:"Heading home for the summer? CaldwellNest is still here if you're looking for sublets, storage swaps, or anything else. See you in [fall semester]!" },
-  { icon:'&#127939;', label:'Fall housing rush',          body:'Fall housing rush is on! New listings are coming in fast — check CaldwellNest before you commit anywhere else. [Number] listings live right now.' },
+  { icon:'&#127937;', label:'End of semester',            body:"Wrapping up [semester]? If you're moving out or passing on a room, post it on Nestrel — someone needs exactly what you've got." },
+  { icon:'&#9749;',   label:'Finals week',                body:"Finals week is here — hang in there. Nestrel will be right here when it's over. Good luck from the whole team. 🤞" },
+  { icon:'&#9728;',   label:'Summer break',               body:"Heading home for the summer? Nestrel is still here if you're looking for sublets, storage swaps, or anything else. See you in [fall semester]!" },
+  { icon:'&#127939;', label:'Fall housing rush',          body:'Fall housing rush is on! New listings are coming in fast — check Nestrel before you commit anywhere else. [Number] listings live right now.' },
   // — Platform Updates
-  { icon:'&#10024;',  label:'New feature',                body:'We just added [feature] to CaldwellNest. [One sentence on what it does.] Give it a try and let us know what you think.' },
+  { icon:'&#10024;',  label:'New feature',                body:'We just added [feature] to Nestrel. [One sentence on what it does.] Give it a try and let us know what you think.' },
   { icon:'&#128295;', label:'Improvement',                body:"We made [improvement] based on your feedback. Small change, big difference — thanks for telling us what wasn't working." },
   // — Safety
-  { icon:'&#129309;', label:'Meeting up safely',          body:'Quick reminder: when meeting someone from CaldwellNest in person, choose a public spot on campus first. Everyone here is a verified student — and this just keeps things comfortable for both sides.' },
+  { icon:'&#129309;', label:'Meeting up safely',          body:'Quick reminder: when meeting someone from Nestrel in person, choose a public spot on campus first. Everyone here is a verified student — and this just keeps things comfortable for both sides.' },
   { icon:'&#128681;', label:'Spotting scams',             body:"If a listing asks for payment before you've seen the place, or anything feels off — trust that instinct. Report it in-app and we'll look into it. You're looking out for the whole community." },
   // — Beta
-  { icon:'&#129514;', label:'Thanks for being in beta',   body:"You're one of the first students on CaldwellNest — and honestly, that means a lot. You're helping shape what this becomes. If something bugs you or something's missing, tell us. We read every message." },
-  { icon:'&#128172;', label:'Feedback ask',               body:"We've been building fast and we want to hear from you. What's one thing you wish CaldwellNest did? Reply to this or message us directly — we're listening." },
+  { icon:'&#129514;', label:'Thanks for being in beta',   body:"You're one of the first students on Nestrel — and honestly, that means a lot. You're helping shape what this becomes. If something bugs you or something's missing, tell us. We read every message." },
+  { icon:'&#128172;', label:'Feedback ask',               body:"We've been building fast and we want to hear from you. What's one thing you wish Nestrel did? Reply to this or message us directly — we're listening." },
   // — School Break
-  { icon:'&#127958;', label:'School on break',            body:"Caldwell is out for [break name]! CaldwellNest is still here if you need it. We'll be back in full swing on [return date] — enjoy the break." },
+  { icon:'&#127958;', label:'School on break',            body:"Caldwell is out for [break name]! Nestrel is still here if you need it. We'll be back in full swing on [return date] — enjoy the break." },
   { icon:'&#128276;', label:'Slower responses during break', body:"Heads up: our team is on break from [date] to [date]. We'll still be watching for anything urgent, but responses may be slower. Thanks for your patience — see you on the other side!" },
 ];
 
@@ -3065,7 +3065,7 @@ async function buildAnalytics() {
 // ============================================================
 
 async function saveCNIdentity() {
-  const name = document.getElementById('cnName').value.trim() || 'CaldwellNest';
+  const name = document.getElementById('cnName').value.trim() || 'Nestrel';
   const initials = document.getElementById('cnInitials').value.trim().toUpperCase().slice(0, 3) || 'CN';
   const color = document.getElementById('cnColor').value;
   localStorage.setItem('cn_official_name', name);
@@ -3141,7 +3141,7 @@ async function buildAISys() {
   const pendingDetails = DB.pending.length
     ? DB.pending.map(p => `"${p.title}" by ${p.poster?.name || '?'} $${p.rent}/mo`).join('; ')
     : 'none';
-  return `You are NestBot, the AI admin assistant for CaldwellNest — a student-only housing platform at Caldwell University, NJ. Current live data:
+  return `You are NestBot, the AI admin assistant for Nestrel — a student-only housing platform at Caldwell University, NJ. Current live data:
 - ${DB.pending.length} listing${DB.pending.length !== 1 ? 's' : ''} awaiting approval
 - ${DB.listings.filter(l=>l.status==='approved').length} approved listings (${DB.listings.filter(l=>l.pinned).length} pinned)
 - ${stuN ?? '?'} registered students (${suspN ?? '?'} suspended)
@@ -3277,7 +3277,7 @@ async function expData(type, fmt) {
     data = rows || [];
   } else { data = []; }
 
-  _downloadData(data, `caldwellnest-${type}`, fmt);
+  _downloadData(data, `nestrel-${type}`, fmt);
   logAdminAction('export', { targetType: 'system', meta: { export_type: type, format: fmt } });
   toast(`${type} exported as ${fmt.toUpperCase()}`);
 }
@@ -3302,7 +3302,7 @@ async function expFull() {
     settings: DB.settings,
     content: DB.content
   };
-  _downloadData(full, 'caldwellnest-full-backup', 'json');
+  _downloadData(full, 'nestrel-full-backup', 'json');
   localStorage.setItem('cn_last_backup', new Date().toISOString());
   logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_backup', format: 'json' } });
   toast('Full backup downloaded');
