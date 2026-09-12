@@ -16,7 +16,11 @@
   /* Terracotta. Defined now, spent later — links and secondary actions are still brand
      green, and repainting them is a change of its own rather than a side effect of this. */
   --accent-warm:#c2603c;
-  --text:#241f1a; --text-muted:#6e655c; --text-faint:#9a9188;
+  --text:#241f1a; --text-muted:#6e655c; --text-faint:#746a62;
+  /* --text-faint was #9a9188: 3.1:1 on white, 2.9 on cream, 2.7 on sand — under AA for the small
+     meta text it carries in 60 rules. #746a62 is the lightest grey on the same warm line that
+     reaches 4.5:1 on all three grounds (5.28 / 4.93 / 4.53). It sits barely lighter than
+     --text-muted now; the hierarchy between the two is carried by size, which it already was. */
   --bg:#faf7f0; --bg-alt:#f3ede2; --surface:#fff; --border:#eae3d8;
   --radius:14px; --radius-sm:8px;
   --danger:#c0392b; --danger-pale:#fdf0ee;
@@ -829,7 +833,7 @@ img{image-orientation:from-image;}
 .footer-links{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;}
 .footer-links a{color:rgba(255,255,255,0.65);font-size:14px;text-decoration:none;}
 .footer-links a:hover{color:#fff;}
-.footer-copy{color:rgba(255,255,255,0.4);font-size:13px;margin:0;}
+.footer-copy{color:rgba(255,255,255,0.6);font-size:13px;margin:0;}
 /* Two classes so it outranks any bare .s-logo rule wherever it sits in the file, including
    the phone header's resize. The footer wordmark is smaller and is not a link. */
 .site-footer .s-logo{font-size:18px;cursor:default;}
@@ -843,8 +847,8 @@ img{image-orientation:from-image;}
 .a-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.1);}
 .a-logo-text{font-family:'DM Serif Display',serif;color:#fff;font-size:20px;}
 .a-logo-text span{color:var(--accent);}
-.a-logo-sub{font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;letter-spacing:.08em;text-transform:uppercase;}
-.a-sec-label{padding:10px 10px 3px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.08em;}
+.a-logo-sub{font-size:10px;color:rgba(255,255,255,0.6);margin-top:2px;letter-spacing:.08em;text-transform:uppercase;}
+.a-sec-label{padding:10px 10px 3px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.08em;}
 .a-nav{flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:1px;}
 .a-nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;color:rgba(255,255,255,0.65);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
 .a-nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
@@ -2824,4 +2828,24 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .feed-clubs svg{flex:none;color:var(--text-faint);}
 @media(max-width:768px){
   .feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* ============================================================
+   ACCESSIBILITY (Phase 8.1)
+   ============================================================ */
+/* These four removed the browser's focus outline and put nothing in its place, so a keyboard user
+   could not see when they were on a select, a search box, the admin's search bars or a colour
+   swatch. Two classes each, to outrank the outline:none in their own rules. The swatch uses
+   :focus-within because its input is translated and clipped inside the swatch box. */
+.form-select:focus-visible,
+.search-input:focus-visible,
+.a-sbar:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
+.c-swatch:focus-within{outline:var(--focus-ring);outline-offset:2px;}
+
+/* Anyone who has asked their device for less motion gets it. The app declares 71 transitions and
+   7 animations; until now only the skeleton shimmer listened. .01ms rather than 0 so that
+   anything waiting on a transitionend event still receives one. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;}
 }
