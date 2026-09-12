@@ -123,7 +123,7 @@ async function renderFeed() {
       <span class="feed-clubs-icon">${icon('school', 22)}</span>
       <span class="feed-clubs-body">
         <span class="feed-clubs-title">Clubs &amp; organizations</span>
-        <span class="feed-clubs-sub">Follow the ones you care about and see their events here</span>
+        <span class="feed-clubs-sub">Browse every club and department, and follow the ones you care about</span>
       </span>
       ${icon('chevRight', 16)}
     </button>`;
