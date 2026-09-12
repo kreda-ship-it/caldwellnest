@@ -2284,33 +2284,6 @@ async function updateReportsBadge() {
   if (stat) stat.textContent = n;
 }
 
-async function viewReportedListing(listingId) {
-  const body = document.getElementById('reportListingPreviewBody');
-  body.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Loading…</p>';
-  openModal('reportListingPreviewModal');
-
-  const { data: l, error } = await supabaseClient.from('listings').select('*').eq('id', listingId).single();
-
-  if (error || !l) {
-    body.innerHTML = '<p style="color:var(--text-muted);font-size:14px">This listing has been removed and is no longer available.</p>';
-    return;
-  }
-
-  body.innerHTML = `
-    <div style="text-align:center;margin-bottom:12px">${catIcon(l.category, 20)}</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${esc(l.title)}</div>
-    <div style="color:var(--text-muted);font-size:13px;margin-bottom:14px">${icon('mapPin',13)} ${esc(l.location || '—')}</div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-      <span class="pill pill-active">$${l.price || l.rent || '—'}/mo</span>
-      <span class="pill pill-active">${esc(l.type || '—')}</span>
-      <span class="pill" style="background:var(--bg)">${esc(l.status)}</span>
-    </div>
-    ${l.description ? `<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px">${esc(l.description)}</div>` : ''}
-    <div style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text-faint)">
-      Posted by <strong>${esc(l.poster_name || '—')}</strong> · ${fmtDate(l.created_at)}
-    </div>`;
-}
-
 async function reopenReport(id) {
   const { error } = await supabaseClient.from('reports').update({
     status: 'open', resolved_by: null, resolved_at: null, resolution_note: null
