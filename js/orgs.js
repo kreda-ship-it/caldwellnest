@@ -207,17 +207,54 @@ function orgTree(school) {
 
 
 // ============================================================
-// ADMIN UI — workstream 1 stage 3
+// ADMIN UI — the Organizations tab
 // ============================================================
-// Lives in the EXISTING admin page as its own tab, not in the org console. The console is
-// workstream 2 and the plan is explicit about not building it early: this tab exists so that
-// organizations can be created at all, which everything later depends on.
+// Lives in the EXISTING admin page as its own tab, not in the org console. It began as a plain
+// indented tree (workstream 1 stage 3), built so that organizations could exist at all. On
+// 2026-09-14 it became one list grouped by department, from the mockup Kal approved on canvas
+// page 5 ("Admin - organizations").
 //
 // Every action below is gated twice. orgCanAct() decides whether the button is drawn; RLS
 // decides whether the write succeeds. The second one is the real one. If you ever find a
 // button here that works when it should not, the bug is in the SQL, not in this file.
+//
+// What the mockup's first draft showed and this page deliberately does NOT:
+//   - a club Requests queue. No requests table exists, and a queue also needs a student-side
+//     "request a club" form. Deferred by Kal; admins create clubs directly.
+//   - club categories ("Governance", "Cultural"). organizations has no category column, so a
+//     club shows the department it belongs to, which is real.
+//   - follower counts for suspended clubs. The count comes from org_directory, which hides
+//     inactive organizations, so those read "—" until a counts function exists.
 
 let _orgOpenPanel = null;   // org id whose officer panel is expanded, or null
+
+// What the admin is looking at. Kept apart from _orgCtx and _aoStats because none of it is
+// data, and reloading the data after a change must not throw the admin's place away.
+let _aoTab     = 'active';   // 'active' | 'attention' | 'suspended'
+let _aoQuery   = '';
+let _aoOpenRow = null;       // org id whose action strip is open
+let _aoSuspend = null;       // org id whose suspend form is open
+let _aoReason  = null;       // the reason picked in that form
+let _aoAddMode = 'club';     // 'club' | 'department': what the add card creates
+let _aoStats   = null;       // the numbers, from _aoLoadStats()
+
+const AO_TABS = ['active', 'attention', 'suspended'];
+const AO_DECISION_TYPES = ['org_created', 'org_deactivated', 'org_reactivated'];
+// Suspending asks for one of these, because "why" is the half of a decision that is lost first.
+const AO_REASONS = ['No active officer', 'Breaks campus policy', 'Club asked to close', 'Other'];
+// Supabase's default "max rows". A longer answer is cut off WITHOUT an error, so a result this
+// long is treated as unknown rather than counted: a wrong number is worse than no number.
+const AO_ROW_CAP = 1000;
+
+// "This semester", for counting. Nestrel has no academic calendar, so this is a fixed US one:
+// spring from Jan 1, summer from Jun 1, fall from Aug 15. Good enough to ask "is this club doing
+// anything this term?" It is not a registrar's calendar and nothing should treat it as one.
+function orgSemesterStart(d = new Date()) {
+  const y = d.getFullYear(), m = d.getMonth();
+  if (m > 7 || (m === 7 && d.getDate() >= 15)) return new Date(y, 7, 15);
+  if (m >= 5) return new Date(y, 5, 1);
+  return new Date(y, 0, 1);
+}
 
 async function renderOrgs() {
   const host = document.getElementById('asec-orgs');
@@ -225,10 +262,13 @@ async function renderOrgs() {
   host.innerHTML = '<div class="org-empty">Loading organizations…</div>';
 
   const ctx = await loadOrgContext(true);
-  if (!ctx) { host.innerHTML = '<div class="org-empty">Could not load organizations. Check the console.</div>'; return; }
+  if (!ctx) {
+    host.innerHTML = '<div class="org-empty">Could not load organizations'
+      + (_orgCtxError ? ': ' + esc(_orgCtxError) : '') + '. Check the console.</div>';
+    return;
+  }
 
-  const roots = orgTree();
-  if (!roots.length) {
+  if (!orgTree().length) {
     // The school row is created by the bootstrap in sql/2026-09-04_org_hierarchy.sql, and
     // only a super admin can create a root organization — that is what makes verification
     // provenance rather than a checkbox. So an empty tree means bootstrap has not been run,
@@ -239,94 +279,594 @@ async function renderOrgs() {
     return;
   }
 
-  host.innerHTML = '<div class="org-tree">' + roots.map(n => _orgNodeHtml(n, 0)).join('') + '</div>';
+  const saved = loadUiState('aoTab', 'active');
+  _aoTab = AO_TABS.includes(saved) ? saved : 'active';
+  _aoStats = await _aoLoadStats();
+
+  host.innerHTML = _aoFrameHtml();
+  const search = document.getElementById('aoSearch');
+  if (search) search.value = _aoQuery;
+  _aoPaintAdd();
+  _aoPaint();
 }
 
-function _orgNodeHtml(node, depth) {
-  const canChild  = orgCanAct('create_child_orgs', node.id);
-  const canManage = orgCanAct('manage_members', node.id);
-  // school -> department -> club. An org that cannot have children offers no add button.
-  const childType = node.type === 'school' ? 'department' : (node.type === 'department' ? 'club' : null);
+// Four reads in parallel, and each can fail on its own. A failed or truncated read makes its
+// numbers "—", never 0: an admin who cannot read a roster must not be told the club has no
+// officers, and a club with no officers is exactly what this page flags as needing attention.
+async function _aoLoadStats() {
+  const yearAgo = new Date(Date.now() - 365 * 864e5).toISOString();
+  const [dir, evs, mem, log] = await Promise.all([
+    supabaseClient.from('org_directory').select('id, follower_count'),
+    supabaseClient.from('events').select('org_id, starts_at')
+      .in('status', ['published', 'completed']).gte('starts_at', yearAgo),
+    supabaseClient.from('org_memberships').select('org_id')
+      .eq('role', 'officer').eq('status', 'active'),
+    supabaseClient.from('admin_activity_log')
+      .select('id, created_at, actor_id, action_type, target_label, reason')
+      .in('action_type', AO_DECISION_TYPES).is('undone_at', null)
+      .order('created_at', { ascending: false }).limit(5),
+  ]);
 
-  let actions = '';
-  if (canChild && childType) {
-    actions += `<button class="org-btn" onclick="orgCreateChild(${node.id}, '${childType}')">+ ${childType}</button>`;
+  const usable = (res, what) => {
+    if (res.error) { console.error(`[_aoLoadStats] ${what}:`, res.error.message); return false; }
+    if ((res.data || []).length >= AO_ROW_CAP) {
+      console.warn(`[_aoLoadStats] ${what}: ${AO_ROW_CAP}+ rows, so the answer may be cut off — showing "—" instead`);
+      return false;
+    }
+    return true;
+  };
+  const ok = { followers: usable(dir, 'directory'), events: usable(evs, 'events'), officers: usable(mem, 'rosters') };
+
+  const followers = new Map();
+  if (ok.followers) dir.data.forEach(r => followers.set(r.id, Number(r.follower_count) || 0));
+
+  const semStart = orgSemesterStart().getTime(), now = Date.now();
+  const events = new Map(), last = new Map(), next = new Map();
+  if (ok.events) evs.data.forEach(e => {
+    const t = new Date(e.starts_at).getTime();
+    if (t >= semStart) events.set(e.org_id, (events.get(e.org_id) || 0) + 1);
+    if (t <= now && t > (last.get(e.org_id) || 0)) last.set(e.org_id, t);
+    if (t > now && t < (next.get(e.org_id) || Infinity)) next.set(e.org_id, t);
+  });
+
+  const officers = new Map();
+  if (ok.officers) mem.data.forEach(m => officers.set(m.org_id, (officers.get(m.org_id) || 0) + 1));
+
+  // Decisions name the admin who made them. The names live on profiles, whose read policy is
+  // own-row plus school-scoped admin, so a refused lookup falls back to "An admin" rather than
+  // printing an id.
+  let decisions = null;
+  const actors = new Map();
+  if (!log.error) {
+    decisions = log.data || [];
+    const ids = [...new Set(decisions.map(d => d.actor_id).filter(Boolean))];
+    if (ids.length) {
+      const { data: profs } = await supabaseClient.from('profiles').select('id, first_name, last_name').in('id', ids);
+      (profs || []).forEach(p => actors.set(p.id,
+        [p.first_name, p.last_name ? p.last_name.charAt(0) + '.' : ''].filter(Boolean).join(' ')));
+    }
+  } else {
+    console.error('[_aoLoadStats] decisions:', log.error.message);
   }
-  if (canManage) {
-    actions += `<button class="org-btn" onclick="orgTogglePanel(${node.id})">Officers</button>`;
-    actions += node.is_active
-      ? `<button class="org-btn org-btn-warn" onclick="orgSetActive(${node.id}, false)">Deactivate</button>`
-      : `<button class="org-btn" onclick="orgSetActive(${node.id}, true)">Reactivate</button>`;
-  }
 
-  const badges = (node.is_verified ? '<span class="org-badge org-badge-ok">verified</span>' : '')
-               + (node.is_active ? '' : '<span class="org-badge org-badge-off">inactive</span>');
+  return { ok, followers, events, last, next, officers, decisions, actors };
+}
 
+// What the page can honestly say about one organization. null means "not known" and is drawn
+// as "—". Officer counts are only known where this admin may read the roster: RLS returns no
+// rows for the others, and those empty results are indistinguishable from "no officers".
+function _aoFacts(o) {
+  const s = _aoStats || { ok: {} };
+  const rosterReadable = !!s.ok.officers && orgCanAct('manage_members', o.id);
+  const officers = rosterReadable ? (s.officers.get(o.id) || 0) : null;
+  return {
+    followers: (s.ok.followers && o.is_active) ? (s.followers.get(o.id) ?? 0) : null,
+    events:    s.ok.events ? (s.events.get(o.id) || 0) : null,
+    last:      s.ok.events ? (s.last.get(o.id) || null) : null,
+    next:      s.ok.events ? (s.next.get(o.id) || null) : null,
+    officers, rosterReadable,
+    attention: o.is_active && o.type === 'club' && officers === 0,
+  };
+}
+
+// True when every active club's roster could be read. Only then is "no club needs attention"
+// a fact rather than a guess: an admin who holds authority over one department sees its rosters
+// and not the next department's, and those unreadable clubs would otherwise count as fine.
+function _aoAllRostersKnown() {
+  if (!_orgCtx) return false;
+  return [..._orgCtx.orgs.values()]
+    .filter(o => o.type === 'club' && o.is_active)
+    .every(o => _aoFacts(o).rosterReadable);
+}
+
+function _aoInTab(o, f) {
+  if (_aoTab === 'suspended') return !o.is_active;
+  if (_aoTab === 'attention') return f.attention;
+  return o.is_active;
+}
+
+function _aoDate(v) {
+  const d = new Date(v);
+  if (isNaN(d)) return '';
+  const opts = { month: 'short', day: 'numeric' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('en-US', opts);
+}
+
+function _aoFrameHtml() {
   return `
-    <div class="org-node org-depth-${Math.min(depth, 3)}">
-      <div class="org-row${node.is_active ? '' : ' org-row-off'}">
-        <div class="org-name">${esc(node.name)} ${badges}</div>
-        <div class="org-type">${esc(node.type)}</div>
-        <div class="org-actions">${actions}</div>
+    <div class="ao-page">
+      <div class="ao-toolbar">
+        <div class="ao-tabs" id="aoTabs" role="group" aria-label="Show organizations"></div>
+        <label class="ao-search">
+          ${icon('search', 14)}
+          <input id="aoSearch" type="search" autocomplete="off" placeholder="Find a club or department"
+                 aria-label="Find a club or department" oninput="aoSearch(this.value)">
+        </label>
       </div>
-      <div class="org-panel" id="org-panel-${node.id}"></div>
-      ${(node.children || []).map(c => _orgNodeHtml(c, depth + 1)).join('')}
+      <div class="ao-grid">
+        <section class="ao-card ao-list-card" aria-labelledby="aoListTitle">
+          <div class="ao-card-head">
+            <h2 class="ao-card-title" id="aoListTitle">Clubs &amp; departments</h2>
+            <span class="ao-card-note">Grouped by department · events counted this semester</span>
+          </div>
+          <div class="ao-cols" aria-hidden="true">
+            <span>Name</span><span>Followers</span><span>Events</span><span>Officers</span><span>Status</span><span></span>
+          </div>
+          <div id="aoList"></div>
+        </section>
+        <div class="ao-side">
+          <section class="ao-card" id="aoAdd" aria-labelledby="aoAddTitle"></section>
+          <section class="ao-card" aria-labelledby="aoDecTitle">
+            <div class="ao-card-head">
+              <h2 class="ao-card-title" id="aoDecTitle">Recent decisions</h2>
+              <button class="ao-link" onclick="aoOpenActivityLog()">Activity log ${icon('chevRight', 13)}</button>
+            </div>
+            <div id="aoDecisions"></div>
+          </section>
+        </div>
+      </div>
     </div>`;
 }
 
-// ---------- create a child organization ----------
-async function orgCreateChild(parentId, type) {
-  const name = prompt(`Name of the new ${type}?`);
-  if (!name || !name.trim()) return;
+function _aoPaint() {
+  _aoPaintTabs();
+  _aoPaintList();
+  _aoPaintDecisions();
+}
 
-  const parent = _orgCtx?.orgs.get(parentId);
-  if (!parent) return;
+function _aoPaintTabs() {
+  const el = document.getElementById('aoTabs');
+  if (!el || !_orgCtx) return;
+  const counts = { active: 0, attention: 0, suspended: 0 };
+  [..._orgCtx.orgs.values()].filter(o => o.type !== 'school').forEach(o => {
+    const f = _aoFacts(o);
+    if (o.is_active) counts.active++; else counts.suspended++;
+    if (f.attention) counts.attention++;
+  });
+  // A flagged club is a fact, so a positive count always shows. "0" shows only when every
+  // active club's roster was readable; otherwise it would say every club is fine when the page
+  // simply could not look. (tests/admin-orgs.js caught the first version printing 0 here.)
+  const attention = (counts.attention > 0 || _aoAllRostersKnown()) ? counts.attention : '—';
+  const tab = (id, label, n, warn) => `
+    <button class="ao-tab${_aoTab === id ? ' is-on' : ''}" aria-pressed="${_aoTab === id}" onclick="aoSetTab('${id}')">
+      <span>${label}</span><span class="ao-tab-n${warn ? ' is-warn' : ''}">${n}</span>
+    </button>`;
+  el.innerHTML = tab('active', 'Active', counts.active, false)
+               + tab('attention', 'Needs attention', attention, counts.attention > 0)
+               + tab('suspended', 'Suspended', counts.suspended, false);
+}
+
+function _aoPaintList() {
+  const el = document.getElementById('aoList');
+  if (!el || !_orgCtx) return;
+
+  // Repainting rebuilds every officer panel empty. Carry the open one across, so typing in the
+  // search box or opening another row does not close the roster the admin is reading.
+  const keepId = _orgOpenPanel;
+  const keepHtml = keepId != null ? (document.getElementById('org-panel-' + keepId)?.innerHTML || '') : '';
+
+  const q = _aoQuery.trim().toLowerCase();
+  const matches = o => !q || o.name.toLowerCase().includes(q);
+  const roots = orgTree();
+  let html = '';
+
+  roots.forEach(school => {
+    const kids = school.children || [];
+    let groups = '';
+    const group = (dept, clubs) => {
+      const shown = clubs.filter(c => _aoInTab(c, _aoFacts(c)) && (matches(c) || (dept && matches(dept))));
+      const df = dept ? _aoFacts(dept) : null;
+      const deptItself = dept && _aoInTab(dept, df) && matches(dept);
+      // A department header also appears for context when only its clubs match.
+      if (!shown.length && !deptItself) return '';
+      const head = dept ? _aoDeptHtml(dept, df, clubs.length)
+                        : '<div class="ao-dept"><span class="ao-dept-text"><span class="ao-dept-name">Not in a department</span></span></div>';
+      return head + shown.map(c => _aoRowHtml(c, _aoFacts(c))).join('');
+    };
+    kids.filter(k => k.type === 'department').forEach(d => { groups += group(d, d.children || []); });
+    // A club attached straight to a school cannot be created from this page, but nothing in the
+    // schema forbids one, so it is shown rather than silently dropped.
+    const loose = kids.filter(k => k.type !== 'department');
+    if (loose.length) groups += group(null, loose);
+    if (groups && roots.length > 1) html += `<div class="ao-school">${esc(school.name)}</div>`;
+    html += groups;
+  });
+
+  el.innerHTML = html || `<div class="org-empty">${_aoEmptyText()}</div>`;
+
+  if (keepId != null) {
+    const panel = document.getElementById('org-panel-' + keepId);
+    if (panel) panel.innerHTML = keepHtml; else _orgOpenPanel = null;
+  }
+}
+
+function _aoEmptyText() {
+  if (_aoQuery.trim()) return `Nothing matches “${esc(_aoQuery.trim())}”.`;
+  if (_aoTab === 'attention' && !_aoAllRostersKnown()) {
+    return 'Some rosters could not be read, so a club with no officers may not be listed here.';
+  }
+  return {
+    active:    'No active organizations.',
+    attention: 'Every active club has at least one officer.',
+    suspended: 'No suspended organizations.',
+  }[_aoTab];
+}
+
+function _aoNumHtml(n, one, many, whyUnknown, warn = false) {
+  if (n === null) {
+    return `<span class="ao-num"><span class="ao-unknown" title="${escAttr(whyUnknown)}">—</span>`
+         + `<span class="ao-num-l"> ${many}: ${esc(whyUnknown.toLowerCase())}</span></span>`;
+  }
+  return `<span class="ao-num${warn ? ' is-warn' : ''}">${n}<span class="ao-num-l"> ${n === 1 ? one : many}</span></span>`;
+}
+
+function _aoMoreHtml(o) {
+  if (!orgCanAct('manage_members', o.id)) return '<span class="ao-more-none" aria-hidden="true"></span>';
+  const open = _aoOpenRow === o.id;
+  return `<button class="ao-more${open ? ' is-open' : ''}" onclick="aoToggleRow(${o.id})" aria-expanded="${open}"
+            aria-controls="ao-strip-${o.id}" aria-label="Actions for ${escAttr(o.name)}">${icon('more', 15)}</button>`;
+}
+
+function _aoDeptHtml(d, f, clubCount) {
+  const open      = _aoOpenRow === d.id;
+  const canChild  = d.is_active && orgCanAct('create_child_orgs', d.id);
+  const canManage = orgCanAct('manage_members', d.id);
+  const meta = ['Department', `${clubCount} club${clubCount === 1 ? '' : 's'}`,
+                f.officers === null ? null : `${f.officers} officer${f.officers === 1 ? '' : 's'}`]
+               .filter(Boolean).join(' · ');
+  return `
+    <div class="ao-dept${d.is_active ? '' : ' is-off'}${open ? ' is-open' : ''}">
+      <span class="ao-dept-icon" aria-hidden="true">${icon('school', 15)}</span>
+      <span class="ao-dept-text"><span class="ao-dept-name">${esc(d.name)}</span><span class="ao-dept-meta">${meta}</span></span>
+      ${d.is_active ? '' : '<span class="ao-badge is-off">Suspended</span>'}
+      <span class="ao-dept-actions">
+        ${canChild ? `<button class="ao-btn" onclick="aoAddClubTo(${d.id})" aria-label="Add a club to ${escAttr(d.name)}">+ Club</button>` : ''}
+        ${canManage ? `<button class="ao-btn" onclick="aoOfficers(${d.id})">Officers</button>` : ''}
+        ${canManage ? _aoMoreHtml(d) : ''}
+      </span>
+    </div>
+    <div class="ao-strip-host" id="ao-strip-${d.id}">${open ? _aoStripHtml(d, true) : ''}</div>
+    <div class="org-panel" id="org-panel-${d.id}"></div>`;
+}
+
+function _aoRowHtml(o, f) {
+  const open = _aoOpenRow === o.id;
+  const sub = f.attention ? '<span class="ao-sub is-warn">No active officer</span>'
+    : f.last  ? `<span class="ao-sub">Last event ${_aoDate(f.last)}</span>`
+    : f.next  ? `<span class="ao-sub">Next event ${_aoDate(f.next)}</span>`
+    : f.events === null ? '' : '<span class="ao-sub">No events in the past year</span>';
+  const badge = !o.is_active ? '<span class="ao-badge is-off">Suspended</span>'
+              : f.attention  ? '<span class="ao-badge is-warn">Needs attention</span>'
+              :                '<span class="ao-badge is-ok">Active</span>';
+  const couldNot = 'Could not load';
+  return `
+    <div class="ao-row${o.is_active ? '' : ' is-off'}${open ? ' is-open' : ''}">
+      <div class="ao-who">${_dirLogoHTML(o, 'ao-tile')}<div class="ao-who-text"><span class="ao-name">${esc(o.name)}</span>${sub}</div></div>
+      <span class="ao-nums">
+        ${_aoNumHtml(f.followers, 'follower', 'followers', o.is_active ? couldNot : 'Not counted while suspended')}
+        ${_aoNumHtml(f.events, 'event', 'events', couldNot)}
+        ${_aoNumHtml(f.officers, 'officer', 'officers', f.rosterReadable || !_aoStats?.ok?.officers ? couldNot : 'You cannot read this roster', f.attention)}
+      </span>
+      <span class="ao-status">${badge}</span>
+      ${_aoMoreHtml(o)}
+    </div>
+    <div class="ao-strip-host" id="ao-strip-${o.id}">${open ? _aoStripHtml(o, false) : ''}</div>
+    <div class="org-panel" id="org-panel-${o.id}"></div>`;
+}
+
+function _aoStripHtml(o, isDept) {
+  if (_aoSuspend === o.id) return _aoSuspendHtml(o);
+  return `<div class="ao-strip">
+    ${isDept ? '' : `<button class="ao-btn" onclick="aoOfficers(${o.id})">Officers</button>`}
+    ${o.is_active
+      ? `<button class="ao-btn ao-btn-warn" onclick="aoAskSuspend(${o.id})">Suspend…</button>`
+      : `<button class="ao-btn ao-btn-go" onclick="orgSetActive(${o.id}, true)">Reactivate</button>`}
+  </div>`;
+}
+
+// The suspend form IS the confirmation. It replaced a confirm() box, which asked "are you
+// sure?" and recorded nothing about why.
+function _aoSuspendHtml(o) {
+  const other = _aoReason === 'Other';
+  return `
+    <div class="ao-strip ao-suspend" role="group" aria-labelledby="aoSusTitle-${o.id}">
+      <div class="ao-suspend-copy">
+        <strong id="aoSusTitle-${o.id}">Suspend ${esc(o.name)}?</strong>
+        <span>It leaves the directory and its upcoming events stop showing. Past events stay as history, and you can reactivate it at any time.</span>
+      </div>
+      <div class="ao-reasons" role="group" aria-label="Reason for suspending">
+        <span class="ao-reasons-label" aria-hidden="true">Reason</span>
+        ${AO_REASONS.map((r, i) => `<button type="button" class="ao-reason${_aoReason === r ? ' is-on' : ''}" aria-pressed="${_aoReason === r}" onclick="aoPickReason(${o.id}, ${i})">${esc(r)}</button>`).join('')}
+      </div>
+      <div class="ao-suspend-row">
+        <input class="ao-input" id="aoSusNote-${o.id}" type="text" maxlength="200" autocomplete="off"
+               placeholder="${other ? 'Say why — needed for Other' : 'Add a note for the activity log (optional)'}"
+               aria-label="Note for the activity log">
+        <button class="ao-btn" onclick="aoCancelSuspend(${o.id})">Cancel</button>
+        <button class="ao-btn ao-btn-danger" onclick="aoConfirmSuspend(${o.id})">Suspend ${o.type === 'department' ? 'department' : 'club'}</button>
+      </div>
+    </div>`;
+}
+
+function _aoPaintDecisions() {
+  const el = document.getElementById('aoDecisions');
+  if (!el) return;
+  const s = _aoStats;
+  if (!s || s.decisions === null) { el.innerHTML = '<p class="ao-empty">Could not load the activity log.</p>'; return; }
+  if (!s.decisions.length) {
+    el.innerHTML = '<p class="ao-empty">Nothing yet. Creating, suspending and reactivating organizations will show here.</p>';
+    return;
+  }
+  const verb = { org_created: 'Created', org_deactivated: 'Suspended', org_reactivated: 'Reactivated' };
+  el.innerHTML = '<ul class="ao-dec-list">' + s.decisions.map(d => {
+    const meta = [d.reason, s.actors.get(d.actor_id) || 'An admin', _aoDate(d.created_at)].filter(Boolean).map(esc).join(' · ');
+    return `<li class="ao-dec">
+      <span class="ao-dec-dot${d.action_type === 'org_deactivated' ? ' is-off' : ''}" aria-hidden="true"></span>
+      <span class="ao-dec-text"><span>${verb[d.action_type] || esc(d.action_type)} <strong>${esc(d.target_label || 'an organization')}</strong></span>
+      <span class="ao-dec-meta">${meta}</span></span>
+    </li>`;
+  }).join('') + '</ul>';
+}
+
+function _aoPaintAdd() {
+  const el = document.getElementById('aoAdd');
+  if (!el || !_orgCtx) return;
+  const all = [..._orgCtx.orgs.values()];
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  // Where this admin may create something. Mirrors organizations_insert: create_child_orgs on
+  // the parent. A club's parent is always a department; a department's is the school.
+  const depts   = all.filter(o => o.type === 'department' && o.is_active && orgCanAct('create_child_orgs', o.id)).sort(byName);
+  const schools = all.filter(o => o.type === 'school'     && o.is_active && orgCanAct('create_child_orgs', o.id)).sort(byName);
+  if (!depts.length && !schools.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  if (_aoAddMode === 'club' && !depts.length) _aoAddMode = 'department';
+  if (_aoAddMode === 'department' && !schools.length) _aoAddMode = 'club';
+
+  const isClub  = _aoAddMode === 'club';
+  const parents = isClub ? depts : schools;
+  const manySchools = new Set(parents.map(p => p.school)).size > 1;
+  const other = isClub
+    ? (schools.length ? `<button class="ao-link" onclick="aoSetAddMode('department')">Add a department instead</button>` : '')
+    : (depts.length   ? `<button class="ao-link" onclick="aoSetAddMode('club')">Add a club instead</button>` : '');
+
+  el.innerHTML = `
+    <div class="ao-card-head">
+      <div>
+        <h2 class="ao-card-title" id="aoAddTitle">${isClub ? 'Add a club' : 'Add a department'}</h2>
+        <p class="ao-card-lede">${isClub
+          ? 'It appears in the directory straight away. Add an officer now so it has a console to run from.'
+          : 'Departments hold clubs. Add one only if the school really has it.'}</p>
+      </div>
+    </div>
+    <div class="ao-field">
+      <label for="aoNewName">${isClub ? 'Club name' : 'Department name'}</label>
+      <input class="ao-input" id="aoNewName" type="text" maxlength="80" autocomplete="off"
+             placeholder="${isClub ? 'e.g. Film Society' : 'e.g. Student Life'}">
+    </div>
+    <div class="ao-field">
+      <label for="aoNewParent">Belongs to</label>
+      <select class="ao-input" id="aoNewParent">
+        ${parents.map(p => `<option value="${p.id}">${esc(p.name)}${manySchools ? ' — ' + esc(p.school) : ''}</option>`).join('')}
+      </select>
+    </div>
+    ${isClub ? `
+    <div class="ao-field">
+      <label for="aoNewOfficer">First officer <span class="ao-optional">(optional)</span></label>
+      <input class="ao-input" id="aoNewOfficer" type="email" autocomplete="off" placeholder="officer@caldwell.edu">
+      <span class="ao-hint">They need a Nestrel account first.</span>
+    </div>` : ''}
+    <div class="ao-add-actions">
+      ${other}
+      <button class="ao-btn ao-btn-go" id="aoCreateBtn" onclick="aoCreateOrg()">${isClub ? 'Create club' : 'Create department'}</button>
+    </div>`;
+}
+
+// ---------- page interactions ----------
+function aoSetTab(tab) {
+  if (!AO_TABS.includes(tab)) return;
+  _aoTab = tab; _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  saveUiState('aoTab', tab);
+  _aoPaintTabs();
+  _aoPaintList();
+}
+
+function aoSearch(value) {
+  _aoQuery = value || '';
+  _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoPaintList();
+}
+
+// Every repaint replaces the button that was focused, so focus is put back by hand. Without
+// this a keyboard user is thrown to the top of the page each time they open a row.
+function _aoFocus(selector) { document.querySelector(selector)?.focus(); }
+
+function aoToggleRow(id) {
+  _aoOpenRow = _aoOpenRow === id ? null : id;
+  _aoSuspend = null; _aoReason = null;
+  _aoPaintList();
+  _aoFocus(`[aria-controls="ao-strip-${id}"]`);
+}
+
+function aoAskSuspend(id) {
+  const org = _orgCtx?.orgs.get(id);
+  if (!org) return;
+  _aoOpenRow = id; _aoSuspend = id;
+  // A club flagged for having no officer is usually being suspended for exactly that.
+  _aoReason = _aoFacts(org).attention ? AO_REASONS[0] : null;
+  _aoPaintList();
+  _aoFocus(`#ao-strip-${id} .ao-reason`);
+}
+
+// Changes the buttons in place instead of repainting, so a note already typed is not wiped.
+function aoPickReason(id, i) {
+  _aoReason = AO_REASONS[i] || null;
+  document.querySelectorAll(`#ao-strip-${id} .ao-reason`).forEach((b, j) => {
+    b.classList.toggle('is-on', j === i);
+    b.setAttribute('aria-pressed', String(j === i));
+  });
+  const note = document.getElementById('aoSusNote-' + id);
+  if (note) note.placeholder = _aoReason === 'Other' ? 'Say why — needed for Other' : 'Add a note for the activity log (optional)';
+}
+
+function aoCancelSuspend(id) {
+  _aoSuspend = null; _aoReason = null;
+  _aoPaintList();
+  _aoFocus(`[aria-controls="ao-strip-${id}"]`);
+}
+
+async function aoConfirmSuspend(id) {
+  const noteEl = document.getElementById('aoSusNote-' + id);
+  const note = (noteEl?.value || '').trim();
+  if (!_aoReason) { toast('Choose a reason — it is saved to the activity log'); _aoFocus(`#ao-strip-${id} .ao-reason`); return; }
+  if (_aoReason === 'Other' && !note) { toast('Add a note saying why'); noteEl?.focus(); return; }
+  await orgSetActive(id, false, note ? `${_aoReason} — ${note}` : _aoReason);
+}
+
+function aoOfficers(id) {
+  _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoPaintList();
+  orgTogglePanel(id);
+}
+
+function aoAddClubTo(deptId) {
+  _aoAddMode = 'club';
+  _aoPaintAdd();
+  const select = document.getElementById('aoNewParent');
+  if (select) select.value = String(deptId);
+  document.getElementById('aoAdd')?.scrollIntoView({ block: 'nearest' });
+  _aoFocus('#aoNewName');
+}
+
+function aoSetAddMode(mode) {
+  _aoAddMode = mode === 'department' ? 'department' : 'club';
+  _aoPaintAdd();
+  _aoFocus('#aoNewName');
+}
+
+function aoOpenActivityLog() {
+  ago('activity', document.querySelector(`.a-nav-item[onclick*="'activity'"]`));
+}
+
+// ---------- create a club or department ----------
+async function aoCreateOrg() {
+  const type   = _aoAddMode === 'department' ? 'department' : 'club';
+  const nameEl = document.getElementById('aoNewName');
+  const name   = (nameEl?.value || '').trim();
+  const parent = _orgCtx?.orgs.get(Number(document.getElementById('aoNewParent')?.value));
+  const email  = type === 'club' ? (document.getElementById('aoNewOfficer')?.value || '').trim().toLowerCase() : '';
+
+  if (!name)   { toast(`Give the ${type} a name first`); nameEl?.focus(); return; }
+  if (!parent) { toast('Choose where it belongs'); return; }
 
   // The slug is derived, never typed. It is half of `unique (school, slug)`, so letting a
   // person enter it invites two clubs that differ only by a capital letter.
-  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  if (!slug) { toast('That name has no letters or numbers in it'); return; }
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug) { toast('That name has no letters or numbers in it'); nameEl?.focus(); return; }
 
-  const { error } = await supabaseClient.from('organizations').insert({
+  const btn = document.getElementById('aoCreateBtn');
+  if (btn) btn.disabled = true;
+
+  const { data, error } = await supabaseClient.from('organizations').insert({
     school: parent.school,          // inherited, never chosen — a child cannot change schools
-    parent_id: parentId,
-    type, name: name.trim(), slug,
+    parent_id: parent.id,
+    type, name, slug,
     created_by: (await supabaseClient.auth.getUser()).data.user?.id || null,
-  });
+  }).select('id').single();
 
   if (error) {
+    if (btn) btn.disabled = false;
     // 23505 is unique_violation. Saying which constraint failed is the difference between
     // "something went wrong" and "you already have one of these".
     toast(error.code === '23505' ? `A ${type} with that name already exists` : 'Could not create: ' + error.message);
-    console.error('[orgCreateChild]', error);
+    console.error('[aoCreateOrg]', error);
     return;
   }
-  logEvent('org_created', { targetType: 'organization', targetLabel: name.trim(), school: parent.school,
-                            after: { type, parent_id: parentId } });
-  toast(`${name.trim()} created`);
+  // Awaited, so the Recent decisions list repainted below already includes it.
+  await logEvent('org_created', { targetType: 'organization', targetId: data.id, targetLabel: name,
+                                  school: parent.school, after: { type, parent_id: parent.id } });
+
+  let message = `${name} created`;
+  if (email) {
+    await loadOrgContext(true);   // the new club must be in the cache before anything looks it up
+    const r = await _orgGrantOfficer(data.id, email);
+    // The club exists either way, and the message must say so. "Could not add officer" on its
+    // own reads as though nothing was created, and the admin makes a second club.
+    message = r.ok ? `${name} created, with ${email} as its first officer`
+                   : `${name} was created, but the officer was not added. ${r.message}`;
+  }
+  toast(message);
+
+  _aoTab = 'active'; _aoQuery = ''; _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  saveUiState('aoTab', 'active');
+  clearOrgContext();
   renderOrgs();
 }
 
-// ---------- deactivate / reactivate ----------
-async function orgSetActive(orgId, active) {
+// ---------- suspend / reactivate ----------
+async function orgSetActive(orgId, active, reason = null) {
   const org = _orgCtx?.orgs.get(orgId);
   if (!org) return;
-  if (!active && !confirm(`Deactivate ${org.name}? It disappears from the directory and its future events stop showing. Past events stay as history.`)) return;
 
-  const { error } = await supabaseClient.from('organizations').update({ is_active: active }).eq('id', orgId);
+  // .select() makes a refused write visible. Without it, an update that RLS filters down to
+  // zero rows returns no error at all, and the page would announce a suspension that never
+  // happened.
+  const { data, error } = await supabaseClient.from('organizations')
+    .update({ is_active: active }).eq('id', orgId).select('id');
   if (error) { toast('Could not update: ' + error.message); console.error('[orgSetActive]', error); return; }
+  if (!data || !data.length) { toast(`You don't have authority to change ${org.name}`); return; }
 
-  logEvent(active ? 'org_reactivated' : 'org_deactivated',
-    { targetType: 'organization', targetId: orgId, targetLabel: org.name, school: org.school,
+  await logEvent(active ? 'org_reactivated' : 'org_deactivated',
+    { targetType: 'organization', targetId: orgId, targetLabel: org.name, school: org.school, reason,
       before: { is_active: !active }, after: { is_active: active } });
-  toast(active ? 'Reactivated' : 'Deactivated');
+  toast(active ? `${org.name} reactivated` : `${org.name} suspended`);
+  _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
   renderOrgs();
+}
+
+// A roster change moves an officer count and can move a club in or out of "Needs attention",
+// so the numbers are reloaded. Then the panel that was open is reopened, because closing the
+// thing the admin was working in reads as the change having failed.
+async function _aoAfterRosterChange(orgId) {
+  clearOrgContext();
+  await loadOrgContext(true);
+  if (document.getElementById('aoList')) {
+    _aoStats = await _aoLoadStats();
+    _orgOpenPanel = null;
+    _aoPaint();
+  }
+  _orgOpenPanel = null;
+  orgTogglePanel(orgId);
 }
 
 // ---------- the officer panel ----------
 async function orgTogglePanel(orgId) {
   const el = document.getElementById('org-panel-' + orgId);
   if (!el) return;
+  // The permission cache must be loaded before this draws, or orgCanAct() answers false and the
+  // roster repaints without its Add officer form. Every roster change clears the cache and then
+  // calls this, which is exactly when that used to happen.
+  if (!_orgCtx) await loadOrgContext();
   if (_orgOpenPanel === orgId) { el.innerHTML = ''; _orgOpenPanel = null; return; }
 
   document.querySelectorAll('.org-panel').forEach(p => p.innerHTML = '');
@@ -418,10 +958,11 @@ async function orgTogglePanel(orgId) {
     : '<div class="org-empty">Adding officers needs the \u201Cmanage admins\u201D permission.</div>');
 }
 
-async function orgAddOfficer(orgId) {
-  const input = document.getElementById('org-add-' + orgId);
-  const email = (input?.value || '').trim().toLowerCase();
-  if (!email) return;
+// Adds `email` as an officer of orgId and REPORTS what happened instead of toasting it, so each
+// caller can word the outcome for its own context: the roster panel, and "Add a club", which
+// creates a club and names its first officer in one step. Every check below is the one
+// orgAddOfficer() always made, moved here unchanged.
+async function _orgGrantOfficer(orgId, email) {
 
   // Look the person up. THE ERROR MATTERS AS MUCH AS THE RESULT, and until 2026-09-05 this
   // line discarded it — so "the database refused me this read" and "nobody has that address"
@@ -435,9 +976,8 @@ async function orgAddOfficer(orgId) {
     .from('profiles').select('id').eq('email', email).maybeSingle();
 
   if (lookupErr) {
-    toast('Could not look that address up: ' + lookupErr.message);
-    console.error('[orgAddOfficer] lookup failed:', lookupErr);
-    return;
+    console.error('[_orgGrantOfficer] lookup failed:', lookupErr);
+    return { ok: false, message: 'Could not look that address up: ' + lookupErr.message };
   }
 
   // NO ORPHAN ROWS. pending_email exists on the table for plan A15 — add an e-board before
@@ -450,8 +990,7 @@ async function orgAddOfficer(orgId) {
   // real is worse than declining to write one. When A15 is actually built, this branch is
   // where it goes.
   if (!prof) {
-    toast(email + ' has no Nestrel account yet — ask them to sign up first, then add them');
-    return;
+    return { ok: false, message: email + ' has no Nestrel account yet — ask them to sign up first, then add them' };
   }
 
   // A removed member keeps their row, because org_memberships is unique on (org_id, user_id)
@@ -463,9 +1002,8 @@ async function orgAddOfficer(orgId) {
     .eq('org_id', orgId).eq('user_id', prof.id).maybeSingle();
 
   if (existErr) {
-    toast('Could not check the roster: ' + existErr.message);
-    console.error('[orgAddOfficer] roster check failed:', existErr);
-    return;
+    console.error('[_orgGrantOfficer] roster check failed:', existErr);
+    return { ok: false, message: 'Could not check the roster: ' + existErr.message };
   }
 
   const grant = {
@@ -488,16 +1026,23 @@ async function orgAddOfficer(orgId) {
     : await supabaseClient.from('org_memberships').insert({ org_id: orgId, user_id: prof.id, ...grant });
 
   if (error) {
-    toast(error.code === '23505' ? 'That person is already on this roster' : 'Could not add: ' + error.message);
-    console.error('[orgAddOfficer]', error);
-    return;
+    console.error('[_orgGrantOfficer]', error);
+    return { ok: false, message: error.code === '23505' ? 'That person is already on this roster' : 'Could not add: ' + error.message };
   }
   const org = _orgCtx?.orgs.get(orgId);
   logEvent('org_officer_added', { targetType: 'membership', targetId: orgId, targetLabel: email,
                                   school: org?.school, after: { role: 'officer' } });
+  return { ok: true };
+}
+
+async function orgAddOfficer(orgId) {
+  const input = document.getElementById('org-add-' + orgId);
+  const email = (input?.value || '').trim().toLowerCase();
+  if (!email) return;
+  const r = await _orgGrantOfficer(orgId, email);
+  if (!r.ok) { toast(r.message); return; }
   toast('Officer added');
-  clearOrgContext();
-  orgTogglePanel(orgId); orgTogglePanel(orgId);   // close + reopen to repaint
+  _aoAfterRosterChange(orgId);
 }
 
 // Removal is a STATUS CHANGE, not a delete. Changed 2026-09-05.
@@ -522,9 +1067,7 @@ async function orgRemoveMember(membershipId, orgId) {
   logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
                                    before: { status: 'active' }, after: { status: 'removed' } });
   toast('Removed');
-  clearOrgContext();
-  _orgOpenPanel = null;
-  orgTogglePanel(orgId);
+  _aoAfterRosterChange(orgId);
 }
 
 // The other half of soft removal. Restoring returns the flags the row already carried — it
@@ -542,9 +1085,7 @@ async function orgRestoreMember(membershipId, orgId) {
   logEvent('org_member_restored', { targetType: 'membership', targetId: membershipId,
                                     before: { status: 'removed' }, after: { status: 'active' } });
   toast('Restored');
-  clearOrgContext();
-  _orgOpenPanel = null;
-  orgTogglePanel(orgId);
+  _aoAfterRosterChange(orgId);
 }
 
 // ---------- put yourself on a roster you already govern ----------
@@ -596,9 +1137,7 @@ async function orgAddSelf(orgId) {
   logEvent('org_self_added', { targetType: 'membership', targetId: orgId, targetLabel: org.name,
                                school: org.school, after: { role: 'officer', title: 'Administrator' } });
   toast('You are now an officer of ' + org.name);
-  clearOrgContext();
-  _orgOpenPanel = null;
-  orgTogglePanel(orgId);
+  _aoAfterRosterChange(orgId);
 }
 
 

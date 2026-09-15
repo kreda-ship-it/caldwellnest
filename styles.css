@@ -1359,30 +1359,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The "Loading…" block shown while a detail drawer fetches. */
 .drawer-loading{padding:60px 0;text-align:center;color:var(--text-faint);font-size:13px;}
 
-/* ── Admin: organizations tab (workstream 1 stage 3) ───────────────────────── */
-/* Indentation carries the hierarchy, so the depth classes are the whole layout.
-   Capped at 3 in the JS: school -> department -> club is the real shape, and a
-   runaway nesting bug should look cramped rather than scroll off the screen. */
-.org-tree { display: flex; flex-direction: column; gap: 2px; }
-.org-depth-1 { margin-left: 24px; }
-.org-depth-2 { margin-left: 48px; }
-.org-depth-3 { margin-left: 72px; }
-
-.org-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-}
-.org-row-off { opacity: .55; }
-
+/* ── Admin: organizations tab ──────────────────────────────────────────────── */
+/* The indented tree that lived here (.org-tree, .org-depth-*, .org-row, .org-type, .org-actions)
+   was replaced on 2026-09-14 by the grouped list styled under .ao-* further down. What stays is
+   shared: .org-name is used by events.js, and .org-badge, .org-btn and the roster rules are used
+   by the org console and the officer panel. */
 .org-name { flex: 1; font-weight: 600; font-size: 14px; color: var(--text); }
-.org-type {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--text-faint); min-width: 80px;
-}
-.org-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .org-badge {
   display: inline-block; margin-left: 6px; padding: 2px 7px;
@@ -1435,6 +1417,219 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .org-note {
   margin-top: 6px; padding: 0 2px;
   font-size: 12px; line-height: 1.5; color: var(--text-faint);
+}
+
+/* ── Admin: Organizations tab (2026-09-14, canvas page 5) ──────────────────────
+   One list grouped by department. A number the page cannot know is drawn as "—"
+   (.ao-unknown), never as 0 — the reasoning is in _aoFacts() in js/orgs.js.
+   Every colour is a :root token, and each text/background pair clears AA. */
+.ao-page { display: flex; flex-direction: column; gap: 18px; }
+
+.ao-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ao-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ao-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 15px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: 500 13px/1 'DM Sans', sans-serif; cursor: pointer;
+}
+.ao-tab:hover { border-color: var(--brand-light); }
+.ao-tab.is-on { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.ao-tab-n { color: var(--text-muted); font-weight: 500; }
+.ao-tab.is-on .ao-tab-n { color: rgba(255, 255, 255, .8); }
+.ao-tab-n.is-warn,
+.ao-tab.is-on .ao-tab-n.is-warn {
+  min-width: 20px; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 10px; text-align: center;
+  background: var(--cat-donation-bg); color: var(--cat-donation-text); font-size: var(--fs-micro); font-weight: 700;
+}
+.ao-search {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  width: 260px; max-width: 100%; height: 36px; padding: 0 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--text-faint);
+}
+/* The ring sits on the pill, not the bare input inside it, so focus is drawn where the eye expects it. */
+.ao-search:focus-within { border-color: var(--brand-light); outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.ao-search input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: 400 13px 'DM Sans', sans-serif; color: var(--text);
+}
+.ao-search input::placeholder { color: var(--text-faint); }
+
+.ao-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ao-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ao-card { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.ao-side .ao-card { display: flex; flex-direction: column; gap: 13px; padding: 18px 20px 20px; }
+.ao-list-card { overflow: hidden; }
+.ao-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ao-list-card .ao-card-head { flex-wrap: wrap; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+.ao-card-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); }
+.ao-card-note { font-size: 13px; color: var(--text-faint); }
+.ao-card-lede { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.ao-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-muted); }
+.ao-school {
+  padding: 14px 20px 6px; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted);
+}
+
+.ao-cols, .ao-row {
+  display: grid; align-items: center; column-gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 76px 56px 62px 124px 34px;
+  padding: 10px 20px;
+}
+.ao-cols {
+  padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--border);
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint);
+}
+.ao-cols span:nth-child(2), .ao-cols span:nth-child(3), .ao-cols span:nth-child(4) { text-align: right; }
+.ao-cols span:nth-child(5) { padding-left: 12px; }
+.ao-row { border-bottom: 1px solid var(--border); }
+.ao-row.is-open { background: var(--bg); }
+.ao-row.is-open, .ao-dept.is-open { border-bottom-color: transparent; }
+.ao-row.is-off .ao-name { color: var(--text-muted); }
+.ao-who { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.ao-tile { flex: none; width: 34px; height: 34px; border-radius: 11px; object-fit: cover; }
+.ao-tile.dir-logo-none {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--tint-bg, var(--bg-alt)); color: var(--tint-fg, var(--text-muted));
+  font-size: 13px; font-weight: 700;
+}
+.ao-who-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ao-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ao-sub { font-size: var(--fs-micro); color: var(--text-faint); }
+.ao-sub.is-warn { color: var(--cat-donation-text); font-weight: 600; }
+/* On a wide screen the three numbers are grid cells of the row itself; on a phone they become one line. */
+.ao-nums { display: contents; }
+.ao-num { text-align: right; font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.ao-num.is-warn { color: var(--cat-donation-text); font-weight: 700; }
+.ao-unknown { color: var(--text-faint); font-weight: 500; cursor: help; }
+/* Heard by screen readers everywhere; seen only on a phone, where there are no column headings. */
+.ao-num-l {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.ao-status { padding-left: 12px; }
+.ao-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--radius-pill);
+  font-size: var(--fs-micro); font-weight: 700; white-space: nowrap;
+}
+.ao-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ao-badge.is-ok   { background: var(--brand-pale); color: var(--cat-housing-text); }
+.ao-badge.is-warn { background: var(--cat-donation-bg); color: var(--cat-donation-text); }
+.ao-badge.is-off  { background: var(--bg-alt); color: var(--text-muted); }
+.ao-more, .ao-more-none { justify-self: end; }
+.ao-more {
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ao-more:hover { border-color: var(--brand-light); color: var(--text); }
+.ao-more.is-open { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.ao-dept {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 9px 20px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.ao-dept-icon {
+  flex: none; width: 28px; height: 28px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-pale); color: var(--cat-housing-text);
+}
+.ao-dept-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ao-dept-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.ao-dept.is-off .ao-dept-name { color: var(--text-muted); }
+.ao-dept-meta { font-size: var(--fs-micro); color: var(--text-faint); }
+.ao-dept-actions { display: flex; align-items: center; gap: 6px; }
+
+.ao-btn {
+  height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: 600 13px/1 'DM Sans', sans-serif; white-space: nowrap; cursor: pointer;
+}
+.ao-btn:hover { border-color: var(--brand-light); }
+.ao-btn:disabled { opacity: .55; cursor: default; }
+.ao-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
+.ao-btn-go:hover { background: var(--brand-mid); border-color: var(--brand-mid); }
+.ao-btn-warn { color: var(--danger); }
+.ao-btn-warn:hover { border-color: var(--danger); background: var(--danger-pale); }
+.ao-btn-danger { height: 36px; background: var(--danger); border-color: var(--danger); color: #fff; }
+.ao-btn-danger:hover { filter: brightness(.94); border-color: var(--danger); }
+.ao-link {
+  display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none;
+  font: 600 13px 'DM Sans', sans-serif; color: var(--brand-mid); cursor: pointer;
+}
+.ao-link:hover { text-decoration: underline; }
+
+.ao-strip {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 2px 20px 14px 65px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.ao-suspend { flex-direction: column; align-items: stretch; gap: 11px; }
+.ao-suspend-copy { display: flex; flex-direction: column; gap: 3px; font-size: 13px; line-height: 1.5; }
+.ao-suspend-copy strong { color: var(--text); }
+.ao-suspend-copy span { color: var(--text-muted); }
+.ao-reasons { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.ao-reasons-label {
+  margin-right: 3px; font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint);
+}
+.ao-reason {
+  height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font: 500 13px/1 'DM Sans', sans-serif; cursor: pointer;
+}
+.ao-reason.is-on { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.ao-suspend-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.ao-suspend-row .ao-input { flex: 1 1 220px; width: auto; }
+
+.ao-field { display: flex; flex-direction: column; gap: 6px; }
+.ao-field label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ao-optional { font-weight: 400; color: var(--text-faint); }
+.ao-input {
+  box-sizing: border-box; width: 100%; height: 38px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  font: 400 13px 'DM Sans', sans-serif; color: var(--text);
+}
+.ao-input::placeholder { color: var(--text-faint); }
+select.ao-input { cursor: pointer; }
+.ao-hint { font-size: var(--fs-micro); color: var(--text-faint); }
+.ao-add-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.ao-add-actions .ao-link { margin-right: auto; }
+.ao-add-actions .ao-btn-go { height: 38px; padding: 0 18px; }
+
+.ao-dec-list { display: flex; flex-direction: column; gap: 13px; margin: 0; padding: 0; list-style: none; }
+.ao-dec { display: flex; gap: 10px; }
+.ao-dec-dot { flex: none; width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--brand-light); }
+.ao-dec-dot.is-off { background: var(--danger); }
+.ao-dec-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
+.ao-dec-meta { font-size: var(--fs-micro); color: var(--text-faint); overflow-wrap: anywhere; }
+
+/* The officer panel predates this page and is shared; here it opens flush under its row. */
+.ao-page .org-panel:not(:empty) {
+  margin: 0; padding: 12px 20px 14px 65px; border: 0; border-bottom: 1px solid var(--border);
+  border-radius: 0; background: var(--bg);
+}
+
+.ao-tab:focus-visible, .ao-btn:focus-visible, .ao-more:focus-visible, .ao-reason:focus-visible,
+.ao-link:focus-visible, .ao-input:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+@media (max-width: 1200px) {
+  .ao-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+  .ao-search { margin-left: 0; width: 100%; }
+  .ao-cols { display: none; }
+  .ao-list-card .ao-card-head { padding: 13px 14px; }
+  .ao-row { grid-template-columns: minmax(0, 1fr) auto auto; row-gap: 6px; padding: 12px 14px; }
+  .ao-who { grid-column: 1; grid-row: 1; }
+  .ao-status { grid-column: 2; grid-row: 1; padding-left: 0; }
+  .ao-more, .ao-more-none { grid-column: 3; grid-row: 1; }
+  .ao-more { width: 40px; height: 40px; }
+  .ao-nums { display: flex; flex-wrap: wrap; gap: 4px 14px; grid-column: 1 / -1; grid-row: 2; padding-left: 45px; }
+  .ao-num { text-align: left; }
+  .ao-num-l { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-weight: 400; color: var(--text-muted); }
+  .ao-dept, .ao-strip, .ao-school, .ao-page .org-panel:not(:empty) { padding-left: 14px; padding-right: 14px; }
+  .ao-suspend-row .ao-input { flex-basis: 100%; }
 }
 
 /* ── Notification bell + history (2026-09-04) ──────────────────────────────── */

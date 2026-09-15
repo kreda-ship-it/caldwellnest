@@ -79,3 +79,33 @@ both files.
   app *boots*, not that it *works*.
 
 Run it after any change to `js/`, and always before a commit that adds a top-level `const`.
+
+---
+
+## `admin-orgs.js` — does the Organizations page tell the truth?
+
+```bash
+node tests/admin-orgs.js     # exits 1 on failure
+```
+
+Where `load-order.js` proves the files *run*, this one drives the admin **Organizations** tab
+(`renderOrgs()` and friends in `js/orgs.js`) against a **fake database** and checks what the page
+actually says and writes:
+
+- a number it cannot know is drawn as **"—", never as 0** — a suspended club's followers, a roster
+  the admin is not allowed to read, or a result Supabase cut off at its silent 1,000-row cap
+- a club is flagged **Needs attention** only when its roster was really readable, so an admin
+  without access is never told a healthy club has no officers
+- suspending **requires a reason**, and the reason plus any note reaches the activity log
+- a write that security rules silently filter to zero rows is **reported as refused**, not as done
+- **Add a club** says plainly when the club was created but its first officer was not
+- an organization name cannot inject markup
+
+It loads every `js/` file except `boot.js` into one scope, like the browser, with a small fake page
+that creates elements whenever `innerHTML` containing `id="…"` is assigned.
+
+### What it will and will not catch
+- **Will:** the page's logic — counts, flags, the suspend and create flows, what gets written.
+- **Will not:** layout, CSS, or the real database's security rules. The fake database answers the
+  way the rules are *written* to answer; whether Supabase actually enforces them is proven by the
+  `sql/…_verify_*.sql` files, not here.
