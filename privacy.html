@@ -133,6 +133,8 @@
   <table>
     <tr><th>Category</th><th>Examples</th></tr>
     <tr><td>Account &amp; identity</td><td>Your <code>@caldwell.edu</code> email, first and last name, username, and display name — plus, if you add them, a profile photo, bio, pronouns, major, and class year. We also record when you accepted our Terms and which version you accepted.</td></tr>
+    <tr><td>Signing in with Google</td><td>You sign up with your <code>@caldwell.edu</code> Google account. When you do, Google tells us your name, your email address, a link to your Google profile picture, and an ID number for your Google account. We use your name to fill in your Nestrel profile, which you can change. The picture link is kept with your sign-in record but isn't shown anywhere in Nestrel. We never see your Google password, and we get no access to your Gmail, Google Drive, contacts, or anything else in your Google account.</td></tr>
+    <tr><td>Your Nestrel password</td><td>You also set a Nestrel password, so you can log in with your email instead of Google. It is stored by Supabase in scrambled (hashed) form: nobody at Nestrel can read it.</td></tr>
     <tr><td>Listings &amp; content</td><td>Items and textbooks you post, photos you upload, prices, descriptions, and course details.</td></tr>
     <tr><td>Messages</td><td>Messages you send and receive through the platform, and when they were read.</td></tr>
     <tr><td>Clubs &amp; organizations</td><td>Clubs you follow or join, your role in a club (for example, officer), posts you publish for a club, and your votes in club polls.</td></tr>
@@ -259,11 +261,16 @@
       <td>Provides the AI model behind NestBot.</td>
       <td>Text you send to NestBot when you use it.</td>
     </tr>
+    <tr>
+      <td><strong>Google</strong></td>
+      <td>Lets you sign up and log in with your <code>@caldwell.edu</code> Google account, and confirms that the address is really yours.</td>
+      <td>Your name, email address, profile picture link, and Google account ID, sent to us when you choose "Continue with Google". Google also knows that you signed in to Nestrel.</td>
+    </tr>
   </table>
   <p>
     We use these providers only to run Nestrel, and we don't give them your information for any
     other purpose. How they handle data is also governed by their own privacy and security
-    terms, and we encourage you to review Supabase's and Anthropic's privacy policies. We'll
+    terms, and we encourage you to review Supabase's, Anthropic's, and Google's privacy policies. We'll
     update this section before we start using a new provider that handles your personal
     information.
   </p>
@@ -322,7 +329,8 @@
     <li><strong>Encryption:</strong> data is encrypted in transit (HTTPS) and at rest by our hosting provider, Supabase.</li>
     <li><strong>Access rules enforced by the database:</strong> each account can read only the records it's allowed to see, and those rules are enforced by the database itself — not just by the app's screens.</li>
     <li><strong>Limited extra access:</strong> only accounts we've given an admin role get administrator access. Club officer permissions (managing events, checking people in, viewing analytics) are granted one at a time.</li>
-    <li><strong>Verified accounts:</strong> the database only accepts sign-ups from approved university email domains, and every email address must be confirmed.</li>
+    <li><strong>Verified accounts:</strong> new accounts can only be created with a <code>@caldwell.edu</code> Google account, so Google confirms that the address belongs to you. The database itself refuses sign-ups from any other domain. (Accounts created before Google sign-in confirmed their address by email.)</li>
+    <li><strong>Passwords:</strong> any new password must be at least 8 characters, and passwords are stored only in scrambled (hashed) form.</li>
     <li><strong>Logging:</strong> moderation decisions and data exports are recorded in an activity log.</li>
   </ul>
   <p>
