@@ -160,55 +160,96 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .auth-card-title{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;}
 .auth-card-body{font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 20px;}
 .auth-card-field{text-align:left;}
-.auth-card-back{background:none;border:none;font-size:13px;color:var(--text-faint);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:14px;}
+/* ============================================================
+   AUTH PAGES — log in, sign up, and the Google setup steps (2026-09-23)
+   Built from the Nestrel Redesign canvas (LogIn + SignUp boards). Every class is prefixed
+   ap- ("auth page") so nothing here can reach another screen.
+   Login and signup are still .modal-overlay elements (so openModal/closeModal/switchModal
+   work unchanged); .auth-page turns the overlay into a page. The setup steps use the older
+   .auth-screen shell (fixed, above everything, shown with .is-on).
+============================================================ */
+.modal-overlay.auth-page{background:var(--bg);padding:0;z-index:550;align-items:stretch;justify-content:stretch;}
+/* .ap fills the whole overlay so there is no backdrop left to click: utils.js closes any
+   overlay whose own background is clicked, which on a full page would feel like a bug. */
+.ap{flex:1;width:100%;min-height:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;background:var(--bg);}
+.ap > *{width:100%;max-width:440px;}
+.ap-top{flex:none;height:56px;display:flex;align-items:center;padding:0 6px;}
+.ap-back{flex:none;width:40px;height:40px;border:none;background:none;border-radius:50%;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.ap-back:hover{background:var(--bg-alt);}
+.ap-step{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--text-muted);}
+.ap-top-spacer{flex:none;width:40px;}
+.ap-bars{display:flex;gap:6px;padding:0 18px 4px;}
+.ap-bars span{flex:1;height:4px;border-radius:2px;background:var(--border);}
+.ap-bars span.on{background:var(--brand);}
+.ap-body{flex:1 0 auto;display:flex;flex-direction:column;gap:22px;padding:14px 24px 28px;}
+.ap-stack{display:flex;flex-direction:column;gap:18px;}
+.ap-stack.is-hidden{display:none;}
+.ap .login-error{margin:0;}
+.ap .divider{margin:0;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;}
+.ap a{color:var(--accent-warm);font-weight:600;cursor:pointer;text-decoration:none;}
+.ap a:hover{text-decoration:underline;text-underline-offset:2px;}
 
-/* "Continue with Google" — signup and login modals. Neutral surface with the four-colour G,
-   the way Google's sign-in guidelines ask; never recoloured to the brand green. */
-.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow-xs);}
-.btn-google:hover{background:var(--bg);border-color:var(--text-faint);box-shadow:var(--shadow-sm);}
+.ap-wordmark{text-align:center;font-family:'DM Serif Display',Georgia,serif;font-size:23px;color:var(--brand);letter-spacing:-.3px;}
+.ap-wordmark span{color:var(--accent-ink);}
+.ap-head{display:flex;flex-direction:column;gap:7px;}
+.ap-h1{font-family:'DM Serif Display',Georgia,serif;font-size:28px;line-height:1.14;color:var(--text);}
+.ap-sub{font-size:14px;line-height:1.55;color:var(--text-muted);}
+.ap-sub strong{color:var(--text);font-weight:600;overflow-wrap:anywhere;}
+
+/* The avatar + name block: "welcome back" on login, the live preview on setup. */
+.ap-known,.ap-preview{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;}
+.ap-avatar{width:82px;height:82px;border-radius:50%;background-color:var(--brand-light);background-size:cover;background-position:center;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',Georgia,serif;font-size:30px;}
+.ap-hello{font-family:'DM Serif Display',Georgia,serif;font-size:25px;line-height:1.2;color:var(--text);overflow-wrap:anywhere;}
+.ap-handle{margin-top:4px;font-size:13px;color:var(--text-muted);overflow-wrap:anywhere;}
+.ap-photo{position:relative;padding:0;border:none;background:none;border-radius:50%;cursor:pointer;}
+.ap-photo:disabled{cursor:default;}
+.ap-photo-plus{position:absolute;right:0;bottom:0;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px var(--bg);}
+.ap-photo:disabled .ap-photo-plus{display:none;}
+
+/* Login: known device vs fresh device (see the comment on #loginModal). */
+#loginModal:not(.is-known) #lKnown{display:none;}
+#loginModal.is-known #lFreshHead{display:none;}
+#loginModal.is-known #lEmailField{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+.ap-field{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.ap-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ap-lbl{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);}
+.ap-opt{font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-faint);}
+.ap-input{width:100%;height:50px;padding:0 15px;background:var(--surface);border:1px solid var(--border);border-radius:13px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;}
+.ap-input::placeholder{color:var(--text-faint);}
+.ap-input:focus{border-color:#c6d3c9;box-shadow:0 0 0 3px rgba(62,122,92,.12);}
+select.ap-input{cursor:pointer;}
+.ap-textarea{height:auto;min-height:88px;padding:13px 15px;line-height:1.5;resize:vertical;}
+.ap-pw,.ap-at{position:relative;}
+.ap-pw .ap-input{padding-right:52px;}
+.ap-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:none;background:none;border-radius:50%;color:var(--text-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.ap-eye:hover{color:var(--text);}
+.ap-at > span{position:absolute;left:15px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--text-muted);pointer-events:none;}
+.ap-at .ap-input{padding-left:31px;}
+.ap-hint{font-size:12.5px;color:var(--text-muted);}
+.ap-hint.is-ok{color:var(--cat-housing-text);font-weight:600;}
+.ap-hint.is-bad{color:var(--danger);font-weight:600;}
+.ap-count{text-align:right;}
+.ap-forgot{display:flex;justify-content:flex-end;font-size:13px;}
+.ap-check{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.55;color:var(--cat-other-text);cursor:pointer;}
+.ap-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--brand);cursor:pointer;}
+
+.ap-pill{width:100%;height:54px;display:flex;align-items:center;justify-content:center;gap:9px;border:none;border-radius:var(--radius-pill);background:var(--brand);color:#fff;font-family:'DM Sans',sans-serif;font-size:15.5px;font-weight:600;cursor:pointer;transition:background .15s;}
+.ap-pill:hover{background:var(--brand-mid);}
+.ap-pill:disabled{opacity:.6;cursor:default;}
+/* "Continue with Google": neutral surface with the four-colour G, as Google's sign-in
+   guidelines ask — never recoloured to the brand green. */
+.ap-google{width:100%;height:52px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #dfd6c7;border-radius:var(--radius-pill);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s;}
+.ap-google:hover{background:var(--bg-alt);}
 .google-g{width:18px;height:18px;flex-shrink:0;}
-
-/* Shared field pieces for the login and finish screens. These replaced the inline styles
-   those fields used to carry. */
-.input-at-wrap{position:relative;}
-.input-at{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none;}
-.form-input.input-at-field{padding-left:26px;}
-.pw-field{position:relative;}
-.pw-field .form-input{padding-right:60px;}
-.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;}
-.field-hint{font-size:11px;color:var(--text-faint);margin-top:4px;}
-.label-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
-.label-row .form-label{margin-bottom:0;}
-.label-row-link{font-size:12px;color:var(--brand);cursor:pointer;font-weight:500;}
-
-/* The polish pass on the auth screens, 2026-09-23: signup + login pop-ups (.auth-modal)
-   and the Google finish screen (.auth-card-form). Scoped to those classes on purpose, so
-   no other pop-up in the app moves. */
-.auth-modal{max-width:440px;box-shadow:var(--shadow-lg);}
-.auth-modal .modal-header{padding:28px 28px 0;align-items:flex-start;gap:12px;}
-.auth-sub{margin:4px 0 0;font-size:13.5px;color:var(--text-muted);line-height:1.5;}
-.auth-modal .modal-body{padding:22px 28px 26px;}
-.auth-modal .form-input,.auth-modal .form-select,
-.auth-card-form .form-input,.auth-card-form .form-select{padding-top:12px;padding-bottom:12px;}
-.auth-modal .btn-full,.auth-card-form .btn-full{padding:13px;}
-.auth-modal .divider{margin:18px 0;font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
-.auth-modal .agree-row,.auth-card-form .agree-row{font-size:12.5px;}
-.auth-modal .switch-link{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
-.auth-card-form{padding:32px 30px;box-shadow:var(--shadow-md);}
-/* Signup pop-up: the line under the Google button, and the waitlist link below it. */
-.auth-fine{margin:14px 0 0;font-size:13px;line-height:1.6;color:var(--text-muted);text-align:center;}
-.auth-fine strong{color:var(--text);font-weight:600;}
-.auth-aside{margin-top:14px;text-align:center;font-size:13px;}
-.auth-aside a{color:var(--text-muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
-.auth-aside a:hover{color:var(--brand);}
-.auth-step{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-light);margin-bottom:6px;}
-.google-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:7px 14px;margin:0 0 22px;border:1px solid var(--border);border-radius:999px;background:var(--bg);font-size:13px;font-weight:500;color:var(--text);overflow-wrap:anywhere;}
-.google-chip .google-g{width:15px;height:15px;}
-@media(max-width:480px){
-  .auth-modal .modal-header{padding:22px 20px 0;}
-  .auth-modal .modal-body{padding:18px 20px 22px;}
-  .auth-card-form{padding:26px 20px;}
-}
+.ap-note{display:flex;gap:11px;padding:13px 15px;border-radius:13px;background:var(--brand-pale);color:var(--cat-housing-text);font-size:12.5px;line-height:1.55;}
+.ap-note svg{flex:none;margin-top:1px;}
+.ap-footnote{font-size:12.5px;color:var(--text-muted);text-align:center;}
+.ap-aside{font-size:13.5px;text-align:center;}
+.ap .login-notyou{margin-top:0;font-size:13.5px;}
+.ap .login-notyou a{color:var(--accent-warm);text-decoration:none;}
+.ap-foot{flex:none;width:calc(100% - 48px);max-width:392px;margin:0 24px 24px;padding-top:14px;border-top:1px solid var(--border);font-size:14px;color:var(--cat-other-text);text-align:center;}
+@media(min-width:769px){ .ap-body{padding-top:32px;} }
 
 .is-hidden{display:none !important;}
 

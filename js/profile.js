@@ -35,7 +35,7 @@ function showWaitlistPanel() {
 
 function hideWaitlistPanel() {
   document.getElementById('waitlistPanel').style.display = 'none';
-  document.getElementById('signupMain').style.display    = 'block';
+  document.getElementById('signupMain').style.display    = ''; // '' = back to the stylesheet's flex layout
 }
 
 // Called by openModal('signupModal'), so the pop-up always opens on the Google button
@@ -43,7 +43,7 @@ function hideWaitlistPanel() {
 function resetSignupModal() {
   ['wEmail','wSchoolName'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const wRole = document.getElementById('wRole'); if (wRole) wRole.value = '';
-  [['signupMain','block'],['waitlistPanel','none'],['waitlistSuccess','none']]
+  [['signupMain',''],['waitlistPanel','none'],['waitlistSuccess','none']]
     .forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.style.display = v; });
   ['signupErr','waitlistErr'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const wb = document.getElementById('waitlistSubmitBtn');

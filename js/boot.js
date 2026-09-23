@@ -123,7 +123,7 @@ if (!adminPreviewMode && !_recoveryMode) {
   if (applyMaintenance()) return;
   updateSNav();
   loadFavorites(true);   // stars need the set; see enterStudentSession() for why it is early
-  rememberUser(profile.first_name, profile.email || session.user.email); // keep the hint fresh
+  rememberUser(profile, session.user.email); // keep the hint fresh
   // STATE A — valid session. Invisible reload: return to the page the student was on before
   // the browser reloaded the tab, and otherwise go straight to the feed. That `else` is the
   // fix: without it, a signed-in student with no cn_last_page (i.e. anyone reopening the app

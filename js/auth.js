@@ -113,11 +113,18 @@ async function sLogout() {
   toast('Logged out');
 }
 
+// Two button styles: the eye icon on the auth pages (.ap-eye), and the older "Show"/"Hide"
+// text button that other screens still use.
 function togglePassword(inputId, btn) {
   const input = document.getElementById(inputId);
   const showing = input.type === 'text';
   input.type = showing ? 'password' : 'text';
-  btn.textContent = showing ? 'Show' : 'Hide';
+  if (btn.classList.contains('ap-eye')) {
+    btn.innerHTML = icon(showing ? 'eye' : 'eyeOff', 18);
+    btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  } else {
+    btn.textContent = showing ? 'Show' : 'Hide';
+  }
 }
 
 // ---- Password reset ----
@@ -149,7 +156,7 @@ async function forgotPassword() {
   if (label) label.textContent = email; // textContent, not innerHTML — this is user input
   document.querySelector('#loginModal form')?.classList.add('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.add('is-hidden');
-  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.add('is-hidden'));
+  ['lGoogleBtn','lGoogleOr','lFreshHead'].forEach(id => document.getElementById(id)?.classList.add('is-hidden'));
   document.getElementById('lNotYou')?.classList.remove('is-on');
   document.getElementById('lResetSent')?.classList.add('is-on');
 }
@@ -159,7 +166,7 @@ function backToLogin() {
   document.getElementById('lResetSent')?.classList.remove('is-on');
   document.querySelector('#loginModal form')?.classList.remove('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
-  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
+  ['lGoogleBtn','lGoogleOr','lFreshHead'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
   prepLoginModal();
 }
 
@@ -323,57 +330,137 @@ async function suggestUsername(email) {
   return '';
 }
 
-let _gfUser = null;
+// ---- The setup page: steps 2 and 3 of signup (#googleFinishScreen) ----
+// Step 2 (required) creates the login: name, username, password, consent. Step 3 (optional)
+// personalises the profile and can be skipped. The avatar and name at the top are a live
+// preview of what classmates will see, updated as the student types.
+let _gfUser = null;            // { id, email, school, schoolName } for the student being set up
+let _gfPhotoFile = null;       // a photo picked on step 3, uploaded only when they press Finish
+let _gfUsernameTimer = null;
 
 async function showGoogleFinishScreen(user, profile) {
-  _gfUser = { id: user.id, email: profile.email || user.email, school: profile.school };
+  _gfUser = { id: user.id, email: profile.email || user.email, school: profile.school, schoolName: null };
+  _gfPhotoFile = null;
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('gfEmail').textContent = _gfUser.email;
   document.getElementById('gfFirst').value = profile.first_name || '';
   document.getElementById('gfLast').value  = profile.last_name  || '';
+  document.getElementById('gfAvatar').style.backgroundColor = profile.color || '';
+  gfShowStep(2);
   document.getElementById('googleFinishScreen').classList.add('is-on');
   // The session token may still be in the address bar; a refresh must not replay it.
   history.replaceState(null, '', window.location.pathname + window.location.search);
-  // Screen first, suggestion second: it takes a network round trip, and an empty field for
-  // a moment beats a blank page. Only filled if the student has not started typing one.
-  const suggestion = await suggestUsername(_gfUser.email);
+  gfPreview();
+  // Screen first, then the two lookups: each takes a network round trip, and a moment of
+  // empty field beats a blank page. The suggestion only fills a field nobody has typed in.
+  const [suggestion] = await Promise.all([suggestUsername(_gfUser.email), loadSchools()]);
+  _gfUser.schoolName = (_schoolsList.find(s => s.slug === _gfUser.school) || {}).name || null;
   const u = document.getElementById('gfUsername');
-  if (u && !u.value) u.value = suggestion;
+  if (u && !u.value && suggestion) { u.value = suggestion; gfUsernameInput(suggestion); }
+  gfPreview();
+}
+
+function gfShowStep(n) {
+  document.getElementById('gfStepAccount').classList.toggle('is-hidden', n !== 2);
+  document.getElementById('gfStepProfile').classList.toggle('is-hidden', n !== 3);
+  document.getElementById('gfStepLabel').textContent = 'Step ' + n + ' of 3';
+  document.getElementById('gfBar3').classList.toggle('on', n === 3);
+  // The photo is part of step 3 only, so it is saved (or skipped) with the rest of it.
+  document.getElementById('gfPhotoBtn').disabled = n !== 3;
+  document.getElementById('googleFinishScreen').scrollTo(0, 0);
+}
+
+// The live preview: display name if they've given one, otherwise their real name, and the
+// handle underneath — the same order a classmate sees on their profile.
+function gfPreview() {
+  const first = document.getElementById('gfFirst').value.trim();
+  const last  = document.getElementById('gfLast').value.trim();
+  const shown = document.getElementById('gfDisplayName').value.trim() || [first, last].filter(Boolean).join(' ');
+  const username = document.getElementById('gfUsername').value.trim().toLowerCase();
+  // textContent throughout: every one of these was typed by the student.
+  document.getElementById('gfPreviewName').textContent = shown || 'Your name';
+  document.getElementById('gfPreviewHandle').textContent =
+    [username ? '@' + username : null, _gfUser?.schoolName].filter(Boolean).join(' · ');
+  if (!_gfPhotoFile) {
+    const initials = ((first[0] || '') + (last[0] || '')).toUpperCase() || '?';
+    const av = document.getElementById('gfAvatar');
+    paintAvatarEl(av, null, initials, av.style.backgroundColor);
+  }
+}
+
+// Live "Available" / "Taken" under the username, 400ms after they stop typing. Only a hint:
+// submitGoogleFinish() checks again, and the database's unique index has the last word.
+function gfUsernameInput(raw) {
+  const el  = document.getElementById('gfUsernameStatus');
+  const val = String(raw || '').trim().toLowerCase();
+  const say = (text, cls) => { el.textContent = text; el.className = 'ap-hint' + (cls ? ' ' + cls : ''); };
+  clearTimeout(_gfUsernameTimer);
+  gfPreview();
+  if (!val) { say('3–20 characters. Letters, numbers, and underscores only.'); return; }
+  if (!USERNAME_RE.test(val)) { say('3–20 characters. Letters, numbers, and underscores only.', 'is-bad'); return; }
+  if (RESERVED_USERNAMES.has(val)) { say('That username is reserved.', 'is-bad'); return; }
+  say('Checking…');
+  _gfUsernameTimer = setTimeout(async () => {
+    const { data } = await supabaseClient.rpc('check_username_available', { username_to_check: val });
+    if (document.getElementById('gfUsername').value.trim().toLowerCase() !== val) return; // they kept typing
+    if (data === false) say('Taken — try another.', 'is-bad');
+    else say('✓ Available', 'is-ok');
+  }, 400);
+}
+
+function gfBioCount() {
+  document.getElementById('gfBioCount').textContent = document.getElementById('gfBio').value.length + ' / 150';
+}
+
+// Same checks as pickAvatar() in media.js, which is wired to the Edit Profile screen.
+function pickSetupPhoto(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const isHEIC = file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name);
+  if (isHEIC) { toast('HEIC photos aren\'t supported yet — please choose a JPEG or PNG.'); return; }
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file (JPEG, PNG, or WebP).'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('That photo is over 10 MB — please choose a smaller one.'); return; }
+  _gfPhotoFile = file;
+  paintAvatarEl(document.getElementById('gfAvatar'), URL.createObjectURL(file), null, null);
 }
 
 function hideGoogleFinishScreen() {
   document.getElementById('googleFinishScreen').classList.remove('is-on');
   document.getElementById('studentApp').style.display = '';
-  ['gfPass', 'gfPass2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['gfPass', 'gfUsername', 'gfDisplayName', 'gfBio', 'gfPronouns', 'gfMajor', 'gfYear']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('gfAgree').checked = false;
+  ['gfErr', 'gfProfileErr'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  _gfPhotoFile = null;
+  gfShowStep(2);
 }
 
+// Step 2 → the account exists. Moves on to step 3 instead of into the app.
 async function submitGoogleFinish() {
   const first    = document.getElementById('gfFirst').value.trim();
   const last     = document.getElementById('gfLast').value.trim();
   const username = document.getElementById('gfUsername').value.trim().toLowerCase();
   const pass     = document.getElementById('gfPass').value;
-  const pass2    = document.getElementById('gfPass2').value;
-  const major    = document.getElementById('gfMajor').value.trim();
-  const year     = document.getElementById('gfYear').value;
   const err      = document.getElementById('gfErr');
   const btn      = document.getElementById('gfSubmitBtn');
+  const label    = btn.querySelector('span');
   const showErr  = msg => { err.textContent = msg; err.style.display = 'block'; };
   err.style.display = 'none';
 
   // The rules match the database's: username_format and the unique index on profiles.username.
-  if (!first || !last) { showErr('Please enter your name.'); return; }
+  if (!first || !last) { showErr('Please enter your first and last name.'); return; }
   if (!username) { showErr('Please choose a username.'); return; }
   if (!USERNAME_RE.test(username)) { showErr('Username must be 3–20 characters: letters, numbers, and underscores only.'); return; }
   if (RESERVED_USERNAMES.has(username)) { showErr('That username is reserved. Please choose another.'); return; }
   if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
-  if (pass !== pass2) { showErr('The two passwords don\'t match.'); return; }
   if (!document.getElementById('gfAgree').checked) {
-    showErr('Please confirm you are 18+ and agree to the Terms & Conditions and Privacy Policy.');
+    showErr('Please confirm you are 18+ and agree to the Terms and Privacy Policy.');
     return;
   }
   if (!_gfUser) { showErr('Your Google sign-in has expired. Please cancel and try again.'); return; }
 
-  btn.disabled = true; btn.textContent = 'Creating account…';
+  btn.disabled = true; label.textContent = 'Creating your account…';
   try {
     const { data: usernameFree } = await supabaseClient.rpc('check_username_available', { username_to_check: username });
     if (usernameFree === false) { showErr('That username is already taken. Please choose another.'); return; }
@@ -387,9 +474,10 @@ async function submitGoogleFinish() {
 
     // Consent's timestamp is set by the database with now(); only the VERSION is sent.
     // A time supplied by the browser is a number the sender picked; a server clock isn't.
+    // Major and year are saved on step 3 instead, with the rest of the profile.
     const { error } = await supabaseClient.rpc('complete_google_signup', {
       p_first: first, p_last: last, p_username: username,
-      p_major: major || null, p_year: year || null, p_terms_version: TERMS_VERSION
+      p_major: null, p_year: null, p_terms_version: TERMS_VERSION
     });
     if (error) {
       // 23505 = unique violation: someone took the username between the check and now.
@@ -397,20 +485,60 @@ async function submitGoogleFinish() {
       return;
     }
 
-    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', _gfUser.id).single();
-    if (!profile) { showErr('Your account was created but could not be loaded. Please refresh the page.'); return; }
-
-    logEvent('student_signup', { targetType: 'student', targetId: _gfUser.id, targetLabel: first + ' ' + last, school: profile.school });
-    hideGoogleFinishScreen();
-    _gfUser = null;
-    await enterStudentSession(profile, profile.id, 'Welcome to Nestrel, ' + first + '!');
+    logEvent('student_signup', { targetType: 'student', targetId: _gfUser.id, targetLabel: first + ' ' + last, school: _gfUser.school });
+    document.getElementById('gfPass').value = '';
+    gfShowStep(3);
   } finally {
-    btn.disabled = false; btn.textContent = 'Create account';
+    btn.disabled = false; label.textContent = 'Create my account';
   }
 }
 
-// The account already exists (Google created it), but without a username it can't be used,
-// and the finish screen shows again the next time they continue with Google.
+// Step 3 → saves whatever they filled in, then into the app. Mirrors saveProfile() in
+// profile.js, minus the listing-name refresh: a brand-new account has no listings yet.
+async function submitSetupProfile() {
+  const err   = document.getElementById('gfProfileErr');
+  const btn   = document.getElementById('gfProfileBtn');
+  const label = btn.querySelector('span');
+  const showErr = msg => { err.textContent = msg; err.style.display = 'block'; };
+  err.style.display = 'none';
+  if (!_gfUser) { showErr('Your session has expired. Please refresh the page.'); return; }
+
+  const updates = {
+    display_name: document.getElementById('gfDisplayName').value.trim() || null,
+    bio:          document.getElementById('gfBio').value.trim() || null,
+    pronouns:     document.getElementById('gfPronouns').value.trim() || null,
+    major:        document.getElementById('gfMajor').value.trim() || null,
+    year:         document.getElementById('gfYear').value || null
+  };
+
+  btn.disabled = true; label.textContent = 'Saving…';
+  try {
+    if (_gfPhotoFile) {
+      try {
+        const blob = await resizeImage(_gfPhotoFile);
+        updates.avatar_url = await uploadAvatar(blob, _gfUser.id);
+      } catch (e) { console.error('[setup photo upload]', e); showErr('Could not upload your photo — try again, or skip it for now.'); return; }
+    }
+    const { error } = await supabaseClient.from('profiles').update(updates).eq('id', _gfUser.id);
+    if (error) { showErr('Could not save — ' + error.message); return; }
+    await finishSetup();
+  } finally {
+    btn.disabled = false; label.textContent = 'Finish';
+  }
+}
+
+async function skipSetupProfile() { await finishSetup(); }
+
+async function finishSetup() {
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', _gfUser.id).single();
+  if (!profile) { toast('Your account is ready, but could not be loaded. Please refresh the page.'); return; }
+  hideGoogleFinishScreen();
+  _gfUser = null;
+  await enterStudentSession(profile, profile.id, 'Welcome to Nestrel, ' + (profile.display_name || profile.first_name) + '!');
+}
+
+// Only reachable from step 2. The account already exists (Google created it), but without a
+// username it can't be used, and this screen shows again next time they continue with Google.
 async function cancelGoogleFinish() {
   await supabaseClient.auth.signOut();
   _gfUser = null;
@@ -499,7 +627,7 @@ async function doLogin() {
 // Shared post-authentication student setup — everything that must happen once a
 // student is confirmed signed in, kept in one place so login and signup can't drift.
 async function enterStudentSession(profile, userId, welcomeMsg) {
-  rememberUser(profile.first_name, profile.email);
+  rememberUser(profile);
   sUser = {
     id: userId, first: profile.first_name, last: profile.last_name,
     name: profile.first_name + ' ' + profile.last_name,
@@ -699,10 +827,20 @@ async function aNotifyStudent(profileId, type, message) {
 // it can't sign anyone in, and every screen still checks the real session.
 const PRIOR_USER_KEY = 'cn_prior_user';
 
-function rememberUser(first, email) {
+// Pass the profile row. Since 2026-09-23 the hint also keeps what the "welcome back" header
+// draws — initials, colour, photo, username, school — and still nothing that could sign
+// anyone in. Everything here is already on the student's public profile except the email.
+function rememberUser(profile, emailFallback) {
+  const first = profile?.first_name || null;
+  const email = profile?.email || emailFallback || null;
   if (!first && !email) return;
   try {
-    localStorage.setItem(PRIOR_USER_KEY, JSON.stringify({ first: first || null, email: email || null }));
+    localStorage.setItem(PRIOR_USER_KEY, JSON.stringify({
+      first, email,
+      initials: profile?.initials || null, color: profile?.color || null,
+      avatar_url: profile?.avatar_url || null, username: profile?.username || null,
+      school: profile?.school || null
+    }));
   } catch (e) { /* private mode / quota — a greeting is optional, never break sign-in over it */ }
 }
 
@@ -725,7 +863,7 @@ function prepLoginModal() {
   document.getElementById('lResetSent')?.classList.remove('is-on');
   document.querySelector('#loginModal form')?.classList.remove('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
-  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
+  ['lGoogleBtn','lGoogleOr','lFreshHead'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
   const prior = getPriorUser();
   if (prior) applyWelcomeBack(prior); else resetLoginModal();
 }
@@ -737,11 +875,26 @@ function applyWelcomeBack(prior) {
   const emailInput = document.getElementById('lEmail');
   if (emailInput && prior.email) emailInput.value = prior.email; // only the password left to type
   document.getElementById('lNotYou')?.classList.add('is-on');
+  // The "known device" look hides the email field, so it needs an email to have filled in.
+  if (!prior.email) return;
+  document.getElementById('loginModal').classList.add('is-known');
+  const initials = prior.initials || (prior.first || '?')[0].toUpperCase();
+  paintAvatarEl(document.getElementById('lKnownAvatar'), prior.avatar_url, initials, prior.color || '');
+  // A hint saved before 2026-09-23 has no username; the email is the honest fallback.
+  const handle = document.getElementById('lKnownHandle');
+  const setHandle = schoolName => {
+    handle.textContent = prior.username
+      ? ['@' + prior.username, schoolName].filter(Boolean).join(' · ')
+      : prior.email;
+  };
+  setHandle(null);
+  if (prior.school) loadSchools().then(() => setHandle((_schoolsList.find(s => s.slug === prior.school) || {}).name));
 }
 
 function resetLoginModal() {
   const title = document.getElementById('loginModalTitle');
   if (title) title.textContent = 'Welcome back';
+  document.getElementById('loginModal')?.classList.remove('is-known');
   document.getElementById('lNotYou')?.classList.remove('is-on');
   const email = document.getElementById('lEmail'); if (email) email.value = '';
   const pass  = document.getElementById('lPass');  if (pass)  pass.value  = '';

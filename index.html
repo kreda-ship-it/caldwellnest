@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-23c">
+<link rel="stylesheet" href="styles.css?v=2026-09-23d">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1210,22 +1210,33 @@
 <!-- ============================================================
      SHARED MODALS
 ============================================================ -->
-<!-- SIGNUP -->
-<div class="modal-overlay" id="signupModal">
-  <div class="modal auth-modal"><div class="modal-header"><div><div class="modal-title">Create your account</div><p class="auth-sub">For Caldwell University students. Takes about a minute.</p></div><button class="modal-close" onclick="closeModal('signupModal')">&#215;</button></div>
-  <div class="modal-body">
+<!-- SIGN UP — a full page since 2026-09-23, after the Nestrel Redesign canvas (SignUp board).
+     Still a .modal-overlay, so openModal / closeModal / switchModal work on it unchanged. .ap fills
+     the WHOLE overlay on purpose: utils.js closes an overlay when you click the overlay itself,
+     and a full page has no backdrop that clicking should close.
+     Google is the only way to create an account. Caldwell-only is enforced twice:
+     signInWithGoogle() asks Google for @caldwell.edu accounts, and handle_new_user() in the
+     database refuses any other domain. Steps 2 and 3 are #googleFinishScreen. -->
+<div class="modal-overlay auth-page" id="signupModal">
+  <div class="ap">
+    <div class="ap-top">
+      <button type="button" class="ap-back" onclick="closeModal('signupModal')" aria-label="Back"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></button>
+      <div class="ap-step">Step 1 of 3</div>
+      <span class="ap-top-spacer"></span>
+    </div>
+    <div class="ap-bars"><span class="on"></span><span></span><span></span></div>
+    <div class="ap-body">
 
-    <!-- SIGN UP — Google is the only way to create an account (2026-09-23). Google proves the
-         student owns the address, so there is no verification email; the finish screen after
-         it (#googleFinishScreen) sets the username, password and consent. Caldwell-only is
-         enforced twice: signInWithGoogle() asks Google to offer only @caldwell.edu accounts,
-         and handle_new_user() in the database refuses any other domain. -->
-    <div id="signupMain">
+    <div id="signupMain" class="ap-stack">
+      <div class="ap-head">
+        <div class="ap-h1">Create your account</div>
+        <div class="ap-sub">Nestrel is for Caldwell students. Sign up with your <strong>@caldwell.edu</strong> Google account &mdash; there's no code to type in.</div>
+      </div>
       <div class="login-error" id="signupErr"></div>
-      <button type="button" class="btn-full btn-google" onclick="signInWithGoogle('signup')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
-      <p class="auth-fine">Use your <strong>@caldwell.edu</strong> Google account. Next you'll choose a username and a password, so you can also log in with your email.</p>
-      <div class="auth-aside"><a onclick="showWaitlistPanel()">Not at Caldwell? Join the waitlist &#8594;</a></div>
-      <div class="switch-link">Already have an account? <a onclick="switchModal('signupModal','loginModal')">Log in</a></div>
+      <button type="button" class="ap-google" onclick="signInWithGoogle('signup')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
+      <div class="ap-note"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z"/><polyline points="9 12 11 14 15 10"/></svg><span>Google confirms your school address. We use it to sign you in, and it's never shown on your profile or in listings.</span></div>
+      <div class="ap-footnote">Next, you'll choose a username and a password.</div>
+      <div class="ap-aside"><a onclick="showWaitlistPanel()">Not at Caldwell? Join the waitlist &#8594;</a></div>
     </div>
 
     <!-- WAITLIST PANEL (replaces the Google signup block) -->
@@ -1252,38 +1263,60 @@
       <div style="text-align:center;margin-top:14px;"><a onclick="hideWaitlistPanel()" style="font-size:13px;color:var(--text-muted);cursor:pointer;">&#8592; Back to sign up</a></div>
     </div>
 
-  </div></div>
+    </div>
+    <div class="ap-foot">Already have an account? <a onclick="switchModal('signupModal','loginModal')">Log in</a></div>
+  </div>
 </div>
 
-<!-- LOGIN -->
-<div class="modal-overlay" id="loginModal">
-  <div class="modal auth-modal"><div class="modal-header"><div><div class="modal-title" id="loginModalTitle">Welcome back</div><p class="auth-sub">Log in to your Nestrel account.</p></div><button class="modal-close" onclick="closeModal('loginModal')">&#215;</button></div>
-  <div class="modal-body">
-    <!-- A real <form> does two jobs here. It lets Chrome save and update the password
-         properly, and — because Chrome lumps every input NOT inside a form into one
-         synthetic page-wide form — it takes these credential fields out of that pool.
-         That pool is what was pairing the saved email with the listings search box.
-         onsubmit is the single entry point: the button is type="submit" rather than
-         carrying its own onclick, so Enter and clicking cannot both fire doLogin(). -->
-    <form onsubmit="event.preventDefault();doLogin();return false">
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="lEmail" name="username" autocomplete="username" placeholder="you@university.edu" type="email"></div>
-      <div class="form-group">
-        <div class="label-row">
-          <label class="form-label">Password</label>
-          <a class="label-row-link" onclick="forgotPassword()">Forgot password?</a>
-        </div>
-        <div class="pw-field">
-          <input class="form-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password">
-          <button type="button" class="pw-toggle" onclick="togglePassword('lPass',this)">Show</button>
+<!-- LOG IN — a full page since 2026-09-23, after the Nestrel Redesign canvas (LogIn board). Same
+     .modal-overlay arrangement as the signup page above. Two looks, switched by .is-known on
+     #loginModal (applyWelcomeBack / resetLoginModal in js/auth.js):
+       known — this device remembers someone: their avatar and name, and only a password to type.
+               The email field stays in the form, visually hidden, so password managers still see it.
+       fresh — nobody remembered: email + password.
+     The <form> does two jobs: it lets Chrome save and update the password properly, and it keeps
+     these fields out of the synthetic page-wide form Chrome builds from form-less inputs (which
+     is what once paired the saved email with the listings search box). onsubmit is the single
+     entry point, so Enter and clicking cannot both fire doLogin(). -->
+<div class="modal-overlay auth-page" id="loginModal">
+  <div class="ap">
+    <div class="ap-top">
+      <button type="button" class="ap-back" onclick="closeModal('loginModal')" aria-label="Back"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="20" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></button>
+    </div>
+    <div class="ap-body">
+      <div class="ap-wordmark">Nest<span>rel</span></div>
+
+      <div class="ap-known" id="lKnown">
+        <div class="ap-avatar" id="lKnownAvatar"></div>
+        <div>
+          <div class="ap-hello" id="loginModalTitle">Welcome back</div>
+          <div class="ap-handle" id="lKnownHandle"></div>
         </div>
       </div>
-      <div class="login-error" id="loginErr"></div>
-      <button class="btn-full btn-brand" type="submit">Log in</button>
-    </form>
-    <div class="divider" id="lGoogleOr">or</div>
-    <button type="button" class="btn-full btn-google" id="lGoogleBtn" onclick="signInWithGoogle('login')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
-    <div class="switch-link">New here? <a onclick="switchModal('loginModal','signupModal')">Sign up</a></div>
-    <div class="login-notyou" id="lNotYou">Not you? <a onclick="signInAsSomeoneElse()">Sign in as someone else</a></div>
+      <div class="ap-head" id="lFreshHead">
+        <div class="ap-h1">Log in</div>
+        <div class="ap-sub">Use your <strong>@caldwell.edu</strong> email and Nestrel password, or continue with Google.</div>
+      </div>
+
+      <form class="ap-stack" onsubmit="event.preventDefault();doLogin();return false">
+        <div class="ap-field" id="lEmailField">
+          <label class="ap-lbl" for="lEmail">School email</label>
+          <input class="ap-input" id="lEmail" name="username" autocomplete="username" placeholder="you@caldwell.edu" type="email">
+        </div>
+        <div class="ap-field">
+          <label class="ap-lbl" for="lPass">Password</label>
+          <div class="ap-pw">
+            <input class="ap-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password">
+            <button type="button" class="ap-eye" onclick="togglePassword('lPass',this)" aria-label="Show password"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+          <div class="ap-forgot"><a onclick="forgotPassword()">Forgot password?</a></div>
+        </div>
+        <div class="login-error" id="loginErr"></div>
+        <button class="ap-pill" type="submit">Log in</button>
+      </form>
+      <div class="divider" id="lGoogleOr">or</div>
+      <button type="button" class="ap-google" id="lGoogleBtn" onclick="signInWithGoogle('login')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
+      <div class="login-notyou" id="lNotYou">Not you? <a onclick="signInAsSomeoneElse()">Use another account</a></div>
     <!-- Swaps in place of the form after a reset link is requested. The wording is
          deliberately non-committal about whether the address has an account — see
          forgotPassword() for why. -->
@@ -1293,7 +1326,9 @@
       <p class="reset-sent-body">If <span id="lResetEmail"></span> has an account, we've sent a link to reset your password. It can take a minute — check your spam folder too.</p>
       <button class="btn-full" onclick="backToLogin()">&#8592; Back to log in</button>
     </div>
-  </div></div>
+    </div>
+    <div class="ap-foot switch-link">New to Nestrel? <a onclick="switchModal('loginModal','signupModal')">Create an account</a></div>
+  </div>
 </div>
 
 <!-- SET A NEW PASSWORD — shown when a student returns from a reset email link -->
@@ -1320,59 +1355,87 @@
   </div>
 </div>
 
-<!-- FINISH SIGNING UP — shown once, after a student's first "Continue with Google".
-     Google gives us a verified email and a name; this collects the rest. See
-     showGoogleFinishScreen() in js/auth.js. -->
+<!-- SET UP YOUR ACCOUNT — steps 2 and 3 of signup, shown once after a student's first
+     "Continue with Google" (step 1). After the Nestrel Redesign canvas (SignUp board, "Set up your
+     profile"). See showGoogleFinishScreen() in js/auth.js.
+       Step 2 (required): name, username, password, consent -> complete_google_signup().
+       Step 3 (optional, skippable): photo, display name, bio, pronouns, major, year.
+     The avatar and name at the top are a live preview of what classmates will see. -->
 <div class="auth-screen" id="googleFinishScreen">
-  <div class="auth-screen-inner">
-    <div class="auth-screen-card-wrap">
-      <div class="auth-brand">Nest<span>rel</span></div>
-      <div class="auth-card auth-card-form">
-        <div class="auth-step">Last step</div>
-        <div class="auth-card-title">Finish signing up</div>
-        <p class="auth-card-body">A few details Google doesn't share with us, and you're in.</p>
-        <div class="google-chip"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span id="gfEmail"></span></div>
-        <form class="auth-card-field" onsubmit="event.preventDefault();submitGoogleFinish();return false">
-          <div class="form-row-2">
-            <div class="form-group"><label class="form-label">First name</label><input class="form-input" id="gfFirst" autocomplete="off"></div>
-            <div class="form-group"><label class="form-label">Last name</label><input class="form-input" id="gfLast" autocomplete="off"></div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Username <span class="label-hint">— your @handle</span></label>
-            <div class="input-at-wrap">
-              <span class="input-at">@</span>
-              <input class="form-input input-at-field" id="gfUsername" autocomplete="off">
-            </div>
-            <div class="field-hint">3–20 characters. Letters, numbers, and underscores only.</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Create a password</label>
-            <div class="pw-field">
-              <input class="form-input" id="gfPass" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" type="password">
-              <button type="button" class="pw-toggle" onclick="togglePassword('gfPass',this)">Show</button>
-            </div>
-            <div class="field-hint">So you can also log in with your email and password.</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Confirm password</label>
-            <input class="form-input" id="gfPass2" name="new-password" autocomplete="new-password" type="password">
-          </div>
-          <div class="form-row-2">
-            <div class="form-group"><label class="form-label">Major <span class="label-hint">(optional)</span></label><input class="form-input" id="gfMajor" placeholder="Nursing" autocomplete="off"></div>
-            <div class="form-group"><label class="form-label">Year <span class="label-hint">(optional)</span></label><select class="form-select" id="gfYear"><option value="">— select —</option><option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option><option>Graduate</option></select></div>
-          </div>
-          <label class="agree-row">
-            <input type="checkbox" id="gfAgree">
-            <span>I'm 18+ and I agree to the
-              <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and
-              <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
-            </span>
-          </label>
-          <div class="login-error" id="gfErr"></div>
-          <button class="btn-full btn-brand" type="submit" id="gfSubmitBtn">Create account</button>
-        </form>
-        <button type="button" class="auth-card-back" onclick="cancelGoogleFinish()">Cancel and sign out</button>
+  <div class="ap">
+    <div class="ap-top">
+      <span class="ap-top-spacer"></span>
+      <div class="ap-step" id="gfStepLabel">Step 2 of 3</div>
+      <span class="ap-top-spacer"></span>
+    </div>
+    <div class="ap-bars"><span class="on"></span><span class="on"></span><span id="gfBar3"></span></div>
+    <div class="ap-body">
+
+      <div class="ap-preview">
+        <button type="button" class="ap-photo" id="gfPhotoBtn" onclick="document.getElementById('gfPhotoInput').click()" aria-label="Add a profile photo" disabled>
+          <span class="ap-avatar" id="gfAvatar"></span>
+          <span class="ap-photo-plus"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </button>
+        <input type="file" id="gfPhotoInput" class="is-hidden" accept="image/jpeg,image/png,image/webp,image/*" onchange="pickSetupPhoto(this)">
+        <div>
+          <div class="ap-hello" id="gfPreviewName"></div>
+          <div class="ap-handle" id="gfPreviewHandle"></div>
+        </div>
       </div>
+
+      <form class="ap-stack" id="gfStepAccount" onsubmit="event.preventDefault();submitGoogleFinish();return false">
+        <div class="ap-head">
+          <div class="ap-h1">Create your login</div>
+          <div class="ap-sub">Signed in with Google as <strong id="gfEmail"></strong>. Choose how classmates find you, and a password so you can also log in with your email.</div>
+        </div>
+        <div class="ap-row2">
+          <div class="ap-field"><label class="ap-lbl" for="gfFirst">First name</label><input class="ap-input" id="gfFirst" autocomplete="off" oninput="gfPreview()"></div>
+          <div class="ap-field"><label class="ap-lbl" for="gfLast">Last name</label><input class="ap-input" id="gfLast" autocomplete="off" oninput="gfPreview()"></div>
+        </div>
+        <div class="ap-field">
+          <label class="ap-lbl" for="gfUsername">Username</label>
+          <div class="ap-at"><span>@</span><input class="ap-input" id="gfUsername" autocomplete="off" oninput="gfUsernameInput(this.value)"></div>
+          <div class="ap-hint" id="gfUsernameStatus">3&ndash;20 characters. Letters, numbers, and underscores only.</div>
+        </div>
+        <div class="ap-field">
+          <label class="ap-lbl" for="gfPass">Password</label>
+          <div class="ap-pw">
+            <input class="ap-input" id="gfPass" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" type="password">
+            <button type="button" class="ap-eye" onclick="togglePassword('gfPass',this)" aria-label="Show password"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <!-- target="_blank" is load-bearing: without it, opening the Terms navigates this tab
+             away and loses the half-filled form. -->
+        <label class="ap-check">
+          <input type="checkbox" id="gfAgree">
+          <span>I'm 18+, I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, and I'm a current Caldwell student.</span>
+        </label>
+        <div class="login-error" id="gfErr"></div>
+        <button class="ap-pill" type="submit" id="gfSubmitBtn"><span>Create my account</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></button>
+        <div class="ap-footnote">Wrong Google account? <a onclick="cancelGoogleFinish()">Cancel and sign out</a></div>
+      </form>
+
+      <form class="ap-stack is-hidden" id="gfStepProfile" onsubmit="event.preventDefault();submitSetupProfile();return false">
+        <div class="ap-head">
+          <div class="ap-h1">Make it yours</div>
+          <div class="ap-sub">This is what classmates see when you post or message. All of it is optional, and you can change it any time from your profile.</div>
+        </div>
+        <div class="ap-field"><label class="ap-lbl" for="gfDisplayName">Display name <span class="ap-opt">optional</span></label><input class="ap-input" id="gfDisplayName" placeholder="What should people call you?" autocomplete="off" oninput="gfPreview()"></div>
+        <div class="ap-field">
+          <label class="ap-lbl" for="gfBio">Bio <span class="ap-opt">optional</span></label>
+          <textarea class="ap-input ap-textarea" id="gfBio" maxlength="150" rows="3" placeholder="Nursing, class of '28. Always up for a study group." oninput="gfBioCount()"></textarea>
+          <div class="ap-hint ap-count" id="gfBioCount">0 / 150</div>
+        </div>
+        <div class="ap-field"><label class="ap-lbl" for="gfPronouns">Pronouns <span class="ap-opt">optional</span></label><input class="ap-input" id="gfPronouns" placeholder="e.g. she/her, they/them" autocomplete="off"></div>
+        <div class="ap-row2">
+          <div class="ap-field"><label class="ap-lbl" for="gfMajor">Major</label><input class="ap-input" id="gfMajor" placeholder="Nursing" autocomplete="off"></div>
+          <div class="ap-field"><label class="ap-lbl" for="gfYear">Year</label><select class="ap-input" id="gfYear"><option value="">&mdash; select &mdash;</option><option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option><option>Graduate</option></select></div>
+        </div>
+        <div class="login-error" id="gfProfileErr"></div>
+        <button class="ap-pill" type="submit" id="gfProfileBtn"><span>Finish</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></button>
+        <div class="ap-footnote"><a onclick="skipSetupProfile()">Skip for now</a></div>
+      </form>
+
     </div>
   </div>
 </div>
@@ -1765,12 +1828,12 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-23a"></script>
+<script src="js/config.js?v=2026-09-23b"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-23c"></script>
-<script src="js/profile.js?v=2026-09-23a"></script>
+<script src="js/auth.js?v=2026-09-23d"></script>
+<script src="js/profile.js?v=2026-09-23b"></script>
 <script src="js/listings.js?v=2026-09-12a"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
@@ -1781,7 +1844,7 @@
 <script src="js/search.js?v=2026-09-12a"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>
 <script src="js/feed.js?v=2026-09-12a"></script>
-  <script src="js/boot.js?v=2026-09-23b"></script>
+  <script src="js/boot.js?v=2026-09-23c"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>
