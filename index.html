@@ -1291,7 +1291,7 @@
       <div class="form-group">
         <label class="form-label">Password</label>
         <div style="position:relative">
-          <input class="form-input" id="sPass" name="new-password" autocomplete="new-password" placeholder="Create a password" type="password" style="padding-right:60px">
+          <input class="form-input" id="sPass" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" type="password" style="padding-right:60px">
           <button type="button" onclick="togglePassword('sPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
         </div>
       </div>
@@ -1362,7 +1362,7 @@
       <div class="auth-card">
         <div class="auth-card-icon"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16.5 6.5 19 9"/><path d="M14 9l2.5 2.5"/></svg></div>
         <div class="auth-card-title">Set a new password</div>
-        <p class="auth-card-body">Choose a new password for your account. It needs to be at least 6 characters.</p>
+        <p class="auth-card-body">Choose a new password for your account. It needs to be at least 8 characters.</p>
         <form onsubmit="event.preventDefault();submitNewPassword();return false">
           <div class="form-group auth-card-field">
             <div style="position:relative">
@@ -1770,7 +1770,7 @@
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-12a"></script>
+<script src="js/auth.js?v=2026-09-23a"></script>
 <script src="js/profile.js?v=2026-09-12a"></script>
 <script src="js/listings.js?v=2026-09-12a"></script>
 <script src="js/books.js?v=2026-09-10e"></script>

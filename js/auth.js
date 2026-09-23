@@ -6,6 +6,13 @@
 // depend on that. Load order is set in index.html; boot.js must stay last.
 // ============================================================
 
+// The shortest password a student may CHOOSE (signup, reset). Raised from 6 to 8 on
+// 2026-09-23. Logging in never checks it, so an existing shorter password keeps working until
+// its owner changes it. Supabase enforces its own minimum too (Authentication → Sign In /
+// Providers → Email → Minimum password length); keep that at 8 as well, because this check
+// runs in the browser and can be skipped.
+const MIN_PASSWORD_LENGTH = 8;
+
 async function doAdminLogin() {
   const e = document.getElementById('aEmail').value.trim();
   const p = document.getElementById('aPass').value;
@@ -184,7 +191,7 @@ async function submitNewPassword() {
   const showErr = msg => { err.textContent = msg; err.style.display = 'block'; };
   err.style.display = 'none';
 
-  if (!pass || pass.length < 6) { showErr('Password must be at least 6 characters.'); return; } // matches doSignup
+  if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
 
   btn.disabled = true; btn.textContent = 'Updating…';
   const { error } = await supabaseClient.auth.updateUser({ password: pass });
@@ -271,7 +278,7 @@ async function doSignup() {
   if (!USERNAME_RE.test(username)) { showErr('Username must be 3–20 characters: letters, numbers, and underscores only.'); return; }
   if (RESERVED_USERNAMES.has(username)) { showErr('That username is reserved. Please choose another.'); return; }
   if (!_selectedSchool) { showErr('Please select your school first.'); return; }
-  if (!pass || pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+  if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
   // Consent gate. Sits with the other free checks, above the domain lookup and the two
   // profiles queries, so an unchecked box costs zero network round-trips. Like the domain
   // gate below, this is CLIENT-side only: it records intent in the UI, it does not prove
