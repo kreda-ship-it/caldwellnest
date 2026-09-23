@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-14a">
+<link rel="stylesheet" href="styles.css?v=2026-09-23c">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1212,28 +1212,23 @@
 ============================================================ -->
 <!-- SIGNUP -->
 <div class="modal-overlay" id="signupModal">
-  <div class="modal"><div class="modal-header"><div class="modal-title">Create your account</div><button class="modal-close" onclick="closeModal('signupModal')">&#215;</button></div>
+  <div class="modal auth-modal"><div class="modal-header"><div><div class="modal-title">Create your account</div><p class="auth-sub">For Caldwell University students. Takes about a minute.</p></div><button class="modal-close" onclick="closeModal('signupModal')">&#215;</button></div>
   <div class="modal-body">
 
-    <!-- SCHOOL PICKER -->
-    <div id="schoolPickerGroup">
-      <div class="form-group" style="margin-bottom:6px;">
-        <label class="form-label">Your school</label>
-        <div style="position:relative;">
-          <input class="form-input" id="schoolSearch" placeholder="Search for your school..." oninput="filterSchools(this.value)" onfocus="openSchoolDropdown()" onblur="setTimeout(()=>{const d=document.getElementById('schoolDropdown');if(d)d.style.display='none';},150)" autocomplete="off">
-          <div id="schoolDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;max-height:200px;overflow-y:auto;"></div>
-        </div>
-        <div id="selectedSchoolBadge" style="display:none;margin-top:8px;background:var(--brand-pale);border:1px solid rgba(74,148,112,0.3);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--brand);align-items:center;justify-content:space-between;">
-          <span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg><span id="selectedSchoolName"></span></span>
-          <a onclick="clearSchool()" style="font-size:12px;color:var(--brand-mid);cursor:pointer;font-weight:500;text-decoration:underline;">Change</a>
-        </div>
-      </div>
-      <div style="margin-bottom:18px;">
-        <a onclick="showWaitlistPanel()" style="font-size:13px;color:var(--text-muted);cursor:pointer;">Your school not listed? Join the waitlist &#8594;</a>
-      </div>
+    <!-- SIGN UP — Google is the only way to create an account (2026-09-23). Google proves the
+         student owns the address, so there is no verification email; the finish screen after
+         it (#googleFinishScreen) sets the username, password and consent. Caldwell-only is
+         enforced twice: signInWithGoogle() asks Google to offer only @caldwell.edu accounts,
+         and handle_new_user() in the database refuses any other domain. -->
+    <div id="signupMain">
+      <div class="login-error" id="signupErr"></div>
+      <button type="button" class="btn-full btn-google" onclick="signInWithGoogle('signup')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
+      <p class="auth-fine">Use your <strong>@caldwell.edu</strong> Google account. Next you'll choose a username and a password, so you can also log in with your email.</p>
+      <div class="auth-aside"><a onclick="showWaitlistPanel()">Not at Caldwell? Join the waitlist &#8594;</a></div>
+      <div class="switch-link">Already have an account? <a onclick="switchModal('signupModal','loginModal')">Log in</a></div>
     </div>
 
-    <!-- WAITLIST PANEL (replaces picker + form) -->
+    <!-- WAITLIST PANEL (replaces the Google signup block) -->
     <div id="waitlistPanel" style="display:none;">
       <div style="background:var(--accent-pale);border:1px solid rgba(240,165,0,0.25);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
         <div style="font-weight:600;font-size:14px;margin-bottom:4px;">Your school isn't on Nestrel yet</div>
@@ -1257,67 +1252,12 @@
       <div style="text-align:center;margin-top:14px;"><a onclick="hideWaitlistPanel()" style="font-size:13px;color:var(--text-muted);cursor:pointer;">&#8592; Back to sign up</a></div>
     </div>
 
-    <!-- MAIN FORM (revealed after school is picked) -->
-    <!-- Real <form> for the same two reasons as the login modal: password-manager save
-         prompts, and keeping these fields out of the synthetic page-wide form Chrome
-         assembles from form-less inputs. The school picker above stays outside it. -->
-    <div id="signupMainForm" style="display:none;">
-      <form onsubmit="event.preventDefault();doSignup();return false">
-      <div class="form-row-2">
-        <div class="form-group"><label class="form-label">First name</label><input class="form-input" id="sFirst" placeholder="Maria"></div>
-        <div class="form-group"><label class="form-label">Last name</label><input class="form-input" id="sLast" placeholder="Santos"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Username <span class="label-hint">— your @handle, e.g. maria_santos</span></label>
-        <div style="position:relative">
-          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none">@</span>
-          <input class="form-input" id="sUsername" placeholder="maria_santos" style="padding-left:26px" oninput="checkUsernameAvailability(this.value)">
-          <span id="usernameStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:600"></span>
-        </div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:4px">3–20 characters. Letters, numbers, and underscores only.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">University email</label>
-        <div style="position:relative">
-          <input class="form-input" id="sEmail" name="username" autocomplete="username" placeholder="you@university.edu" type="email" style="padding-right:100px" oninput="checkEmailAvailability(this.value)">
-          <span id="emailStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:600"></span>
-        </div>
-        <div id="emailMismatch" style="display:none;margin-top:6px;font-size:13px;color:var(--danger);line-height:1.6;"></div>
-      </div>
-      <div class="form-row-2">
-        <div class="form-group"><label class="form-label">Major <span class="label-hint">(optional)</span></label><input class="form-input" id="sMajor" placeholder="Nursing"></div>
-        <div class="form-group"><label class="form-label">Year <span class="label-hint">(optional)</span></label><select class="form-select" id="sYear"><option value="">— select —</option><option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option><option>Graduate</option></select></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <div style="position:relative">
-          <input class="form-input" id="sPass" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" type="password" style="padding-right:60px">
-          <button type="button" onclick="togglePassword('sPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
-        </div>
-      </div>
-      <!-- Consent gate. target="_blank" is load-bearing, not cosmetic: without it, clicking
-           Terms navigates the tab away and wipes the half-filled form. rel="noopener" is the
-           standard companion to _blank. The real enforcement is in doSignup() — this checkbox
-           is only the input; an unchecked box is caught there before any network call. -->
-      <label class="agree-row">
-        <input type="checkbox" id="sAgree">
-        <span>I'm 18+ and I agree to the
-          <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and
-          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
-        </span>
-      </label>
-      <div class="login-error" id="signupErr"></div>
-      <button class="btn-full btn-brand" type="submit">Create account</button>
-      </form>
-      <div class="switch-link">Already have an account? <a onclick="switchModal('signupModal','loginModal')">Log in</a></div>
-    </div>
-
   </div></div>
 </div>
 
 <!-- LOGIN -->
 <div class="modal-overlay" id="loginModal">
-  <div class="modal"><div class="modal-header"><div class="modal-title" id="loginModalTitle">Welcome back</div><button class="modal-close" onclick="closeModal('loginModal')">&#215;</button></div>
+  <div class="modal auth-modal"><div class="modal-header"><div><div class="modal-title" id="loginModalTitle">Welcome back</div><p class="auth-sub">Log in to your Nestrel account.</p></div><button class="modal-close" onclick="closeModal('loginModal')">&#215;</button></div>
   <div class="modal-body">
     <!-- A real <form> does two jobs here. It lets Chrome save and update the password
          properly, and — because Chrome lumps every input NOT inside a form into one
@@ -1328,18 +1268,20 @@
     <form onsubmit="event.preventDefault();doLogin();return false">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="lEmail" name="username" autocomplete="username" placeholder="you@university.edu" type="email"></div>
       <div class="form-group">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-          <label class="form-label" style="margin-bottom:0">Password</label>
-          <a onclick="forgotPassword()" style="font-size:12px;color:var(--brand);cursor:pointer;font-weight:500">Forgot password?</a>
+        <div class="label-row">
+          <label class="form-label">Password</label>
+          <a class="label-row-link" onclick="forgotPassword()">Forgot password?</a>
         </div>
-        <div style="position:relative">
-          <input class="form-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password" style="padding-right:60px">
-          <button type="button" onclick="togglePassword('lPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;">Show</button>
+        <div class="pw-field">
+          <input class="form-input" id="lPass" name="current-password" autocomplete="current-password" placeholder="Your password" type="password">
+          <button type="button" class="pw-toggle" onclick="togglePassword('lPass',this)">Show</button>
         </div>
       </div>
       <div class="login-error" id="loginErr"></div>
       <button class="btn-full btn-brand" type="submit">Log in</button>
     </form>
+    <div class="divider" id="lGoogleOr">or</div>
+    <button type="button" class="btn-full btn-google" id="lGoogleBtn" onclick="signInWithGoogle('login')"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Continue with Google</button>
     <div class="switch-link">New here? <a onclick="switchModal('loginModal','signupModal')">Sign up</a></div>
     <div class="login-notyou" id="lNotYou">Not you? <a onclick="signInAsSomeoneElse()">Sign in as someone else</a></div>
     <!-- Swaps in place of the form after a reset link is requested. The wording is
@@ -1373,6 +1315,63 @@
           <div class="login-error" id="rpErr"></div>
           <button class="btn-full btn-brand" type="submit" id="rpSubmitBtn">Update password</button>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FINISH SIGNING UP — shown once, after a student's first "Continue with Google".
+     Google gives us a verified email and a name; this collects the rest. See
+     showGoogleFinishScreen() in js/auth.js. -->
+<div class="auth-screen" id="googleFinishScreen">
+  <div class="auth-screen-inner">
+    <div class="auth-screen-card-wrap">
+      <div class="auth-brand">Nest<span>rel</span></div>
+      <div class="auth-card auth-card-form">
+        <div class="auth-step">Last step</div>
+        <div class="auth-card-title">Finish signing up</div>
+        <p class="auth-card-body">A few details Google doesn't share with us, and you're in.</p>
+        <div class="google-chip"><svg class="google-g" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span id="gfEmail"></span></div>
+        <form class="auth-card-field" onsubmit="event.preventDefault();submitGoogleFinish();return false">
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label">First name</label><input class="form-input" id="gfFirst" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label">Last name</label><input class="form-input" id="gfLast" autocomplete="off"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Username <span class="label-hint">— your @handle</span></label>
+            <div class="input-at-wrap">
+              <span class="input-at">@</span>
+              <input class="form-input input-at-field" id="gfUsername" autocomplete="off">
+            </div>
+            <div class="field-hint">3–20 characters. Letters, numbers, and underscores only.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Create a password</label>
+            <div class="pw-field">
+              <input class="form-input" id="gfPass" name="new-password" autocomplete="new-password" placeholder="At least 8 characters" type="password">
+              <button type="button" class="pw-toggle" onclick="togglePassword('gfPass',this)">Show</button>
+            </div>
+            <div class="field-hint">So you can also log in with your email and password.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm password</label>
+            <input class="form-input" id="gfPass2" name="new-password" autocomplete="new-password" type="password">
+          </div>
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label">Major <span class="label-hint">(optional)</span></label><input class="form-input" id="gfMajor" placeholder="Nursing" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label">Year <span class="label-hint">(optional)</span></label><select class="form-select" id="gfYear"><option value="">— select —</option><option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option><option>Graduate</option></select></div>
+          </div>
+          <label class="agree-row">
+            <input type="checkbox" id="gfAgree">
+            <span>I'm 18+ and I agree to the
+              <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and
+              <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+            </span>
+          </label>
+          <div class="login-error" id="gfErr"></div>
+          <button class="btn-full btn-brand" type="submit" id="gfSubmitBtn">Create account</button>
+        </form>
+        <button type="button" class="auth-card-back" onclick="cancelGoogleFinish()">Cancel and sign out</button>
       </div>
     </div>
   </div>
@@ -1766,12 +1765,12 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-14a"></script>
+<script src="js/config.js?v=2026-09-23a"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-23a"></script>
-<script src="js/profile.js?v=2026-09-12a"></script>
+<script src="js/auth.js?v=2026-09-23c"></script>
+<script src="js/profile.js?v=2026-09-23a"></script>
 <script src="js/listings.js?v=2026-09-12a"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
@@ -1782,7 +1781,7 @@
 <script src="js/search.js?v=2026-09-12a"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>
 <script src="js/feed.js?v=2026-09-12a"></script>
-  <script src="js/boot.js?v=2026-09-12a"></script>
+  <script src="js/boot.js?v=2026-09-23b"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

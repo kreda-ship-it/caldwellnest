@@ -6,7 +6,7 @@
 // depend on that. Load order is set in index.html; boot.js must stay last.
 // ============================================================
 
-// The shortest password a student may CHOOSE (signup, reset). Raised from 6 to 8 on
+// The shortest password a student may CHOOSE (the Google finish screen, and reset). Raised from 6 to 8 on
 // 2026-09-23. Logging in never checks it, so an existing shorter password keeps working until
 // its owner changes it. Supabase enforces its own minimum too (Authentication → Sign In /
 // Providers → Email → Minimum password length); keep that at 8 as well, because this check
@@ -149,6 +149,7 @@ async function forgotPassword() {
   if (label) label.textContent = email; // textContent, not innerHTML — this is user input
   document.querySelector('#loginModal form')?.classList.add('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.add('is-hidden');
+  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.add('is-hidden'));
   document.getElementById('lNotYou')?.classList.remove('is-on');
   document.getElementById('lResetSent')?.classList.add('is-on');
 }
@@ -158,6 +159,7 @@ function backToLogin() {
   document.getElementById('lResetSent')?.classList.remove('is-on');
   document.querySelector('#loginModal form')?.classList.remove('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
+  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
   prepLoginModal();
 }
 
@@ -216,6 +218,206 @@ async function submitNewPassword() {
   await enterStudentSession(profile, user.id, 'Password updated');
 }
 
+// ---- Continue with Google ----
+// The ONLY way to create an account (2026-09-23), and one of two ways to log in. Google checks
+// the student's password and proves they own the address, so there is no verification email.
+// Supabase then sends them back to this page with a session. The FIRST time, the account has
+// no username, password or recorded consent yet, so boot.js shows the finish screen
+// (needsGoogleFinish). Every time after that it is an ordinary login.
+//
+// Caldwell-only, enforced twice:
+//   1. Here: `hd` asks Google to offer only accounts on SIGNUP_GOOGLE_DOMAIN. That is a request
+//      sent from the browser, so it can be edited out — it is the front door, not the lock.
+//   2. The lock: handle_new_user() in the database refuses any other domain while the account
+//      is being created. Supabase then sends the student back with an error in the URL, which
+//      showGoogleReturnError() turns into plain words.
+// Changing the school means changing BOTH (sql/2026-09-23_google_signup.sql).
+const SIGNUP_GOOGLE_DOMAIN = 'caldwell.edu';
+
+// Set just before leaving for Google, read once when the page loads again. It is how boot.js
+// tells "back from Google" apart from every other page load — including other error links,
+// like an expired password-reset link, which must keep their own handling. The value is
+// which pop-up they left from, so an error comes back to the same one.
+const GOOGLE_RETURN_KEY = 'cn_google_return';
+
+async function signInWithGoogle(from) {
+  const errEl = document.getElementById(from === 'signup' ? 'signupErr' : 'loginErr');
+  if (errEl) errEl.style.display = 'none';
+  try { sessionStorage.setItem(GOOGLE_RETURN_KEY, from); } catch (e) { /* private mode: errors just show less nicely */ }
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin + window.location.pathname,
+      // hd: only offer @caldwell.edu accounts (see the note above — a hint, not the lock).
+      // prompt: always show the chooser. Without it, a student already signed into a
+      // personal Gmail in this browser is sent straight through on the wrong account.
+      queryParams: { hd: SIGNUP_GOOGLE_DOMAIN, prompt: 'select_account' }
+    }
+  });
+  // Success leaves this page, so anything after this line only runs on a failure to start.
+  if (error && errEl) {
+    errEl.textContent = 'Could not reach Google just now. Please try again.';
+    errEl.style.display = 'block';
+  }
+}
+
+// Called once by boot.js, before anything else reads the URL. Returns 'signup' or 'login' if
+// this page load is the student coming back from Google (null otherwise), and forgets it so a
+// later reload is not.
+function takeGoogleReturnFlag() {
+  try {
+    const v = sessionStorage.getItem(GOOGLE_RETURN_KEY);
+    sessionStorage.removeItem(GOOGLE_RETURN_KEY);
+    return v === 'signup' || v === 'login' ? v : null;
+  } catch (e) { return null; }
+}
+
+// Back from Google with no session: something refused. Shows why in the pop-up they left
+// from (`from` is 'signup' or 'login'). Returns true if it showed a message.
+function showGoogleReturnError(from) {
+  const raw = (window.location.hash || '').replace(/^#/, '') + '&' + (window.location.search || '').replace(/^\?/, '');
+  const params = new URLSearchParams(raw);
+  const code = params.get('error');
+  const desc = params.get('error_description') || '';
+  if (!code && !desc) return false;
+
+  // Drop the error from the address bar so a refresh does not show it again.
+  history.replaceState(null, '', window.location.pathname);
+
+  let msg;
+  if (/database error saving new user/i.test(desc)) {
+    // handle_new_user() refused a non-Caldwell account. Supabase hides the database's own
+    // message and only says "Database error", so this is the likely reason, not a certain one.
+    msg = 'Nestrel is for Caldwell students. Please use your @caldwell.edu Google account.';
+  } else if (code === 'access_denied') {
+    msg = 'Google sign-in was cancelled.';
+  } else {
+    msg = 'Google sign-in didn\'t work: ' + desc;
+  }
+  const onSignup = from === 'signup';
+  openModal(onSignup ? 'signupModal' : 'loginModal');
+  // After openModal: opening a pop-up clears its error box.
+  const err = document.getElementById(onSignup ? 'signupErr' : 'loginErr');
+  if (err) { err.textContent = msg; err.style.display = 'block'; } // textContent: desc came from the URL
+  return true;
+}
+
+// A Google account that has not finished signing up: created by Google (not the email form)
+// and still without a username. complete_google_signup() sets the username, so this is true
+// exactly until the finish screen succeeds, and never for an email-signup account.
+function needsGoogleFinish(user, profile) {
+  return !profile.username && user?.app_metadata?.provider === 'google';
+}
+
+// Suggests a username from the email ("j.smith@caldwell.edu" → "j_smith"), adding a number if
+// it is taken. Only a starting point: the student can change it before submitting.
+async function suggestUsername(email) {
+  let base = String(email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+/, '').slice(0, 16);
+  if (base.length < 3) base = (base + 'student').slice(0, 16);
+  for (let i = 0; i < 5; i++) {
+    const cand = i === 0 ? base : base + Math.floor(10 + Math.random() * 990);
+    if (!USERNAME_RE.test(cand) || RESERVED_USERNAMES.has(cand)) continue;
+    const { data } = await supabaseClient.rpc('check_username_available', { username_to_check: cand });
+    if (data !== false) return cand;
+  }
+  return '';
+}
+
+let _gfUser = null;
+
+async function showGoogleFinishScreen(user, profile) {
+  _gfUser = { id: user.id, email: profile.email || user.email, school: profile.school };
+  document.getElementById('studentApp').style.display = 'none';
+  document.getElementById('gfEmail').textContent = _gfUser.email;
+  document.getElementById('gfFirst').value = profile.first_name || '';
+  document.getElementById('gfLast').value  = profile.last_name  || '';
+  document.getElementById('googleFinishScreen').classList.add('is-on');
+  // The session token may still be in the address bar; a refresh must not replay it.
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  // Screen first, suggestion second: it takes a network round trip, and an empty field for
+  // a moment beats a blank page. Only filled if the student has not started typing one.
+  const suggestion = await suggestUsername(_gfUser.email);
+  const u = document.getElementById('gfUsername');
+  if (u && !u.value) u.value = suggestion;
+}
+
+function hideGoogleFinishScreen() {
+  document.getElementById('googleFinishScreen').classList.remove('is-on');
+  document.getElementById('studentApp').style.display = '';
+  ['gfPass', 'gfPass2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+async function submitGoogleFinish() {
+  const first    = document.getElementById('gfFirst').value.trim();
+  const last     = document.getElementById('gfLast').value.trim();
+  const username = document.getElementById('gfUsername').value.trim().toLowerCase();
+  const pass     = document.getElementById('gfPass').value;
+  const pass2    = document.getElementById('gfPass2').value;
+  const major    = document.getElementById('gfMajor').value.trim();
+  const year     = document.getElementById('gfYear').value;
+  const err      = document.getElementById('gfErr');
+  const btn      = document.getElementById('gfSubmitBtn');
+  const showErr  = msg => { err.textContent = msg; err.style.display = 'block'; };
+  err.style.display = 'none';
+
+  // The rules match the database's: username_format and the unique index on profiles.username.
+  if (!first || !last) { showErr('Please enter your name.'); return; }
+  if (!username) { showErr('Please choose a username.'); return; }
+  if (!USERNAME_RE.test(username)) { showErr('Username must be 3–20 characters: letters, numbers, and underscores only.'); return; }
+  if (RESERVED_USERNAMES.has(username)) { showErr('That username is reserved. Please choose another.'); return; }
+  if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
+  if (pass !== pass2) { showErr('The two passwords don\'t match.'); return; }
+  if (!document.getElementById('gfAgree').checked) {
+    showErr('Please confirm you are 18+ and agree to the Terms & Conditions and Privacy Policy.');
+    return;
+  }
+  if (!_gfUser) { showErr('Your Google sign-in has expired. Please cancel and try again.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const { data: usernameFree } = await supabaseClient.rpc('check_username_available', { username_to_check: username });
+    if (usernameFree === false) { showErr('That username is already taken. Please choose another.'); return; }
+
+    // Password BEFORE the profile. If this step fails, the profile is still unfinished and
+    // the student simply sees this screen again. The other order could leave a finished
+    // profile with no password — and this screen, which is the only place to set one,
+    // would never show again.
+    const { error: pwErr } = await supabaseClient.auth.updateUser({ password: pass });
+    if (pwErr) { showErr(pwErr.message || 'Could not set your password. Please try again.'); return; }
+
+    // Consent's timestamp is set by the database with now(); only the VERSION is sent.
+    // A time supplied by the browser is a number the sender picked; a server clock isn't.
+    const { error } = await supabaseClient.rpc('complete_google_signup', {
+      p_first: first, p_last: last, p_username: username,
+      p_major: major || null, p_year: year || null, p_terms_version: TERMS_VERSION
+    });
+    if (error) {
+      // 23505 = unique violation: someone took the username between the check and now.
+      showErr(error.code === '23505' ? 'That username was just taken. Please choose another.' : (error.message || 'Could not finish signing up. Please try again.'));
+      return;
+    }
+
+    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', _gfUser.id).single();
+    if (!profile) { showErr('Your account was created but could not be loaded. Please refresh the page.'); return; }
+
+    logEvent('student_signup', { targetType: 'student', targetId: _gfUser.id, targetLabel: first + ' ' + last, school: profile.school });
+    hideGoogleFinishScreen();
+    _gfUser = null;
+    await enterStudentSession(profile, profile.id, 'Welcome to Nestrel, ' + first + '!');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create account';
+  }
+}
+
+// The account already exists (Google created it), but without a username it can't be used,
+// and the finish screen shows again the next time they continue with Google.
+async function cancelGoogleFinish() {
+  await supabaseClient.auth.signOut();
+  _gfUser = null;
+  hideGoogleFinishScreen();
+  showPage('home');
+}
+
 // ---- Email verification gate ----
 let _verifyEmail = null;
 let _resendCooldown = 0;
@@ -259,112 +461,6 @@ async function resendVerification() {
   };
   tick();
   _resendTimer = setInterval(tick, 1000);
-}
-
-async function doSignup() {
-  const first    = document.getElementById('sFirst').value.trim();
-  const last     = document.getElementById('sLast').value.trim();
-  const username = document.getElementById('sUsername').value.trim().toLowerCase();
-  const email    = document.getElementById('sEmail').value.trim().toLowerCase();
-  const major    = document.getElementById('sMajor').value.trim();
-  const year     = document.getElementById('sYear').value;
-  const pass     = document.getElementById('sPass').value;
-  const err      = document.getElementById('signupErr');
-  const showErr  = msg => { err.textContent = msg; err.style.display = 'block'; };
-  err.style.display = 'none';
-
-  if (!first || !last) { showErr('Please enter your name.'); return; }
-  if (!username) { showErr('Please choose a username.'); return; }
-  if (!USERNAME_RE.test(username)) { showErr('Username must be 3–20 characters: letters, numbers, and underscores only.'); return; }
-  if (RESERVED_USERNAMES.has(username)) { showErr('That username is reserved. Please choose another.'); return; }
-  if (!_selectedSchool) { showErr('Please select your school first.'); return; }
-  if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
-  // Consent gate. Sits with the other free checks, above the domain lookup and the two
-  // profiles queries, so an unchecked box costs zero network round-trips. Like the domain
-  // gate below, this is CLIENT-side only: it records intent in the UI, it does not prove
-  // consent server-side. Storing an accepted-terms timestamp on the profile is the real
-  // fix and is deliberately out of scope here.
-  if (!document.getElementById('sAgree').checked) {
-    showErr('Please confirm you are 18+ and agree to the Terms & Conditions and Privacy Policy.');
-    return;
-  }
-
-  // THE DOMAIN GATE. Until now this rule lived only in the oninput typeahead, which paints a
-  // hint and blocks nothing — so a non-.edu address, a stale ✓ edited inside the 400ms
-  // debounce, or another school's email all reached auth.signUp untouched. Re-checked here,
-  // authoritatively, at the moment of submit. Same validateSchoolEmail() the hint uses, so
-  // the two can never disagree.
-  //
-  // Note this is still CLIENT-side: the anon key is public, so a determined person can call
-  // auth.signUp directly and skip it. Closing that needs a DB-side constraint on the profiles
-  // insert. This stops ordinary misuse, not deliberate bypass.
-  const emailCheck = await validateSchoolEmail(email, _selectedSchool);
-  if (!emailCheck.ok) {
-    if (emailCheck.code === 'wrong_school') {
-      showErr(`${emailCheck.message} Pick ${emailCheck.school.name} above, or sign up with your ${_selectedSchool.name} address.`);
-    } else if (emailCheck.code === 'unknown_domain') {
-      showErr("We don't recognize that .edu domain yet — check it for a typo, or use the waitlist link on the school step.");
-    } else {
-      showErr(emailCheck.message);
-    }
-    return;
-  }
-
-  // These run BEFORE signUp, so the caller is still anonymous. They used to read the
-  // profiles table directly, which only worked because anonymous SELECT was wide open —
-  // the same policy that let anyone dump every student's name and email. These RPCs are
-  // SECURITY DEFINER and answer yes/no without exposing a single row, so the policy can go.
-  const { data: usernameFree } = await supabaseClient.rpc('check_username_available', { username_to_check: username });
-  if (usernameFree === false) { showErr('That username is already taken. Please choose another.'); return; }
-
-  const { data: emailFree } = await supabaseClient.rpc('check_email_available', { email_to_check: email });
-  if (emailFree === false) { showErr('An account already exists with that email. Try logging in instead.'); return; }
-
-  const initials = (first[0] + last[0]).toUpperCase();
-  const color = AC[Math.floor(Math.random() * AC.length)];
-
-  // Profile fields ride along as auth metadata so the handle_new_user trigger can create the
-  // profiles row even when email confirmation is ON (no client session exists at that point).
-  const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-    email, password: pass,
-    options: {
-      emailRedirectTo: window.location.origin,
-      // terms_version rides along so handle_new_user can record consent. Only the VERSION
-      // is sent — the trigger sets the timestamp itself with now(). A time supplied by the
-      // browser is a number the sender picked; a server clock isn't.
-      data: { first_name: first, last_name: last, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug, terms_version: TERMS_VERSION }
-    }
-  });
-  if (authError) { showErr(authError.message); return; }
-  if (authData.user?.identities?.length === 0) { showErr('An account already exists with that email. Try logging in instead.'); return; }
-
-  // Email confirmation ON → signUp returns no session → show the "check your email" screen.
-  // (The profile row is created by the handle_new_user trigger, not here.)
-  if (!authData.session) {
-    closeModal('signupModal');
-    showVerifyScreen(email);
-    return;
-  }
-
-  // Email confirmation OFF → we have a session and can log in immediately.
-  // Upsert is a safety net so this coexists with the trigger without a duplicate-key error.
-  await supabaseClient.from('profiles').upsert({
-    id: authData.user.id, first_name: first, last_name: last,
-    email, username, major: major || null, year: year || null, initials, color, school: _selectedSchool.slug
-  }, { onConflict: 'id', ignoreDuplicates: true });
-  logEvent('student_signup', { targetType: 'student', targetId: authData.user.id, targetLabel: first + ' ' + last, school: _selectedSchool.slug });
-
-  rememberUser(first, email);
-  sUser = { id: authData.user.id, first, last, name: first + ' ' + last, email, username, major, year, initials, color, school: _selectedSchool.slug };
-  closeModal('signupModal');
-  updateSNav();
-  toast('Welcome to Nestrel, ' + first + '!');
-  await loadListings();
-  showPage('feed');
-  startGlobalMsgListener(authData.user.id);
-  startNotifListener(authData.user.id);
-  startProfileListener(authData.user.id);
-  loadStudentBroadcasts();
 }
 
 async function doLogin() {
@@ -629,6 +725,7 @@ function prepLoginModal() {
   document.getElementById('lResetSent')?.classList.remove('is-on');
   document.querySelector('#loginModal form')?.classList.remove('is-hidden');
   document.querySelector('#loginModal .switch-link')?.classList.remove('is-hidden');
+  ['lGoogleBtn','lGoogleOr'].forEach(id => document.getElementById(id)?.classList.remove('is-hidden'));
   const prior = getPriorUser();
   if (prior) applyWelcomeBack(prior); else resetLoginModal();
 }

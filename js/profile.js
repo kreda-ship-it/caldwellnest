@@ -1,6 +1,6 @@
 // ============================================================
 // PROFILE
-// School picker, waitlist, username/email availability, viewing a public profile, and editing your own.
+// The schools list, the waitlist, username rules, viewing a public profile, and editing your own.
 // Split out of index.html on 2026-07-11. Loaded as a plain script (not a
 // module) so every function stays global — the HTML's onclick="..." handlers
 // depend on that. Load order is set in index.html; boot.js must stay last.
@@ -9,7 +9,7 @@
 const RESERVED_USERNAMES = new Set(['admin','nestrel','caldwellnest','nestbot','support','official','mod','moderator','help','staff']);
 const USERNAME_RE = /^[a-z0-9][a-z0-9_]{2,19}$/;
 
-// SCHOOL PICKER ─────────────────────────────────────────────
+// SCHOOLS LIST ──────────────────────────────────────────────
 // Schools change rarely, so the list is cached — but not forever. It used to be cached for the
 // whole session ("if we have any, never ask again"), so a school added while a student had the
 // tab open stayed invisible until a full reload — and the distance/scope filter silently had no
@@ -28,94 +28,24 @@ async function loadSchools({ force = false } = {}) {
   _schoolsFetchedAt = Date.now();
 }
 
-async function openSchoolDropdown() {
-  await loadSchools();
-  filterSchools(document.getElementById('schoolSearch')?.value || '');
-}
-
-function filterSchools(query) {
-  const dropdown = document.getElementById('schoolDropdown');
-  if (!dropdown) return;
-  const q = query.trim().toLowerCase();
-  const matches = q ? _schoolsList.filter(s => s.name.toLowerCase().includes(q)) : _schoolsList;
-  if (!matches.length) {
-    dropdown.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--text-muted);">No schools found</div>`;
-  } else {
-    dropdown.innerHTML = matches.map(s =>
-      `<div class="school-option" onclick="selectSchoolById('${s.id}')" style="display:flex;align-items:center;gap:7px">${icon('school', 13)} ${esc(s.name)}</div>`
-    ).join('');
-  }
-  dropdown.style.display = 'block';
-}
-
-function selectSchoolById(id) {
-  const school = _schoolsList.find(s => String(s.id) === String(id));
-  if (school) selectSchool(school);
-}
-
-function selectSchool(school) {
-  _selectedSchool = school;
-  if (!_schoolsList.find(s => s.id === school.id)) _schoolsList.push(school);
-  const searchEl = document.getElementById('schoolSearch');
-  const dropEl   = document.getElementById('schoolDropdown');
-  const badgeEl  = document.getElementById('selectedSchoolBadge');
-  const nameEl   = document.getElementById('selectedSchoolName');
-  if (searchEl) searchEl.style.display = 'none';
-  if (dropEl)   dropEl.style.display   = 'none';
-  if (badgeEl)  badgeEl.style.display  = 'flex';
-  if (nameEl)   nameEl.textContent     = school.name;
-  const formEl = document.getElementById('signupMainForm');
-  if (formEl) formEl.style.display = 'block';
-  const emailEl    = document.getElementById('sEmail');
-  const statusEl   = document.getElementById('emailStatus');
-  const mismatchEl = document.getElementById('emailMismatch');
-  if (emailEl)    emailEl.value = '';
-  if (statusEl)   statusEl.textContent = '';
-  if (mismatchEl) mismatchEl.style.display = 'none';
-}
-
-function clearSchool() {
-  _selectedSchool = null;
-  const searchEl = document.getElementById('schoolSearch');
-  const badgeEl  = document.getElementById('selectedSchoolBadge');
-  const formEl   = document.getElementById('signupMainForm');
-  if (searchEl) { searchEl.style.display = ''; searchEl.value = ''; }
-  if (badgeEl)  badgeEl.style.display = 'none';
-  if (formEl)   formEl.style.display  = 'none';
-}
-
 function showWaitlistPanel() {
-  document.getElementById('schoolPickerGroup').style.display = 'none';
-  document.getElementById('signupMainForm').style.display    = 'none';
-  document.getElementById('waitlistPanel').style.display     = 'block';
-  const existingEmail = document.getElementById('sEmail')?.value?.trim();
-  if (existingEmail) { const w = document.getElementById('wEmail'); if (w) w.value = existingEmail; }
+  document.getElementById('signupMain').style.display    = 'none';
+  document.getElementById('waitlistPanel').style.display = 'block';
 }
 
 function hideWaitlistPanel() {
-  document.getElementById('waitlistPanel').style.display    = 'none';
-  document.getElementById('schoolPickerGroup').style.display = 'block';
-  if (_selectedSchool) document.getElementById('signupMainForm').style.display = 'block';
+  document.getElementById('waitlistPanel').style.display = 'none';
+  document.getElementById('signupMain').style.display    = 'block';
 }
 
+// Called by openModal('signupModal'), so the pop-up always opens on the Google button
+// rather than wherever it was left (the waitlist panel, or a stale error).
 function resetSignupModal() {
-  _selectedSchool = null;
-  ['sFirst','sLast','sUsername','sEmail','sMajor','sPass','wEmail','wSchoolName']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const sYear = document.getElementById('sYear'); if (sYear) sYear.value = '';
+  ['wEmail','wSchoolName'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const wRole = document.getElementById('wRole'); if (wRole) wRole.value = '';
-  // Consent must be re-given every time the form is presented fresh, so this is cleared
-  // like any other field. It is NOT in the list above because that list uses .value, and
-  // setting .value on a checkbox does nothing to its ticked state — you need .checked.
-  // Adding 'sAgree' there would look right and silently reset nothing.
-  const sAgree = document.getElementById('sAgree'); if (sAgree) sAgree.checked = false;
-  const searchEl = document.getElementById('schoolSearch');
-  if (searchEl) { searchEl.style.display = ''; searchEl.value = ''; }
-  [['schoolDropdown','none'],['selectedSchoolBadge','none'],['signupMainForm','none'],
-   ['waitlistPanel','none'],['schoolPickerGroup','block'],['waitlistSuccess','none']]
+  [['signupMain','block'],['waitlistPanel','none'],['waitlistSuccess','none']]
     .forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.style.display = v; });
-  ['emailStatus','usernameStatus'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
-  ['signupErr','emailMismatch','waitlistErr'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['signupErr','waitlistErr'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const wb = document.getElementById('waitlistSubmitBtn');
   if (wb) { wb.disabled = false; wb.textContent = 'Notify me when Nestrel launches here →'; }
 }
@@ -146,106 +76,6 @@ async function submitWaitlist() {
     ['wEmail','wSchoolName'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('wRole').value = '';
   }
-}
-
-// The single authoritative answer to "may this email sign up for this school?".
-//
-// Both callers use THIS: the live typeahead below for its hint, and doSignup() as the
-// actual gate. Writing the rule twice is how two copies drift apart — the same trap the
-// audit flagged between isListingLive() and the visible_listings view.
-//
-// Returns { ok, code, message, school }. Never throws, never touches the DOM — the caller
-// decides how loudly to say it. Codes: empty | malformed | not_edu | unknown_domain |
-// wrong_school | lookup_failed | ok.
-async function validateSchoolEmail(rawEmail, selectedSchool) {
-  const email = String(rawEmail || '').trim().toLowerCase();
-  if (!email) return { ok: false, code: 'empty', message: 'Please enter your university email.' };
-
-  const at = email.indexOf('@');
-  const domain = at > 0 ? email.slice(at + 1) : '';
-  // A second @ means it is not a single valid address, whatever the rest looks like.
-  if (!domain || !domain.includes('.') || email.indexOf('@', at + 1) !== -1) {
-    return { ok: false, code: 'malformed', message: 'Please enter a valid email address.' };
-  }
-  if (!domain.endsWith('.edu')) {
-    return { ok: false, code: 'not_edu', message: 'Please use your university email address (ending in .edu).' };
-  }
-
-  const { data: domainRow, error } = await supabaseClient
-    .from('school_domains')
-    .select('school_id, schools(id, slug, name)')
-    .eq('domain', domain)
-    .maybeSingle();
-
-  // Fail CLOSED. A gate that swings open whenever the database is unreachable is not a
-  // gate — and an outage is exactly when nobody is watching. The old code ignored `error`
-  // entirely, so a network blip was indistinguishable from "unrecognized domain".
-  if (error) {
-    console.warn('[validateSchoolEmail] domain lookup failed:', error.message);
-    return { ok: false, code: 'lookup_failed', message: 'Could not verify your email domain just now. Please try again.' };
-  }
-  if (!domainRow || !domainRow.schools) {
-    return { ok: false, code: 'unknown_domain', message: "We don't recognize that .edu domain yet." };
-  }
-
-  const matched = domainRow.schools;
-  if (selectedSchool && matched.slug !== selectedSchool.slug) {
-    return { ok: false, code: 'wrong_school', message: `That looks like a ${matched.name} email.`, school: matched };
-  }
-  return { ok: true, code: 'ok', school: matched };
-}
-
-async function checkEmailAvailability(raw) {
-  const statusEl   = document.getElementById('emailStatus');
-  const mismatchEl = document.getElementById('emailMismatch');
-  const val = raw.trim().toLowerCase();
-  clearTimeout(_emailTimer);
-  statusEl.textContent = '';
-  if (mismatchEl) mismatchEl.style.display = 'none';
-  if (!val) return;
-
-  _emailTimer = setTimeout(async () => {
-    statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
-    const verdict = await validateSchoolEmail(val, _selectedSchool);
-
-    // A half-typed address is not an error — it is someone still typing. Only the
-    // finished-looking failures get said out loud.
-    if (verdict.code === 'empty' || verdict.code === 'malformed') { statusEl.textContent = ''; return; }
-    if (verdict.code === 'not_edu')        { statusEl.textContent = 'Must be a .edu email';     statusEl.style.color = 'var(--danger)'; return; }
-    if (verdict.code === 'unknown_domain') { statusEl.textContent = 'Unrecognized .edu domain'; statusEl.style.color = 'var(--danger)'; return; }
-    if (verdict.code === 'lookup_failed')  { statusEl.textContent = 'Could not check just now'; statusEl.style.color = 'var(--text-muted)'; return; }
-
-    if (verdict.code === 'wrong_school') {
-      const matched = verdict.school;
-      statusEl.textContent = '';
-      if (!_schoolsList.find(s => s.id === matched.id)) _schoolsList.push(matched);
-      if (mismatchEl) {
-        mismatchEl.innerHTML = `That looks like a <strong>${esc(matched.name)}</strong> email. Did you mean to pick ${esc(matched.name)}? <a onclick="selectSchoolById('${matched.id}')" style="color:var(--brand);cursor:pointer;font-weight:600;">Switch &#8594;</a>`;
-        mismatchEl.style.display = 'block';
-      }
-      return;
-    }
-
-    const { data } = await supabaseClient.rpc('check_email_available', { email_to_check: val });
-    if (data === false) { statusEl.innerHTML = icon('x',12) + ' already registered'; statusEl.style.color = 'var(--danger)'; }
-    else { statusEl.innerHTML = icon('check',13); statusEl.style.color = 'var(--success)'; }
-  }, 400);
-}
-
-async function checkUsernameAvailability(raw) {
-  const statusEl = document.getElementById('usernameStatus');
-  const val = raw.trim().toLowerCase();
-  clearTimeout(_usernameTimer);
-  if (!val) { statusEl.textContent = ''; return; }
-  if (!USERNAME_RE.test(val) || RESERVED_USERNAMES.has(val)) {
-    statusEl.innerHTML = icon('x',13); statusEl.style.color = 'var(--danger)'; return;
-  }
-  statusEl.textContent = '…'; statusEl.style.color = 'var(--text-muted)';
-  _usernameTimer = setTimeout(async () => {
-    const { data } = await supabaseClient.rpc('check_username_available', { username_to_check: val });
-    if (data === false) { statusEl.innerHTML = icon('x',12) + ' taken'; statusEl.style.color = 'var(--danger)'; }
-    else { statusEl.innerHTML = icon('check',12) + ' available'; statusEl.style.color = 'var(--success)'; }
-  }, 400);
 }
 
 async function viewStudentProfile(profileId) {

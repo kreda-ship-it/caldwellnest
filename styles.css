@@ -160,6 +160,55 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .auth-card-title{font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:10px;}
 .auth-card-body{font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 20px;}
 .auth-card-field{text-align:left;}
+.auth-card-back{background:none;border:none;font-size:13px;color:var(--text-faint);cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:14px;}
+
+/* "Continue with Google" — signup and login modals. Neutral surface with the four-colour G,
+   the way Google's sign-in guidelines ask; never recoloured to the brand green. */
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow-xs);}
+.btn-google:hover{background:var(--bg);border-color:var(--text-faint);box-shadow:var(--shadow-sm);}
+.google-g{width:18px;height:18px;flex-shrink:0;}
+
+/* Shared field pieces for the login and finish screens. These replaced the inline styles
+   those fields used to carry. */
+.input-at-wrap{position:relative;}
+.input-at{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none;}
+.form-input.input-at-field{padding-left:26px;}
+.pw-field{position:relative;}
+.pw-field .form-input{padding-right:60px;}
+.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:'DM Sans',sans-serif;padding:4px 6px;}
+.field-hint{font-size:11px;color:var(--text-faint);margin-top:4px;}
+.label-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.label-row .form-label{margin-bottom:0;}
+.label-row-link{font-size:12px;color:var(--brand);cursor:pointer;font-weight:500;}
+
+/* The polish pass on the auth screens, 2026-09-23: signup + login pop-ups (.auth-modal)
+   and the Google finish screen (.auth-card-form). Scoped to those classes on purpose, so
+   no other pop-up in the app moves. */
+.auth-modal{max-width:440px;box-shadow:var(--shadow-lg);}
+.auth-modal .modal-header{padding:28px 28px 0;align-items:flex-start;gap:12px;}
+.auth-sub{margin:4px 0 0;font-size:13.5px;color:var(--text-muted);line-height:1.5;}
+.auth-modal .modal-body{padding:22px 28px 26px;}
+.auth-modal .form-input,.auth-modal .form-select,
+.auth-card-form .form-input,.auth-card-form .form-select{padding-top:12px;padding-bottom:12px;}
+.auth-modal .btn-full,.auth-card-form .btn-full{padding:13px;}
+.auth-modal .divider{margin:18px 0;font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
+.auth-modal .agree-row,.auth-card-form .agree-row{font-size:12.5px;}
+.auth-modal .switch-link{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.auth-card-form{padding:32px 30px;box-shadow:var(--shadow-md);}
+/* Signup pop-up: the line under the Google button, and the waitlist link below it. */
+.auth-fine{margin:14px 0 0;font-size:13px;line-height:1.6;color:var(--text-muted);text-align:center;}
+.auth-fine strong{color:var(--text);font-weight:600;}
+.auth-aside{margin-top:14px;text-align:center;font-size:13px;}
+.auth-aside a{color:var(--text-muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.auth-aside a:hover{color:var(--brand);}
+.auth-step{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-light);margin-bottom:6px;}
+.google-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:7px 14px;margin:0 0 22px;border:1px solid var(--border);border-radius:999px;background:var(--bg);font-size:13px;font-weight:500;color:var(--text);overflow-wrap:anywhere;}
+.google-chip .google-g{width:15px;height:15px;}
+@media(max-width:480px){
+  .auth-modal .modal-header{padding:22px 20px 0;}
+  .auth-modal .modal-body{padding:18px 20px 22px;}
+  .auth-card-form{padding:26px 20px;}
+}
 
 .is-hidden{display:none !important;}
 
@@ -805,9 +854,6 @@ img{image-orientation:from-image;}
 .hiw-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px 26px 30px;box-shadow:var(--shadow-sm);}
 .hiw-icon{width:46px;height:46px;background:var(--brand-pale);color:var(--brand);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
 /* SCHOOL PICKER DROPDOWN */
-.school-option{padding:10px 14px;cursor:pointer;font-size:14px;color:var(--text);border-bottom:1px solid var(--border);}
-.school-option:last-child{border-bottom:none;}
-.school-option:hover{background:var(--bg);}
 /* HOME SECTIONS */
 .home-section{padding:var(--sp-7) var(--sp-5);background:var(--bg);}
 .home-section-inner{max-width:900px;margin:0 auto;}

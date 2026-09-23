@@ -14,6 +14,9 @@ const _settingsReady = loadPlatformSettings();
 // anonymous visitor and returned a partial/empty feed — listings then "randomly"
 // appeared or vanished depending on which request won the race on each reload.
 const _sessionReady = supabaseClient.auth.getSession();
+// Read once, now, before anything else touches the URL: is this page load the student coming
+// back from "Continue with Google"? Holds 'signup', 'login' or null. See signInWithGoogle() in auth.js.
+const _fromGoogle = takeGoogleReturnFlag();
 _sessionReady.then(() => initStudent());
 
 // Password-recovery return. Two detectors on purpose, both idempotent:
@@ -53,6 +56,8 @@ if (!adminPreviewMode && !_recoveryMode) {
   if (_recoveryMode) return;
   const [, { data: { session } }] = await Promise.all([_settingsReady, _sessionReady]);
   if (!session) {
+    // Back from Google without a session: Google or the .edu gate refused. Say why.
+    if (_fromGoogle && showGoogleReturnError(_fromGoogle)) return;
     if (applyMaintenance()) return;
     // A deep link with no session is the walk-up-and-scan case, and it is the one most likely
     // to be got wrong: dropping the intent here means the student logs in and lands on the
@@ -110,6 +115,10 @@ if (!adminPreviewMode && !_recoveryMode) {
     return;
   }
 
+  // First return from "Continue with Google": the account exists but has no username,
+  // password or consent yet. The finish screen collects them and then enters the app itself.
+  if (needsGoogleFinish(session.user, profile)) { showGoogleFinishScreen(session.user, profile); return; }
+
   sUser = { id: session.user.id, first: profile.first_name, last: profile.last_name, name: profile.first_name + ' ' + profile.last_name, display_name: profile.display_name || null, email: profile.email || session.user.email, username: profile.username || null, bio: profile.bio || null, pronouns: profile.pronouns || null, major: profile.major, year: profile.year, initials: profile.initials, color: profile.color, avatar_url: profile.avatar_url || null, created_at: profile.created_at || null, school: profile.school || 'caldwell' };
   if (applyMaintenance()) return;
   updateSNav();
@@ -160,6 +169,11 @@ if (!adminPreviewMode && !_recoveryMode) {
   if (/[#&]type=signup/.test(window.location.hash)) {
     toast('Email verified — welcome to Nestrel!');
     history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+  // Back from Google on an account that is already set up: an ordinary login.
+  if (_fromGoogle) {
+    toast('Welcome back, ' + profile.first_name + '!');
+    if (/access_token/.test(window.location.hash)) history.replaceState(null, '', window.location.pathname + window.location.search);
   }
   checkStudentNotifications(session.user.id);
   startGlobalMsgListener(session.user.id);
