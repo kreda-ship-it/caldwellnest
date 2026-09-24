@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24a">
+<link rel="stylesheet" href="styles.css?v=2026-09-24c">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1549,13 +1549,27 @@
           <div class="form-group"><label class="form-label">Monthly rent ($)</label><input class="form-input" id="pH_price" type="number" placeholder="800"></div>
         </div>
         <div class="form-group"><label class="form-label">Address / Neighborhood</label><input class="form-input" id="pH_loc" placeholder="e.g. Caldwell, NJ · 0.3 mi from campus"></div>
-        <div class="form-group"><label class="form-label">Tags</label>
+        <!-- Optional details. Each one is a filter a student can search by (LISTING_SPECS in
+             js/listings.js fills these dropdowns, so the form and the filters always agree). -->
+        <div class="post-subhead">About the place <span class="label-hint">— optional, each one helps students find it</span></div>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label" for="pH_distance">Distance to campus</label><select class="form-select" id="pH_distance" data-spec="housing.distance"></select></div>
+          <div class="form-group"><label class="form-label" for="pH_available">Available from</label><input class="form-input" id="pH_available" type="date"></div>
+        </div>
+        <div class="form-group"><label class="form-label" for="pH_lease">Lease</label><select class="form-select" id="pH_lease" data-spec="housing.lease"></select></div>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label" for="pH_beds">Bedrooms</label><select class="form-select" id="pH_beds" data-spec="housing.bedrooms"></select></div>
+          <div class="form-group"><label class="form-label" for="pH_baths">Bathrooms</label><select class="form-select" id="pH_baths" data-spec="housing.bathrooms"></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Includes</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;" id="pTags">
             <label class="check-label"><input type="checkbox" value="Utilities included"> Utilities</label>
             <label class="check-label"><input type="checkbox" value="Furnished"> Furnished</label>
             <label class="check-label"><input type="checkbox" value="Parking"> Parking</label>
             <label class="check-label"><input type="checkbox" value="Pet friendly"> Pets OK</label>
             <label class="check-label"><input type="checkbox" value="Quiet"> Quiet</label>
+            <label class="check-label"><input type="checkbox" value="Laundry"> Laundry</label>
+            <label class="check-label"><input type="checkbox" value="Private bathroom"> Private bathroom</label>
           </div>
         </div>
         <div style="padding:10px 14px;background:#fef3c7;border-radius:var(--radius-sm);font-size:12px;color:#92400e;margin-bottom:8px;line-height:1.5;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M6 21h12"/><path d="M3 8l9-3 9 3"/><path d="M6.5 8 3 15h7z"/><path d="M17.5 8 14 15h7z"/></svg> <strong>Fair Housing reminder:</strong> Listings may not express preferences based on race, color, religion, sex, national origin, disability, or familial status. <a href="https://www.hud.gov/program_offices/fair_housing_equal_opp" target="_blank" style="color:#92400e;font-weight:600;">Learn more at HUD.gov</a></div>
@@ -1564,12 +1578,13 @@
 
       <!-- CLOTHING fields -->
       <div id="catFields-clothing" style="display:none">
+        <div class="form-group"><label class="form-label" for="pCL_type">Type <span class="label-hint">(optional)</span></label><select class="form-select" id="pCL_type" data-spec="clothing.item_type"></select></div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pCL_price" type="number" placeholder="20"></div>
           <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pCL_cond"><option>New</option><option>Like New</option><option>Used</option></select></div>
         </div>
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Size</label><input class="form-input" id="pCL_size" placeholder="e.g. M, L, 10, 32x32"></div>
+          <div class="form-group"><label class="form-label" for="pCL_sizeSel">Size</label><select class="form-select" id="pCL_sizeSel" data-spec="clothing.size" data-other="1" onchange="onClothingSize(this)"></select><input class="form-input is-hidden post-other" id="pCL_size" placeholder="e.g. 10, 32x32" autocomplete="off"></div>
           <div class="form-group"><label class="form-label">Brand</label><input class="form-input" id="pCL_brand" placeholder="e.g. Nike, Uniqlo"></div>
         </div>
         <div class="form-group"><label class="form-label">Pickup or delivery</label><select class="form-select" id="pCL_delivery"><option value="Pickup only">Pickup only</option><option value="Delivery available">Delivery available</option><option value="Either">Either</option></select></div>
@@ -1577,6 +1592,7 @@
 
       <!-- TECHNOLOGY fields -->
       <div id="catFields-technology" style="display:none">
+        <div class="form-group"><label class="form-label" for="pTK_device">Device <span class="label-hint">(optional)</span></label><select class="form-select" id="pTK_device" data-spec="technology.device"></select></div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pTK_price" type="number" placeholder="50"></div>
           <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pTK_cond"><option>New</option><option>Like New</option><option>Used</option><option>For Parts</option></select></div>
@@ -1841,7 +1857,7 @@
 <script src="js/data.js?v=2026-09-12a"></script>
 <script src="js/auth.js?v=2026-09-23f"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
-<script src="js/listings.js?v=2026-09-23e"></script>
+<script src="js/listings.js?v=2026-09-24b"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>

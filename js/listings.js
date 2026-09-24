@@ -336,6 +336,15 @@ function setDeepDate(key, val) {
   renderListings();
 }
 
+// The category chooser inside the drawer. It shares _filters.category with the row of category
+// pills above the grid, so choosing in either place shows in both.
+function buildCategorySectionHTML() {
+  const c = _filters.category || 'all';
+  const opt = (v, label) => `<button class="filter-chip${c === v ? ' active' : ''}" onclick="setListingCat('${v}')" aria-pressed="${c === v}">${esc(label)}</button>`;
+  return `<div class="df-section"><div class="df-static-label">Category</div><div class="df-body df-body-tight"><div class="df-chips">`
+    + opt('all', 'All') + BROWSE_CATEGORIES.map(v => opt(v, catShort(v))).join('') + `</div></div></div>`;
+}
+
 function buildScopeSectionHTML() {
   const s = _filters.schoolScope;
   const opt = (val, label) => `<button class="filter-chip${s === val ? ' active' : ''}" onclick="setSchoolScope('${val}')" aria-pressed="${s === val}">${label}</button>`;
@@ -369,7 +378,7 @@ function renderDeepFilters() {
   const priceSection = `
     <div class="df-section">
       <button class="df-toggle" onclick="toggleDFSection('dfPrice')" aria-expanded="${_dfPriceOpen}">
-        <span>Price range</span><span class="df-chevron">${_dfPriceOpen ? '▾' : '›'}</span>
+        <span>${cat === 'housing' ? 'Monthly rent' : 'Price range'}</span><span class="df-chevron">${_dfPriceOpen ? '▾' : '›'}</span>
       </button>
       <div id="dfPrice" class="df-body" style="${_dfPriceOpen ? '' : 'display:none'}">
         <div class="price-labels"><span id="priceMinLabel">${minLabel}</span><span id="priceMaxLabel">${maxLabel}</span></div>
@@ -381,8 +390,10 @@ function renderDeepFilters() {
       </div>
     </div>`;
 
+  // Category first (already showing the one picked in the row above the grid), then the details
+  // that only make sense for it, then price, scope and sort — the order a student narrows down in.
   const catSection = buildCatFiltersHTML(cat);
-  panel.innerHTML = `<div class="df-panel">${buildScopeSectionHTML()}${priceSection}${catSection}${buildSortSectionHTML()}</div>`;
+  panel.innerHTML = `<div class="df-panel">${buildCategorySectionHTML()}${catSection}${priceSection}${buildScopeSectionHTML()}${buildSortSectionHTML()}</div>`;
   if (cat === 'books') attachDrawerCourseAC(); // typeahead needs a live DOM node — attach after innerHTML
 }
 
@@ -427,6 +438,167 @@ function onPriceRange() {
   _kwTimer = setTimeout(() => renderListings(), 80);
 }
 
+// ---- What a listing can say about itself, per category (2026-09-23) ----
+// ONE definition, read by three places: the posting form fills its dropdowns from it
+// (fillSpecSelects), the filter drawer builds its chips from it (buildSpecFiltersHTML) and
+// matches with it (specMatch), and the detail view lists it (listingSpecsHTML). Before this each
+// place kept its own list and they drifted — "Full Apt" here, "Full Apartment" there, tags a
+// seller could set that no buyer could filter on, and details nobody could see at all.
+// Add a detail HERE and it appears in all three.
+//
+//   key       where it lives in listings.details (jsonb — no schema change for a new key)
+//   options   [stored value, label]; the order matters for 'within' and reads left to right
+//   filter    'one'     the listing's value equals the chosen chip
+//             'within'  the listing is at or before the chosen option (distance)
+//             'atleast' the listing's number is >= the chosen chip (bedrooms, bathrooms)
+//             'by'      a date on or before the chosen one (available from)
+//             absent    shown on the listing, not filterable (free text like brand)
+//   filterLabels  chip labels when they differ from the posting labels ("2+" rather than "2")
+//   filterLabel   the drawer's heading when it reads better than the posting label
+//   detail:false  not listed on the detail view (room type is already its headline pill)
+//
+// Every detail is OPTIONAL for the seller, and a listing that does not state a detail is hidden
+// when a buyer filters on it (Kal, 2026-09-23): a filter means "only listings that match".
+const LISTING_SPECS = {
+  housing: [
+    { key: 'room_type', label: 'Room type', filter: 'one', detail: false, options: [
+      ['Private Room', 'Private room'], ['Shared Room', 'Shared room'],
+      ['Full Apartment', 'Full apartment'], ['Looking for Room', 'Looking for a room']] },
+    { key: 'distance', label: 'Distance to campus', filter: 'within', options: [
+      ['walk', 'Walking distance'], ['1mi', 'Under 1 mile'], ['3mi', '1–3 miles'], ['far', '3+ miles (car needed)']],
+      filterLabels: [['walk', 'Walking'], ['1mi', 'Under 1 mi'], ['3mi', 'Under 3 mi']] },
+    { key: 'bedrooms', label: 'Bedrooms', filter: 'atleast', options: [
+      ['0', 'Studio'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4+']],
+      filterLabels: [['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']] },
+    { key: 'bathrooms', label: 'Bathrooms', filter: 'atleast', options: [
+      ['1', '1'], ['1.5', '1.5'], ['2', '2'], ['2.5', '2.5+']],
+      filterLabels: [['1', '1+'], ['1.5', '1.5+'], ['2', '2+']] },
+    { key: 'lease', label: 'Lease', filter: 'one', options: [
+      ['semester', 'One semester'], ['academic', 'Academic year'], ['12mo', '12 months'],
+      ['monthly', 'Month-to-month'], ['summer', 'Summer sublet']] },
+    { key: 'available_from', label: 'Available from', filterLabel: 'Move in by', filter: 'by', type: 'date' },
+  ],
+  clothing: [
+    { key: 'item_type', label: 'Type', filter: 'one', options: [
+      ['tops', 'Tops'], ['bottoms', 'Bottoms'], ['dresses', 'Dresses'], ['outerwear', 'Outerwear'],
+      ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['other', 'Other']] },
+    { key: 'size', label: 'Size', filter: 'one', options: [
+      ['XS', 'XS'], ['S', 'S'], ['M', 'M'], ['L', 'L'], ['XL', 'XL'], ['XXL', 'XXL'], ['One size', 'One size']] },
+    { key: 'condition', label: 'Condition', filter: 'one', options: [['New', 'New'], ['Like New', 'Like new'], ['Used', 'Used']] },
+    { key: 'delivery', label: 'Pickup / delivery', filter: 'one', options: [
+      ['Pickup only', 'Pickup only'], ['Delivery available', 'Delivery'], ['Either', 'Either']] },
+    { key: 'brand', label: 'Brand' },
+  ],
+  technology: [
+    { key: 'device', label: 'Device', filter: 'one', options: [
+      ['laptop', 'Laptop'], ['phone', 'Phone'], ['tablet', 'Tablet'], ['monitor', 'Monitor'],
+      ['audio', 'Audio'], ['gaming', 'Gaming'], ['accessory', 'Accessory'], ['other', 'Other']] },
+    { key: 'condition', label: 'Condition', filter: 'one', options: [
+      ['New', 'New'], ['Like New', 'Like new'], ['Used', 'Used'], ['For Parts', 'For parts']] },
+    { key: 'brand_model', label: 'Brand / model' },
+  ],
+  donation: [
+    { key: 'condition', label: 'Condition', filter: 'one', options: [['Good', 'Good'], ['Fair', 'Fair'], ['Worn', 'Worn']] },
+    { key: 'pickup_info', label: 'Pickup' },
+  ],
+};
+
+// Housing amenities are the listing's TAGS (checkboxes when posting), not details.
+// [filter key, stored tag, chip label]. furnished/petOk keep their old keys so a filter a
+// student had saved before this change still means the same thing.
+const HOUSING_AMENITIES = [
+  ['utilities', 'Utilities included', 'Utilities included'], ['furnished', 'Furnished', 'Furnished'],
+  ['parking', 'Parking', 'Parking'], ['petOk', 'Pet friendly', 'Pets OK'],
+  ['laundry', 'Laundry', 'Laundry'], ['privateBath', 'Private bathroom', 'Private bathroom'],
+  ['quiet', 'Quiet', 'Quiet'],
+];
+
+function specOf(cat, key) { return (LISTING_SPECS[cat] || []).find(s => s.key === key); }
+function specLabel(spec, v, forFilter) {
+  const list = (forFilter && spec.filterLabels) || spec.options || [];
+  return (list.find(o => o[0] === String(v)) || [])[1] || String(v);
+}
+
+// Does listing l pass the category-detail filters in d?
+function specMatch(l, cat, d) {
+  const ld = l.details || {};
+  for (const s of LISTING_SPECS[cat] || []) {
+    const want = d[s.key];
+    if (!s.filter || want === undefined || want === null || want === '') continue;
+    const have = ld[s.key];
+    if (have === undefined || have === null || have === '') return false;   // not stated: hidden
+    if (s.filter === 'one' && String(have).toLowerCase() !== String(want).toLowerCase()) return false;
+    if (s.filter === 'within') {
+      const order = s.options.map(o => o[0]);
+      const at = order.indexOf(String(have));
+      if (at === -1 || at > order.indexOf(String(want))) return false;
+    }
+    if (s.filter === 'atleast' && !(parseFloat(have) >= parseFloat(want))) return false;
+    // ISO dates (YYYY-MM-DD) order correctly as plain strings.
+    if (s.filter === 'by' && !(String(have) <= String(want))) return false;
+  }
+  if (cat === 'housing') {
+    for (const [k, tag] of HOUSING_AMENITIES) if (d[k] && !(l.tags || []).includes(tag)) return false;
+  }
+  return true;
+}
+
+// The drawer's section for a category with specs: one chip row per filterable detail, a date
+// field for 'by', and for housing the amenities.
+function buildSpecFiltersHTML(cat) {
+  const d = _filters.details;
+  const chips = s => (s.filterLabels || s.options).map(([v, label]) => {
+    const on = String(d[s.key] ?? '') === v;
+    return `<button class="filter-chip${on ? ' active' : ''}" onclick="setDeepFilter('${s.key}','${escAttr(v)}')" aria-pressed="${on}">${esc(label)}</button>`;
+  }).join('');
+  let html = (LISTING_SPECS[cat] || []).filter(s => s.filter).map(s => s.filter === 'by'
+    ? `<div class="df-group"><label class="df-label" for="df-${s.key}">${esc(s.filterLabel || s.label)}</label>
+         <input type="date" class="form-input df-date" id="df-${s.key}" value="${escAttr(d[s.key] || '')}"
+           onchange="setDeepDate('${s.key}',this.value)"></div>`
+    : `<div class="df-group"><div class="df-label">${esc(s.label)}</div><div class="df-chips">${chips(s)}</div></div>`).join('');
+  if (cat === 'housing') {
+    html += `<div class="df-group"><div class="df-label">Includes</div><div class="df-chips">${HOUSING_AMENITIES.map(([k, , label]) =>
+      `<button class="filter-chip${d[k] ? ' active' : ''}" onclick="setDeepFilter('${k}','yes')" aria-pressed="${!!d[k]}">${esc(label)}</button>`).join('')}</div></div>`;
+  }
+  return html;
+}
+
+// The listing's details as a list on its detail view — every detail it states, in the order
+// the specs give them. Details it does not state are simply absent.
+function listingSpecsHTML(l) {
+  const ld = l.details || {};
+  const rows = (LISTING_SPECS[l.category] || []).filter(s => s.detail !== false).map(s => {
+    const v = ld[s.key];
+    if (v === undefined || v === null || v === '') return '';
+    const shown = s.type === 'date'
+      ? new Date(v + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      : specLabel(s, v, false);
+    return `<div class="detail-spec"><dt>${esc(s.label)}</dt><dd>${esc(shown)}</dd></div>`;
+  }).join('');
+  return rows ? `<dl class="detail-specs">${rows}</dl>` : '';
+}
+
+// Fills the posting form's spec dropdowns (<select data-spec="cat.key">) from LISTING_SPECS, so
+// the form offers exactly what the filters can find. Run each time a category is chosen; it only
+// fills a select that is still empty, so a half-filled form keeps its answers.
+function fillSpecSelects() {
+  document.querySelectorAll('select[data-spec]').forEach(sel => {
+    if (sel.options.length) return;
+    const [cat, key] = sel.dataset.spec.split('.');
+    const spec = specOf(cat, key);
+    if (!spec) return;
+    sel.innerHTML = `<option value="">Not specified</option>`
+      + spec.options.map(([v, label]) => `<option value="${escAttr(v)}">${esc(label)}</option>`).join('')
+      + (sel.dataset.other ? `<option value="__other">Other…</option>` : '');
+  });
+}
+
+// Clothing size: the chips cover letter sizes; "Other…" reveals a text box for shoe and waist
+// sizes, which are shown on the listing but cannot be matched by a chip.
+function onClothingSize(sel) {
+  document.getElementById('pCL_size')?.classList.toggle('is-hidden', sel.value !== '__other');
+}
+
 function buildCatFiltersHTML(cat) {
   const d = _filters.details;
   const chip = (key, val, label) => {
@@ -434,71 +606,8 @@ function buildCatFiltersHTML(cat) {
     return `<button class="filter-chip${active}" onclick="setDeepFilter('${key}','${val}')" aria-pressed="${!!active}">${label}</button>`;
   };
   let html = '';
-  if (cat === 'housing') {
-    html = `
-      <div style="margin-bottom:12px">
-        <div class="df-label">Room type</div>
-        <div class="df-chips">
-          ${chip('room_type','Private Room','Private')}
-          ${chip('room_type','Shared Room','Shared')}
-          ${chip('room_type','Full Apartment','Full Apt')}
-          ${chip('room_type','Looking for Room','Looking')}
-        </div>
-      </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div>
-          <div class="df-label">Amenities</div>
-          <div class="df-chips">
-            ${chip('furnished','yes','Furnished')}
-            ${chip('petOk','yes','Pets OK')}
-          </div>
-        </div>
-      </div>`;
-  } else if (cat === 'clothing') {
-    html = `
-      <div style="margin-bottom:12px">
-        <div class="df-label">Condition</div>
-        <div class="df-chips">
-          ${chip('condition','New','New')}
-          ${chip('condition','Like New','Like New')}
-          ${chip('condition','Used','Used')}
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <div class="df-label">Size</div>
-        <div class="df-chips">
-          ${chip('size','XS','XS')}${chip('size','S','S')}${chip('size','M','M')}${chip('size','L','L')}${chip('size','XL','XL')}${chip('size','XXL','XXL')}
-        </div>
-      </div>
-      <div>
-        <div class="df-label">Pickup / delivery</div>
-        <div class="df-chips">
-          ${chip('delivery','Pickup only','Pickup only')}
-          ${chip('delivery','Delivery available','Delivery')}
-          ${chip('delivery','Either','Either')}
-        </div>
-      </div>`;
-  } else if (cat === 'technology') {
-    html = `
-      <div>
-        <div class="df-label">Condition</div>
-        <div class="df-chips">
-          ${chip('condition','New','New')}
-          ${chip('condition','Like New','Like New')}
-          ${chip('condition','Used','Used')}
-          ${chip('condition','For Parts','For Parts')}
-        </div>
-      </div>`;
-  } else if (cat === 'donation') {
-    html = `
-      <div>
-        <div class="df-label">Condition</div>
-        <div class="df-chips">
-          ${chip('condition','Good','Good')}
-          ${chip('condition','Fair','Fair')}
-          ${chip('condition','Worn','Worn')}
-        </div>
-      </div>`;
+  if (LISTING_SPECS[cat]) {
+    html = buildSpecFiltersHTML(cat);
   } else if (cat === 'organization_event') {
     const fromVal = d.eventDateFrom || '';
     const toVal   = d.eventDateTo   || '';
@@ -544,7 +653,7 @@ function buildCatFiltersHTML(cat) {
   return `
     <div class="df-section">
       <button class="df-toggle" onclick="toggleDFSection('dfCat')" aria-expanded="${_dfCatOpen}">
-        <span>${CATEGORY_LABELS[cat] || cat} filters</span><span class="df-chevron">${_dfCatOpen ? '▾' : '›'}</span>
+        <span>${CATEGORY_LABELS[cat] || cat} details</span><span class="df-chevron">${_dfCatOpen ? '▾' : '›'}</span>
       </button>
       <div id="dfCat" class="df-body" style="${_dfCatOpen ? '' : 'display:none'}">${html}</div>
     </div>`;
@@ -633,12 +742,8 @@ function renderListings() {
   };
   const detailsMatch = l => {
     const d = _filters.details;
-    if (d.room_type  && l.details.room_type !== d.room_type)     return false;
-    if (d.furnished  && !l.tags.includes('Furnished'))            return false;
-    if (d.petOk      && !l.tags.includes('Pet friendly'))         return false;
-    if (d.condition  && l.details.condition !== d.condition)      return false;
-    if (d.delivery   && l.details.delivery !== d.delivery)        return false;
-    if (d.size       && !(l.details.size || '').toLowerCase().includes(d.size.toLowerCase())) return false;
+    // Housing, clothing, tech and free items: the shared specs (LISTING_SPECS) decide.
+    if (!specMatch(l, _filters.category, d)) return false;
     if (d.eventDateFrom && l.details.event_date && l.details.event_date < d.eventDateFrom) return false;
     if (d.eventDateTo   && l.details.event_date && l.details.event_date > d.eventDateTo)   return false;
     // Book filters exclude non-books by design: course/type/edition only exist on books.
@@ -674,9 +779,13 @@ function renderListings() {
   const d = _filters.details;
   const detailTagLabels = { room_type:'Room', condition:'Condition', size:'Size', delivery:'Delivery', furnished:'Furnished', petOk:'Pets OK', eventDateFrom:'From', eventDateTo:'To', bookType:'Type', courseCode:'Course', edition:'Edition' };
   Object.entries(d).forEach(([k, v]) => {
-    const label = detailTagLabels[k] || k;
-    const prettyVal = k === 'bookType' ? (v === 'course' ? 'Textbooks' : 'Other books') : v;
-    const display = (k === 'furnished' || k === 'petOk') ? label : `${label}: ${prettyVal}`;
+    const spec  = specOf(_filters.category, k);
+    const amen  = HOUSING_AMENITIES.find(a => a[0] === k);
+    const label = spec ? (spec.filterLabel || spec.label) : detailTagLabels[k] || k;
+    const prettyVal = k === 'bookType' ? (v === 'course' ? 'Textbooks' : 'Other books')
+      : spec ? (spec.type === 'date' ? new Date(v + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : specLabel(spec, v, true))
+      : v;
+    const display = amen ? amen[2] : `${label}: ${prettyVal}`;
     tags.push(`<span class="active-filter-tag">${display} <button onclick="delete _filters.details['${k}'];renderDeepFilters();renderListings()">&#215;</button></span>`);
   });
   if (_filters.schoolScope !== '25mi') {
@@ -1113,6 +1222,7 @@ function openDetail(id) {
         ${(() => { if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) { const [bg, col, label] = listingLifecycleBadge(l); return `<span class="pill" style="background:${bg};color:${col}">${label}</span>`; } return ''; })()}
       </div>
       ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      ${listingSpecsHTML(l)}
       <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${esc(l.desc)}</div>
       ${messageBtn}
       ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">${icon('flag',14)} Report this listing</button></div>` : ''}
@@ -1351,6 +1461,7 @@ function selectCategory(cat) {
   // throw on a null and leave the modal half-drawn.
   const cf = document.getElementById('catFields-' + cat);
   if (cf) cf.style.display = '';
+  fillSpecSelects();   // the new detail dropdowns come from LISTING_SPECS
 }
 
 function backToCategories() {
@@ -1435,12 +1546,24 @@ async function submitListing() {
     location = document.getElementById('pH_loc').value.trim();
     details.room_type = document.getElementById('pH_type').value;
     tags = [...document.querySelectorAll('#pTags input:checked')].map(c => c.value);
+    // Optional details (LISTING_SPECS.housing). Only what the student actually chose is saved:
+    // an unstated detail is absent, never an empty string pretending to be an answer.
+    for (const [id, key] of [['pH_distance', 'distance'], ['pH_available', 'available_from'],
+        ['pH_lease', 'lease'], ['pH_beds', 'bedrooms'], ['pH_baths', 'bathrooms']]) {
+      const v = document.getElementById(id)?.value;
+      if (v) details[key] = v;
+    }
     if (!price || isNaN(price)) { toast('Please enter monthly rent'); return; }
     if (!location) { toast('Please enter a location'); return; }
   } else if (cat === 'clothing') {
     price = parseInt(document.getElementById('pCL_price').value);
     details.condition = document.getElementById('pCL_cond').value;
-    details.size = document.getElementById('pCL_size').value.trim();
+    const itemType = document.getElementById('pCL_type')?.value;
+    if (itemType) details.item_type = itemType;
+    // A size from the list, or — with "Other…" — whatever the student typed (shoe 10, 32x32).
+    const sizeSel = document.getElementById('pCL_sizeSel')?.value || '';
+    const size = sizeSel === '__other' ? document.getElementById('pCL_size').value.trim() : sizeSel;
+    if (size) details.size = size;
     details.brand = document.getElementById('pCL_brand').value.trim();
     details.delivery = document.getElementById('pCL_delivery').value;
     if (!price || isNaN(price)) { toast('Please enter a price'); return; }
@@ -1448,6 +1571,8 @@ async function submitListing() {
     price = parseInt(document.getElementById('pTK_price').value);
     details.condition = document.getElementById('pTK_cond').value;
     details.brand_model = document.getElementById('pTK_brand').value.trim();
+    const device = document.getElementById('pTK_device')?.value;
+    if (device) details.device = device;
     if (!price || isNaN(price)) { toast('Please enter a price'); return; }
   } else if (cat === 'donation') {
     details.condition = document.getElementById('pDN_cond').value;

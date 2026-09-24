@@ -530,6 +530,12 @@ select.ap-input{cursor:pointer;}
 .price-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:2px;font-weight:500;}
 .df-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .df-chips .filter-chip{padding:5px 12px;font-size:12px;}
+/* Category-specific filters, built from LISTING_SPECS (js/listings.js). One group per detail. */
+.df-body-tight{padding-top:0;}
+.df-group{margin-bottom:14px;}
+.df-group label.df-label{display:block;}
+.df-group:last-child{margin-bottom:0;}
+.df-date{width:auto;max-width:220px;margin-top:2px;padding:7px 10px;font-size:13px;}
 .active-filter-tag{animation:tagIn .15s ease;}
 @keyframes tagIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
 /* FILTER PANEL / DRAWER */
@@ -1293,6 +1299,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .detail-price span{font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text-muted);font-weight:400;}
 .detail-tags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
 .detail-tag{background:var(--bg);color:var(--text-muted);font-size:13px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);}
+/* The listing's stated details (listingSpecsHTML): a two-column label / value list. */
+.detail-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin:0 0 16px;padding:14px 16px;
+  border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);}
+.detail-spec dt{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
+.detail-spec dd{margin:2px 0 0;font-size:14px;font-weight:500;color:var(--text);}
+/* Posting form: the optional-details heading, and the "Other…" size box under its dropdown. */
+.post-subhead{margin:6px 0 10px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text);}
+.post-subhead .label-hint{font-weight:400;}
+.post-other{margin-top:8px;}
 
 /* SWITCH INTERFACE BTN */
 .switch-interface{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);font-size:11px;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s;}
