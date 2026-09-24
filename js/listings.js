@@ -18,7 +18,7 @@ function showPage(name) {
   if (name !== 'maintenance') sessionStorage.setItem('cn_last_page', name);
   if (name === 'messages') { renderConvos(); markActiveConvoSeen(); } // returning to an already-open thread reads it; badges come from refreshUnread (DB)
   if (name === 'profile') renderProfile();
-  if (name === 'listings') renderListings();
+  if (name === 'listings') { renderListings(); renderDeepFilters(); }
   // Same shape as messages and events: page-feed is an empty shell until renderFeed()
   // fills it, so a bare showPage() would restore a page that looks like a feed with
   // nothing in it.
@@ -309,16 +309,6 @@ function closeFilterDrawer() {
   _drawerOpener = null;
 }
 
-function toggleDFSection(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const open = el.style.display !== 'none';
-  el.style.display = open ? 'none' : '';
-  if (id === 'dfPrice') _dfPriceOpen = !open;
-  if (id === 'dfCat')   _dfCatOpen   = !open;
-  const btn = el.previousElementSibling;
-  if (btn) btn.querySelector('.df-chevron').textContent = open ? '›' : '▾';
-}
 
 function setDeepFilter(key, val) {
   if (_filters.details[key] === val) {
@@ -336,65 +326,222 @@ function setDeepDate(key, val) {
   renderListings();
 }
 
-// The category chooser inside the drawer. It shares _filters.category with the row of category
-// pills above the grid, so choosing in either place shows in both.
-function buildCategorySectionHTML() {
-  const c = _filters.category || 'all';
-  const opt = (v, label) => `<button class="filter-chip${c === v ? ' active' : ''}" onclick="setListingCat('${v}')" aria-pressed="${c === v}">${esc(label)}</button>`;
-  return `<div class="df-section"><div class="df-static-label">Category</div><div class="df-body df-body-tight"><div class="df-chips">`
-    + opt('all', 'All') + BROWSE_CATEGORIES.map(v => opt(v, catShort(v))).join('') + `</div></div></div>`;
-}
 
-function buildScopeSectionHTML() {
-  const s = _filters.schoolScope;
-  const opt = (val, label) => `<button class="filter-chip${s === val ? ' active' : ''}" onclick="setSchoolScope('${val}')" aria-pressed="${s === val}">${label}</button>`;
-  return `<div class="df-section"><div class="df-static-label">Scope</div><div class="df-body" style="padding-top:0"><div class="df-chips">${opt('mine', 'My school')}${opt('10mi', 'Within 10 mi')}${opt('25mi', 'Within 25 mi')}${opt('all', 'All schools')}</div></div></div>`;
-}
 
-function buildSortSectionHTML() {
-  const s = _filters.sort || 'newest';
-  const opt = (val, label) => `<button class="filter-chip${s === val ? ' active' : ''}" onclick="setSort('${val}')" aria-pressed="${s === val}">${label}</button>`;
-  return `<div class="df-section"><div class="df-static-label">Sort by</div><div class="df-body" style="padding-top:0"><div class="df-chips">${opt('newest', 'Newest')}${opt('price_asc', 'Price ↑')}${opt('price_desc', 'Price ↓')}${opt('closest', 'Closest')}</div></div></div>`;
+
+// ============================================================
+// THE FILTER PANEL (2026-09-24)
+// ============================================================
+// One panel, two homes. On a desktop Marketplace it is docked to the left of the listings
+// (#mkFilterRail) and every change applies at once, so a student refines while browsing and can
+// open listings without closing anything. On a phone — and wherever the rail is not showing (the
+// Search page, a narrow window, a student who hid it) — it lives in the bottom sheet
+// (#filterDrawerBody), whose "Show N listings" button closes it.
+// ONE host holds the panel at a time: its inputs have ids (the price slider, the course box), and
+// two copies in the document would leave getElementById answering for the hidden one.
+//
+// Each control fits the kind of choice, instead of a pill for everything:
+//   pick one  -> a list with radio dots, "Any" first     (category, room type, distance, lease)
+//   a number  -> one segmented bar, "Any | 1+ | 2+"      (bedrooms, bathrooms, size)
+//   pick many -> checkboxes                              (housing amenities)
+//   a range   -> the slider plus Min / Max boxes you can type in
+// Sections collapse, and each header names its current choice, so a closed section still says
+// what it is doing. Sort is not a filter — it only reorders — so on the Marketplace it is a menu
+// above the grid (#mkSort). The sheet keeps a Sort section on the Search page, which has no menu.
+const FX_RAIL_MQ = window.matchMedia('(min-width: 1024px)');
+const FX_RAIL_KEY = 'cn_filters_rail';     // a device preference, so localStorage (see utils.js)
+let _fxOpen = { scope: false, sort: false };   // sections not listed here start open
+
+function fxRailHidden() {
+  try { return localStorage.getItem(FX_RAIL_KEY) === 'hidden'; } catch (e) { return false; }
+}
+function fxRailActive() {
+  return FX_RAIL_MQ.matches && !fxRailHidden()
+    && !!document.getElementById('page-listings')?.classList.contains('active');
+}
+function fxSetRail(hidden) {
+  try { localStorage.setItem(FX_RAIL_KEY, hidden ? 'hidden' : 'shown'); } catch (e) { /* private mode */ }
+  renderDeepFilters();
+}
+// The Marketplace's filter button: on a desktop it brings a hidden rail back; on a phone it
+// opens the sheet.
+function mkFiltersClick(btn) {
+  if (FX_RAIL_MQ.matches) fxSetRail(false); else openFilterDrawer(btn);
 }
 
 function renderDeepFilters() {
-  const panel = document.getElementById('filterDrawerBody');
-  if (!panel) return;
-  const cat = _filters.category;
+  if (!renderDeepFilters._wired) {   // crossing the desktop breakpoint moves the panel
+    renderDeepFilters._wired = true;
+    FX_RAIL_MQ.addEventListener('change', () => { closeFilterDrawer(); renderDeepFilters(); });
+  }
+  const rail  = document.getElementById('mkFilterRail');
+  const sheet = document.getElementById('filterDrawerBody');
+  const useRail = !!rail && fxRailActive();
+  const host  = useRail ? rail : sheet;
+  const other = useRail ? sheet : rail;
+  if (other) other.innerHTML = '';
+  document.getElementById('page-listings')?.classList.toggle('rail-on', useRail);
+  if (!host) return;
 
-  // Compute price max from listings in current category (books included via browseItems)
+  const cat = _filters.category;
+  // The price slider's top end: the dearest live listing in this category, rounded up.
   const catListings = browseItems().filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
   const prices = catListings.map(l => l.rent || 0).filter(p => p > 0);
   _pMax = prices.length ? Math.ceil(Math.max(...prices) / 50) * 50 : 2000;
   _pMax = Math.max(_pMax, 100);
 
+  const onSearch = document.getElementById('page-search')?.classList.contains('active');
+  host.innerHTML = (useRail ? fxRailHeadHTML() : '')
+    + fxCategoryHTML() + fxDetailsHTML(cat) + fxPriceHTML(cat) + fxScopeHTML()
+    + (!useRail && onSearch ? fxSortHTML() : '');
+  if (cat === 'books') attachDrawerCourseAC(); // typeahead needs a live DOM node — attach after innerHTML
+}
+
+// How many panel filters are on (scope, price, category details, sort) — the same count the
+// filter button's badge shows.
+function fxActiveCount() {
+  return (_filters.schoolScope !== '25mi' ? 1 : 0)
+    + ((_filters.minPrice !== null || _filters.maxPrice !== null) ? 1 : 0)
+    + Object.keys(_filters.details).length + (_filters.category !== 'all' ? 1 : 0);
+}
+
+function fxRailHeadHTML() {
+  return `<div class="fx-rail-head">
+    <span class="fx-rail-title">Filters</span>
+    ${fxActiveCount() ? `<button class="fx-link" onclick="clearListingFilters()">Clear all</button>` : ''}
+    <button class="fx-icon-btn" onclick="fxSetRail(true)" aria-label="Hide filters" title="Hide filters">${icon('chevRight', 16)}</button>
+  </div>`;
+}
+
+function fxSection(id, title, summary, body) {
+  const open = _fxOpen[id] !== false;
+  return `<section class="fx-sec${open ? ' is-open' : ''}">
+    <button class="fx-head" onclick="fxToggle('${id}')" aria-expanded="${open}">
+      <span class="fx-title">${esc(title)}</span>
+      <span class="fx-sum">${summary ? esc(summary) : ''}</span>
+      <span class="fx-chev">${icon('chevDown', 16)}</span>
+    </button>
+    <div class="fx-body"${open ? '' : ' hidden'}>${body}</div>
+  </section>`;
+}
+function fxToggle(id) { _fxOpen[id] = _fxOpen[id] === false; renderDeepFilters(); }
+
+// A pick-one list. opts: [value, label, count?, iconHTML?]; value '' is "Any".
+function fxRadioList(opts, current, pick) {
+  return `<div class="fx-list" role="radiogroup">${opts.map(([v, label, n, ic]) => {
+    const on = String(current ?? '') === String(v);
+    const action = pick(v);   // built first: the markup should only ever hold a finished handler
+    return `<button class="fx-opt${on ? ' is-on' : ''}" role="radio" aria-checked="${on}" onclick="${action}">`
+      + `<span class="fx-dot" aria-hidden="true"></span>${ic ? `<span class="fx-ic">${ic}</span>` : ''}`
+      + `<span class="fx-opt-l">${esc(label)}</span>${n !== undefined ? `<span class="fx-n">${n}</span>` : ''}</button>`;
+  }).join('')}</div>`;
+}
+// One segmented bar for short, ordered choices.
+function fxSeg(opts, current, pick) {
+  return `<div class="fx-seg" role="radiogroup">${opts.map(([v, label]) => {
+    const on = String(current ?? '') === String(v);
+    const action = pick(v);
+    return `<button class="${on ? 'is-on' : ''}" role="radio" aria-checked="${on}" onclick="${action}">${esc(label)}</button>`;
+  }).join('')}</div>`;
+}
+
+// Set (or with '' clear) one category-detail filter.
+function fxSet(key, val) {
+  if (val === '' || val === null || val === undefined) delete _filters.details[key];
+  else _filters.details[key] = val;
+  renderDeepFilters();
+  renderListings();
+}
+
+function fxCategoryHTML() {
+  const live = browseItems().filter(isListingLive);
+  const count = c => c === 'all' ? live.length : live.filter(l => l.category === c).length;
+  const opts = [['all', 'All listings', count('all')],
+    ...BROWSE_CATEGORIES.map(c => [c, CATEGORY_LABELS[c] || catShort(c), count(c), catIcon(c, 15)])];
+  const cur = _filters.category || 'all';
+  return fxSection('cat', 'Category', cur === 'all' ? '' : (CATEGORY_LABELS[cur] || cur),
+    fxRadioList(opts, cur, v => `setListingCat('${v}')`));
+}
+
+function fxDetailsHTML(cat) {
+  const d = _filters.details;
+  const n = Object.keys(d).length;
+  const summary = n ? `${n} selected` : '';
+  const any = [['', 'Any']];
+  if (LISTING_SPECS[cat]) {
+    let body = LISTING_SPECS[cat].filter(s => s.filter).map(s => {
+      const pick = v => `fxSet('${s.key}','${escAttr(v)}')`;
+      const opts = any.concat(s.filterLabels || s.options);
+      const ctl = s.filter === 'by'
+        ? `<input type="date" class="fx-input fx-date" id="df-${s.key}" value="${escAttr(d[s.key] || '')}" onchange="fxSet('${s.key}',this.value)">`
+        : (s.control === 'seg' || s.filter === 'atleast')
+          ? fxSeg(opts, d[s.key], pick)
+          : fxRadioList(opts, d[s.key], pick);
+      return `<div class="fx-field"><label class="fx-label"${s.filter === 'by' ? ` for="df-${s.key}"` : ''}>${esc(s.filterLabel || s.label)}</label>${ctl}</div>`;
+    }).join('');
+    if (cat === 'housing') {
+      body += `<div class="fx-field"><div class="fx-label">Includes</div><div class="fx-checks">${HOUSING_AMENITIES.map(([k, , label]) =>
+        `<button class="fx-opt fx-check${d[k] ? ' is-on' : ''}" role="checkbox" aria-checked="${!!d[k]}" onclick="setDeepFilter('${k}','yes')">`
+        + `<span class="fx-box" aria-hidden="true">${icon('check', 12)}</span><span class="fx-opt-l">${esc(label)}</span></button>`).join('')}</div></div>`;
+    }
+    return fxSection('details', `${CATEGORY_LABELS[cat] || cat} details`, summary, body);
+  }
+  if (cat === 'books') {
+    const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
+    const body = `
+      <div class="fx-field"><div class="fx-label">Book type</div>${fxRadioList([['', 'Any'], ['course', 'Textbooks'], ['other', 'Other books']], d.bookType, v => `fxSet('bookType','${v}')`)}</div>
+      <div class="fx-field"><label class="fx-label" for="dfCourseInput">Course</label>
+        <div class="fx-course"><input class="fx-input" id="dfCourseInput" placeholder="e.g. NU 301" autocomplete="off" value="${escAttr(d.courseCode || '')}">
+        <div class="course-ac-list" id="dfCourseList" hidden></div></div></div>
+      ${editions.length ? `<div class="fx-field"><label class="fx-label" for="dfEdition">Edition</label>
+        <select class="fx-input" id="dfEdition" onchange="setDeepEdition(this.value)"><option value="">Any edition</option>
+        ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}</select></div>` : ''}`;
+    return fxSection('details', 'Book details', summary, body);
+  }
+  return '';
+}
+
+function fxPriceHTML(cat) {
   const curMin = _filters.minPrice || 0;
   const curMax = _filters.maxPrice !== null ? _filters.maxPrice : _pMax;
   const fillLeft  = (curMin / _pMax * 100).toFixed(1) + '%';
   const fillWidth = ((curMax - curMin) / _pMax * 100).toFixed(1) + '%';
-  const minLabel  = curMin === 0     ? 'Min'  : '$' + curMin;
-  const maxLabel  = curMax >= _pMax  ? 'Max'  : '$' + curMax;
+  const set = _filters.minPrice !== null || _filters.maxPrice !== null;
+  const summary = set ? `$${_filters.minPrice || 0} – ${_filters.maxPrice !== null ? '$' + _filters.maxPrice : 'any'}` : '';
+  return fxSection('price', cat === 'housing' ? 'Monthly rent' : 'Price', summary, `
+    <div class="price-range-wrap fx-range">
+      <div class="price-range-track"><div class="price-range-fill" id="priceRangeFill" style="left:${fillLeft};width:${fillWidth}"></div></div>
+      <input type="range" id="priceMin" min="0" max="${_pMax}" value="${curMin}" oninput="onPriceRange()" aria-label="Minimum price" style="z-index:${curMin > _pMax * 0.9 ? 5 : 3}">
+      <input type="range" id="priceMax" min="0" max="${_pMax}" value="${curMax}" oninput="onPriceRange()" aria-label="Maximum price" style="z-index:4">
+    </div>
+    <div class="fx-price-boxes">
+      <label class="fx-pbox"><span>Min</span><span class="fx-pbox-in">$<input type="number" inputmode="numeric" min="0" id="fxPriceMinBox" placeholder="0" value="${_filters.minPrice ?? ''}" onchange="fxPriceBox()"></span></label>
+      <span class="fx-dash" aria-hidden="true">–</span>
+      <label class="fx-pbox"><span>Max</span><span class="fx-pbox-in">$<input type="number" inputmode="numeric" min="0" id="fxPriceMaxBox" placeholder="Any" value="${_filters.maxPrice ?? ''}" onchange="fxPriceBox()"></span></label>
+    </div>`);
+}
+// Typed prices: an empty box means no limit on that side; min above max swaps them.
+function fxPriceBox() {
+  const read = id => { const v = parseInt(document.getElementById(id)?.value, 10); return isNaN(v) || v < 0 ? null : v; };
+  let lo = read('fxPriceMinBox'), hi = read('fxPriceMaxBox');
+  if (lo !== null && hi !== null && lo > hi) [lo, hi] = [hi, lo];
+  _filters.minPrice = lo || null;
+  _filters.maxPrice = hi;
+  renderDeepFilters();
+  renderListings();
+}
 
-  const priceSection = `
-    <div class="df-section">
-      <button class="df-toggle" onclick="toggleDFSection('dfPrice')" aria-expanded="${_dfPriceOpen}">
-        <span>${cat === 'housing' ? 'Monthly rent' : 'Price range'}</span><span class="df-chevron">${_dfPriceOpen ? '▾' : '›'}</span>
-      </button>
-      <div id="dfPrice" class="df-body" style="${_dfPriceOpen ? '' : 'display:none'}">
-        <div class="price-labels"><span id="priceMinLabel">${minLabel}</span><span id="priceMaxLabel">${maxLabel}</span></div>
-        <div class="price-range-wrap">
-          <div class="price-range-track"><div class="price-range-fill" id="priceRangeFill" style="left:${fillLeft};width:${fillWidth}"></div></div>
-          <input type="range" id="priceMin" min="0" max="${_pMax}" value="${curMin}" oninput="onPriceRange()" style="z-index:${curMin > _pMax * 0.9 ? 5 : 3}">
-          <input type="range" id="priceMax" min="0" max="${_pMax}" value="${curMax}" oninput="onPriceRange()" style="z-index:4">
-        </div>
-      </div>
-    </div>`;
+function fxScopeHTML() {
+  const labels = { mine: 'My school', '10mi': 'Within 10 miles', '25mi': 'Within 25 miles', all: 'All schools' };
+  const s = _filters.schoolScope;
+  return fxSection('scope', 'Schools', s === '25mi' ? '' : labels[s],
+    fxRadioList(Object.entries(labels), s, v => `setSchoolScope('${v}')`));
+}
 
-  // Category first (already showing the one picked in the row above the grid), then the details
-  // that only make sense for it, then price, scope and sort — the order a student narrows down in.
-  const catSection = buildCatFiltersHTML(cat);
-  panel.innerHTML = `<div class="df-panel">${buildCategorySectionHTML()}${catSection}${priceSection}${buildScopeSectionHTML()}${buildSortSectionHTML()}</div>`;
-  if (cat === 'books') attachDrawerCourseAC(); // typeahead needs a live DOM node — attach after innerHTML
+function fxSortHTML() {
+  const s = _filters.sort || 'newest';
+  return fxSection('sort', 'Sort by', s === 'newest' ? '' : SORT_LABELS[s],
+    fxRadioList(Object.entries(SORT_LABELS), s, v => `setSort('${v}')`));
 }
 
 // Course typeahead inside the filter drawer (books category only). Re-attached on every
@@ -428,10 +575,10 @@ function onPriceRange() {
     fill.style.left  = (minV / _pMax * 100).toFixed(1) + '%';
     fill.style.width = ((maxV - minV) / _pMax * 100).toFixed(1) + '%';
   }
-  const minLbl = document.getElementById('priceMinLabel');
-  const maxLbl = document.getElementById('priceMaxLabel');
-  if (minLbl) minLbl.textContent = minV === 0    ? 'Min' : '$' + minV;
-  if (maxLbl) maxLbl.textContent = maxV >= _pMax ? 'Max' : '$' + maxV;
+  const minBox = document.getElementById('fxPriceMinBox');
+  const maxBox = document.getElementById('fxPriceMaxBox');
+  if (minBox) minBox.value = minV === 0     ? '' : minV;
+  if (maxBox) maxBox.value = maxV >= _pMax  ? '' : maxV;
   _filters.minPrice = minV === 0    ? null : minV;
   _filters.maxPrice = maxV >= _pMax ? null : maxV;
   clearTimeout(_kwTimer);
@@ -453,6 +600,7 @@ function onPriceRange() {
 //             'atleast' the listing's number is >= the chosen chip (bedrooms, bathrooms)
 //             'by'      a date on or before the chosen one (available from)
 //             absent    shown on the listing, not filterable (free text like brand)
+//   control:'seg' a segmented bar in the filter panel even for a 'one' filter (short, ordered)
 //   filterLabels  chip labels when they differ from the posting labels ("2+" rather than "2")
 //   filterLabel   the drawer's heading when it reads better than the posting label
 //   detail:false  not listed on the detail view (room type is already its headline pill)
@@ -466,7 +614,7 @@ const LISTING_SPECS = {
       ['Full Apartment', 'Full apartment'], ['Looking for Room', 'Looking for a room']] },
     { key: 'distance', label: 'Distance to campus', filter: 'within', options: [
       ['walk', 'Walking distance'], ['1mi', 'Under 1 mile'], ['3mi', '1–3 miles'], ['far', '3+ miles (car needed)']],
-      filterLabels: [['walk', 'Walking'], ['1mi', 'Under 1 mi'], ['3mi', 'Under 3 mi']] },
+      filterLabels: [['walk', 'Walking distance'], ['1mi', 'Under 1 mile'], ['3mi', 'Under 3 miles']] },
     { key: 'bedrooms', label: 'Bedrooms', filter: 'atleast', options: [
       ['0', 'Studio'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4+']],
       filterLabels: [['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']] },
@@ -482,7 +630,7 @@ const LISTING_SPECS = {
     { key: 'item_type', label: 'Type', filter: 'one', options: [
       ['tops', 'Tops'], ['bottoms', 'Bottoms'], ['dresses', 'Dresses'], ['outerwear', 'Outerwear'],
       ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['other', 'Other']] },
-    { key: 'size', label: 'Size', filter: 'one', options: [
+    { key: 'size', label: 'Size', filter: 'one', control: 'seg', options: [
       ['XS', 'XS'], ['S', 'S'], ['M', 'M'], ['L', 'L'], ['XL', 'XL'], ['XXL', 'XXL'], ['One size', 'One size']] },
     { key: 'condition', label: 'Condition', filter: 'one', options: [['New', 'New'], ['Like New', 'Like new'], ['Used', 'Used']] },
     { key: 'delivery', label: 'Pickup / delivery', filter: 'one', options: [
@@ -543,25 +691,6 @@ function specMatch(l, cat, d) {
   return true;
 }
 
-// The drawer's section for a category with specs: one chip row per filterable detail, a date
-// field for 'by', and for housing the amenities.
-function buildSpecFiltersHTML(cat) {
-  const d = _filters.details;
-  const chips = s => (s.filterLabels || s.options).map(([v, label]) => {
-    const on = String(d[s.key] ?? '') === v;
-    return `<button class="filter-chip${on ? ' active' : ''}" onclick="setDeepFilter('${s.key}','${escAttr(v)}')" aria-pressed="${on}">${esc(label)}</button>`;
-  }).join('');
-  let html = (LISTING_SPECS[cat] || []).filter(s => s.filter).map(s => s.filter === 'by'
-    ? `<div class="df-group"><label class="df-label" for="df-${s.key}">${esc(s.filterLabel || s.label)}</label>
-         <input type="date" class="form-input df-date" id="df-${s.key}" value="${escAttr(d[s.key] || '')}"
-           onchange="setDeepDate('${s.key}',this.value)"></div>`
-    : `<div class="df-group"><div class="df-label">${esc(s.label)}</div><div class="df-chips">${chips(s)}</div></div>`).join('');
-  if (cat === 'housing') {
-    html += `<div class="df-group"><div class="df-label">Includes</div><div class="df-chips">${HOUSING_AMENITIES.map(([k, , label]) =>
-      `<button class="filter-chip${d[k] ? ' active' : ''}" onclick="setDeepFilter('${k}','yes')" aria-pressed="${!!d[k]}">${esc(label)}</button>`).join('')}</div></div>`;
-  }
-  return html;
-}
 
 // The listing's details as a list on its detail view — every detail it states, in the order
 // the specs give them. Details it does not state are simply absent.
@@ -599,65 +728,6 @@ function onClothingSize(sel) {
   document.getElementById('pCL_size')?.classList.toggle('is-hidden', sel.value !== '__other');
 }
 
-function buildCatFiltersHTML(cat) {
-  const d = _filters.details;
-  const chip = (key, val, label) => {
-    const active = d[key] === val ? ' active' : '';
-    return `<button class="filter-chip${active}" onclick="setDeepFilter('${key}','${val}')" aria-pressed="${!!active}">${label}</button>`;
-  };
-  let html = '';
-  if (LISTING_SPECS[cat]) {
-    html = buildSpecFiltersHTML(cat);
-  } else if (cat === 'organization_event') {
-    const fromVal = d.eventDateFrom || '';
-    const toVal   = d.eventDateTo   || '';
-    html = `
-      <div>
-        <div class="df-label">Event date</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">
-            From <input type="date" class="form-input" style="width:auto;padding:6px 10px;font-size:13px" value="${fromVal}" oninput="setDeepDate('eventDateFrom',this.value)">
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)">
-            To <input type="date" class="form-input" style="width:auto;padding:6px 10px;font-size:13px" value="${toVal}" oninput="setDeepDate('eventDateTo',this.value)">
-          </div>
-        </div>
-      </div>`;
-  } else if (cat === 'books') {
-    const editions = [...new Set(_books.map(b => (b.edition || '').trim()).filter(Boolean))].sort();
-    html = `
-      <div style="margin-bottom:12px">
-        <div class="df-label">Book type</div>
-        <div class="df-chips">
-          ${chip('bookType','course','Textbooks')}
-          ${chip('bookType','other','Other books')}
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <div class="df-label">Course</div>
-        <div style="position:relative">
-          <input class="form-input" id="dfCourseInput" placeholder="e.g. NU 301..." autocomplete="off" value="${escAttr(d.courseCode || '')}" style="margin-bottom:0">
-          <div class="course-ac-list" id="dfCourseList" style="display:none"></div>
-        </div>
-      </div>
-      ${editions.length ? `<div>
-        <div class="df-label">Edition</div>
-        <select class="form-select" onchange="setDeepEdition(this.value)" style="margin-bottom:0;max-width:200px">
-          <option value="">All editions</option>
-          ${editions.map(e => `<option${d.edition === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}
-        </select>
-      </div>` : ''}`;
-  }
-
-  if (!html) return '';
-  return `
-    <div class="df-section">
-      <button class="df-toggle" onclick="toggleDFSection('dfCat')" aria-expanded="${_dfCatOpen}">
-        <span>${CATEGORY_LABELS[cat] || cat} details</span><span class="df-chevron">${_dfCatOpen ? '▾' : '›'}</span>
-      </button>
-      <div id="dfCat" class="df-body" style="${_dfCatOpen ? '' : 'display:none'}">${html}</div>
-    </div>`;
-}
 
 // ---- LOADING SKELETONS -------------------------------------------------
 // The feed's listings come from Supabase, so on a slow connection there is a gap
@@ -760,6 +830,8 @@ function renderListings() {
   const pinnedFiltered = pinned.filter(allMatch);
 
   // Active filter bar
+  const sortEl = document.getElementById('mkSort');
+  if (sortEl) sortEl.value = _filters.sort || 'newest';
   const tagsEl   = document.getElementById('sActiveTags');
   const clearBtn = document.getElementById('sClearAll');
   const countEl  = document.getElementById('sResultCount');

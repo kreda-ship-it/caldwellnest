@@ -161,8 +161,6 @@ let _filters = { category: 'all', keyword: '', minPrice: null, maxPrice: null, d
 // which mobile tab should light up. This remembers which one was actually tapped.
 // Defaults to 'home' so a student booting straight into the feed sees Home selected.
 let _kwTimer  = null;
-let _dfPriceOpen = true;
-let _dfCatOpen   = true;
 let _pMax        = 2000;
 let _schoolsList = [];
 let sConvoActive = null;

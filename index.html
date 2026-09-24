@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24c">
+<link rel="stylesheet" href="styles.css?v=2026-09-24e">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -354,7 +354,7 @@
           <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
           <span class="mk-search-ph">Search rooms, books, free stuff&hellip;</span>
         </button>
-        <button class="mk-filter" id="mkFiltersBtn" onclick="openFilterDrawer(this)" aria-haspopup="dialog" aria-label="Filters">
+        <button class="mk-filter" id="mkFiltersBtn" onclick="mkFiltersClick(this)" aria-haspopup="dialog" aria-label="Filters">
           <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.6" fill="var(--surface)"/><circle cx="16" cy="17" r="2.6" fill="var(--surface)"/></svg>
           <span class="mk-filter-count" id="mkFilterCount" style="display:none"></span>
         </button>
@@ -368,16 +368,38 @@
       <div class="cat-row-wrap">
         <div class="cat-row" id="sCategoryChips"></div>
       </div>
-      <!-- Books merged into the main grid 2026-07-10 — book filters live in the Filters drawer now -->
-      <div id="sFilterBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:24px;margin-bottom:12px;">
-        <span id="sActiveTags" style="display:contents;"></span>
-        <button id="sClearAll" onclick="clearListingFilters()" style="display:none;font-size:12px;color:var(--text-muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">Clear all</button>
-        <span id="sResultCount" style="font-size:13px;color:var(--text-muted);margin-left:auto;"></span>
+      <!-- Filters beside the listings (desktop) or in the sheet (phone): renderDeepFilters() in
+           js/listings.js decides and fills one of the two. On a desktop the rail is docked and
+           applies every change at once, so a student refines while scrolling and opening listings.
+           #page-listings.rail-on is set while it is showing. -->
+      <div class="mk-layout">
+        <aside class="mk-rail" id="mkFilterRail" aria-label="Filters"></aside>
+        <div class="mk-main">
+          <!-- Applied filters (removable), then the count and the sort menu. Sort lives here, not
+               among the filters: it only reorders. -->
+          <div id="sFilterBar" class="mk-bar">
+            <div class="mk-applied">
+              <span id="sActiveTags" class="mk-applied-tags"></span>
+              <button id="sClearAll" class="mk-clear" onclick="clearListingFilters()" style="display:none">Clear all</button>
+            </div>
+            <div class="mk-bar-end">
+              <span id="sResultCount" class="mk-count"></span>
+              <label class="mk-sort">
+                <span>Sort</span>
+                <select id="mkSort" onchange="setSort(this.value)">
+                  <option value="newest">Newest</option>
+                  <option value="price_asc">Price: low to high</option>
+                  <option value="price_desc">Price: high to low</option>
+                  <option value="closest">Closest to campus</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <!-- Sections are built by renderListings(): Featured, then At your school, then From
+               nearby campuses — or one flat results list once a filter narrows things. -->
+          <div id="mkSections"></div>
+        </div>
       </div>
-      <!-- Sections are built by renderListings(): Featured, then At your school, then From
-           nearby campuses — or one flat results list once a filter narrows things. Each
-           section owns its own grid, so the old separate pinned strip is gone. -->
-      <div id="mkSections"></div>
     </div>
   </div>
 
@@ -1157,6 +1179,7 @@
   </div>
   <div class="filter-drawer-body" id="filterDrawerBody"></div>
   <div class="filter-drawer-footer">
+    <button class="fx-sheet-clear" onclick="clearListingFilters()">Clear all</button>
     <button id="filterDrawerApply" class="btn-full btn-brand" onclick="closeFilterDrawer()">Show listings</button>
   </div>
 </div>
@@ -1851,13 +1874,13 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-23b"></script>
+<script src="js/config.js?v=2026-09-24a"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
 <script src="js/auth.js?v=2026-09-23f"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
-<script src="js/listings.js?v=2026-09-24b"></script>
+<script src="js/listings.js?v=2026-09-24e"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>

@@ -513,29 +513,12 @@ select.ap-input{cursor:pointer;}
 .school-badge{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
 .school-dist{font-weight:400;opacity:.75;font-size:9px;margin-left:2px;}
 /* DEEP FILTER PANEL */
-.df-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;box-shadow:0 2px 8px rgba(26,58,42,0.06);}
-.df-section{border-bottom:1px solid var(--border);}
-.df-section:last-child{border-bottom:none;}
-.df-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);font-family:'DM Sans',sans-serif;text-align:left;transition:background .15s;}
-.df-toggle:hover{background:var(--bg);}
-.df-chevron{font-size:16px;color:var(--text-muted);transition:transform .2s;line-height:1;}
-.df-body{padding:4px 16px 16px;}
-.df-static-label{padding:12px 16px 2px;font-size:13px;font-weight:600;color:var(--text);}
 .price-range-wrap{position:relative;height:38px;margin:8px 0 6px;}
 .price-range-wrap input[type="range"]{position:absolute;width:100%;pointer-events:none;-webkit-appearance:none;appearance:none;background:transparent;height:4px;top:50%;transform:translateY(-50%);margin:0;padding:0;}
 .price-range-wrap input[type="range"]::-webkit-slider-thumb{pointer-events:all;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);}
 .price-range-wrap input[type="range"]::-moz-range-thumb{pointer-events:all;width:20px;height:20px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);border:none;}
 .price-range-track{position:absolute;height:4px;top:50%;transform:translateY(-50%);left:0;right:0;background:var(--border);border-radius:2px;pointer-events:none;}
 .price-range-fill{position:absolute;height:4px;background:var(--brand);border-radius:2px;}
-.price-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:2px;font-weight:500;}
-.df-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-.df-chips .filter-chip{padding:5px 12px;font-size:12px;}
-/* Category-specific filters, built from LISTING_SPECS (js/listings.js). One group per detail. */
-.df-body-tight{padding-top:0;}
-.df-group{margin-bottom:14px;}
-.df-group label.df-label{display:block;}
-.df-group:last-child{margin-bottom:0;}
-.df-date{width:auto;max-width:220px;margin-top:2px;padding:7px 10px;font-size:13px;}
 .active-filter-tag{animation:tagIn .15s ease;}
 @keyframes tagIn{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
 /* FILTER PANEL / DRAWER */
@@ -552,6 +535,92 @@ select.ap-input{cursor:pointer;}
 .filter-drawer-close:hover{color:var(--text);}
 .filter-drawer-body{overflow-y:auto;flex:1;padding:16px 20px 0;}
 .filter-drawer-footer{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+
+/* ============================================================
+   THE FILTER PANEL (renderDeepFilters in js/listings.js, 2026-09-24)
+   Docked beside the listings on a desktop, in the sheet on a phone. Each kind of choice has its
+   own control instead of a pill for everything: quiet rows with a radio dot (pick one) or a box
+   (pick many), one segmented bar for short ordered numbers, typed Min / Max for price.
+============================================================ */
+.fx-sec{border-bottom:1px solid var(--border);}
+.fx-sec:last-child{border-bottom:0;}
+.fx-head{display:flex;align-items:center;gap:10px;width:100%;padding:14px 2px;border:0;background:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;color:var(--text);text-align:left;}
+.fx-title{font-size:14.5px;font-weight:700;}
+/* What a section is doing, readable while it is closed. */
+.fx-sum{flex:1;min-width:0;overflow:hidden;font-size:13px;font-weight:600;color:var(--brand-light);text-align:right;white-space:nowrap;text-overflow:ellipsis;}
+.fx-chev{flex:none;display:flex;color:var(--text-faint);transition:transform .2s;}
+.fx-sec:not(.is-open) .fx-chev{transform:rotate(-90deg);}
+.fx-body{padding:0 2px 16px;}
+.fx-field{margin-top:16px;}
+.fx-field:first-child{margin-top:0;}
+.fx-label{display:block;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--text-muted);}
+/* Pick one / pick many: the whole row is the target, the dot or box says which kind. */
+.fx-list,.fx-checks{display:flex;flex-direction:column;}
+.fx-opt{display:flex;align-items:center;gap:10px;width:calc(100% + 16px);min-height:38px;margin:0 -8px;padding:4px 8px;border:0;
+  border-radius:10px;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);text-align:left;}
+.fx-opt:hover{background:var(--bg-alt);}
+.fx-dot{flex:none;width:18px;height:18px;box-sizing:border-box;border:1.5px solid #c9bfb0;border-radius:50%;background:var(--surface);transition:border-width .12s;}
+.fx-opt.is-on .fx-dot{border:5.5px solid var(--brand);}
+.fx-box{flex:none;width:18px;height:18px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border:1.5px solid #c9bfb0;
+  border-radius:5px;background:var(--surface);color:transparent;}
+.fx-opt.is-on .fx-box{border-color:var(--brand);background:var(--brand);color:#fff;}
+.fx-opt.is-on .fx-opt-l{font-weight:600;}
+.fx-ic{display:flex;color:var(--text-muted);}
+.fx-opt-l{flex:1;min-width:0;}
+.fx-n{font-size:12.5px;color:var(--text-faint);}
+/* A number: one segmented bar, "Any | 1+ | 2+". */
+.fx-seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--bg-alt);}
+.fx-seg button{flex:1;min-height:34px;padding:0 6px;border:0;border-radius:9px;background:none;cursor:pointer;white-space:nowrap;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);}
+.fx-seg button:hover{color:var(--text);}
+.fx-seg button.is-on{background:var(--surface);color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(36,31,26,.12);}
+.fx-input{width:100%;height:40px;box-sizing:border-box;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);
+  font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);}
+.fx-date{max-width:220px;}
+.fx-course{position:relative;}
+.fx-range{margin:4px 8px 12px;}
+.fx-price-boxes{display:flex;align-items:center;gap:8px;}
+.fx-pbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);}
+.fx-pbox>span:first-child{font-size:11px;font-weight:600;color:var(--text-muted);}
+.fx-pbox-in{display:flex;align-items:center;gap:2px;font-size:14px;color:var(--text-muted);}
+.fx-pbox input{width:100%;min-width:0;padding:0;border:0;background:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14.5px;font-weight:600;color:var(--text);}
+.fx-dash{color:var(--text-faint);}
+
+/* The desktop rail. Hidden everywhere until #page-listings.rail-on says it is showing. */
+.mk-rail{display:none;}
+.fx-rail-head{display:flex;align-items:center;gap:10px;padding:0 2px 10px;border-bottom:1px solid var(--border);}
+.fx-rail-title{flex:1;font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);}
+.fx-link{padding:0;border:0;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent-warm);}
+.fx-icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:50%;
+  background:var(--surface);color:var(--text-muted);cursor:pointer;transform:rotate(180deg);}
+.fx-icon-btn:hover{color:var(--text);}
+@media(min-width:1024px){
+  #page-listings.rail-on .mk-layout{display:grid;grid-template-columns:268px minmax(0,1fr);gap:28px;align-items:start;}
+  #page-listings.rail-on .mk-rail{display:block;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto;box-sizing:border-box;
+    padding:16px 16px 6px;border:1px solid var(--border);border-radius:18px;background:var(--surface);scrollbar-width:thin;}
+  /* The rail replaces the filter button and the category pills. */
+  #page-listings.rail-on #mkFiltersBtn,#page-listings.rail-on .cat-row-wrap{display:none;}
+  /* The rail takes about 300px, so one column fewer at each width keeps cards their size. */
+  #page-listings.rail-on .listings-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(min-width:1280px){ #page-listings.rail-on .listings-grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+@media(min-width:1600px){ #page-listings.rail-on .listings-grid{grid-template-columns:repeat(4,minmax(0,1fr));} }
+
+/* The bar above the listings: applied filters, the count, and sort. */
+.mk-bar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-height:34px;margin-bottom:12px;}
+.mk-applied{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+.mk-applied-tags{display:contents;}
+.mk-clear{padding:0 4px;border:0;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent-warm);}
+.mk-bar-end{display:flex;align-items:center;gap:12px;margin-left:auto;}
+.mk-count{font-size:13px;color:var(--text-muted);}
+.mk-sort{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);}
+.mk-sort select{height:34px;padding:0 26px 0 10px;border:1px solid var(--border);border-radius:10px;background-color:var(--surface);cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text);}
+/* The sheet's footer: Clear all beside Show N listings. */
+.filter-drawer-footer{display:flex;align-items:center;gap:14px;}
+.fx-sheet-clear{flex:none;padding:0 4px;border:0;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+  color:var(--text);text-decoration:underline;text-underline-offset:2px;}
 @media(max-width:640px){
   /* Mobile: drawer becomes a bottom sheet */
   .filter-drawer{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:85vh;border-radius:18px 18px 0 0;transform:translateY(100%);box-shadow:0 -4px 32px rgba(0,0,0,.14);}
@@ -1455,7 +1524,6 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 
 /* Uppercase label above a group of controls in the student filter drawer.
    (was: the same inline string repeated 11 times in listings.js) */
-.df-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
 
 
 /* ---- Patterns lifted out of index.html (L6 phase 2, 2026-07-13) ----
@@ -3128,7 +3196,6 @@ select.ao-input { cursor: pointer; }
 .sq-tile-price { margin-top: 3px; font-size: 14px; font-weight: 700; color: var(--text); }
 
 /* ---------- The category picker inside the filter drawer ---------- */
-.df-static { cursor: default; }
 
 
 /* ============================================================
