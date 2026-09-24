@@ -263,6 +263,70 @@ function threadSkeletonHTML() {
   }</div>`;
 }
 
+// ---- THE CHAT LIST (rebuilt 2026-09-24 from the approved Inbox design) ----
+// A marketplace inbox has to say WHAT each chat is about as clearly as WHO it is with — Facebook
+// Marketplace, Depop and Vinted all put the item's photo and title on the row. So each row shows:
+// the person, the last message ("You: …" when it was yours), the time, an unread count, and a
+// line naming the listing(s) with a Buying / Selling tag, plus the listing's photo on the right.
+// Buying and Selling are also the filters people use, so they are the chips above the list.
+//
+// Everything comes from what the messages already record: each message carries the listing it
+// was about, so the listings in a chat, and whose they are, need no new columns.
+let _convoSummaries = [];                 // one per conversation, newest first (see convoSummaries)
+let _convoFilter = { chip: 'all', q: '' };
+
+// "now", "12m", "3h", "Tue", "Sep 3" — short, because it shares a line with the name.
+function msgAgo(ts) {
+  const d = new Date(ts), ms = Date.now() - d.getTime();
+  if (ms < 60e3) return 'now';
+  if (ms < 36e5) return Math.floor(ms / 60e3) + 'm';
+  if (ms < 864e5) return Math.floor(ms / 36e5) + 'h';
+  if (ms < 6 * 864e5) return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// A listing or book this chat mentions, as { kind, id, title, photo, price, mine, sold, cat }.
+function convoRef(kind, id, meId) {
+  if (kind === 'book') {
+    const b = (typeof _books !== 'undefined' ? _books : []).find(x => String(x.id) === String(id));
+    if (!b) return null;
+    return { kind, id, title: b.title, photo: b.photo_urls?.[0] || null, price: b.price > 0 ? '$' + b.price : 'Free',
+             mine: b.poster_id === meId, sold: b.lifecycle_status === 'sold', cat: 'books' };
+  }
+  const l = DB.listings.find(x => String(x.id) === String(id)) || DB.pending.find(x => String(x.id) === String(id));
+  if (!l) return null;
+  return { kind, id, title: l.title, photo: l.photo_urls?.[0] || null, price: priceLabel(l),
+           mine: l.poster_id === meId, sold: l.lifecycle_status === 'sold', cat: l.category };
+}
+
+// One summary per conversation from ALL my messages (newest first).
+function convoSummaries(msgs, meId) {
+  const byKey = new Map();
+  for (const m of msgs) {
+    let c = byKey.get(m.conversation_key);
+    if (!c) {
+      c = { key: m.conversation_key, otherId: m.sender_id === meId ? m.receiver_id : m.sender_id,
+            last: m, unread: 0, refs: [], refKeys: new Set() };
+      byKey.set(m.conversation_key, c);
+    }
+    if (m.receiver_id === meId && !m.seen_at) c.unread++;
+    const add = (kind, id) => {
+      const k = kind + ':' + id;
+      if (id == null || c.refKeys.has(k)) return;
+      c.refKeys.add(k);
+      const r = convoRef(kind, id, meId);
+      if (r) c.refs.push(r);
+    };
+    add('listing', m.listing_id);
+    add('book', m.book_id);
+  }
+  return [...byKey.values()].map(c => ({
+    ...c,
+    // Selling if any listing in the chat is mine, Buying if any is theirs — a chat can be both.
+    selling: c.refs.some(r => r.mine), buying: c.refs.some(r => !r.mine),
+  }));
+}
+
 async function renderConvos() {
   const eu = getEffectiveUser();
   if (!eu) return;
@@ -281,77 +345,217 @@ async function renderConvos() {
     .or(`sender_id.eq.${eu.id},receiver_id.eq.${eu.id}`)
     .order('created_at', { ascending: false });
 
-  if (!msgs || msgs.length === 0) {
-    document.getElementById('convoList').innerHTML = `<div class="empty-state">
+  _convoSummaries = convoSummaries(msgs || [], eu.id);
+  const otherIds = [...new Set(_convoSummaries.map(c => c.otherId))];
+  if (otherIds.length) {
+    const { data: profiles } = await supabaseClient.from('public_profiles')
+      .select('id, first_name, last_name, display_name, initials, color, avatar_url, school').in('id', otherIds);
+    for (const p of (profiles || [])) {
+      sConvoCache[p.id] = { name: p.display_name || (p.first_name + ' ' + p.last_name), initials: p.initials,
+                            color: p.color, avatar_url: p.avatar_url || null, school: p.school || null, verified: true };
+    }
+  }
+  document.getElementById('convoList')?.removeAttribute('aria-busy');
+  convoPaint();
+}
+
+function convoFilterSet(kind, value) {
+  if (kind === 'chip') _convoFilter.chip = value;
+  if (kind === 'q') _convoFilter.q = value;
+  convoPaint();
+}
+
+function convoPaint() {
+  const listEl = document.getElementById('convoList');
+  if (!listEl) return;
+  if (typeof ibPaintCounts === 'function') ibPaintCounts();
+  const all = _convoSummaries;
+  const n = { all: all.length, unread: all.filter(c => c.unread).length,
+              buying: all.filter(c => c.buying).length, selling: all.filter(c => c.selling).length };
+  const chipsEl = document.getElementById('convoChips');
+  if (chipsEl) chipsEl.innerHTML = all.length ? [['all', 'All'], ['unread', 'Unread'], ['buying', 'Buying'], ['selling', 'Selling']]
+    .filter(([k]) => k === 'all' || n[k] || _convoFilter.chip === k)
+    .map(([k, l]) => `<button class="ib-chip${_convoFilter.chip === k ? ' is-on' : ''}" onclick="convoFilterSet('chip','${k}')">${l}<span>${n[k]}</span></button>`).join('') : '';
+
+  if (!all.length) {
+    listEl.innerHTML = `<div class="empty-state">
       <div class="empty-state-icon">${icon('message', 34)}</div>
       <div class="empty-state-title">No conversations yet</div>
       <div class="empty-state-sub">Message someone about a listing and<br>the thread will show up here.</div>
       <button class="empty-state-btn" onclick="showPage('listings')">Browse listings</button>
     </div>`;
-    document.getElementById('convoList').removeAttribute('aria-busy');
     return;
   }
 
-  const seen = new Set();
-  const latest = [];
-  for (const m of msgs) {
-    if (!seen.has(m.conversation_key)) { seen.add(m.conversation_key); latest.push(m); }
-  }
-
-  const otherIds = latest.map(m => m.sender_id === eu.id ? m.receiver_id : m.sender_id);
-  const { data: profiles } = await supabaseClient.from('public_profiles').select('id, first_name, last_name, display_name, initials, color').in('id', otherIds);
-  const pMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
-
-  for (const [id, p] of Object.entries(pMap)) {
-    sConvoCache[id] = { name: p.display_name || (p.first_name + ' ' + p.last_name), initials: p.initials, color: p.color };
-  }
-
-  document.getElementById('convoList').removeAttribute('aria-busy');
-  document.getElementById('convoList').innerHTML = latest.map(m => {
-    const otherId = m.sender_id === eu.id ? m.receiver_id : m.sender_id;
-    const p = pMap[otherId] || { display_name: null, first_name: 'User', last_name: '', initials: '?', color: '#888' };
-    const isActive = sConvoActive && sConvoActive.userId === otherId;
-    const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const unread = sUnread[m.conversation_key] || 0;
-    return `<div class="convo-item ${isActive ? 'active-convo' : ''}" onclick="openConvo('${otherId}')">
-      <div class="convo-avatar" style="background:${escAttr(p.color)}">${esc(p.initials)}</div>
-      <div class="convo-info"><div class="convo-name">${esc(p.display_name || (p.first_name + ' ' + p.last_name))}</div><div class="convo-preview${unread ? ' unread' : ''}">${esc(m.content)}</div></div>
-      <div class="convo-meta"><div class="convo-time">${time}</div>${unread ? `<div class="convo-badge">${unread}</div>` : ''}</div>
-    </div>`;
-  }).join('');
+  const q = _convoFilter.q.trim().toLowerCase();
+  const rows = all.filter(c => {
+    if (_convoFilter.chip === 'unread' && !c.unread) return false;
+    if (_convoFilter.chip === 'buying' && !c.buying) return false;
+    if (_convoFilter.chip === 'selling' && !c.selling) return false;
+    if (!q) return true;
+    const p = sConvoCache[c.otherId];
+    return [p?.name, ...c.refs.map(r => r.title)].some(v => (v || '').toLowerCase().includes(q));
+  });
+  listEl.innerHTML = rows.length ? rows.map(convoRowHTML).join('')
+    : `<div class="ib-none">No chats match${q ? ` “${esc(_convoFilter.q.trim())}”` : ''}.
+        <button class="hn-link" onclick="convoFilterSet('chip','all');document.getElementById('convoSearch').value='';convoFilterSet('q','')">Show all</button></div>`;
 }
 
-function filterConvos(q) { document.querySelectorAll('.convo-item').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'; }); }
+function convoRowHTML(c) {
+  const eu = getEffectiveUser();
+  const p = sConvoCache[c.otherId] || { name: 'Student', initials: '?', color: '#888' };
+  const m = c.last;
+  const mine = m.sender_id === eu?.id;
+  const text = m.message_type === 'listing' ? `Shared “${m.content}”` : m.content;
+  const first = c.refs[0];
+  const tag = !first ? '' : first.sold ? ['Sold', 'is-sold'] : first.mine ? ['Selling', 'is-selling'] : ['Buying', 'is-buying'];
+  const about = first ? esc(first.title) + (c.refs.length > 1 ? ` <span class="convo-more">+${c.refs.length - 1} more</span>` : '') : '';
+  const active = sConvoActive && sConvoActive.userId === c.otherId;
+  return `
+    <div class="convo-item${c.unread ? ' is-unread' : ''}${active ? ' active-convo' : ''}" onclick="openConvo('${escAttr(c.otherId)}')">
+      ${avatarHTML({ ...p, name: p.name }, 50)}
+      <div class="convo-info">
+        <div class="convo-top"><span class="convo-name">${esc(p.name)}</span><span class="convo-time">${esc(msgAgo(m.created_at))}</span></div>
+        <div class="convo-mid"><span class="convo-preview">${mine ? 'You: ' : ''}${esc(text)}</span>${c.unread ? `<span class="convo-badge">${c.unread}</span>` : ''}</div>
+        ${first ? `<div class="convo-ctx"><span class="convo-tag ${tag[1]}">${tag[0]}</span><span class="convo-about">${about}</span></div>` : ''}
+      </div>
+      ${first ? `<div class="convo-thumb" data-cat="${escAttr(first.cat || 'other')}">${first.photo ? `<img src="${escAttr(first.photo)}" alt="" loading="lazy">` : catIcon(first.cat || 'other', 20)}</div>` : ''}
+    </div>`;
+}
 
-// The whole chat pane: header, message area, composer. Extracted so the
-// loading skeleton and the finished thread are painted from ONE template —
-// the header and composer are identical in both, and two copies would drift.
-// `bodyHtml` is whatever goes in #chatMsgs: skeleton bubbles, real bubbles,
-// or the empty-thread placeholder.
+// The whole chat pane: header, the listings this chat is about, the messages, and the composer.
+// One template for the loading skeleton and the finished thread — two copies would drift.
+// `bodyHtml` is whatever goes in #chatMsgs: skeleton bubbles, real bubbles, or the empty state.
+//
+// Rebuilt 2026-09-24 from the approved design: who you are talking to (verified, which school),
+// the listings the chat is about pinned under the header (the way every marketplace keeps the item
+// in view), day markers as pills, a line about keeping things in the app, and a round composer.
 function chatShellHTML(otherUserId, info, bodyHtml) {
+  const school = (typeof _schoolsList !== 'undefined' ? _schoolsList : []).find(s => s.slug === info.school)?.name || '';
   return `
     <div class="chat-header">
       <button class="m-back" onclick="closeConvo()" aria-label="Back to conversations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
       <button class="msg-reopen-btn" onclick="reopenMsgSidebar()" title="Show conversations">&#8250;</button>
-      <div class="convo-avatar" style="background:${escAttr(info.color)};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;cursor:pointer" onclick="viewStudentProfile('${otherUserId}')">${esc(info.initials)}</div>
-      <div><div class="chat-header-name"><span class="stu-link" onclick="viewStudentProfile('${otherUserId}')">${esc(info.name)}</span></div></div>
+      <button class="ch-who" onclick="viewStudentProfile('${escAttr(otherUserId)}')" aria-label="View ${escAttr(info.name)}'s profile">
+        ${avatarHTML({ ...info }, 40)}
+        <span class="ch-who-text">
+          <span class="ch-name">${esc(info.name)}${info.verified !== false ? `<span class="ld-verified">${icon('check', 11)} Verified</span>` : ''}</span>
+          ${school ? `<span class="ch-school">${esc(school)}</span>` : ''}
+        </span>
+      </button>
     </div>
+    <div class="ch-strip" id="chStrip"></div>
     <div class="chat-messages" id="chatMsgs">${bodyHtml}</div>
+    <div class="ch-attach" id="chAttach"></div>
     <div class="chat-input-area">
-      <button class="composer-plus" onclick="openListingPicker()" title="Share a listing"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-      <textarea class="chat-input" id="msgInput" placeholder="Write a message..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
-      <button class="send-btn" onclick="sMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      <button class="composer-plus" onclick="openListingPicker()" title="Share a listing" aria-label="Share a listing"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      <textarea class="chat-input" id="msgInput" placeholder="Message…" rows="1" aria-label="Message" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
+      <button class="send-btn" onclick="sMsg()" aria-label="Send"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>`;
 }
 
+// ---- The listings this chat is about ----
+// One chat per pair of students, even across several listings (Kal's rule). So the strip under
+// the header names them: one listing reads "About: Desk lamp · $25"; several fold into "3 listings
+// in this chat" with their thumbnails, and open into a list.
+let _chStripOpen = false;
+function chStripPaint(refs) {
+  const el = document.getElementById('chStrip');
+  if (!el) return;
+  if (!refs.length) { el.innerHTML = ''; el.hidden = true; return; }
+  el.hidden = false;
+  const thumb = r => `<span class="ch-thumb" data-cat="${escAttr(r.cat || 'other')}">${r.photo ? `<img src="${escAttr(r.photo)}" alt="">` : catIcon(r.cat || 'other', 16)}</span>`;
+  const openFn = r => r.kind === 'book' ? `openBookDetail(${Number(r.id)})` : `openDetail(${Number(r.id)})`;
+  const tag = r => r.sold ? '<span class="convo-tag is-sold">Sold</span>' : r.mine ? '<span class="convo-tag is-selling">Yours</span>' : '';
+  if (refs.length === 1) {
+    const r = refs[0];
+    const act = openFn(r);
+    el.innerHTML = `<button class="ch-strip-row" onclick="${act}">${thumb(r)}
+      <span class="ch-strip-text"><b>${esc(r.title)}</b><span>${r.price}</span></span>${tag(r)}${icon('chevRight', 16)}</button>`;
+    return;
+  }
+  el.innerHTML = `
+    <button class="ch-strip-row" onclick="_chStripOpen=!_chStripOpen;chStripPaint(_chRefs)" aria-expanded="${_chStripOpen}">
+      <span class="ch-stack">${refs.slice(0, 3).map(thumb).join('')}</span>
+      <span class="ch-strip-text"><b>${refs.length} listings in this chat</b><span>${esc(refs.map(r => r.title).join(', '))}</span></span>
+      <span class="ch-chev${_chStripOpen ? ' is-open' : ''}">${icon('chevDown', 16)}</span>
+    </button>
+    ${_chStripOpen ? `<div class="ch-strip-list">${refs.map(r => { const act = openFn(r); return `
+      <button class="ch-strip-item" onclick="${act}">${thumb(r)}
+        <span class="ch-strip-text"><b>${esc(r.title)}</b><span>${r.price}</span></span>${tag(r)}</button>`; }).join('')}</div>` : ''}`;
+}
+let _chRefs = [];
+
+// ---- "Message the seller" sends the listing with the first message ----
+// Opening a chat from a listing puts that listing above the composer, with a few quick replies
+// (Facebook Marketplace's "Is this still available?" pattern: most first messages are one of a
+// handful, and a tap is faster than typing on a phone). It goes WITH the first message — the
+// card first, then the words — so the seller knows at once what the message is about. The × keeps
+// it out; a listing already shared in this chat is not offered again.
+const CH_QUICK = ['Hi! Is this still available?', 'Can I see it this week?', 'Is the price flexible?'];
+function chAttachPaint() {
+  const el = document.getElementById('chAttach');
+  if (!el) return;
+  const id = sConvoActive?.attach;
+  const r = id ? convoRef('listing', id, getEffectiveUser()?.id) : null;
+  if (!r) { el.innerHTML = ''; el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="ch-quick">${CH_QUICK.map(t => `<button class="ch-quick-chip" onclick="chQuick(${escAttr(JSON.stringify(t))})">${esc(t)}</button>`).join('')}</div>
+    <div class="ch-attach-card">
+      <span class="ch-thumb" data-cat="${escAttr(r.cat || 'other')}">${r.photo ? `<img src="${escAttr(r.photo)}" alt="">` : catIcon(r.cat || 'other', 16)}</span>
+      <span class="ch-strip-text"><span class="ch-attach-k">Sends with your message</span><b>${esc(r.title)}</b></span>
+      <button class="ch-attach-x" onclick="sConvoActive.attach=null;chAttachPaint()" aria-label="Don't include this listing">${icon('x', 14)}</button>
+    </div>`;
+}
+function chQuick(text) {
+  const inp = document.getElementById('msgInput');
+  if (!inp) return;
+  inp.value = text;
+  inp.focus();
+}
+
+// One bubble, for the thread, a sent message and a message arriving live — three places that used
+// to build it separately.
+function msgBubbleHTML(m, mine) {
+  const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? icon('checkDouble', 15) : icon('check', 13)}</span>` : '';
+  const isCard = m.message_type === 'listing';
+  const body = isCard ? listingCardHtml(m.listing_id) : esc(m.content); // listingCardHtml builds its own escaped HTML
+  return `<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"${mine && m.seen_at ? ' data-seen="1"' : ''}><div class="bubble ${mine ? 'mine' : 'theirs'}${isCard ? ' bubble-listing' : ''}">${quoteHtml(m.reply_to)}${body}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`;
+}
+
+// "Seen" under the last message I sent, once they have read it — the one read receipt that
+// matters, instead of a double tick on every bubble being the only signal.
+function chSeenPaint() {
+  const msgs = document.getElementById('chatMsgs');
+  if (!msgs) return;
+  msgs.querySelectorAll('.msg-seen').forEach(n => n.remove());
+  const mineRows = msgs.querySelectorAll('.msg-row.mine');
+  const last = mineRows[mineRows.length - 1];
+  if (last && last.dataset.seen === '1' && last === msgs.querySelector('.msg-row:last-of-type')) {
+    last.insertAdjacentHTML('afterend', '<div class="msg-seen">Seen</div>');
+  }
+}
+
+// A new thread's first message gets the safety line under its day marker, like a loaded one.
+function chFirstDay(msgs) {
+  if (!msgs.querySelector('.date-divider')) { appendDateDivider(msgs, new Date()); msgs.insertAdjacentHTML('beforeend', CH_SAFETY); }
+}
+const CH_SAFETY = `<div class="chat-safety">${icon('lock', 12)} Keep it in Nestrel until you've met. You never have to share your number.</div>`;
+
 async function openConvo(otherUserId, otherInfo, listingId) {
-  const info = otherInfo || sConvoCache[otherUserId];
-  if (!info) return;
+  // What a caller passes (name, initials, colour) merged over what the list already loaded
+  // (photo, school) — so opening from a listing does not lose the avatar the inbox had.
+  const info = { ...(sConvoCache[otherUserId] || {}), ...(otherInfo || {}) };
+  if (!info.name) return;
   if (isMobileView()) enterConvoMode(); // phones: full-screen chat, chrome hidden
+  if (typeof ibTab === 'function' && _ibTab !== 'messages') ibTab('messages');   // a chat belongs to the Messages tab
   if (sRealtimeChannel) { supabaseClient.removeChannel(sRealtimeChannel); sRealtimeChannel = null; }
   sReplyTo = null; sMsgCache = {}; // reply state never carries across conversations
   sConvoActive = { userId: otherUserId, name: info.name, initials: info.initials, color: info.color, listingId: listingId || null };
-  sConvoCache[otherUserId] = { name: info.name, initials: info.initials, color: info.color };
+  sConvoCache[otherUserId] = info;
+  _chStripOpen = false;
   const _owner = getEffectiveUser();
   if (_owner) sessionStorage.setItem('cn_last_convo', JSON.stringify({ ownerId: _owner.id, userId: otherUserId, info: sConvoCache[otherUserId], listingId: listingId || null }));
   renderConvos();
@@ -389,15 +593,16 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     const dLabel = chatDateLabel(m.created_at);
     if (dLabel !== sLastDivLabel) {
       parts.push(`<div class="divider date-divider">${dLabel}</div>`);
+      if (sLastDivLabel === null) parts.push(CH_SAFETY);   // once, under the first day
       sLastDivLabel = dLabel;
     }
-    const mine = m.sender_id === eu.id;
-    const mTime = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const ticks = mine ? `<span class="ticks${m.seen_at ? ' seen' : ''}">${m.seen_at ? icon('checkDouble',15) : icon('check',13)}</span>` : '';
-    const isCard = m.message_type === 'listing';
-    const body = isCard ? listingCardHtml(m.listing_id) : esc(m.content); // listingCardHtml builds its own escaped HTML
-    parts.push(`<div class="msg-row ${mine ? 'mine' : ''}" data-mid="${m.id}"><div class="bubble ${mine ? 'mine' : 'theirs'}${isCard ? ' bubble-listing' : ''}">${quoteHtml(m.reply_to)}${body}<span class="bubble-meta">${mTime}${ticks}</span></div><button class="reply-hover" onclick="startReply('${m.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button></div>`);
+    parts.push(msgBubbleHTML(m, m.sender_id === eu.id));
   }
+  // The listings this chat is about, newest first; and whether the one it was opened from still
+  // needs sending (not if its card is already in the thread).
+  _chRefs = (convoSummaries([...(msgs || [])].reverse(), eu.id)[0] || { refs: [] }).refs;
+  const shared = (msgs || []).some(m => m.message_type === 'listing' && String(m.listing_id) === String(listingId));
+  sConvoActive.attach = listingId && !shared ? listingId : null;
   // Keep the words "No messages yet" — sMsg() and the realtime handlers find this
   // placeholder by that text and remove it when the first message lands.
   const bubbles = parts.join('') || `<div class="empty-state">
@@ -406,6 +611,9 @@ async function openConvo(otherUserId, otherInfo, listingId) {
     </div>`;
 
   document.getElementById('chatArea').innerHTML = chatShellHTML(otherUserId, info, bubbles);
+  chStripPaint(_chRefs);
+  chAttachPaint();
+  chSeenPaint();
   scrollChat();
   sRealtimeChannel = supabaseClient.channel('msgs-' + convKey)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_key=eq.${convKey}` }, handleRealtimeMessage)
@@ -417,7 +625,21 @@ async function sMsg() {
   const inp = document.getElementById('msgInput');
   const text = inp.value.trim();
   const eu = getEffectiveUser();
-  if (!text || !sConvoActive || !eu) return;
+  if (!sConvoActive || !eu) return;
+  // Held here: sending the listing card below clears the reply state, and the words still reply.
+  const replyTo = sReplyTo;
+  if (!text) {
+    // A listing waiting to go can be sent on its own; otherwise an empty send does nothing.
+    if (sConvoActive.attach) { const id = sConvoActive.attach; sConvoActive.attach = null; chAttachPaint(); await sendListingMsg(id); }
+    return;
+  }
+  // The listing this chat was opened from goes first, so the words arrive under it.
+  if (sConvoActive.attach) {
+    const id = sConvoActive.attach;
+    sConvoActive.attach = null;
+    chAttachPaint();
+    await sendListingMsg(id);
+  }
 
   const payload = {
     sender_id: eu.id,
@@ -425,23 +647,23 @@ async function sMsg() {
     listing_id: sConvoActive.listingId || null,
     content: text
   };
-  if (sReplyTo) payload.reply_to = sReplyTo.id; // column is reply_to (see ROADMAP note — reply_to_id was never created)
+  if (replyTo) payload.reply_to = replyTo.id; // column is reply_to (see ROADMAP note — reply_to_id was never created)
   const { data: sent, error } = await supabaseClient.from('messages').insert(payload).select().single();
   if (error) { toast('Could not send — please try again.'); console.error('sMsg error:', error); return; }
 
   inp.value = '';
-  const quote = sReplyTo ? quoteHtml(sReplyTo.id) : '';
+  const quote = replyTo ? quoteHtml(replyTo.id) : '';
   cancelReply();
   if (sent) sMsgCache[sent.id] = { content: sent.content, senderId: sent.sender_id };
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgs = document.getElementById('chatMsgs');
   const ph = msgs.firstElementChild;
   if (ph && ph.textContent.includes('No messages yet')) ph.remove(); // clear the empty-thread placeholder on first send
+  chFirstDay(msgs);
   appendDateDivider(msgs, new Date());
-  const div = document.createElement('div'); div.className = 'msg-row mine';
-  if (sent) div.dataset.mid = sent.id;
-  div.innerHTML = `<div class="bubble mine">${quote}${esc(text)}<span class="bubble-meta">${time}<span class="ticks">${icon('check',13)}</span></span></div><button class="reply-hover" onclick="startReply('${sent?.id ?? ''}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
-  msgs.appendChild(div);
+  msgs.insertAdjacentHTML('beforeend', msgBubbleHTML(sent || { id: '', created_at: new Date().toISOString(), content: text }, true));
+  // quoteHtml is read from the message's reply_to, which the local row may not carry yet
+  if (quote && sent && !sent.reply_to) msgs.lastElementChild.querySelector('.bubble')?.insertAdjacentHTML('afterbegin', quote);
+  chSeenPaint();
   scrollChat();
   renderConvos();
 }
@@ -547,13 +769,18 @@ function renderListingPicker() {
 function listingCardHtml(listingId) {
   const l = DB.listings.find(x => String(x.id) === String(listingId) && x.status === 'approved');
   if (!l) return '<div class="msg-listing-card msg-listing-gone">Listing no longer available</div>';
-  const thumb = l.photo_urls?.[0] ? `<img class="mlc-thumb" src="${escAttr(l.photo_urls[0])}" alt="">` : lpCatTile(l, 'mlc-thumb');
   let stateBadge = '';
   if (!isListingLive(l) || l.lifecycle_status === 'pending_sale') {
     const [bg, col, label] = listingLifecycleBadge(l);
     stateBadge = `<span class="pill" style="background:${bg};color:${col};font-size:10px;margin-left:6px">${label}</span>`;
   }
-  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">${thumb}<div><div class="mlc-title">${esc(l.title)}${stateBadge}</div><div class="mlc-price">${l.rent ? '$' + l.rent : 'Free'}</div></div></div>`;
+  // A mini listing card, as in the approved chat design: the photo on top, then what it is, its
+  // title and its price — enough to recognise it without opening it.
+  const img = l.photo_urls?.[0] ? `<img src="${escAttr(l.photo_urls[0])}" alt="">` : catIcon(l.category, 26);
+  return `<div class="msg-listing-card" onclick="openDetail(${l.id})">
+    <div class="mlc-img" data-cat="${escAttr(l.category)}">${img}</div>
+    <div class="mlc-body"><span class="mlc-cat" data-cat="${escAttr(l.category)}">${esc(CATEGORY_LABELS[l.category] || 'Listing')}</span>
+      <div class="mlc-title">${esc(l.title)}${stateBadge}</div><div class="mlc-price">${priceLabel(l)}</div></div></div>`;
 }
 
 async function sendListingMsg(listingId) {
@@ -574,13 +801,17 @@ async function sendListingMsg(listingId) {
   if (msgs && sent) {
     const ph = msgs.firstElementChild;
     if (ph && ph.textContent.includes('No messages yet')) ph.remove();
+    chFirstDay(msgs);
     appendDateDivider(msgs, new Date());
     sMsgCache[sent.id] = { content: l.title, senderId: eu.id };
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const div = document.createElement('div'); div.className = 'msg-row mine'; div.dataset.mid = sent.id;
-    div.innerHTML = `<div class="bubble mine bubble-listing">${listingCardHtml(l.id)}<span class="bubble-meta">${time}<span class="ticks">${icon('check',13)}</span></span></div>`;
-    msgs.appendChild(div);
+    msgs.insertAdjacentHTML('beforeend', msgBubbleHTML(sent, true));
+    chSeenPaint();
     scrollChat();
+  }
+  // The strip under the header learns about the listing straight away.
+  if (!_chRefs.some(r => r.kind === 'listing' && String(r.id) === String(l.id))) {
+    const r = convoRef('listing', l.id, eu.id);
+    if (r) { _chRefs.unshift(r); chStripPaint(_chRefs); }
   }
   renderConvos();
 }
@@ -605,12 +836,12 @@ async function handleRealtimeMessage(payload) {
       if (first && first.textContent.includes('No messages yet')) first.remove();
       appendDateDivider(msgs, msg.created_at);
       sMsgCache[msg.id] = { content: msg.content, senderId: msg.sender_id };
-      const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const div = document.createElement('div'); div.className = 'msg-row';
-      div.dataset.mid = msg.id;
-      const isCard = msg.message_type === 'listing';
-      div.innerHTML = `<div class="bubble theirs${isCard ? ' bubble-listing' : ''}">${quoteHtml(msg.reply_to)}${isCard ? listingCardHtml(msg.listing_id) : esc(msg.content)}<span class="bubble-meta">${time}</span></div><button class="reply-hover" onclick="startReply('${msg.id}')" title="Reply"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg></button>`;
-      msgs.appendChild(div);
+      msgs.insertAdjacentHTML('beforeend', msgBubbleHTML(msg, false));
+      chSeenPaint();   // their reply is now the last message, so "Seen" steps aside
+      if (msg.listing_id && !_chRefs.some(r => r.kind === 'listing' && String(r.id) === String(msg.listing_id))) {
+        const r = convoRef('listing', msg.listing_id, eu.id);
+        if (r) { _chRefs.unshift(r); chStripPaint(_chRefs); }
+      }
       scrollChat();
     }
   }
@@ -622,8 +853,10 @@ function handleSeenUpdate(payload) {
   const m = payload.new;
   const eu = getEffectiveUser();
   if (!m || !eu || !m.seen_at || m.sender_id !== eu.id) return;
-  const tick = document.querySelector(`.msg-row[data-mid="${m.id}"] .ticks`);
+  const row = document.querySelector(`.msg-row[data-mid="${m.id}"]`);
+  const tick = row?.querySelector('.ticks');
   if (tick) { tick.innerHTML = icon('checkDouble',15); tick.classList.add('seen'); }
+  if (row) { row.dataset.seen = '1'; chSeenPaint(); }
 }
 
 // Tappable banner for a message arriving while the user is anywhere but the Messages page.

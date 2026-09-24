@@ -866,8 +866,6 @@ img{image-orientation:from-image;}
 .msg-layout{display:flex;height:calc(100vh - 58px);}
 .msg-sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s ease;overflow:hidden;}
 .msg-sidebar.msg-collapsed{width:0;border-right:none;}
-.msg-sidebar-header{padding:20px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
-.msg-sidebar-title{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:10px;}
 .msg-toggle-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;padding:2px 5px;line-height:1;border-radius:4px;flex-shrink:0;margin-top:2px;transition:color .15s;}
 .msg-toggle-btn:hover{color:var(--brand);}
 .msg-reopen-btn{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-muted);font-size:16px;padding:3px 8px;line-height:1;transition:all .15s;flex-shrink:0;}
@@ -955,7 +953,6 @@ img{image-orientation:from-image;}
 .bubble-listing .bubble-meta{margin:8px 4px 0 8px;}
 .msg-listing-card{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.045);border-radius:12px;padding:8px;cursor:pointer;min-width:190px;}
 .bubble.mine .msg-listing-card{background:rgba(255,255,255,.16);}
-.mlc-thumb{width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--bg);}
 .mlc-title{font-size:13.5px;font-weight:600;line-height:1.3;}
 .mlc-price{font-size:12px;opacity:.8;margin-top:2px;}
 .msg-listing-gone{color:var(--text-faint);font-size:12.5px;cursor:default;justify-content:center;}
@@ -4301,4 +4298,156 @@ select.ao-input { cursor: pointer; }
 .sq-cat-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .sq-cat-text b { font-size: 14.5px; color: var(--text); }
 .sq-cat-text span { font-size: 12px; color: var(--text-muted); }
+
+/* ============================================================
+   INBOX (2026-09-24, from the approved design) — Messages and Activity as two tabs of one page,
+   a chat list that shows what each chat is about, and a calmer conversation.
+   The later rules here restyle the older messages rules above on purpose (same class names,
+   so js/messages.js keeps working); anything they replace is noted.
+   ============================================================ */
+.msg-sidebar { background: var(--bg); }
+@media (min-width: 769px) { .msg-sidebar { width: 400px; } }
+
+.ib-head { display: flex; align-items: center; gap: 8px; padding: var(--page-top, 20px) var(--page-gutter, 16px) 6px; }
+.ib-title { flex: 1; margin: 0; font: 400 28px/1.08 'DM Serif Display', serif; color: var(--text); }
+@media (min-width: 769px) { .ib-title { font-size: var(--fs-display); } }
+.ib-icon-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 0;
+               border-radius: 50%; background: none; color: var(--text); cursor: pointer; }
+.ib-icon-btn:hover { background: var(--bg-alt); }
+.ib-tabs { display: flex; gap: 26px; padding: 0 var(--page-gutter, 16px); border-bottom: 1px solid var(--border); }
+.ib-tab { display: inline-flex; align-items: center; gap: 8px; padding: 12px 0 11px; border: 0; border-bottom: 3px solid transparent;
+          margin-bottom: -1px; background: none; cursor: pointer; font: 600 17px 'DM Sans', sans-serif; color: var(--text-muted); }
+.ib-tab.is-on { border-bottom-color: var(--brand); color: var(--brand); }
+.ib-count { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--bg-alt); color: var(--text-muted);
+            font-size: 12px; font-weight: 700; line-height: 22px; text-align: center; }
+.ib-count[hidden] { display: none; }
+.ib-tab.is-on .ib-count { background: var(--brand); color: #fff; }
+.ib-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ib-pane[hidden] { display: none; }
+.ib-search { position: relative; margin: 14px var(--page-gutter, 16px) 10px; }
+.ib-search svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+.ib-search input { width: 100%; height: 46px; padding: 0 16px 0 42px; border: 1.5px solid var(--border); border-radius: 999px;
+                   background: var(--surface); font: 400 15px 'DM Sans', sans-serif; color: var(--text); outline: none; box-sizing: border-box; }
+.ib-search input:focus { border-color: var(--brand-light); }
+.ib-chips { display: flex; gap: 8px; padding: 0 var(--page-gutter, 16px) 10px; overflow-x: auto; scrollbar-width: none; }
+.ib-chips::-webkit-scrollbar { display: none; }
+.ib-chips:empty { display: none; }
+.ib-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 1.5px solid var(--border);
+           border-radius: 999px; background: var(--surface); cursor: pointer; font: 600 13.5px 'DM Sans', sans-serif; color: var(--text); }
+.ib-chip span { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ib-chip.is-on { border-color: var(--brand); background: var(--brand); color: #fff; }
+.ib-chip.is-on span { color: rgba(255,255,255,.8); }
+.ib-none { padding: 30px 20px; font-size: 14px; text-align: center; color: var(--text-muted); }
+
+/* A chat row: who, the last message, the time and unread count, and what the chat is about. */
+.convo-list { border-top: 1px solid var(--border); }
+.convo-item { align-items: center; gap: 12px; padding: 13px var(--page-gutter, 16px); background: none; }
+.convo-item.is-unread { background: #fffaf0; }
+.convo-item:hover, .convo-item.active-convo { background: var(--brand-pale); }
+.convo-info { display: flex; flex-direction: column; gap: 2px; }
+.convo-top, .convo-mid { display: flex; align-items: center; gap: 8px; }
+.convo-name { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 700; color: var(--text); }
+.convo-time { flex: none; font-size: 12px; color: var(--text-faint); }
+.convo-item.is-unread .convo-time { font-weight: 700; color: var(--accent-warm); }
+.convo-preview { flex: 1; min-width: 0; margin: 0; font-size: 14px; color: var(--text-muted); }
+.convo-item.is-unread .convo-preview { font-weight: 600; color: var(--text); }
+.convo-badge { flex: none; width: auto; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--accent-warm);
+               font-size: 11.5px; font-weight: 700; }
+.convo-ctx { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 2px; }
+.convo-tag { flex: none; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.convo-tag.is-selling { background: var(--brand-pale); color: var(--brand-mid); }
+.convo-tag.is-buying { background: #e3eaf2; color: #3f5871; }
+.convo-tag.is-sold { background: var(--bg-alt); color: var(--text-muted); }
+.convo-about { min-width: 0; overflow: hidden; font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
+.convo-more { color: var(--text-faint); }
+.convo-thumb { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; overflow: hidden;
+               border-radius: 12px; background: var(--cat-tint, var(--bg-alt)); color: var(--cat-deep, var(--text-muted)); }
+.convo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Activity */
+.act-list { flex: 1; overflow-y: auto; border-top: 0; }
+.act-day { padding: 16px var(--page-gutter, 16px) 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+           color: var(--text-faint); }
+.act-row { display: flex; align-items: flex-start; gap: 14px; width: 100%; padding: 14px var(--page-gutter, 16px); border: 0;
+           background: none; cursor: pointer; font-family: inherit; text-align: left; }
+.act-row.is-unread { background: #fffaf0; }
+.act-row:hover { background: var(--bg-alt); }
+.act-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; }
+.act-icon.is-green { background: var(--brand-pale); color: var(--brand); }
+.act-icon.is-amber { background: #fdf3df; color: #a87309; }
+.act-icon.is-red { background: #fbeae6; color: #a8402f; }
+.act-icon.is-neutral { background: var(--bg-alt); color: var(--text-muted); }
+.act-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.act-title { font-size: 15px; line-height: 1.35; color: var(--text); }
+.act-sub { font-size: 13.5px; line-height: 1.4; color: var(--text-muted); }
+.act-sub.is-danger { color: var(--danger); }
+.act-when { font-size: 12.5px; color: var(--text-faint); }
+.act-thumb { flex: none; width: 52px; height: 52px; overflow: hidden; border-radius: 12px;
+             background: var(--cat-tint, linear-gradient(150deg, var(--ev-g1, #eeebe4), var(--ev-g2, #d6cfc2))); }
+.act-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* The conversation */
+.chat-header { gap: 10px; padding: 12px 18px; background: var(--bg); }
+.ch-who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none;
+          cursor: pointer; font-family: inherit; text-align: left; }
+.ch-who-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ch-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; color: var(--text); }
+.ch-school { font-size: 12.5px; color: var(--text-muted); }
+.ch-strip { padding: 10px 14px 0; background: var(--bg); }
+.ch-strip[hidden] { display: none; }
+.ch-strip-row, .ch-strip-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px 8px 8px;
+          border: 1px solid var(--border); border-radius: 16px; background: var(--surface); cursor: pointer;
+          font-family: inherit; text-align: left; color: var(--text-faint); }
+.ch-strip-row:hover, .ch-strip-item:hover { border-color: var(--brand-light); }
+.ch-strip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ch-strip-text b { overflow: hidden; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.ch-strip-text > span { overflow: hidden; font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
+.ch-thumb { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden;
+            border: 2px solid var(--surface); border-radius: 10px; background: var(--cat-tint, var(--bg-alt)); color: var(--cat-deep, var(--text-muted)); }
+.ch-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ch-stack { display: flex; flex: none; }
+.ch-stack .ch-thumb + .ch-thumb { margin-left: -16px; }
+.ch-chev { flex: none; display: flex; transition: transform .2s ease; }
+.ch-chev.is-open { transform: rotate(180deg); }
+.ch-strip-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.chat-messages { gap: 10px; }
+.date-divider { align-self: center; margin: 8px 0 2px; padding: 4px 12px; border-radius: 999px; background: var(--bg-alt);
+                font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.chat-safety { align-self: center; max-width: 300px; margin: 0 auto 6px; font-size: 12px; line-height: 1.5; text-align: center; color: var(--text-muted); }
+.bubble { max-width: min(75%, 480px); padding: 10px 14px; font-size: 15px; }   /* a message, not a paragraph, on a wide screen */
+.bubble.theirs { border-radius: 6px 20px 20px 20px; }
+.bubble.mine { border-radius: 20px 6px 20px 20px; }
+.msg-seen { align-self: flex-end; margin-top: -4px; font-size: 11.5px; color: var(--text-faint); }
+.ch-attach { padding: 8px 14px 0; background: var(--bg); }
+.ch-attach[hidden] { display: none; }
+.ch-quick { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
+.ch-quick::-webkit-scrollbar { display: none; }
+.ch-quick-chip { flex: none; height: 32px; padding: 0 13px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--surface);
+                 cursor: pointer; font: 500 13px 'DM Sans', sans-serif; color: var(--text); }
+.ch-quick-chip:hover { border-color: var(--brand-light); color: var(--brand); }
+.ch-attach-card { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 8px; border: 1.5px dashed var(--brand-light);
+                  border-radius: 14px; background: var(--brand-pale); }
+.ch-attach-k { font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--brand-mid); }
+.ch-attach-x { flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0;
+               border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; }
+.ch-attach-x:hover { background: rgba(0,0,0,.06); }
+.chat-input-area { align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border-top: 1px solid var(--border); }
+.composer-plus { width: 44px; height: 44px; background: var(--bg-alt); color: var(--text); }
+.chat-input { min-height: 46px; padding: 12px 18px; border-radius: 999px; background: var(--surface); font-size: 15px; }
+.send-btn { width: 44px; height: 44px; }
+/* A listing shared in a chat: a mini card — photo, category, title, price. */
+.bubble-listing { padding: 5px; }
+.msg-listing-card { display: block; min-width: 0; width: 240px; max-width: 100%; padding: 0; overflow: hidden; border-radius: 16px;
+                    background: var(--surface); color: var(--text); }
+.bubble.mine .msg-listing-card { background: var(--surface); }
+.mlc-img { display: flex; align-items: center; justify-content: center; height: 120px; background: var(--cat-tint, var(--bg-alt));
+           color: var(--cat-deep, var(--text-muted)); }
+.mlc-img img { width: 100%; height: 100%; object-fit: cover; }
+.mlc-body { padding: 9px 12px 11px; }
+.mlc-cat { display: inline-block; margin-bottom: 5px; padding: 2px 8px; border-radius: 999px; background: var(--cat-tint, var(--bg-alt));
+           color: var(--cat-deep, var(--text-muted)); font-size: 11px; font-weight: 700; }
+.mlc-title { font-size: 14px; font-weight: 700; line-height: 1.3; color: var(--text); }
+.mlc-price { margin-top: 3px; font: 400 17px 'DM Serif Display', serif; color: var(--brand); }
+.mlc-price span { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-muted); }
+.bubble-listing .bubble-meta { margin: 6px 6px 2px 8px; }
 
