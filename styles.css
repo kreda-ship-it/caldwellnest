@@ -1231,6 +1231,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   --m-tabbar-h:56px;   /* fixed bottom tab bar, excluding the iPhone home-indicator inset */
 }
 .m-tabbar{display:none;}
+.m-tab-avatar{display:none;}
 /* Mobile-only brand text ("CaldwellNest") — swapped in for the desktop logo ≤768px */
 
 @media(max-width:768px){
@@ -1262,6 +1263,23 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
   .s-nav .s-logo span{color:var(--accent-ink);}
   .s-nav .nav-bell{color:#4a423b;}
   .s-nav .nav-bell:hover{color:var(--text);}
+  /* The phone top bar after the Nestrel Redesign canvas (2026-09-23): wordmark on the left;
+     search, bell and messages on the right, larger and in plain ink; orange pill badges.
+     No avatar — the You tab at the bottom is the way to your profile on a phone. (Desktop
+     keeps its avatar until the desktop nav is redesigned: it is the only route there.) */
+  .s-nav .s-logo{font-size:23px;}
+  .s-nav #navAvatar{display:none;}
+  .s-nav .nav-user{gap:4px;}
+  .s-nav .nav-bell{width:42px;height:42px;padding:0;color:var(--text);}
+  .s-nav .nav-bell svg{width:23px;height:23px;}
+  .s-nav .notif-badge{top:2px;right:0;min-width:20px;height:20px;padding:0 6px;border-radius:var(--radius-pill);
+    background:var(--accent-warm);color:#fff;font-size:11px;line-height:20px;box-shadow:0 0 0 2px var(--bg);}
+  /* The You tab shows the student's own avatar once they're signed in. */
+  .m-tab.has-avatar > svg{display:none;}
+  .m-tab.has-avatar .m-tab-avatar{display:flex;}
+  .m-tab-avatar{width:26px;height:26px;border-radius:50%;background-color:var(--brand-light);background-size:cover;
+    background-position:center;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;}
+  .m-tab.active .m-tab-avatar{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--brand);}
   .s-nav .nav-ghost{color:#4a423b;}
   .s-nav .nav-ghost:hover{background:var(--bg-alt);color:var(--text);}
   .s-nav .nav-solid{background:var(--brand);color:#fff;}
@@ -1733,6 +1751,10 @@ select.ao-input { cursor: pointer; }
   transition: color .15s;
 }
 .nav-bell:hover { color: #fff; }
+/* The `hidden` attribute is only a browser default (display:none), and the display:inline-flex
+   above outranks it — so #navConsoleBtn, which orgs.js hides from everyone but club officers,
+   showed for every signed-in student. This puts `hidden` back in charge. */
+.nav-bell[hidden] { display: none; }
 
 /* Desktop destination links. .nav-btn is what the ≤768px rule hides, so these disappear
    on a phone and the bottom bar carries the same five places instead. */

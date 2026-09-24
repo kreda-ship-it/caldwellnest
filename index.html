@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-23d">
+<link rel="stylesheet" href="styles.css?v=2026-09-23e">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -507,6 +507,9 @@
     </button>
     <button class="m-tab" id="mtab-you" onclick="if(requireAuth())showPage('profile')" aria-label="Your profile">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <!-- Their own photo or initials once signed in (updateSNav adds .has-avatar); the
+           outline above is what a signed-out visitor sees. -->
+      <span class="m-tab-avatar" id="mTabAvatar" aria-hidden="true"></span>
       <span>You</span>
     </button>
   </nav>
@@ -1832,7 +1835,7 @@
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-23d"></script>
+<script src="js/auth.js?v=2026-09-23e"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
 <script src="js/listings.js?v=2026-09-12a"></script>
 <script src="js/books.js?v=2026-09-10e"></script>

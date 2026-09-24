@@ -920,11 +920,17 @@ function updateSNav() {
     const navAv = document.getElementById('navAvatar');
     navAv.style.backgroundColor = u.color; // not the `background` shorthand — see paintAvatarEl
     paintAvatarEl(navAv, u.avatar_url, u.initials, u.color);
+    // The phone's You tab shows the same avatar (the top one is hidden on phones).
+    const tabAv = document.getElementById('mTabAvatar');
+    if (tabAv) { tabAv.style.backgroundColor = u.color; paintAvatarEl(tabAv, u.avatar_url, u.initials, u.color); }
+    document.getElementById('mtab-you')?.classList.add('has-avatar');
     const backBtn = document.getElementById('backToAdminBtn');
     if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';
     // Officers get a route into the org console from their own profile. Not awaited: it is a
     // button, and updateSNav() is called from synchronous paths that must not block on a query.
     renderOrgConsoleEntry();
+  } else {
+    document.getElementById('mtab-you')?.classList.remove('has-avatar');
   }
 }
 
