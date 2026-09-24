@@ -1372,25 +1372,132 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
 /* DETAIL LISTING MODAL */
-.detail-top{padding:14px 16px;}
-.detail-poster{display:flex;align-items:center;gap:13px;}
-.detail-poster-name{display:flex;align-items:center;gap:6px;font-weight:600;font-size:16px;line-height:1.2;}
-.detail-poster-sub{font-size:12.5px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.detail-poster-since{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
-.detail-noimg{padding:30px 26px 34px;}
 .detail-noimg-cat{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:12px;}
 .detail-noimg-title{font-family:'DM Serif Display',serif;font-size:33px;line-height:1.12;}
-.detail-body{padding:24px;}
-.detail-title{font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:6px;}
-.detail-price{font-family:'DM Serif Display',serif;font-size:32px;color:var(--brand);line-height:1;}
-.detail-price span{font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text-muted);font-weight:400;}
 .detail-tags{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
 .detail-tag{background:var(--bg);color:var(--text-muted);font-size:13px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);}
-/* The listing's stated details (listingSpecsHTML): a two-column label / value list. */
+/* The listing's stated details (listingSpecsHTML). In the detail view they are tiles (below). */
 .detail-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin:0 0 16px;padding:14px 16px;
   border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);}
 .detail-spec dt{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
 .detail-spec dd{margin:2px 0 0;font-size:14px;font-weight:500;color:var(--text);}
+
+/* ---- LISTING DETAIL (2026-09-24) — see openDetail in js/listings.js ----
+   Phone: a full-screen page. Photos edge to edge and swipeable, the details on a sheet that
+   overlaps the photo's foot, price + Message pinned to the bottom.
+   Desktop: a wide window, the photo on the left at full height, details scrolling beside it.
+   Photos are never cropped (contain); a blurred copy of the same photo fills the frame. */
+body:has(#detailModal.open){overflow:hidden;}
+.ld{position:relative;}
+.ld-top{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;
+  padding:calc(12px + env(safe-area-inset-top)) 14px 0;pointer-events:none;}
+.ld-top > *{pointer-events:auto;}
+.ld-top-end{display:flex;gap:10px;}
+.ld-round{display:flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;
+  background:rgba(255,255,255,.95);color:var(--text);box-shadow:0 2px 10px rgba(0,0,0,.14);cursor:pointer;}
+.ld-round:hover{background:#fff;}
+/* .fav-btn comes later in this file with background:none, so the round white button is restated at
+   a weight that outranks it. */
+.ld-top .fav-btn.ld-round{width:44px;height:44px;background:rgba(255,255,255,.95);color:var(--text);box-shadow:0 2px 10px rgba(0,0,0,.14);}
+.ld-top .fav-btn.is-on{color:var(--accent-warm);}
+.ld-back svg{transform:rotate(180deg);}
+.ld-x{display:none;}
+.ld-menu{position:absolute;top:calc(64px + env(safe-area-inset-top));right:14px;min-width:210px;padding:6px;border-radius:14px;
+  background:var(--surface);box-shadow:var(--shadow-md);}
+.ld-menu[hidden]{display:none;}
+.ld-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:11px 12px;border:0;border-radius:9px;background:none;
+  cursor:pointer;font:500 14px 'DM Sans',sans-serif;color:var(--danger);text-align:left;}
+.ld-menu button:hover{background:var(--danger-pale);}
+
+.ld-media{position:relative;height:min(125vw,66vh);background:#1d1b18;overflow:hidden;}
+.ld-track{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;}
+.ld-track::-webkit-scrollbar{display:none;}
+.ld-slide{position:relative;flex:0 0 100%;height:100%;margin:0;overflow:hidden;scroll-snap-align:start;}
+.ld-slide-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.15);
+  filter:blur(26px) brightness(.72) saturate(1.1);}
+.ld-slide-img{position:relative;display:block;width:100%;height:100%;object-fit:contain;}
+.ld-count{position:absolute;right:14px;bottom:38px;z-index:2;padding:4px 10px;border-radius:var(--radius-pill);
+  background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;}
+.ld-arrow,.ld-thumbs{display:none;}
+.ld-media-empty{height:auto;min-height:280px;padding:96px 26px 60px;background:var(--cat-tint);color:var(--cat-deep);}
+
+.ld-info{position:relative;z-index:2;margin-top:-24px;padding:22px 18px 8px;border-radius:24px 24px 0 0;background:var(--bg);}
+.ld-kicker{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
+.ld-cat{padding:6px 13px;border-radius:var(--radius-pill);background:var(--cat-tint);color:var(--cat-deep);font-size:13px;font-weight:700;}
+.ld-title{margin:0;font-family:'DM Serif Display',serif;font-size:clamp(26px,7vw,32px);font-weight:400;line-height:1.12;color:var(--text);}
+.ld-where{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:14.5px;color:var(--text-muted);}
+.ld-where .ico{flex:none;}
+.ld-action{display:flex;align-items:center;gap:14px;}
+.ld-price{font-family:'DM Serif Display',serif;font-size:30px;line-height:1;color:var(--brand);white-space:nowrap;}
+.ld-price span{font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text-muted);}
+.ld-msg{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;height:52px;padding:0 20px;border:0;
+  border-radius:var(--radius-pill);background:var(--brand);color:#fff;font:700 16px 'DM Sans',sans-serif;cursor:pointer;}
+.ld-msg:hover{background:var(--brand-mid);}
+.ld .detail-specs{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;margin:18px 0 0;padding:0;border:0;background:none;}
+.ld .detail-spec{padding:11px 13px;border:1px solid var(--border);border-radius:14px;background:var(--surface);}
+.ld-desc{margin:18px 0 0;font-size:15.5px;line-height:1.65;color:var(--text);white-space:pre-line;overflow-wrap:anywhere;}
+.ld .detail-tags{margin:14px 0 0;}
+.ld-seller{display:flex;align-items:center;gap:14px;width:100%;margin-top:20px;padding:14px 16px;border:1px solid var(--border);
+  border-radius:18px;background:var(--surface);color:inherit;font-family:inherit;text-align:left;}
+button.ld-seller{cursor:pointer;}
+button.ld-seller:hover{border-color:var(--brand-light);}
+.ld-seller-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.ld-seller-name{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:16.5px;font-weight:700;color:var(--text);}
+.ld-verified{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:var(--radius-pill);
+  background:var(--brand-pale);color:var(--brand-mid);font-size:12px;font-weight:600;}
+.ld-seller-sub{font-size:13px;line-height:1.4;color:var(--text-muted);}
+.ld-seller-go{flex:none;color:var(--text-faint);}
+.ld-info > :last-child{margin-bottom:12px;}
+
+@media(max-width:768px){
+  #detailModal{padding:0;align-items:stretch;background:var(--bg);}
+  .ld-modal{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;background:var(--bg);
+    overscroll-behavior:contain;}
+  .ld{padding-bottom:calc(88px + env(safe-area-inset-bottom));}
+  /* The sheet overlaps the photo's last 24px; the photo stops above it so none of it is hidden. */
+  .ld-slide{padding-bottom:24px;box-sizing:border-box;}
+  /* Price and Message ride along the bottom, where a thumb already is. */
+  .ld-action{position:fixed;left:0;right:0;bottom:0;z-index:4;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+    background:var(--surface);border-top:1px solid var(--border);box-shadow:0 -4px 18px rgba(36,31,26,.06);}
+}
+@media(min-width:769px){
+  #detailModal{padding:24px;}
+  .ld-modal{width:min(1120px,100%);max-width:none;height:min(780px,calc(100vh - 48px));max-height:none;padding:0;
+    overflow:hidden;border-radius:20px;}
+  /* minmax(0,1fr) rows: an auto row would grow to the photo's natural height and crop it. */
+  /* #detailContent sits between the window and .ld; without a height of its own, .ld's 100% has
+     nothing to be a percentage OF, and the photo grows to its natural size. */
+  .ld-modal > #detailContent{height:100%;}
+  .ld{display:grid;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:minmax(0,1fr);height:100%;}
+  .ld-top{left:auto;width:420px;padding:14px 16px 0;justify-content:flex-end;}
+  .ld-back{display:none;}
+  .ld-x{display:flex;}
+  .ld-round{width:40px;height:40px;background:var(--bg);box-shadow:none;}
+  .ld-top .fav-btn.ld-round{width:40px;height:40px;background:var(--bg);box-shadow:none;}
+  .ld-menu{top:62px;right:16px;}
+  .ld-gallery{display:flex;flex-direction:column;min-height:0;background:#1d1b18;}
+  .ld-media{flex:1;height:auto;min-height:0;}
+  .ld-count{bottom:14px;}
+  .ld-arrow{position:absolute;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:44px;height:44px;
+    border:0;border-radius:50%;background:rgba(255,255,255,.92);color:var(--text);transform:translateY(-50%);cursor:pointer;
+    box-shadow:0 2px 10px rgba(0,0,0,.2);transition:opacity var(--dur) var(--ease);}
+  .ld-prev{left:16px;}
+  .ld-prev svg{transform:rotate(180deg);}
+  .ld-next{right:16px;}
+  .ld-arrow:disabled{opacity:0;pointer-events:none;}
+  .ld-thumbs{display:flex;gap:8px;padding:10px 14px 12px;overflow-x:auto;scrollbar-width:thin;}
+  .ld-thumb{flex:none;width:58px;height:58px;padding:0;border:2px solid transparent;border-radius:10px;overflow:hidden;
+    background:none;opacity:.55;cursor:pointer;}
+  .ld-thumb.is-on,.ld-thumb:hover{opacity:1;}
+  .ld-thumb.is-on{border-color:#fff;}
+  .ld-thumb img{display:block;width:100%;height:100%;object-fit:cover;}
+  .ld-media-empty{display:flex;flex-direction:column;justify-content:center;height:100%;padding:48px;}
+  .ld-info{margin:0;padding:66px 28px 24px;overflow-y:auto;border-radius:0;background:var(--surface);}
+  .ld-title{font-size:30px;}
+  /* Near the top on desktop, where the eye starts — not pinned to the window's foot. */
+  .ld-action{margin-top:18px;padding:16px 0;border-block:1px solid var(--border);}
+  .ld-msg{height:48px;}
+}
 /* Posting form: the optional-details heading, and the "Other…" size box under its dropdown. */
 .post-subhead{margin:6px 0 10px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text);}
 .post-subhead .label-hint{font-weight:400;}

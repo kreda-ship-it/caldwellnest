@@ -1106,7 +1106,7 @@ function openListingAppeal(id) {
   err.textContent = ''; err.style.display = 'none';
   const btn = document.getElementById('laSubmitBtn');
   btn.disabled = false; btn.textContent = 'Submit appeal';
-  closeModal('detailModal');
+  dismissDetail();
   openModal('listingAppealModal');
 }
 
@@ -1250,57 +1250,198 @@ function listingCardHTML(l, isPinned) {
   </div>`;
 }
 
-// Rich poster section for the detail view (larger avatar, trust badge, year/major/school, member-since).
-function detailPosterHTML(l) {
+// ============================================================
+// LISTING DETAIL (redesigned 2026-09-24)
+// ============================================================
+// Phone and desktop get different shapes, because they are used differently — the pattern
+// Facebook Marketplace, Depop and Airbnb all settle on:
+//
+//  PHONE — a full-screen page, not a pop-up. The photos run edge to edge and swipe sideways
+//  (scroll-snap, so it is the phone's own swipe), the details sit on a sheet that overlaps
+//  the photo's foot, and the price and "Message" are pinned to the bottom where a thumb
+//  already is. Back (the arrow, or the phone's back gesture) closes it: a history entry is
+//  pushed on open, the same way the full-screen chat does it (messages.js), so the gesture
+//  leaves the listing instead of the app.
+//
+//  DESKTOP — a wide window: the photo on the left at full height, the details beside it,
+//  scrolling on their own, with the price and Message near the top where the eye starts.
+//  Arrows and thumbnails move between photos; ← / → and Esc work from the keyboard.
+//
+// THE WHOLE PHOTO IS SHOWN, never cropped (object-fit: contain). Photos come in every shape,
+// and a crop can hide the thing being sold. The space a photo does not fill is painted with a
+// blurred, dimmed copy of the same photo, so a tall phone picture on a wide panel reads as a
+// frame rather than as grey bars.
+let _ldPhotos = [];
+let _ldIndex = 0;
+
+function detailOpen() { return document.getElementById('detailModal')?.classList.contains('open'); }
+
+// The arrow, the X, the backdrop and Esc: close, and use up the history entry openDetail
+// pushed, so the next Back does not land on an already-closed listing.
+function closeDetail() {
+  closeModal('detailModal');
+  if (history.state?.cnDetail) history.back();
+}
+
+// For closes that go straight on to something else (Message, Report, owner actions). NOT
+// history.back(): that runs later, after the next screen may have pushed its own entry (the
+// chat does), and would pop THAT one instead. The entry is neutralised in place.
+function dismissDetail() {
+  closeModal('detailModal');
+  if (history.state?.cnDetail) history.replaceState(null, '');
+}
+
+window.addEventListener('popstate', () => {
+  if (detailOpen()) closeModal('detailModal');
+});
+document.getElementById('detailModal')?.addEventListener('click', e => {
+  if (e.target.id === 'detailModal') closeDetail();
+});
+document.addEventListener('keydown', e => {
+  if (!detailOpen()) return;
+  if (e.key === 'Escape') { if (document.querySelector('.ld-menu:not([hidden])')) ldMenu(false); else closeDetail(); }
+  else if (e.key === 'ArrowRight') ldGo(_ldIndex + 1);
+  else if (e.key === 'ArrowLeft') ldGo(_ldIndex - 1);
+});
+
+// "posted 2 days ago", from created_at.
+function ldPosted(l) {
+  if (!l.created_at) return l.posted ? 'posted ' + l.posted : '';
+  const d = Math.floor((Date.now() - new Date(l.created_at).getTime()) / 864e5);
+  if (d <= 0) return 'posted today';
+  if (d === 1) return 'posted yesterday';
+  if (d < 30) return `posted ${d} days ago`;
+  return 'posted ' + new Date(l.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function ldMediaHTML(l) {
+  const urls = l.photo_urls || [];
+  if (!urls.length) {
+    return `<div class="ld-media ld-media-empty" data-cat="${escAttr(l.category)}">
+      <div class="detail-noimg-cat">${esc(CATEGORY_LABELS[l.category] || 'Listing')}</div>
+      <div class="detail-noimg-title">${esc(l.title)}</div>
+    </div>`;
+  }
+  const many = urls.length > 1;
+  return `<div class="ld-media">
+    <div class="ld-track" id="ldTrack" onscroll="ldOnScroll()">
+      ${urls.map((u, i) => `<figure class="ld-slide">
+        <img class="ld-slide-bg" src="${escAttr(u)}" alt="" aria-hidden="true" loading="lazy">
+        <img class="ld-slide-img" src="${escAttr(u)}" alt="${escAttr(l.title)}${many ? ` — photo ${i + 1} of ${urls.length}` : ''}"${i ? ' loading="lazy"' : ''}>
+      </figure>`).join('')}
+    </div>
+    ${many ? `
+      <button class="ld-arrow ld-prev" aria-label="Previous photo" onclick="ldGo(_ldIndex - 1)">${icon('chevRight', 20)}</button>
+      <button class="ld-arrow ld-next" aria-label="Next photo" onclick="ldGo(_ldIndex + 1)">${icon('chevRight', 20)}</button>
+      <span class="ld-count" id="ldCount">1 / ${urls.length}</span>` : ''}
+  </div>
+  ${many ? `<div class="ld-thumbs">${urls.map((u, i) =>
+    `<button class="ld-thumb${i ? '' : ' is-on'}" onclick="ldGo(${i})" aria-label="Photo ${i + 1}"><img src="${escAttr(u)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}`;
+}
+
+function ldGo(i) {
+  const track = document.getElementById('ldTrack');
+  if (!track || !_ldPhotos.length) return;
+  const n = Math.max(0, Math.min(_ldPhotos.length - 1, i));
+  track.scrollTo({ left: n * track.clientWidth, behavior: 'smooth' });
+  ldMark(n);
+}
+function ldOnScroll() {
+  const track = document.getElementById('ldTrack');
+  if (!track) return;
+  const n = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+  if (n !== _ldIndex) ldMark(n);
+}
+function ldMark(n) {
+  _ldIndex = n;
+  const count = document.getElementById('ldCount');
+  if (count) count.textContent = `${n + 1} / ${_ldPhotos.length}`;
+  document.querySelectorAll('.ld-thumb').forEach((t, i) => t.classList.toggle('is-on', i === n));
+  document.querySelector('.ld-prev')?.toggleAttribute('disabled', n === 0);
+  document.querySelector('.ld-next')?.toggleAttribute('disabled', n === _ldPhotos.length - 1);
+}
+
+// The seller as one tappable card: who they are, that they are a verified student, and since
+// when. Tapping opens their profile — the thing you want to check before messaging a stranger.
+function ldSellerHTML(l) {
   const p = l.poster;
   const clickable = !p.official && l.poster_id;
-  const bits = [p.year, p.major].filter(Boolean);
-  const school = schoolBadgeHTML(l);
-  const trust = p.official ? `<span class="trust-official">Official</span>` : '';
+  const trust = p.official ? '<span class="trust-official">Official</span>'
+    : p.verified ? `<span class="ld-verified">${icon('check', 12)} Verified</span>` : '';
+  const school = schoolBadgeHTML(l) || esc((_schoolsList || []).find(s => s.slug === l.school)?.name || '');
   const since = p.memberSince
-    ? `On Nestrel since ${new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+    ? 'joined ' + new Date(p.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : (p.official ? 'Official account' : '');
-  return `<div class="detail-poster"${clickable ? ` onclick="viewStudentProfile('${l.poster_id}')" style="cursor:pointer"` : ''}>
-    ${avatarHTML(p, 46)}
-    <div style="min-width:0">
-      <div class="detail-poster-name">${esc(p.name)}${trust}</div>
-      ${bits.length || school ? `<div class="detail-poster-sub">${esc(bits.join(' · '))}${bits.length && school ? ' · ' : ''}${school}</div>` : ''}
-      ${since ? `<div class="detail-poster-since">${since}</div>` : ''}
-    </div>
-  </div>`;
+  const sub = [[p.year, p.major].filter(Boolean).map(esc).join(' · '), school, since].filter(Boolean).join(' · ');
+  const tag = clickable ? 'button' : 'div';
+  return `<${tag} class="ld-seller"${clickable ? ` onclick="viewStudentProfile('${escAttr(l.poster_id)}')"` : ''}>
+    ${avatarHTML(p, 50)}
+    <span class="ld-seller-text">
+      <span class="ld-seller-name">${esc(p.name)}${trust}</span>
+      ${sub ? `<span class="ld-seller-sub">${sub}</span>` : ''}
+    </span>
+    ${clickable ? `<span class="ld-seller-go">${icon('chevRight', 18)}</span>` : ''}
+  </${tag}>`;
+}
+
+function ldMenu(open) {
+  const m = document.getElementById('ldMenu');
+  if (!m) return;
+  m.hidden = open === undefined ? !m.hidden : !open;
 }
 
 function openDetail(id) {
   const l = DB.listings.find(x => x.id === id) || DB.pending.find(x => x.id === id); if (!l) return;
-  const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
-  const hero = l.photo_urls?.length
-    ? photoGalleryHtml(l.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'detailGalMain', alt: l.title })
-    : `<div class="detail-noimg" style="background:${cat.bg};color:${cat.text}">
-         <div class="detail-noimg-cat">${CATEGORY_LABELS[l.category] || 'Listing'}</div>
-         <div class="detail-noimg-title">${esc(l.title)}</div>
-       </div>`;
-  const messageBtn = !l.poster.official
-    ? `<button class="btn-full btn-brand" onclick="closeModal('detailModal');sContact(${l.id})">Message ${esc(l.poster.name)}</button>` : '';
+  const eu = getEffectiveUser();
+  const mine = !!eu && eu.id === l.poster_id;
+  const canReport = !!eu && !mine && !l.poster.official;
+  const canMessage = !l.poster.official && !mine;
+  const first = (l.poster.name || '').split(' ')[0];
+  _ldPhotos = l.photo_urls || [];
+  _ldIndex = 0;
+
+  const status = [];
+  if (l.pinned) status.push(`<span class="pill pill-pinned">${icon('star', 11)} Featured</span>`);
+  if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) {
+    const [bg, col, label] = listingLifecycleBadge(l);
+    status.push(`<span class="pill" style="background:${bg};color:${col}">${label}</span>`);
+  }
+  const where = [l.location ? esc(l.location) : '', esc(ldPosted(l))].filter(Boolean).join(' · ');
+
   document.getElementById('detailContent').innerHTML = `
-    <div class="detail-top">${detailPosterHTML(l)}</div>
-    ${hero}
-    <div class="detail-body">
-      ${l.photo_urls?.length ? `<div class="detail-title">${esc(l.title)}</div>` : ''}
-      ${l.location ? `<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:5px">${icon('pin', 14)} ${esc(l.location)}</div>` : ''}
-      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <div class="detail-price">${priceLabel(l)}</div>
-        <span class="pill pill-active">${esc(l.type)}</span>
-        ${l.pinned ? '<span class="pill pill-pinned">' + icon('star',11) + ' Featured</span>' : ''}
-        ${(() => { if (l.status !== 'approved' || (l.lifecycle_status && l.lifecycle_status !== 'active')) { const [bg, col, label] = listingLifecycleBadge(l); return `<span class="pill" style="background:${bg};color:${col}">${label}</span>`; } return ''; })()}
+    <div class="ld">
+      <div class="ld-top">
+        <button class="ld-round ld-back" aria-label="Back" onclick="closeDetail()">${icon('chevRight', 20)}</button>
+        <span class="ld-top-end">
+          ${favButtonHTML('listing', l.id, 'ld-round ld-fav')}
+          ${canReport ? `<button class="ld-round" aria-label="More" onclick="ldMenu()">${icon('more', 20)}</button>` : ''}
+          <button class="ld-round ld-x" aria-label="Close" onclick="closeDetail()">${icon('x', 18)}</button>
+        </span>
+        ${canReport ? `<div class="ld-menu" id="ldMenu" hidden>
+          <button onclick="dismissDetail();openReportModal(${l.id})">${icon('flag', 15)} Report this listing</button>
+        </div>` : ''}
       </div>
-      ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-      ${listingSpecsHTML(l)}
-      <div style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:18px;">${esc(l.desc)}</div>
-      ${messageBtn}
-      ${(() => { const eu = getEffectiveUser(); return eu && eu.id !== l.poster_id && !l.poster.official; })() ? `<div style="text-align:center;margin-top:12px;"><button onclick="closeModal('detailModal');openReportModal(${l.id})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-faint);font-family:'DM Sans',sans-serif;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-faint)'">${icon('flag',14)} Report this listing</button></div>` : ''}
-      ${ownerManagePanelHtml(l)}
+      <div class="ld-gallery">${ldMediaHTML(l)}</div>
+      <div class="ld-info">
+        <div class="ld-kicker"><span class="ld-cat" data-cat="${escAttr(l.category)}">${esc(CATEGORY_LABELS[l.category] || 'Listing')}</span>${status.join('')}</div>
+        <h2 class="ld-title">${esc(l.title)}</h2>
+        ${where ? `<div class="ld-where">${l.location ? icon('pin', 15) : ''}<span>${where}</span></div>` : ''}
+        <div class="ld-action">
+          <div class="ld-price">${priceLabel(l)}</div>
+          ${canMessage ? `<button class="ld-msg" onclick="dismissDetail();sContact(${l.id})">${icon('message', 18)} Message ${esc(first)}</button>` : ''}
+        </div>
+        ${listingSpecsHTML(l)}
+        ${l.desc ? `<p class="ld-desc">${esc(l.desc)}</p>` : ''}
+        ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        ${ldSellerHTML(l)}
+        ${ownerManagePanelHtml(l)}
+      </div>
     </div>`;
+
   openModal('detailModal');
+  document.querySelector('#detailModal .modal').scrollTop = 0;
+  ldMark(0);
+  if (!history.state?.cnDetail) history.pushState({ cnDetail: true }, '');
 }
 
 // Owner-only "manage this listing" panel — mark sold/claimed, withdraw, reactivate,
@@ -1395,7 +1536,7 @@ async function lifecycleAction(id, table, newStatus) {
   if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
   applyLocalLifecycleChange(id, { lifecycle_status: newStatus });
   logEvent(LIFECYCLE_EVENT_TYPES[newStatus] || 'listing_relisted', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus } });
-  closeModal('detailModal');
+  dismissDetail();
   toast('Listing updated');
 }
 
@@ -1413,7 +1554,7 @@ async function setListingDeadline(id) {
   const prevDeadline = l.expires_at || null;
   applyLocalLifecycleChange(id, { expires_at: iso });
   logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: iso } });
-  closeModal('detailModal');
+  dismissDetail();
   toast('Deadline set');
 }
 
@@ -1427,7 +1568,7 @@ async function clearListingDeadline(id) {
   const prevDeadline = l.expires_at || null;
   applyLocalLifecycleChange(id, { expires_at: null });
   logEvent('listing_deadline_set', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { expires_at: prevDeadline }, after: { expires_at: null } });
-  closeModal('detailModal');
+  dismissDetail();
   toast('Deadline cleared');
 }
 
@@ -1444,7 +1585,7 @@ async function renewListing(id) {
   const l = DB.listings.find(x => x.id === id);
   applyLocalLifecycleChange(id, { lifecycle_status: 'active', expires_at: iso });
   logEvent('listing_renewed', { targetType: 'listing', targetId: id, targetLabel: l?.title, school: l?.school, category: l?.category, after: { lifecycle_status: 'active', expires_at: iso } });
-  closeModal('detailModal');
+  dismissDetail();
   toast('Listing renewed');
 }
 

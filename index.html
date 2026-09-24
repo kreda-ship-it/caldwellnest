@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24g">
+<link rel="stylesheet" href="styles.css?v=2026-09-24i">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1655,8 +1655,8 @@
 
 <!-- LISTING DETAIL -->
 <div class="modal-overlay" id="detailModal">
-  <div class="modal" style="max-width:560px"><div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;"><button class="modal-close" onclick="closeModal('detailModal')">&#215;</button></div>
-  <div id="detailContent"></div></div>
+  <!-- Its own Back / Close buttons are drawn by openDetail (js/listings.js), inside the content. -->
+  <div class="modal ld-modal" role="dialog" aria-modal="true" aria-label="Listing"><div id="detailContent"></div></div>
 </div>
 
 <!-- EVENT DETAIL — the one detail view. The #/event/:id deep link opens this same modal on
@@ -1884,7 +1884,7 @@
 <script src="js/data.js?v=2026-09-12a"></script>
 <script src="js/auth.js?v=2026-09-24a"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
-<script src="js/listings.js?v=2026-09-24e"></script>
+<script src="js/listings.js?v=2026-09-24f"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
