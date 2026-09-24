@@ -66,7 +66,9 @@ function feedUpcoming(limit = 6) {
     .slice(0, limit);
 }
 
-function feedNewest(limit = 4) {
+// Every live listing, newest first. Home streams all of them now (streamSections), so the limit
+// is only for a caller that wants a preview.
+function feedNewest(limit = Infinity) {
   return browseItems()
     .filter(isListingLive)
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
@@ -112,10 +114,11 @@ async function renderFeed() {
   // Painted in two passes on purpose. Listings are already in memory, so the marketplace
   // section can be on screen immediately; events need a query. Holding the whole feed back
   // for that query would make the fast half feel as slow as the slow half.
+  // No "See all" any more: the marketplace section is an endless feed, drawn a batch at a time
+  // as the student scrolls (streamSections in listings.js). #feedMarket is its host.
   const listings = feedNewest();
   const market = listings.length
-    ? feedSection('New in marketplace', 'See all', "showPage('listings')",
-        `<div class="listings-grid feed-grid">${listings.map(l => listingCardHTML(l, false)).join('')}</div>`)
+    ? feedSection('New in marketplace', '', '', '<div id="feedMarket"></div>')
     : '';
 
   const clubs = `
@@ -128,7 +131,12 @@ async function renderFeed() {
       ${icon('chevRight', 16)}
     </button>`;
 
-  body.innerHTML = head + '<div id="feedEvents"></div>' + market + clubs;
+  // Clubs before the marketplace: the marketplace feed never ends, so anything placed after it
+  // would never be reached.
+  body.innerHTML = head + '<div id="feedEvents"></div>' + clubs + market;
+  const marketHost = document.getElementById('feedMarket');
+  if (marketHost) streamSections(marketHost, [{ items: listings, cardHTML: l => listingCardHTML(l, false) }],
+    { gridClass: 'listings-grid feed-grid' });
 
   // Second pass: events.
   const slot = document.getElementById('feedEvents');

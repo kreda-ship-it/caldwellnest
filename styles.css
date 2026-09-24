@@ -571,16 +571,6 @@ select.ap-input{cursor:pointer;}
 .mk-sec-head{display:flex;align-items:baseline;gap:var(--sp-2);margin-bottom:var(--sp-3);}
 .mk-sec-title{font-family:'DM Serif Display',serif;font-size:var(--fs-title);color:var(--brand);line-height:1.2;}
 .mk-sec-meta{font-size:var(--fs-small);color:var(--text-faint);white-space:nowrap;}
-/* Pushed to the right edge of the heading row, and kept on one line — "Show less" is wider
-   than "See all", and a button that changes width when tapped reads as the layout twitching. */
-.mk-sec-more{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:var(--sp-1);
-  background:none;border:none;padding:var(--sp-1) 0;cursor:pointer;white-space:nowrap;
-  font-family:'DM Sans',sans-serif;font-size:var(--fs-small);font-weight:600;color:var(--accent-warm);}
-.mk-sec-more:hover{color:var(--text);}
-.mk-sec-more:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
-/* One chevron, turned over, rather than a second icon that has to be kept in step with it. */
-.mk-sec-more svg{transition:transform var(--dur) var(--ease);}
-.mk-sec-more.open svg{transform:rotate(180deg);}
 
 .lc-empty-icon{margin-bottom:var(--sp-3);color:var(--text-faint);}
 .lc-empty-title{font-size:var(--fs-body);font-weight:500;margin-bottom:var(--sp-2);color:var(--text);}
@@ -643,17 +633,18 @@ select.ap-input{cursor:pointer;}
   .listings-grid.is-masonry .lc-price{margin-top:2px;font-size:15px;}
 
   /* Browsing pages fill the window on desktop, as Pinterest does, instead of sitting in the
-     980px reading column: the Marketplace, Home, Events, Search and your profile. */
-  #page-listings > .page-wrap,#page-feed > .page-wrap,#page-events > .page-wrap,
+     980px reading column: the Marketplace, Home, Search and your profile. (Not Events: it is
+     one post at a time in a single column, like Instagram — Kal, 2026-09-23.) */
+  #page-listings > .page-wrap,#page-feed > .page-wrap,
   #page-search > .page-wrap{max-width:none;padding:28px 28px 40px;}
   /* Home: the clubs link is a sentence with a chevron; stretched across a wide screen it would
      read as a banner, so it keeps a readable width. */
   #page-feed .feed-clubs{max-width:720px;}
 
-  /* Masonry for the other card grids — same mechanics as .listings-grid above. */
-  /* align-items:start matters: a grid item stretches to fill its row by default, and a stretched
+  /* Masonry for search results — same mechanics as .listings-grid above.
+     align-items:start matters: a grid item stretches to fill its row by default, and a stretched
      card measures as the row's height rather than its own, so masonryFit could never shrink it. */
-  .sq-grid.is-masonry,.ev-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;align-items:start;}
+  .sq-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;align-items:start;}
 
   /* SEARCH. Results go wide and the grid view packs like the Marketplace, each photo in its own
      shape; the rest (tools, labels, list rows, event rows) keeps a readable width on the left,
@@ -666,14 +657,6 @@ select.ap-input{cursor:pointer;}
   .sq-grid.is-masonry .sq-tile-img{border-radius:16px;}
   .sq-grid.is-masonry .sq-tile-img:has(img){aspect-ratio:auto;}
   .sq-grid.is-masonry .sq-tile-img img{height:auto;max-height:520px;}
-
-  /* EVENTS. Each day's posters sit side by side instead of one per row. The feed column is
-     released, and the generated poster's title steps down to suit a narrower card. */
-  #page-events #evFeed{max-width:none;}
-  .ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));align-items:start;}
-  .ev-grid.is-masonry .ev-card{margin-bottom:0;}
-  .ev-grid .ev-made{padding:18px 18px 18px;}
-  .ev-grid .ev-made-title{font-size:26px;}
 
   /* PROFILE. The header, counts, tabs and the Saved / Going lists keep the 640px column; only
      your Listings grid goes wide, with as many square tiles as fit. Scoped to #myListings: the
@@ -693,9 +676,10 @@ select.ap-input{cursor:pointer;}
 @media(min-width:1280px){
   .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(5,minmax(0,1fr));}
 }
-/* The `hidden` attribute is only a browser default (display:none), and the desktop display:grid
-   above outranks it — which would show the collapsed past-events list. This keeps hidden hidden. */
-.ev-grid[hidden]{display:none;}
+/* Endless scroll (streamSections in js/listings.js): the invisible marker it watches, and the
+   line that closes a list once everything has been drawn. */
+.stream-sentinel{height:1px;}
+.stream-end{padding:26px 0 8px;text-align:center;font-size:12.5px;color:var(--text-faint);}
 /* PINNED SECTION */
 /* LISTING CARD */
 .listing-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);
@@ -2487,6 +2471,9 @@ select.ao-input { cursor: pointer; }
    which is what the first version did. Capping the column is what makes the poster the right
    size at every window width without a single media query about the poster itself. */
 #evFeed { max-width: var(--col-read); margin-inline: auto; }
+/* The title and search button sit over the feed column, not out at the page's edge, so the page
+   reads as one column — one post at a time, like Instagram. */
+#page-events .page-header { max-width: var(--col-read); margin-inline: auto; }
 
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */

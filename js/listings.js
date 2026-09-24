@@ -732,7 +732,8 @@ function renderListings() {
   if (!noFilters) {
     const label = _filters.category !== 'all' ? (CATEGORY_LABELS[_filters.category] || 'Results') : 'Results';
     const all = sortListings([...pinnedFiltered, ...filtered]);
-    host.innerHTML = mkSectionHTML('results', label, all, `${all.length} listing${all.length !== 1 ? 's' : ''}`);
+    // In the flat results list there is no "Featured" heading, so the per-card badge earns its place.
+    streamSections(host, [mkSection(label, all, `${all.length} listing${all.length !== 1 ? 's' : ''}`, true)]);
     return;
   }
 
@@ -745,46 +746,104 @@ function renderListings() {
   const atMine  = sortListings(filtered.filter(l => !mySchool || !l.school || l.school === mySchool));
   const nearby  = sortListings(filtered.filter(l => mySchool && l.school && l.school !== mySchool));
 
-  host.innerHTML =
-      mkSectionHTML('featured', 'Featured', sortListings(pinnedFiltered))
-    + mkSectionHTML('school', mySchool ? 'At your school' : 'All listings', atMine)
-    + mkSectionHTML('nearby', 'From nearby campuses', nearby);
+  // One continuous feed, no "See all": Featured, then your school, then nearby campuses, each
+  // under its heading, drawn a batch at a time as the student scrolls (streamSections).
+  streamSections(host, [
+    mkSection('Featured', sortListings(pinnedFiltered)),
+    mkSection(mySchool ? 'At your school' : 'All listings', atMine),
+    mkSection('From nearby campuses', nearby),
+  ]);
 }
 
-// How many cards a section shows before "See all". Three rows of two on a phone, two rows of
-// three on a desktop — enough to be worth scrolling, short enough that the next heading is
-// reachable without committing to the whole list.
-const MK_PREVIEW = 6;
-// Which sections the student has unfolded. Not persisted: it describes this visit to the
-// page, not a preference, and a section silently already-open on next launch would be a
-// small mystery rather than a convenience.
-const _mkOpen = {};
-
-function mkToggleSection(key) {
-  _mkOpen[key] = !_mkOpen[key];
-  renderListings();
+// A Marketplace section for streamSections(). Inside a section called Featured every card is
+// featured, so the per-card badge would repeat the heading; only the flat results list shows it.
+function mkSection(title, items, meta, badgePinned = false) {
+  return {
+    items,
+    headHTML: `<div class="mk-sec-head"><h2 class="mk-sec-title">${esc(title)}</h2>
+      ${meta ? `<span class="mk-sec-meta">${esc(meta)}</span>` : ''}</div>`,
+    cardHTML: l => listingCardHTML(l, badgePinned && l.pinned),
+  };
 }
 
-function mkSectionHTML(key, title, items, meta) {
-  // A heading over nothing is worse than no heading — same rule the home feed follows.
-  if (!items.length) return '';
-  const open  = !!_mkOpen[key];
-  const more  = items.length > MK_PREVIEW;
-  const shown = open ? items : items.slice(0, MK_PREVIEW);
-  // Inside a section called Featured every card is featured, so the per-card badge would be
-  // repeating the heading. In the flat results list there is no heading saying it, so there
-  // the badge earns its place.
-  const badge = l => key === 'results' && l.pinned;
-  return `
-    <section class="mk-sec">
-      <div class="mk-sec-head">
-        <h2 class="mk-sec-title">${esc(title)}</h2>
-        ${meta ? `<span class="mk-sec-meta">${esc(meta)}</span>` : ''}
-        ${more ? `<button class="mk-sec-more${open ? ' open' : ''}" onclick="mkToggleSection('${key}')"
-            aria-expanded="${open}">${open ? 'Show less' : 'See all'}${icon('chevDown', 13)}</button>` : ''}
-      </div>
-      <div class="listings-grid">${shown.map(l => listingCardHTML(l, badge(l))).join('')}</div>
-    </section>`;
+// ---- Endless scroll (2026-09-23) ----
+// Home, the Marketplace and Events no longer stop at a preview with "See all". The first batch
+// is drawn, and the next is appended whenever the bottom of the list comes within a screen of
+// the viewport, until everything is shown and "You're all caught up" closes the list.
+//
+// Everything is already in the browser — loadListings() and loadEvents() fetch the whole school
+// — so "loading more" is drawing more: no request per scroll, nothing to wait for. When the
+// catalogue outgrows that, fetching the next page belongs inside addMore() and the three pages
+// calling this do not change.
+//
+// sections: [{ items, headHTML, cardHTML(item) }], shown in order as ONE stream: a section's
+// heading appears when its first card does. A section with no items is skipped, heading and all.
+// opts.batch   cards per step (20 fills whole rows at 2, 4 and 5 columns)
+// opts.gridClass  the class of each section's card container
+// opts.done(host)  called once the last card is drawn (Events puts its past-events chip here)
+//
+// Re-rendering the same host (a filter change, a realtime update) redraws at least as many
+// cards as were showing, so the page does not shrink under a student who had scrolled down.
+const _streams = new Map();   // host id -> stop() for the stream currently drawing into it
+
+function streamSections(host, sections, opts = {}) {
+  _streams.get(host.id)?.();
+  const batch = opts.batch || 20;
+  const already = Number(host.dataset.shown || 0);
+  host.innerHTML = '';
+  const sentinel = document.createElement('div');
+  sentinel.className = 'stream-sentinel';
+  host.appendChild(sentinel);
+
+  let si = 0, ii = 0, grid = null, shown = 0, ticking = false;
+  const finish = () => {
+    stop();
+    sentinel.remove();
+    if (shown) host.insertAdjacentHTML('beforeend', `<div class="stream-end">You're all caught up</div>`);
+    opts.done?.(host);
+  };
+  const addMore = n => {
+    while (n > 0 && si < sections.length) {
+      const sec = sections[si];
+      if (!grid) {
+        if (!sec.items.length) { si++; continue; }
+        if (sec.headHTML) sentinel.insertAdjacentHTML('beforebegin', sec.headHTML);
+        grid = document.createElement('div');
+        grid.className = opts.gridClass || 'listings-grid';
+        host.insertBefore(grid, sentinel);
+      }
+      const take = sec.items.slice(ii, ii + n);
+      grid.insertAdjacentHTML('beforeend', take.map(sec.cardHTML).join(''));
+      ii += take.length; n -= take.length; shown += take.length;
+      if (ii >= sec.items.length) { si++; ii = 0; grid = null; }
+    }
+    host.dataset.shown = shown;
+    if (si >= sections.length) finish();
+  };
+  // Near = the sentinel is less than a screen below the fold. A host on a hidden page has no
+  // layout (offsetParent null) and must not count as near, or it would draw everything at once.
+  const check = () => {
+    ticking = false;
+    if (!sentinel.isConnected || host.offsetParent === null) return;
+    if (sentinel.getBoundingClientRect().top < window.innerHeight * 2) addMore(batch);
+  };
+  // Throttled with a short timer rather than requestAnimationFrame: a frame callback never runs
+  // in a tab that is not painting (a background tab, a headless test), and a stream waiting on
+  // one would stop loading for good.
+  const poke = () => { if (!ticking) { ticking = true; setTimeout(check, 80); } };
+  // Scroll and resize move the sentinel; a photo finishing loading can too (it grows its card).
+  // `load` does not bubble, so it is caught on the way down (capture: true).
+  const stop = () => {
+    window.removeEventListener('scroll', poke);
+    window.removeEventListener('resize', poke);
+    document.removeEventListener('load', poke, true);
+    _streams.delete(host.id);
+  };
+  window.addEventListener('scroll', poke, { passive: true });
+  window.addEventListener('resize', poke);
+  document.addEventListener('load', poke, true);
+  _streams.set(host.id, stop);
+  addMore(Math.max(batch, already));
 }
 
 function mkEmptyHTML(nothingAtAll, noFilters) {
@@ -914,8 +973,8 @@ function priceLabel(l) {
 // Wider than a phone, cards pack into the columns like Pinterest. CSS can't size a grid row to its
 // content AND pack the columns, so this tells the grid how tall each card is: every grid named in
 // MASONRY_GRIDS gets .is-masonry, its rows become 4px tall, and each child spans as many of them
-// as its height needs (masonryFit). Used by the Marketplace and Home (.listings-grid), search
-// results (.sq-grid) and the Events page (.ev-grid, one per day).
+// as its height needs (masonryFit). Used by the Marketplace and Home (.listings-grid) and search
+// results (.sq-grid). Not Events: that is one post at a time, in one column.
 //
 // A ResizeObserver re-measures a card whenever its size changes — which covers its photo loading,
 // fonts arriving and the window being resized — and a MutationObserver picks up new cards when a
@@ -924,7 +983,7 @@ function priceLabel(l) {
 // If this never runs, .is-masonry is never added and the page is the ordinary even grid.
 const MASONRY_ROW = 4;    // must match grid-auto-rows in styles.css
 const MASONRY_GAP = 12;   // must match column-gap in styles.css (rows get the same space)
-const MASONRY_GRIDS = '.listings-grid, .sq-grid, .ev-grid';
+const MASONRY_GRIDS = '.listings-grid, .sq-grid';
 const _masonryWide = window.matchMedia('(min-width: 681px)');
 let _masonryRO = null;
 

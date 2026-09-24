@@ -164,39 +164,45 @@ function evPaint() {
   // list to narrow, and they go with the rest of the feed while search is open, so the page
   // never shows two sets of filters at once.
   const rows = evMatchEvents(_evFeed, { type: _evFeedType, when: _evFeedWhen });
-  let html = (_evFeed.length ? evFeedChipsHTML() : '') + '<div id="evAskSlot"></div>';
-  // Each day's cards sit in their own .ev-grid: one column on a phone, a masonry grid of posters
-  // on desktop (masonryFit in listings.js). The day heading stays between the groups, so the
-  // feed is still read in date order however many columns it has.
+  wrap.innerHTML = (_evFeed.length ? evFeedChipsHTML() : '') + '<div id="evAskSlot"></div><div id="evStream"></div>';
+
+  // One post at a time, in one column, like Instagram — and drawn as the student scrolls
+  // (streamSections in listings.js), 6 posters per step. Each day is a section of the stream,
+  // so its heading appears with its first event and the feed is read in date order.
+  const days = [];
   let lastKey = null;
   for (const e of rows) {
     const key = evDayKey(e.starts_at);
     if (key !== lastKey) {
-      if (lastKey !== null) html += '</div>';
-      html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div><div class="ev-grid">`;
+      days.push({ items: [], headHTML: `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`, cardHTML: ev => evCardHTML(ev) });
       lastKey = key;
     }
-    html += evCardHTML(e);
-  }
-  if (lastKey !== null) html += '</div>';
-
-  if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
-  else if (!rows.length) html += `<div class="ev-note">No events match these filters.
-    <button class="ev-note-btn" onclick="evFeedSet('all')">Show all</button></div>`;
-
-  // Past events are behind a chip, not in the list. The photo count is the reason anyone
-  // taps it — a past event with recap photos is worth looking at, and one without is not.
-  if (_evPast.length) {
-    html += `
-      <button class="ev-past-chip" onclick="evTogglePast(this)">
-        ${_evShowPast ? 'Hide' : 'Show'} past events · ${_evPast.length}
-      </button>
-      <div class="ev-past ev-grid" ${_evShowPast ? '' : 'hidden'}>
-        ${_evPast.map(e => evCardHTML(e, true)).join('')}
-      </div>`;
+    days[days.length - 1].items.push(e);
   }
 
-  wrap.innerHTML = html;
+  // What follows the upcoming list — drawn once the stream has shown its last event, because a
+  // chip below an endless list is a chip nobody can reach until the list has ended.
+  const tail = () => {
+    let html = '';
+    if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
+    else if (!rows.length) html += `<div class="ev-note">No events match these filters.
+      <button class="ev-note-btn" onclick="evFeedSet('all')">Show all</button></div>`;
+    // Past events are behind a chip, not in the list. The photo count is the reason anyone
+    // taps it — a past event with recap photos is worth looking at, and one without is not.
+    if (_evPast.length) {
+      html += `
+        <button class="ev-past-chip" onclick="evTogglePast(this)">
+          ${_evShowPast ? 'Hide' : 'Show'} past events · ${_evPast.length}
+        </button>
+        <div class="ev-past ev-grid" ${_evShowPast ? '' : 'hidden'}>
+          ${_evPast.map(e => evCardHTML(e, true)).join('')}
+        </div>`;
+    }
+    return html;
+  };
+  const stream = document.getElementById('evStream');
+  streamSections(stream, days, { batch: 6, gridClass: 'ev-grid',
+    done: () => stream.insertAdjacentHTML('afterend', tail()) });
 }
 
 async function evPaintAsk() {
