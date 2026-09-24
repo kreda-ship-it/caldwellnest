@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24k">
+<link rel="stylesheet" href="styles.css?v=2026-09-24m">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1691,64 +1691,99 @@
 
 <!-- POST A BOOK -->
 <div class="modal-overlay" id="postBookModal">
-  <div class="modal"><div class="modal-header"><div class="modal-title">Post a book</div><button class="modal-close" onclick="closePostBook()">&#215;</button></div>
-  <div class="modal-body">
+  <!-- Rebuilt 2026-09-24 on the same shell as Post a listing (.pm-*): a page on a phone, a sheet
+       on a desktop. Step 1: which kind of book. Step 2: photos first, then the book, the price,
+       and anything a buyer should know. Every field keeps its old id, so submitBook() is unchanged. -->
+  <div class="modal pm-modal" role="dialog" aria-modal="true" aria-labelledby="bkModalTitle">
+    <div class="pm-head">
+      <button class="pm-cancel" id="bkBackBtn" onclick="bkBack()">‹ Back</button>
+      <div class="pm-title" id="bkModalTitle">New listing</div>
+      <button class="pm-cancel pm-close" aria-label="Close" onclick="closePostBook()">Cancel</button>
+    </div>
+    <div class="pm-body">
 
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">What kind of book is it?</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
-      <button class="cat-pick-btn btype-course" id="btypeCourse" onclick="selectBookType('course')">Textbook for a course</button>
-      <button class="cat-pick-btn btype-other" id="btypeOther" onclick="selectBookType('other')">Other book</button>
+    <div id="bkStep1">
+      <h2 class="pm-h1">What kind of book?</h2>
+      <p class="pm-lead">Textbooks are found by course, so classmates can find yours.</p>
+      <div class="pm-cats">
+        <button class="pm-cat" id="btypeCourse" onclick="selectBookType('course')">
+          <span class="pm-cat-icon pm-btype-course"><svg class="ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></span>
+          <span class="pm-cat-text"><b>Textbook for a course</b><span>Pick the course and students taking it will see it</span></span>
+          <span class="pm-cat-go"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+        </button>
+        <button class="pm-cat" id="btypeOther" onclick="selectBookType('other')">
+          <span class="pm-cat-icon pm-btype-other"><svg class="ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="pm-cat-text"><b>Other book</b><span>Novels, faith, self-help, comics — anything else</span></span>
+          <span class="pm-cat-go"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+        </button>
+      </div>
     </div>
 
     <div id="bookFormFields" style="display:none">
+      <div class="pm-cat-row"><span id="bkTypeBadge" class="pm-cat-badge"></span>
+        <button class="hn-link" onclick="bkBack()">Change</button></div>
 
-      <!-- Textbook-only: course autocomplete -->
-      <div class="form-group" id="bkCourseGroup">
-        <label class="form-label">Course</label>
-        <div style="position:relative;">
-          <input class="form-input" id="bkCourseInput" placeholder="Start typing a course code or name..." autocomplete="off" style="margin-bottom:0;">
-          <div class="course-ac-list" id="bkCourseList" style="display:none"></div>
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">Photos</h3>
+        <p class="pm-sec-hint">Photos sell books — show the cover, and any highlighting or wear.</p>
+        <label for="bkPhotoInput" class="pm-drop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><b>Add photos</b><span class="note-xs">Up to 6 · JPEG, PNG or WebP · 10 MB each</span></label>
+        <input type="file" id="bkPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickBookPhoto(this)">
+        <div id="bkPhotoPreview" class="pm-preview"></div>
+      </section>
+
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">The book</h3>
+        <!-- Textbook-only: course autocomplete. First, because it is how classmates will look for it. -->
+        <div class="form-group" id="bkCourseGroup">
+          <label class="form-label" for="bkCourseInput">Course</label>
+          <div class="pm-ac">
+            <input class="form-input" id="bkCourseInput" placeholder="Start typing a course code or name…" autocomplete="off">
+            <div class="course-ac-list" id="bkCourseList" style="display:none"></div>
+          </div>
+          <div id="bkCourseHint" class="pm-field-hint">Pick your course from the list — or choose &ldquo;My course isn&rsquo;t listed&rdquo; at the bottom.</div>
         </div>
-        <div id="bkCourseHint" style="font-size:11px;color:var(--text-faint);margin-top:4px;">Pick your course from the list — or choose &ldquo;My course isn&rsquo;t listed&rdquo; at the bottom.</div>
-      </div>
-
-      <!-- Other-book-only: genre -->
-      <div class="form-group" id="bkGenreGroup" style="display:none">
-        <label class="form-label">Genre</label>
-        <select class="form-select" id="bkGenre">
+        <!-- Other-book-only: genre -->
+        <div class="form-group" id="bkGenreGroup" style="display:none">
+          <label class="form-label" for="bkGenre">Genre</label>
+          <select class="form-select" id="bkGenre">
           <option>Fiction / Novel</option><option>Non-fiction</option><option>Faith &amp; Spirituality</option>
           <option>Self-help</option><option>Biography</option><option>Poetry</option>
           <option>Comics &amp; Manga</option><option>Other</option>
         </select>
+        </div>
+        <div class="form-group"><label class="form-label" for="bkTitle">Title</label>
+          <input class="form-input" id="bkTitle" maxlength="120" autocomplete="off" placeholder="As printed on the cover"></div>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label" for="bkAuthor">Author <span class="label-hint">(optional)</span></label><input class="form-input" id="bkAuthor" autocomplete="off" placeholder="e.g. Patricia A. Potter"></div>
+          <div class="form-group" id="bkEditionGroup"><label class="form-label" for="bkEdition">Edition <span class="label-hint">(optional)</span></label><input class="form-input" id="bkEdition" autocomplete="off" placeholder="e.g. 5th edition"></div>
+        </div>
+        <div class="form-group"><label class="form-label" for="bkIsbn">ISBN <span class="label-hint">(optional)</span></label>
+          <input class="form-input" id="bkIsbn" inputmode="numeric" autocomplete="off" placeholder="e.g. 9780134515335">
+          <div class="pm-field-hint">On the back cover, near the barcode. It tells a buyer they have the exact edition.</div></div>
+      </section>
+
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">Price and condition</h3>
+        <div class="form-row-2">
+          <div class="form-group"><label class="form-label" for="bkPrice">Price ($)</label><input class="form-input" id="bkPrice" type="number" inputmode="numeric" min="0" placeholder="40 — or 0 to give it away"></div>
+          <div class="form-group"><label class="form-label" for="bkCondition">Condition</label><select class="form-select" id="bkCondition"><option>New</option><option>Like New</option><option selected>Good</option><option>Fair</option><option>Worn</option></select></div>
+        </div>
+      </section>
+
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">Description <span class="pm-opt">optional</span></h3>
+        <textarea class="form-textarea" id="bkDesc" rows="3" maxlength="1500" placeholder="Highlighting? Missing access code? Anything a buyer should know."></textarea>
+      </section>
+
+      <div class="pm-submit">
+        <button id="bkSubmitBtn" class="btn-full btn-brand" onclick="submitBook()">Post book</button>
       </div>
-
-      <div class="form-group"><label class="form-label">ISBN <span class="label-hint">(optional — it&rsquo;s on the back cover, near the barcode)</span></label><input class="form-input" id="bkIsbn" placeholder="e.g. 9780134515335"></div>
-      <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="bkTitle" placeholder="Book title as printed on the cover"></div>
-      <div class="form-group"><label class="form-label">Author <span class="label-hint">(optional)</span></label><input class="form-input" id="bkAuthor" placeholder="e.g. Patricia A. Potter"></div>
-      <div class="form-row-2">
-        <div class="form-group" id="bkEditionGroup"><label class="form-label">Edition <span class="label-hint">(optional)</span></label><input class="form-input" id="bkEdition" placeholder="e.g. 5th Edition"></div>
-        <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="bkCondition"><option>New</option><option>Like New</option><option selected>Good</option><option>Fair</option><option>Worn</option></select></div>
-      </div>
-      <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="bkPrice" type="number" min="0" placeholder="e.g. 40 — or 0 if you're giving it away"></div>
-
-      <div class="form-group">
-        <label class="form-label">Photos <span class="label-hint">(optional, but photos sell books)</span></label>
-        <label for="bkPhotoInput" style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;cursor:pointer;color:var(--text-muted);font-size:13px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Tap to choose or drag here<br><span class="note-xs">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
-        </label>
-        <input type="file" id="bkPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickBookPhoto(this)">
-        <div id="bkPhotoPreview" style="margin-top:10px;"></div>
-      </div>
-
-      <div class="form-group"><label class="form-label">Description <span class="label-hint">(optional)</span></label><textarea class="form-textarea" id="bkDesc" rows="3" placeholder="Highlighting? Missing access code? Anything a buyer should know."></textarea></div>
-
-      <button id="bkSubmitBtn" class="btn-full btn-brand" onclick="submitBook()">Post book</button>
     </div>
 
-  </div></div>
+    </div>
+  </div>
 </div>
 
-<!-- BOOK DETAIL -->
 
 <!-- ADMIN EDIT LISTING -->
 <div class="modal-overlay" id="aEditModal">
@@ -1900,7 +1935,7 @@
 <script src="js/auth.js?v=2026-09-24a"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
 <script src="js/listings.js?v=2026-09-24h"></script>
-<script src="js/books.js?v=2026-09-24a"></script>
+<script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
 <script src="js/admin.js?v=2026-09-24a"></script>

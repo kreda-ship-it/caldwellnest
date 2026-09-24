@@ -48,7 +48,7 @@
 
   /* Book-TYPE colours (textbook vs other book). Same deal: js/books.js BOOK_COLORS and the
      .btype-* classes both read these, so there is one place to change them. They deliberately
-     have their own variables rather than borrowing --cat-technology-*/--cat-donation-*, so
+     have their own variables rather than borrowing the technology and donation colours, so
      recolouring a category can never silently recolour the book-type buttons. */
   --btype-course-bg:#E3EAF2;           --btype-course-text:#3F5871;            /* slate blue    */
   --btype-other-bg:#F7EFE1;            --btype-other-text:#7A5B2E;             /* warm sand     */
@@ -1784,6 +1784,12 @@ button.ld-seller:hover{border-color:var(--brand-light);}
   padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);}
 .pm-cancel{justify-self:start;padding:6px 0;border:0;background:none;cursor:pointer;font:500 15px 'DM Sans',sans-serif;color:var(--text-muted);}
 .pm-cancel:hover{color:var(--text);}
+.pm-close{justify-self:end;}
+.pm-cat-icon.pm-btype-course{background:var(--btype-course-bg);color:var(--btype-course-text);}
+.pm-cat-icon.pm-btype-other{background:var(--btype-other-bg);color:var(--btype-other-text);}
+.pm-ac{position:relative;}
+.pm-ac .form-input{margin-bottom:0;}
+.pm-field-hint{margin-top:5px;font-size:12px;line-height:1.5;color:var(--text-faint);}
 .pm-title{font-family:'DM Serif Display',serif;font-size:21px;color:var(--text);}
 .pm-body{padding:22px 18px 28px;}
 .pm-h1{margin:0;font-family:'DM Serif Display',serif;font-size:clamp(28px,7.5vw,34px);font-weight:400;line-height:1.12;color:var(--text);}
@@ -1831,7 +1837,7 @@ button.ld-seller:hover{border-color:var(--brand-light);}
 .pm-submit{padding-top:14px;}
 .pm-review{margin:0 0 10px;font-size:12.5px;text-align:center;color:var(--text-muted);}
 @media(max-width:768px){
-  #postModal{padding:0;align-items:stretch;}
+  #postModal,#postBookModal{padding:0;align-items:stretch;}
   .pm-modal{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;overflow-y:auto;}
   .pm-head{padding-top:calc(14px + env(safe-area-inset-top));}
   .pm-submit{position:sticky;bottom:0;margin:0 -18px -28px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
@@ -1841,7 +1847,7 @@ button.ld-seller:hover{border-color:var(--brand-light);}
   .pm-modal{max-width:620px;max-height:90vh;overflow-y:auto;border-radius:20px;}
   .pm-body{padding:26px 30px 30px;}
 }
-body:has(#postModal.open){overflow:hidden;}
+body:has(#postModal.open),body:has(#postBookModal.open){overflow:hidden;}
 
 /* The school / brand chip. It had been hand-written 18 times in 12 slightly different
    variants across admin.js — 9/10/11/12px fonts and six different paddings — so the same

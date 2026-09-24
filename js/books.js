@@ -325,23 +325,37 @@ function resetBookForm() {
   document.getElementById('bkCondition').value = 'Good';
   document.getElementById('bkGenre').selectedIndex = 0;
   document.getElementById('bookFormFields').style.display = 'none';
-  document.getElementById('btypeCourse').style.outline = '';
-  document.getElementById('btypeOther').style.outline = '';
+  document.getElementById('bkStep1').style.display = '';
   const inp = document.getElementById('bkPhotoInput'); if (inp) inp.value = '';
   renderBookPhotoPreviews();
   const btn = document.getElementById('bkSubmitBtn');
   if (btn) { btn.disabled = false; btn.textContent = 'Post book'; }
 }
+// Step 1 -> step 2. The form shows only what fits the kind of book: a course for a textbook
+// (and its edition, which is what decides whether a copy is the right one), a genre otherwise.
 function selectBookType(t) {
   _postBookType = t;
-  // The selection outline reads the same --btype-* variable the button is painted from, so it
-  // cannot drift out of sync with it (it used to repeat the hex).
-  document.getElementById('btypeCourse').style.outline = t === 'course' ? '2px solid var(--btype-course-text)' : '';
-  document.getElementById('btypeOther').style.outline = t === 'other' ? '2px solid var(--btype-other-text)' : '';
+  document.getElementById('bkStep1').style.display = 'none';
   document.getElementById('bookFormFields').style.display = 'block';
   document.getElementById('bkCourseGroup').style.display = t === 'course' ? 'block' : 'none';
   document.getElementById('bkEditionGroup').style.display = t === 'course' ? 'block' : 'none';
   document.getElementById('bkGenreGroup').style.display = t === 'other' ? 'block' : 'none';
+  document.getElementById('bkTypeBadge').innerHTML =
+    `<span class="pm-cat-icon pm-cat-icon-sm pm-btype-${t}">${icon('book', 15)}</span>${t === 'course' ? 'Textbook for a course' : 'Other book'}`;
+  document.querySelector('#postBookModal .modal').scrollTop = 0;
+}
+
+// The header's ‹ Back: from the form to the two kinds of book, and from there to "What are you
+// posting?" — Books is one of its choices, so that is where this form was entered from.
+function bkBack() {
+  if (_postBookType) {
+    _postBookType = null;
+    document.getElementById('bookFormFields').style.display = 'none';
+    document.getElementById('bkStep1').style.display = '';
+    return;
+  }
+  closePostBook();
+  openModal('postModal');
 }
 
 function pickBookPhoto(input) {
