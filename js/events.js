@@ -165,15 +165,20 @@ function evPaint() {
   // never shows two sets of filters at once.
   const rows = evMatchEvents(_evFeed, { type: _evFeedType, when: _evFeedWhen });
   let html = (_evFeed.length ? evFeedChipsHTML() : '') + '<div id="evAskSlot"></div>';
+  // Each day's cards sit in their own .ev-grid: one column on a phone, a masonry grid of posters
+  // on desktop (masonryFit in listings.js). The day heading stays between the groups, so the
+  // feed is still read in date order however many columns it has.
   let lastKey = null;
   for (const e of rows) {
     const key = evDayKey(e.starts_at);
     if (key !== lastKey) {
-      html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`;
+      if (lastKey !== null) html += '</div>';
+      html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div><div class="ev-grid">`;
       lastKey = key;
     }
     html += evCardHTML(e);
   }
+  if (lastKey !== null) html += '</div>';
 
   if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
   else if (!rows.length) html += `<div class="ev-note">No events match these filters.
@@ -186,7 +191,7 @@ function evPaint() {
       <button class="ev-past-chip" onclick="evTogglePast(this)">
         ${_evShowPast ? 'Hide' : 'Show'} past events · ${_evPast.length}
       </button>
-      <div class="ev-past" ${_evShowPast ? '' : 'hidden'}>
+      <div class="ev-past ev-grid" ${_evShowPast ? '' : 'hidden'}>
         ${_evPast.map(e => evCardHTML(e, true)).join('')}
       </div>`;
   }
@@ -1170,9 +1175,14 @@ function evSearchResultsHTML() {
   let lastKey = null;
   for (const e of hits) {
     const key = evDayKey(e.starts_at);
-    if (key !== lastKey) { html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`; lastKey = key; }
+    if (key !== lastKey) {
+      if (lastKey !== null) html += '</div>';
+      html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div><div class="ev-grid">`;
+      lastKey = key;
+    }
     html += evCardHTML(e);
   }
+  if (lastKey !== null) html += '</div>';
   return html;
 }
 

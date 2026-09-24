@@ -642,10 +642,52 @@ select.ap-input{cursor:pointer;}
   .listings-grid.is-masonry .lc-loc{font-size:12px;}
   .listings-grid.is-masonry .lc-price{margin-top:2px;font-size:15px;}
 
-  /* The Marketplace fills the window, as Pinterest does, instead of sitting in the 980px
-     reading column. Home keeps its column: it is a page of mixed sections, not a grid. */
-  #page-listings > .page-wrap{max-width:none;padding:28px 28px 40px;}
+  /* Browsing pages fill the window on desktop, as Pinterest does, instead of sitting in the
+     980px reading column: the Marketplace, Home, Events, Search and your profile. */
+  #page-listings > .page-wrap,#page-feed > .page-wrap,#page-events > .page-wrap,
+  #page-search > .page-wrap{max-width:none;padding:28px 28px 40px;}
+  /* Home: the clubs link is a sentence with a chevron; stretched across a wide screen it would
+     read as a banner, so it keeps a readable width. */
+  #page-feed .feed-clubs{max-width:720px;}
+
+  /* Masonry for the other card grids — same mechanics as .listings-grid above. */
+  /* align-items:start matters: a grid item stretches to fill its row by default, and a stretched
+     card measures as the row's height rather than its own, so masonryFit could never shrink it. */
+  .sq-grid.is-masonry,.ev-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;align-items:start;}
+
+  /* SEARCH. Results go wide and the grid view packs like the Marketplace, each photo in its own
+     shape; the rest (tools, labels, list rows, event rows) keeps a readable width on the left,
+     because a list row stretched across the screen puts its price a mile from its title. */
+  /* #page-search / #page-events / #page-profile prefixes: the base rules for these live further
+     down this file, and an equally specific rule later in the file would win. */
+  #page-search #searchBody{max-width:none;margin:0;}
+  #searchBody > :not(.sq-grid){max-width:720px;}
+  #searchBody .sq-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));}
+  .sq-grid.is-masonry .sq-tile-img{border-radius:16px;}
+  .sq-grid.is-masonry .sq-tile-img:has(img){aspect-ratio:auto;}
+  .sq-grid.is-masonry .sq-tile-img img{height:auto;max-height:520px;}
+
+  /* EVENTS. Each day's posters sit side by side instead of one per row. The feed column is
+     released, and the generated poster's title steps down to suit a narrower card. */
+  #page-events #evFeed{max-width:none;}
+  .ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));align-items:start;}
+  .ev-grid.is-masonry .ev-card{margin-bottom:0;}
+  .ev-grid .ev-made{padding:18px 18px 18px;}
+  .ev-grid .ev-made-title{font-size:26px;}
+
+  /* PROFILE. The header, counts, tabs and the Saved / Going lists keep the 640px column; only
+     your Listings grid goes wide, with as many square tiles as fit. Scoped to #myListings: the
+     same grid is used inside the small "view someone's profile" pop-up, which stays as it is. */
+  #page-profile .profile-wrap{max-width:none;padding:28px 28px 40px;}
+  .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:auto;margin-right:auto;}
+  #myListings .listing-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+  #myListings .lg-cell{border-radius:16px;}
+  /* A button is inline-block, which auto side margins cannot centre. */
+  .profile-wrap > .pf-logout{display:block;}
 }
+/* The `hidden` attribute is only a browser default (display:none), and the desktop display:grid
+   above outranks it — which would show the collapsed past-events list. This keeps hidden hidden. */
+.ev-grid[hidden]{display:none;}
 /* PINNED SECTION */
 /* LISTING CARD */
 .listing-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);

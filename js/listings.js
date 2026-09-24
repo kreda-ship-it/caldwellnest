@@ -907,10 +907,11 @@ function priceLabel(l) {
 }
 
 // ---- Desktop masonry (2026-09-23) ----
-// Wider than a phone, each card takes its photo's real shape and the cards pack into the columns
-// like Pinterest. CSS can't size a grid row to its content AND pack the columns, so this tells the
-// grid how tall each card is: every .listings-grid gets .is-masonry, its rows become 4px tall,
-// and each card spans as many of them as its height needs (masonryFit).
+// Wider than a phone, cards pack into the columns like Pinterest. CSS can't size a grid row to its
+// content AND pack the columns, so this tells the grid how tall each card is: every grid named in
+// MASONRY_GRIDS gets .is-masonry, its rows become 4px tall, and each child spans as many of them
+// as its height needs (masonryFit). Used by the Marketplace and Home (.listings-grid), search
+// results (.sq-grid) and the Events page (.ev-grid, one per day).
 //
 // A ResizeObserver re-measures a card whenever its size changes — which covers its photo loading,
 // fonts arriving and the window being resized — and a MutationObserver picks up new cards when a
@@ -919,12 +920,13 @@ function priceLabel(l) {
 // If this never runs, .is-masonry is never added and the page is the ordinary even grid.
 const MASONRY_ROW = 4;    // must match grid-auto-rows in styles.css
 const MASONRY_GAP = 12;   // must match column-gap in styles.css (rows get the same space)
+const MASONRY_GRIDS = '.listings-grid, .sq-grid, .ev-grid';
 const _masonryWide = window.matchMedia('(min-width: 681px)');
 let _masonryRO = null;
 
 function masonryFit(card) {
   const grid = card.parentElement;
-  if (!grid || !grid.classList.contains('listings-grid')) return;
+  if (!grid || !grid.matches(MASONRY_GRIDS)) return;
   grid.classList.toggle('is-masonry', _masonryWide.matches);
   if (!_masonryWide.matches) { card.style.gridRowEnd = ''; return; }
   const h = card.getBoundingClientRect().height;
@@ -932,7 +934,7 @@ function masonryFit(card) {
 }
 
 function masonryScan() {
-  document.querySelectorAll('.listings-grid > .listing-card:not([data-mz])').forEach(card => {
+  document.querySelectorAll(':is(' + MASONRY_GRIDS + ') > :not([data-mz])').forEach(card => {
     card.dataset.mz = '1';
     _masonryRO.observe(card);   // observe() also fires once straight away, which does the first fit
   });
@@ -950,7 +952,7 @@ function masonryInit() {
   }).observe(document.body, { childList: true, subtree: true });
   // Crossing the breakpoint changes the rules, not necessarily any card's size, so refit all.
   _masonryWide.addEventListener('change', () =>
-    document.querySelectorAll('.listings-grid > .listing-card').forEach(masonryFit));
+    document.querySelectorAll(':is(' + MASONRY_GRIDS + ') > *').forEach(masonryFit));
   masonryScan();
 }
 
