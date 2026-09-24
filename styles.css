@@ -596,6 +596,13 @@ select.ap-input{cursor:pointer;}
   .listings-grid{gap:6px;}
   .listings-grid .lc-photo,.listings-grid .lc-noimg{aspect-ratio:4/5;}
   .listings-grid .lc-body{padding:7px 9px 9px;gap:4px;}
+  /* Bigger cards, still two across: the Marketplace grid reaches to 10px from the screen edges
+     (the page keeps 24px for its title, search and chips), and the caption steps up a size. */
+  #page-listings #mkSections{margin-inline:-14px;}
+  #page-listings #mkSections .mk-sec-head,#page-listings #mkSections .stream-end{padding-inline:14px;}
+  .listings-grid .lc-title{font-size:14.5px;}
+  .listings-grid .lc-loc{font-size:12px;}
+  .listings-grid .lc-price{font-size:17px;}
 }
 /* Wider than a phone: Pinterest masonry, 2026-09-23. Each card takes its photo's real shape (a
    tall photo makes a tall card), and cards pack into the columns with no row lines between.
@@ -608,7 +615,7 @@ select.ap-input{cursor:pointer;}
   /* As many ~210px columns as fit (about 6 on a laptop), like Pinterest — instead of a fixed 3.
      Applies whether or not masonry has started, so the loading placeholders use it too.
      .feed-grid is named as well because the Home feed pins itself to 2 columns further down. */
-  .listings-grid,.listings-grid.feed-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .listings-grid,.listings-grid.feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .listings-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;}
   .listings-grid.is-masonry .lc-photo{aspect-ratio:auto;}
   .listings-grid.is-masonry .lc-photo-img{height:auto;max-height:520px;}
@@ -628,9 +635,9 @@ select.ap-input{cursor:pointer;}
   /* The category chip is the row of category buttons above the grid, said again; on a caption
      this small it is the first thing to go. Phones keep it. */
   .listings-grid.is-masonry .lc-badge{display:none;}
-  .listings-grid.is-masonry .lc-title{-webkit-line-clamp:1;line-clamp:1;font-size:13.5px;font-weight:500;}
-  .listings-grid.is-masonry .lc-loc{font-size:12px;}
-  .listings-grid.is-masonry .lc-price{margin-top:2px;font-size:15px;}
+  .listings-grid.is-masonry .lc-title{-webkit-line-clamp:1;line-clamp:1;font-size:14.5px;font-weight:500;}
+  .listings-grid.is-masonry .lc-loc{font-size:12.5px;}
+  .listings-grid.is-masonry .lc-price{margin-top:2px;font-size:16px;}
 
   /* Browsing pages fill the window on desktop, as Pinterest does, instead of sitting in the
      980px reading column: the Marketplace, Search and your profile. (Not Events: one post at a
@@ -650,7 +657,7 @@ select.ap-input{cursor:pointer;}
      down this file, and an equally specific rule later in the file would win. */
   #page-search #searchBody{max-width:none;margin:0;}
   #searchBody > :not(.sq-grid){max-width:720px;}
-  #searchBody .sq-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  #searchBody .sq-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .sq-grid.is-masonry .sq-tile-img{border-radius:16px;}
   .sq-grid.is-masonry .sq-tile-img:has(img){aspect-ratio:auto;}
   .sq-grid.is-masonry .sq-tile-img img{height:auto;max-height:520px;}
@@ -660,18 +667,19 @@ select.ap-input{cursor:pointer;}
      same grid is used inside the small "view someone's profile" pop-up, which stays as it is. */
   #page-profile .profile-wrap{max-width:none;padding:28px 28px 40px;}
   .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:auto;margin-right:auto;}
-  #myListings .listing-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+  #myListings .listing-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
   #myListings .lg-cell{border-radius:16px;}
   /* A button is inline-block, which auto side margins cannot centre. */
   .profile-wrap > .pf-logout{display:block;}
 }
-/* Listing grids: 5 columns on a wide screen (Kal, 2026-09-23 — 6 felt too many), 4 on a laptop,
-   3 below that. Marketplace, Home, search results and your profile's Listings grid. */
+/* Listing grids: 4 columns on a wide screen, 3 on a laptop, 2 below that — one fewer at every
+   size than before, so each listing is bigger (Kal, 2026-09-23: 6, then 5, felt too many).
+   Marketplace, search results and your profile's Listings grid. */
 @media(min-width:1024px){
-  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
 }
 @media(min-width:1280px){
-  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(5,minmax(0,1fr));}
+  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
 }
 /* Endless scroll (streamSections in js/listings.js): the invisible marker it watches, and the
    line that closes a list once everything has been drawn. */
@@ -3195,10 +3203,19 @@ select.ao-input { cursor: pointer; }
 /* "Today at Caldwell" (2026-09-23): the greeting banner over the campus illustration
    (feedCampusSVG). Its colours are variables so the time of day repaints the whole scene —
    warm morning, clear afternoon, dusk with lit windows and a moon. Evening flips the text light. */
-.home-hero{position:relative;overflow:hidden;min-height:250px;margin-bottom:var(--sp-6);padding:26px 24px 0;border-radius:22px;
+.home-hero{position:relative;overflow:hidden;min-height:250px;margin-bottom:var(--sp-5);padding:26px max(26px,7%) 0;
   --hh-sky1:#fbe5cd;--hh-sky2:#f8f1e6;--hh-sun:#f2b25c;--hh-far:#e2d3bd;--hh-mid:#3e7a5c;--hh-near:#2d6148;--hh-win:#fbf3e2;
-  --hh-ink:var(--text);--hh-soft:var(--text-muted);
-  background:linear-gradient(180deg,var(--hh-sky1) 0%,var(--hh-sky2) 100%);color:var(--hh-ink);}
+  --hh-ink:var(--text);--hh-soft:var(--text-muted);color:var(--hh-ink);}
+/* No box, no hard edge: the sky is its own layer and dissolves into the page on every side, so
+   the scene sits IN the page rather than on it. Two gradients, intersected: a side fade and a
+   top/bottom fade. The text stays inside the solid middle (the 7% side padding clears the fade),
+   which matters most in the evening, when the text is white on a dark sky. */
+.home-hero::before{content:'';position:absolute;inset:0;z-index:0;
+  background:linear-gradient(180deg,var(--hh-sky1) 0%,var(--hh-sky2) 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);
+  -webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0,#000 6%,#000 94%,transparent 100%),linear-gradient(180deg,transparent 0,#000 12%,#000 80%,transparent 100%);
+  mask-composite:intersect;}
 .home-hero.is-afternoon{--hh-sky1:#d9e9ef;--hh-sky2:#f4f1e8;--hh-sun:#f3cf6a;--hh-far:#cbdacf;--hh-mid:#2d6148;--hh-near:#1a3a2a;--hh-win:#e7f0e8;}
 .home-hero.is-evening{--hh-sky1:#22314a;--hh-sky2:#6d5a79;--hh-sun:#f4e6bd;--hh-far:#3c4a62;--hh-mid:#1f2b3c;--hh-near:#151f2b;--hh-win:#f3c566;
   --hh-ink:#fff;--hh-soft:rgba(255,255,255,.78);}
@@ -3210,7 +3227,12 @@ select.ao-input { cursor: pointer; }
   background:rgba(255,255,255,.85);backdrop-filter:blur(4px);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
   cursor:pointer;box-shadow:0 1px 3px rgba(36,31,26,.08);}
 .home-chip:hover{background:#fff;}
-.home-campus{display:block;width:100%;max-width:640px;height:auto;margin:12px 0 0 auto;}
+.home-campus{position:relative;z-index:0;display:block;width:100%;max-width:640px;height:auto;margin:12px 0 0 auto;
+  /* The skyline fades out at its edges and into the ground below, instead of ending on a line. */
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 90%,transparent 100%),linear-gradient(180deg,#000 72%,transparent 100%);
+  -webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0,#000 14%,#000 90%,transparent 100%),linear-gradient(180deg,#000 72%,transparent 100%);
+  mask-composite:intersect;}
 .hc-sun{fill:var(--hh-sun);}
 .hc-far{fill:var(--hh-far);}
 .hc-mid{fill:var(--hh-mid);}
@@ -3218,8 +3240,17 @@ select.ao-input { cursor: pointer; }
 .hc-win{fill:var(--hh-win);}
 .hc-hands{fill:none;stroke:var(--hh-mid);stroke-width:1.8;stroke-linecap:round;}
 @media(min-width:769px){
-  .home-hero{min-height:280px;padding:34px 36px 0;}
-  .home-campus{position:absolute;right:0;bottom:0;width:62%;margin:0;}
+  .home-hero{min-height:280px;padding:34px max(36px,6%) 0;}
+  .home-campus{position:absolute;right:2%;bottom:0;width:60%;margin:0;}
+}
+/* Home's margins (Kal, 2026-09-23: shorter). Phones: 14px sides, and the banner runs edge to edge
+   so its fade reaches the screen. Desktop: a wider column than the 980px reading width. */
+@media(max-width:768px){
+  #page-feed > .page-wrap{padding:20px 14px 32px;}
+  #page-feed .home-hero{margin-inline:-14px;padding-inline:28px;}
+}
+@media(min-width:769px){
+  #page-feed > .page-wrap{max-width:1180px;padding:28px 28px 40px;}
 }
 
 /* Up next for you: your next RSVP, toned like its event type (.ev-tone-*). */
@@ -3236,7 +3267,16 @@ select.ao-input { cursor: pointer; }
 /* Short sideways rows — Fresh on the Market and clubs to follow. They end, on purpose. */
 .home-row{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;scroll-snap-type:x proximity;}
 .home-row::-webkit-scrollbar{display:none;}
-.home-market .listing-card{flex:0 0 168px;scroll-snap-align:start;}
+.home-market .listing-card{flex:0 0 160px;scroll-snap-align:start;}
+/* The picture leads: a taller photo, and a short caption under it — one line of title, a small
+   price and place, no category chip (the Marketplace has the category filters). */
+.home-market .lc-photo,.home-market .lc-noimg{aspect-ratio:4/5;}
+.home-market .lc-badge{display:none;}
+.home-market .lc-body{padding:6px 9px 8px;gap:2px;}
+.home-market .lc-title{font-size:12.5px;font-weight:600;-webkit-line-clamp:1;line-clamp:1;}
+.home-market .lc-loc{font-size:11px;}
+.home-market .lc-price{margin-top:1px;font-size:14px;}
+.home-market .lc-price span{font-size:11px;}
 .home-more-tile{flex:0 0 150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
   border:1.5px dashed var(--border);border-radius:var(--radius-lg);background:none;color:var(--text-muted);
   font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
@@ -3251,7 +3291,7 @@ select.ao-input { cursor: pointer; }
 .home-club-meta{font-size:11.5px;color:var(--text-muted);}
 .home-club-follow{margin-top:4px;}
 .home-sub{margin:-6px 0 12px;font-size:13.5px;color:var(--text-muted);}
-@media(min-width:769px){ .home-market .listing-card{flex-basis:200px;} }
+@media(min-width:769px){ .home-market .listing-card{flex-basis:190px;} }
 .feed-sec{margin-bottom:var(--sp-6);}
 .feed-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-3);}
 /* Same green as .mk-sec-title on the marketplace. These headings were inheriting --text,
