@@ -2442,3 +2442,30 @@ the app is unaffected this time.
 Then the org profile page and the followed-orgs feed, which finish Phase 1. Open question
 carried forward: the build document puts the feed on the home page; it is currently planned as
 a second tab inside the orgs page, so that `page-home` stays another feature's territory.
+
+## Redesign mockups vs. the database — features the mockups draw that nothing backs yet. 2026-09-23
+
+Kal chose to restyle the Events, Messages and Inbox screens to the Nestrel Redesign canvas
+using **only data that exists**, and to list the rest here so each can become its own feature.
+Each needs new database work (a column, a table or a trigger), not just styling.
+
+**Events** (restyled 2026-09-23)
+- [ ] "Free food" chip — events have no food flag. Needs a tag (e.g. `audience_tags` or a new
+      boolean) set by the officer when posting.
+- [ ] "Clubs" chip — undefined against the data; decide what it means (events from clubs you
+      follow? club-run vs. department-run?) before building.
+
+**Messages list** (not yet restyled)
+- [ ] Online dot and "typing…" — presence; already deferred in the responsive-UI plan.
+- [ ] Muted conversations, and **Archived · N** — need per-user conversation settings.
+- [ ] Conversations with a club (the Eco Club row) — organizations cannot message yet.
+- [ ] "Sent a photo" — photo messages do not exist.
+
+**Inbox → Activity** (not yet restyled)
+- [ ] "2 people saved your listing" — `favorites` is own-rows-only by design; needs a
+      counts-only function, the same privacy shape as the analytics decisions of 2026-09-14.
+- [ ] Price-drop alerts on saved listings — needs price history plus a trigger.
+- [ ] Saved searches ("4 new Housing listings … from your saved search") — no saved searches.
+- [ ] Event reminders ("starts in 2 hours") — needs a scheduler (pg_cron exists).
+- [ ] "Eco Club posted …" — followed-org activity as notifications.
+- [ ] A thumbnail per notification — `notifications` has no link to a listing or event.
