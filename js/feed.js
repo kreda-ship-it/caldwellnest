@@ -101,44 +101,69 @@ function feedDaypart() {
   return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
 }
 
-// The campus in the greeting banner: a hall with a clock tower, a domed building, smaller halls
-// and trees, drawn as flat layers. Inline SVG, not an image file: it is sharp at every size,
-// weighs nothing, and its colours are CSS variables, so the time-of-day classes on .home-hero
-// repaint the whole scene (lit windows and a moon in the evening) without a second drawing.
-// Decorative, so hidden from screen readers.
+// The campus in the greeting banner. It is drawn to sit IN the page, not on it:
+//  - the front lawn is painted in the page's own colour (.hc-ground), so the buildings rise out
+//    of the page itself and there is no bottom edge to hide;
+//  - the sky is not a box but soft glows behind it (.home-hero::before), which fade to nothing
+//    on their own — no rectangle, so no rectangle to blur;
+//  - distance is shown the way a landscape shows it: pale, low rooftops behind the campus, and
+//    they thin out into the page towards both ends (#hcFarFade) — so the skyline dissolves
+//    instead of stopping at the banner's edge;
+//  - at dusk a few stars come out (.hc-stars, shown only in the evening).
+// Inline SVG, not an image: sharp at every size, weightless, and every colour is a CSS variable,
+// so the time-of-day classes on .home-hero repaint the scene (lit windows and a moon at dusk).
+// 1200 x 240, main buildings on the right so the greeting has open sky; phones crop to the right
+// half (preserveAspectRatio slice). Decorative, so hidden from screen readers.
 function feedCampusSVG() {
-  const win = (x, y) => `<rect x="${x}" y="${y}" width="9" height="14" rx="4.5"/>`;
-  const row = (x0, y, n, gap) => Array.from({ length: n }, (_, i) => win(x0 + i * gap, y)).join('');
+  const wins = (x0, y, n, gap, w = 8, h = 13) =>
+    Array.from({ length: n }, (_, i) => `<rect x="${x0 + i * gap}" y="${y}" width="${w}" height="${h}" rx="${w / 2}"/>`).join('');
+  const tree = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}"/><circle cx="${x + r * .8}" cy="${y + r * .35}" r="${r * .75}"/>`
+    + `<circle cx="${x - r * .75}" cy="${y + r * .4}" r="${r * .7}"/><rect x="${x - 2.5}" y="${y + r * .6}" width="5" height="${r * .9}"/>`;
   return `
-  <svg class="home-campus" viewBox="0 0 640 220" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
-    <circle class="hc-sun" cx="566" cy="52" r="17"/>
+  <svg class="home-campus" viewBox="0 0 1200 240" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="hcFarFade" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1200" y2="0">
+        <stop offset="0" class="hc-fs" stop-opacity="0"/><stop offset=".28" class="hc-fs" stop-opacity=".4"/>
+        <stop offset=".52" class="hc-fs" stop-opacity="1"/><stop offset=".92" class="hc-fs" stop-opacity="1"/>
+        <stop offset="1" class="hc-fs" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <g class="hc-stars">
+      <circle cx="742" cy="30" r="1.6"/><circle cx="806" cy="58" r="1.2"/><circle cx="958" cy="24" r="1.8"/>
+      <circle cx="1010" cy="70" r="1.2"/><circle cx="1066" cy="36" r="1.4"/><circle cx="1168" cy="22" r="1.6"/>
+      <circle cx="1182" cy="96" r="1.1"/><circle cx="696" cy="84" r="1.1"/>
+    </g>
+    <circle class="hc-sun" cx="1112" cy="62" r="19"/>
     <g class="hc-far">
-      <rect x="278" y="150" width="52" height="60"/><rect x="336" y="136" width="44" height="74"/>
-      <path d="M336 136 L358 118 L380 136Z"/><rect x="578" y="138" width="62" height="72"/>
-      <rect x="612" y="112" width="10" height="30"/><path d="M609 112 L617 96 L625 112Z"/>
+      ${tree(166, 214, 12)}${tree(338, 212, 13)}${tree(492, 208, 15)}
+      <rect x="18" y="196" width="58" height="40"/><rect x="84" y="182" width="40" height="54"/><path d="M80 184 L104 166 L128 184Z"/>
+      <rect x="140" y="200" width="70" height="36"/><rect x="228" y="188" width="48" height="48"/>
+      <rect x="296" y="198" width="84" height="38"/><rect x="404" y="174" width="42" height="62"/><rect x="421" y="156" width="8" height="20"/>
+      <rect x="470" y="192" width="72" height="44"/><rect x="560" y="180" width="58" height="56"/><path d="M556 182 L589 162 L622 182Z"/>
+      <rect x="700" y="150" width="38" height="86"/><path d="M696 152 L719 128 L742 152Z"/>
+      <rect x="1100" y="170" width="60" height="66"/><rect x="1160" y="188" width="40" height="48"/>
     </g>
     <g class="hc-mid">
-      <rect x="296" y="160" width="74" height="50"/>
-      <rect x="398" y="128" width="154" height="82"/><path d="M392 130 L475 96 L558 130Z"/>
-      <rect x="455" y="64" width="40" height="72"/><path d="M449 66 L475 34 L501 66Z"/>
-      <rect x="560" y="152" width="72" height="58"/><path d="M566 153 A30 30 0 0 1 626 153Z"/>
-      <rect x="592" y="115" width="8" height="10"/>
+      <rect x="640" y="180" width="104" height="56"/><path d="M634 182 L692 160 L750 182Z"/>
+      <rect x="770" y="150" width="200" height="86"/><path d="M760 152 L870 108 L980 152Z"/>
+      <rect x="848" y="70" width="44" height="86"/><path d="M842 72 L870 34 L898 72Z"/>
+      <rect x="990" y="162" width="92" height="74"/><path d="M997 163 A38 38 0 0 1 1073 163Z"/>
+      <rect x="1030" y="112" width="10" height="14"/>
     </g>
     <g class="hc-win">
-      ${row(306, 172, 5, 13)}${row(412, 146, 10, 13.6)}${row(412, 176, 4, 13.6)}${row(508, 176, 3, 13.6)}
-      ${row(570, 166, 4, 15)}
-      <circle cx="475" cy="86" r="9"/>
-      <path d="M470 190 L470 178 A5 5 0 0 1 480 178 L480 210 L470 210Z"/>
+      ${wins(652, 196, 5, 17)}
+      ${wins(784, 166, 11, 16)}${wins(784, 198, 5, 16)}${wins(900, 198, 4, 16)}
+      ${wins(1004, 180, 5, 15)}
+      <circle cx="870" cy="94" r="10"/>
+      <path d="M862 236 L862 212 A8 8 0 0 1 878 212 L878 236Z"/>
     </g>
-    <path class="hc-hands" d="M475 86 L475 80 M475 86 L480 88"/>
-    <g class="hc-near">
-      <path d="M0 214 Q170 196 330 204 T640 198 L640 220 L0 220Z"/>
-      <circle cx="252" cy="186" r="16"/><circle cx="270" cy="178" r="20"/><circle cx="288" cy="190" r="13"/>
-      <rect x="266" y="192" width="6" height="18"/>
-      <circle cx="376" cy="190" r="12"/><circle cx="390" cy="182" r="15"/><rect x="386" y="194" width="5" height="14"/>
-      <circle cx="636" cy="184" r="16"/><rect x="633" y="196" width="5" height="12"/>
-      <rect x="352" y="176" width="3" height="30"/><circle cx="353.5" cy="175" r="4"/>
+    <path class="hc-hands" d="M870 94 L870 87 M870 94 L876 96.5"/>
+    <g class="hc-tree">
+      ${tree(606, 204, 18)}${tree(752, 206, 15)}${tree(986, 208, 14)}${tree(1108, 206, 17)}${tree(1176, 210, 14)}
+      <rect x="724" y="196" width="3" height="34"/><circle cx="725.5" cy="195" r="4"/>
+      <rect x="1090" y="198" width="3" height="32"/><circle cx="1091.5" cy="197" r="4"/>
     </g>
+    <path class="hc-ground" d="M0 226 C180 216 360 230 560 222 S900 212 1060 220 S1170 224 1200 222 L1200 240 L0 240Z"/>
   </svg>`;
 }
 
