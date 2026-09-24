@@ -2393,11 +2393,63 @@ select.ao-input { cursor: pointer; }
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */
 .ev-day { position: sticky; top: 0; z-index: 2; padding: 14px 0 8px;
-          font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-          color: var(--text-muted); background: var(--bg); }
+          font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+          color: var(--text-faint); background: var(--bg); }
 
-.ev-card { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;
-           background: var(--surface); margin-bottom: var(--sp-4); box-shadow: var(--shadow-sm); }
+/* ---- The event card, after the Nestrel Redesign canvas (Events board), 2026-09-23 ----
+   evCardHTML() in js/events.js. One tone per event type colours the banner, the date badge
+   and the tag together; the default below is the neutral one, for an event with no type. */
+.ev-card { --ev-tint: var(--cat-other-bg); --ev-ink: var(--cat-other-text); --ev-g1: #eeebe4; --ev-g2: #d6cfc2;
+           border-radius: 18px; overflow: hidden; background: var(--surface); margin-bottom: 14px;
+           box-shadow: 0 2px 10px rgba(36,31,26,.07); }
+.ev-tone-social   { --ev-tint: #f9e4da; --ev-ink: #b35733; --ev-g1: #f3e2d2; --ev-g2: #dfbe9c; }
+.ev-tone-service  { --ev-tint: var(--cat-housing-bg); --ev-ink: var(--cat-housing-text); --ev-g1: #dce8dd; --ev-g2: #a9c4af; }
+.ev-tone-academic { --ev-tint: var(--cat-technology-bg); --ev-ink: var(--cat-technology-text); --ev-g1: #e3eaf2; --ev-g2: #b3c3d6; }
+.ev-tone-sports   { --ev-tint: var(--cat-books-bg); --ev-ink: var(--cat-books-text); --ev-g1: #eef1e2; --ev-g2: #cfd8b2; }
+.ev-tone-career   { --ev-tint: var(--cat-donation-bg); --ev-ink: var(--cat-donation-text); --ev-g1: #f7efe1; --ev-g2: #e0cba6; }
+.ev-tone-arts     { --ev-tint: var(--cat-clothing-bg); --ev-ink: var(--cat-clothing-text); --ev-g1: #f6e9ec; --ev-g2: #dcb9c2; }
+
+/* Full size: 4:5 portrait, the shape the event-media bucket keeps posters in, so a photo poster
+   shows whole. No max-height — the feed column caps the width and the ratio does the rest. */
+.ev-banner { position: relative; aspect-ratio: 4/5; cursor: pointer;
+             background: linear-gradient(150deg, var(--ev-g1) 0%, var(--ev-g2) 100%); }
+/* The generated poster for an event with no photo. Anchored to the bottom by flex, so a one-word
+   title and a six-word title both sit right, and the top stays clear for the badge and tag. */
+.ev-made { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+           padding: 24px 22px 22px; color: var(--ev-ink); }
+.ev-made-org { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.ev-made-title { margin: 8px 0 14px; font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1.1;
+                 color: var(--text); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.ev-made-rule { display: block; width: 34px; height: 2px; margin-bottom: 10px; background: currentColor; opacity: .7; }
+.ev-made-when { font-size: 14px; font-weight: 600; }
+.ev-made-where { margin-top: 2px; font-size: 14px; opacity: .9; }
+.ev-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ev-date-badge { position: absolute; top: 12px; left: 12px; width: 48px; padding: 6px 0 7px; border-radius: 11px;
+                 background: #fff; color: var(--ev-ink); text-align: center; box-shadow: 0 2px 6px rgba(36,31,26,.16); }
+.ev-date-badge span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.ev-date-badge b { display: block; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400;
+                   font-size: 21px; line-height: 1.05; }
+.ev-tag { position: absolute; top: 12px; right: 12px; padding: 5px 11px; border-radius: var(--radius-pill);
+          background: var(--ev-tint); color: var(--ev-ink); font-size: 10.5px; font-weight: 700; }
+.ev-body { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
+.ev-card .ev-title { font-size: 16.5px; line-height: 1.28; cursor: pointer; }
+.ev-rows { display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; }
+.ev-card .ev-row { margin-top: 0; }
+.ev-club { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.ev-club:hover { color: var(--text); text-decoration: underline; }
+.ev-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+           min-height: 36px; margin-top: 2px; }
+.ev-foot-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.ev-go-btn { height: 36px; padding: 0 18px; border: 0; border-radius: var(--radius-pill); background: var(--brand);
+             color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ev-go-btn:hover { background: var(--brand-mid); }
+.ev-go-btn:disabled { opacity: .6; cursor: default; }
+.ev-going-pill { display: inline-flex; align-items: center; gap: 5px; height: 36px; padding: 0 14px;
+                 border: 0; border-radius: var(--radius-pill); background: var(--brand-pale); color: var(--cat-housing-text);
+                 font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+/* The line §4.1 of the events plan requires under the button: it is what makes one-tap
+   registration honest, so it sits right under the thing it describes. */
+.ev-card-privacy { margin: -2px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-muted); text-align: right; }
 
 /* The org row is first, above the poster, because "who is running this" is the question the
    verified badge answers and it should be answered before the poster is admired. */
@@ -2407,18 +2459,11 @@ select.ao-input { cursor: pointer; }
 .ev-org-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
 .ev-org-logo-blank { background: var(--bg-alt); display: inline-block; }
 .ev-org-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.ev-verified { font-size: 11px; color: #fff; background: var(--brand, #3B5BA5);
-               width: 15px; height: 15px; border-radius: 50%; display: inline-flex;
-               align-items: center; justify-content: center; flex: none; }
 
 /* 4:5 portrait, the aspect the event-media bucket exists to keep consistent. */
 /* No max-height. The column above caps the width, and the ratio does the rest — a max-height
    as well would fight the ratio and letterbox the poster at some widths and not others. */
 .ev-poster { position: relative; aspect-ratio: 4/5; background: var(--bg-alt); }
-/* The tappable area is a child, so the save button sitting over it is not inside the thing
-   that opens the event — no stopPropagation needed to keep one from firing the other. */
-.ev-poster-hit { position: absolute; inset: 0; cursor: pointer; }
-.ev-poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ev-poster-made { width: 100%; height: 100%; display: flex; flex-direction: column;
                   justify-content: space-between; padding: 18px; color: #fff; }
 .ev-p-org { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
@@ -2434,27 +2479,18 @@ select.ao-input { cursor: pointer; }
    the date floating in the middle of the poster with nothing under it. */
 .ev-p-rule { display: block; width: 34px; height: 2px; background: currentColor;
              opacity: .75; margin-bottom: 8px; }
-.ev-p-when { font-weight: 600; }
-.ev-p-where { opacity: .85; }
 
-/* Sized down when the poster already carries the words. An empty text column beside a star
-   would leave the card looking like it failed to render its own title. */
-.ev-meta { display: flex; align-items: center; gap: 10px; padding: 12px 14px 14px; }
-.ev-meta-text { flex: 1; min-width: 0; cursor: pointer; }
 .ev-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
 /* Muted, not faint: "You're going · 42 going" is the most useful line on the card and
    --text-faint measures 2.9:1 on white. Sits in the footer now, so no margin of its own. */
 .ev-seats { font-size: 12px; color: var(--text-muted); }
 .ev-seats strong { color: var(--text); font-weight: 600; }
-.ev-going { display: inline-flex; align-items: center; gap: 3px; color: var(--brand); font-weight: 600; }
 /* Time and place, one per row, each with its icon — the mockup's card body. The text truncates
    rather than wrapping so a long venue name cannot make one card taller than its neighbours. */
 .ev-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; min-width: 0;
           font-size: 12.5px; color: var(--text-muted); }
 .ev-row svg { flex: none; }
 .ev-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ev-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.ev-meta-text > .ev-foot:first-child { margin-top: 0; }
 /* The filter row. White chips on the cream page, like the mockup; .evs-chip supplies the shape
    and the selected state the search already uses, so both filter UIs look like one thing. */
 .ev-chips, .dir-chips, .oc-ev-filters { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none;
@@ -2472,15 +2508,12 @@ select.ao-input { cursor: pointer; }
 /* The star is private and the calendar icon (registration, E3) is not. They must never look
    alike, so the star is an outline that fills — a state you set — and registration will be a
    button with words on it. */
-/* Overlaid on the poster, same treatment as the search grid tile: its own translucent ground
-   so it stays legible over a photograph and over a generated gradient alike. Declared after
-   .fav-btn in this file would be tidier, but !important-free overrides need only come later
-   than the rule they narrow — and .fav-btn is further down, so these carry a class weight of
-   their own via .ev-card. */
-.ev-card .ev-fav { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px;
-                   background: rgba(255,255,255,.86); backdrop-filter: blur(3px); }
+/* In the card's footer, beside "I'm going", since 2026-09-23 (the type tag took its corner of
+   the banner). .fav-btn is further down this file, so these carry a class weight of their own
+   via .ev-card to win without !important. */
+.ev-card .ev-fav { width: 36px; height: 36px; background: none; }
 .ev-card .ev-fav svg { width: 19px; height: 19px; }
-.ev-card .ev-fav:hover { background: #fff; }
+.ev-card .ev-fav:hover { background: var(--bg-alt); }
 
 .ev-past-chip { display: block; width: 100%; margin: 22px 0 12px; padding: 11px;
                 border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
@@ -3118,7 +3151,7 @@ select.ao-input { cursor: pointer; }
   display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .fev-when{font-size:11.5px;color:var(--text-muted);align-self:stretch;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.fev-type,.ev-type{background:var(--brand-pale);color:var(--brand-mid);font-size:10.5px;font-weight:600;
+.fev-type{background:var(--brand-pale);color:var(--brand-mid);font-size:10.5px;font-weight:600;
   padding:3px 9px;border-radius:var(--radius-pill);}
 .feed-clubs{width:100%;display:flex;align-items:center;gap:var(--sp-3);text-align:left;cursor:pointer;
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4);

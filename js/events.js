@@ -134,8 +134,9 @@ function evDayLabel(iso) {
   const days = Math.round((midnight(d) - midnight(now)) / 864e5);
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';
+  // Weekday in full, as the Events board spells it ("Thursday, Sep 11").
   return d.toLocaleDateString(undefined,
-    { weekday: 'short', month: 'short', day: 'numeric' });
+    { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
 function evTime(iso) {
@@ -225,8 +226,9 @@ function evFeedChipsHTML() {
     return `<button class="evs-chip ev-fchip${on ? ' is-on' : ''}" aria-pressed="${on}"
               onclick="evFeedSet('${kind}', '${value}')">${label}</button>`;
   };
-  return `<div class="ev-chips">${chip('all', '', 'All')}${chip('when', 'week', 'This week')}`
-       + `${chip('when', 'weekend', 'This weekend')}${kinds.map(([v, l]) => chip('type', v, l)).join('')}</div>`;
+  return `<div class="ev-chips">${chip('all', '', 'All')}${chip('when', 'today', 'Today')}`
+       + `${chip('when', 'week', 'This week')}${chip('when', 'weekend', 'This weekend')}`
+       + `${kinds.map(([v, l]) => chip('type', v, l)).join('')}</div>`;
 }
 
 // A time chip and a kind chip combine; tapping an active chip clears it; All clears both.
@@ -237,88 +239,105 @@ function evFeedSet(kind, value) {
   evPaint();
 }
 
+// The event card, after the Nestrel Redesign canvas (Events board), 2026-09-23: a full-size 4:5
+// poster with a date badge and the type tag on it, then the details, and a footer with the going
+// count, the private save star and "I'm going".
+//
+// One tone per event type (.ev-tone-<type> in styles.css) colours the poster, the date badge and
+// the tag together, so a Service event reads green all over its card.
+//
+// Two kinds of poster, and they carry DIFFERENT amounts of information on purpose. A photo is
+// shown whole (uploads are kept at 4:5, the frame's shape) and the details go in the text under
+// it. An event with no photo gets a generated poster that carries the whole answer — club, title,
+// when, where — so the text under it is dropped: a card should say each thing once.
 function evCardHTML(e, past = false) {
   const org = _evOrgs.get(e.org_id);
-
-  const dayTime = `${evDayLabel(e.starts_at)} · ${evTime(e.starts_at)}`;
-
-  // Two posters, and they carry DIFFERENT amounts of information on purpose.
-  //
-  // A photo is a composition somebody chose, so nothing is written over it and the details go
-  // in the text row beneath.
-  //
-  // A generated poster has nothing to protect, so it carries the whole answer — who, what,
-  // when, where — and the text row beneath drops the title and the time rather than printing
-  // them twice. A card should say each thing once.
-  const poster = e.poster_url
-    ? `<img class="ev-poster-img" src="${escAttr(e.poster_url)}" alt="" loading="lazy">`
-    : `<div class="ev-poster-made" style="background:${eventGradient(e.id)}">
-         <div class="ev-p-org">${esc(org?.name || '')}</div>
-         <div class="ev-p-title">${esc(e.title)}</div>
-         <div class="ev-p-foot">
-           <span class="ev-p-rule"></span>
-           <div class="ev-p-when">${esc(dayTime)}</div>
-           <div class="ev-p-where">${esc(e.location)}</div>
-         </div>
-       </div>`;
-
-  // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so
-  // the null check comes first — treating them alike would print "0 spots left" on an event
-  // with no limit at all.
+  const orgName = org?.name || 'Campus';
   const type = (EV_TYPES.find(([v]) => v === e.event_type) || [])[1] || '';
-  // Built as HTML rather than a joined string so the numbers can be bold. Every value is a
-  // database count or a fixed phrase — no student-typed text — and the counts go through
-  // Number(), so there is nothing here to escape.
-  const bits = [];
-  if (_evGoing.has(e.id)) bits.push(`<span class="ev-going">You're going ${icon('check', 12)}</span>`);
-  if (e.registration_open && e.going_count) bits.push(`<strong>${Number(e.going_count)}</strong> going`);
-  if (e.registration_open && e.seats_left !== null && e.seats_left !== undefined) {
-    bits.push(e.seats_left === 0 ? 'full'
-      : `<strong>${Number(e.seats_left)}</strong> spot${e.seats_left === 1 ? '' : 's'} left`);
-  }
-  const seats = bits.length ? `<span class="ev-seats">${bits.join(' · ')}</span>` : '';
-  const foot = (type || seats)
-    ? `<div class="ev-foot">${type ? `<span class="ev-type">${esc(type)}</span>` : ''}${seats}</div>` : '';
+  const tone = type ? e.event_type : 'other';   // only a known type becomes a class name
+  const d = new Date(e.starts_at);
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
 
-  // A photo card carries its title, time and place here. A generated-poster card already prints
-  // all three on the poster, so it gets only the footer — a card should say each thing once.
-  // The date is not repeated at all: the day label above the group already says it.
-  //
-  // No "I'm going" button on the card, although the mockup drew one. Registering tells the
-  // organizers your name and email, and §4.1 requires that to be stated directly under the
-  // button BEFORE the tap — which the detail view does (evPrivacyLine). A one-tap button here
-  // would skip it.
-  const metaText = (e.poster_url
-    ? `<div class="ev-title">${esc(e.title)}</div>
-       <div class="ev-row">${icon('clock', 13)}<span>${esc(evTimeRange(e))}</span></div>
-       ${e.location ? `<div class="ev-row">${icon('mapPin', 13)}<span>${esc(e.location)}</span></div>` : ''}`
-    : '') + foot;
+  const made = !e.poster_url;
+  const banner = `
+    <div class="ev-banner" onclick="evOpen(${e.id})">
+      ${made
+        ? `<div class="ev-made">
+             <div class="ev-made-org">${esc(orgName)}</div>
+             <div class="ev-made-title">${esc(e.title)}</div>
+             <span class="ev-made-rule"></span>
+             <div class="ev-made-when">${esc(evTimeRange(e))}</div>
+             ${e.location ? `<div class="ev-made-where">${esc(e.location)}</div>` : ''}
+           </div>`
+        : `<img class="ev-banner-img" src="${escAttr(e.poster_url)}" alt="" loading="lazy">`}
+      <div class="ev-date-badge"><span>${esc(weekday)}</span><b>${d.getDate()}</b></div>
+      ${type ? `<span class="ev-tag">${esc(type)}</span>` : ''}
+    </div>`;
+
+  // The club's name is its own button, so it still opens the club page.
+  const club = `<button class="ev-club" onclick="event.stopPropagation();orgPageOpen(${e.org_id})">${esc(orgName)}</button>`;
+  const place = [e.location ? esc(e.location) : '', club].filter(Boolean).join(' · ');
+  // Two rows when there is a same-day end time to show ("6:00 PM – 9:00 PM" / "Student Center ·
+  // SGA"); otherwise it all fits on one ("11:00 AM · Main Quad · Eco Club"), as in the mockup.
+  const sameDayEnd = e.ends_at && evDayKey(e.ends_at) === evDayKey(e.starts_at);
+  const rows = sameDayEnd
+    ? `<div class="ev-row">${icon('clock', 14)}<span>${esc(evTimeRange(e))}</span></div>
+       <div class="ev-row">${icon('mapPin', 14)}<span>${place}</span></div>`
+    : `<div class="ev-row">${icon('clock', 14)}<span>${esc(evTime(e.starts_at))} · ${place}</span></div>`;
+
+  // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so the
+  // null check comes first — treating them alike would print "0 spots left" on an event with no
+  // limit at all. Every number goes through Number(), so there is nothing here to escape.
+  const counts = [];
+  if (e.registration_open && e.going_count) counts.push(`<strong>${Number(e.going_count)}</strong> going`);
+  const full = e.registration_open && e.seats_left === 0;
+  if (full) counts.push('full');
+  else if (e.registration_open && e.seats_left !== null && e.seats_left !== undefined) {
+    counts.push(`<strong>${Number(e.seats_left)}</strong> spot${e.seats_left === 1 ? '' : 's'} left`);
+  }
+
+  // "I'm going" registers in one tap, and it tells the organizers the student's name and email.
+  // §4.1 of the events plan requires that to be said directly under the button BEFORE the tap,
+  // so the line under it is not decoration: without it, this button may not exist.
+  const reg = _evGoing.get(e.id);
+  let action = '', privacy = '';
+  if (!past && reg) {
+    action = `<button class="ev-going-pill" onclick="evOpen(${e.id})">You're going ${icon('check', 13)}</button>`;
+  } else if (!past && e.registration_open && !full) {
+    action = `<button class="ev-go-btn" onclick="evCardRegister(${e.id}, this)">I&rsquo;m going</button>`;
+    privacy = `<p class="ev-card-privacy">Shares your name and email with ${esc(orgName)}.</p>`;
+  }
 
   return `
-    <article class="ev-card${past ? ' is-past' : ''}">
-      <button class="ev-org" onclick="event.stopPropagation();orgPageOpen(${e.org_id})">
-        ${org?.logo_url
-          ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
-          : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
-        <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>
-        ${org?.is_verified ? '<span class="ev-verified" title="Verified organization">' + icon('check',10) + '</span>' : ''}
-      </button>
-
-      <div class="ev-poster">
-        <div class="ev-poster-hit" onclick="evOpen(${e.id})">${poster}</div>
-        <!-- ON the poster, like the search grid tile, and for a reason that only appeared
-             after the generated poster started carrying the title and the time: on a card
-             with no photo the row below has nothing left in it, so the bookmark sat alone in
-             an empty strip looking like something that had come loose. A save control belongs
-             on the thing it saves. -->
-        ${favButtonHTML('event', e.id, 'ev-fav')}
+    <article class="ev-card ev-tone-${tone}${past ? ' is-past' : ''}">
+      ${banner}
+      <div class="ev-body">
+        ${made ? '' : `<div class="ev-title" onclick="evOpen(${e.id})">${esc(e.title)}</div>
+        <div class="ev-rows" onclick="evOpen(${e.id})">${rows}</div>`}
+        <div class="ev-foot">
+          <span class="ev-seats">${counts.join(' · ')}</span>
+          <div class="ev-foot-actions">${favButtonHTML('event', e.id, 'ev-fav')}${action}</div>
+        </div>
+        ${privacy}
       </div>
-
-      ${metaText ? `
-        <div class="ev-meta">
-          <div class="ev-meta-text" onclick="evOpen(${e.id})">${metaText}</div>
-        </div>` : ''}
     </article>`;
+}
+
+// The card's "I'm going". The same RPC as the detail view's Register button (evRegister): it
+// locks the event row, counts and inserts in one transaction, so two students tapping the last
+// seat queue instead of both winning.
+async function evCardRegister(id, btn) {
+  if (!getEffectiveUser()) { requireAuth(); return; }
+  btn.disabled = true; btn.textContent = 'Saving your spot…';
+  const { error } = await supabaseClient.rpc('register_for_event', { p_event_id: id });
+  if (error) {
+    btn.disabled = false; btn.innerHTML = 'I&rsquo;m going';
+    toast(error.message.includes('full') ? 'Sorry — that filled up' : 'Could not register: ' + error.message);
+    console.error('[evCardRegister]', error);
+    return;
+  }
+  toast('You are going');
+  renderEvents();   // re-reads the feed, so the count and the button come from the database
 }
 
 // ============================================================
@@ -998,6 +1017,7 @@ function evWhenRange(key) {
   // getDay(): 0 is Sunday. Days until the coming Saturday, and 0 when it already is Saturday.
   const toSat = (6 - today.getDay() + 7) % 7;
   switch (key) {
+    case 'today':   return [now, add(today, 1)];
     case 'week':    return [now, add(today, 7)];
     case 'weekend': return [add(today, toSat), add(today, toSat + 2)];
     case 'next':    return [add(today, 7), add(today, 14)];
