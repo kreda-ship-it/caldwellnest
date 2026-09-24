@@ -1251,9 +1251,9 @@ function orgConsoleSections() {
   if (orgCanAct('post', _ocOrgId))           s.push({ id: 'posts',   label: 'Posts' });
   if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
   s.push({ id: 'profile', label: 'Profile' });
-  // Analytics arrives with workstream 6. Listed so the shape of the console is visible, and
-  // disabled so nothing pretends to work.
-  s.push({ id: 'analytics', label: 'Analytics', soon: 'workstream 6' });
+  // Gated on can_view_analytics, as Kal decided on 2026-09-14 — a treasurer may see how the club
+  // is doing without being able to edit its events.
+  if (orgCanAct('view_analytics', _ocOrgId)) s.push({ id: 'analytics', label: 'Analytics' });
   return s;
 }
 
@@ -1306,6 +1306,7 @@ function renderOrgConsole() {
     profile: renderOcProfile,
     members: renderOcMembers,
     events:  renderOcEvents,
+    analytics: renderOcAnalytics,
   };
   (OC_RENDER[_ocSection] || renderOcProfile)();
 }
@@ -1622,6 +1623,85 @@ let _ocEvents = [];
 // opinion about when an event finishes, which means the console and a student's feed cannot
 // disagree about whether something is over.
 
+// ---------- Feedback settings (2026-09-24) ----------
+// Whether to ask people who checked in for a rating, and until when. Set in the event form, or
+// afterwards from the event's Recap. The database enforces it (the event_feedback INSERT policy
+// reads both columns); this only lets the officer choose.
+let _ocFbReady = false;         // the two columns exist (the SQL file has been run)
+let _ocFb = new Map();          // event id -> { feedback_enabled, feedback_closes_at }
+const OC_FB_CHOICES = [['1', '1 day after it ends'], ['3', '3 days after'], ['7', '7 days after (default)'],
+                       ['14', '2 weeks after'], ['pick', 'Pick a date']];
+
+// Which choice a stored deadline corresponds to: none stored is the default 7 days; a date that
+// is a whole number of days after the end is that choice; anything else is a picked date.
+function ocFbChoice(e, closesAt) {
+  if (!closesAt) return '7';
+  const end = new Date(e?.effective_ends_at || e?.ends_at || e?.starts_at || 0).getTime();
+  const days = Math.round((new Date(closesAt).getTime() - end) / 864e5);
+  return ['1', '3', '14'].includes(String(days)) && Math.abs(new Date(closesAt).getTime() - end - days * 864e5) < 6e4
+    ? String(days) : 'pick';
+}
+
+// The fields, shared by the event form and the Recap panel. `pre` keeps their ids apart.
+function ocFbFieldsHTML(pre, e) {
+  const f = e ? _ocFb.get(e.id) : null;
+  const on = f ? f.feedback_enabled !== false : true;
+  const choice = ocFbChoice(e, f?.feedback_closes_at);
+  const pick = choice === 'pick' && f?.feedback_closes_at ? ocEvISOToLocal(f.feedback_closes_at) : { date: '', time: '' };
+  return `
+    <label class="oc-toggle"><input type="checkbox" id="${pre}FbOn" ${on ? 'checked' : ''}
+      onchange="document.getElementById('${pre}FbWhen').hidden=!this.checked"> Ask people who checked in to rate it</label>
+    <div id="${pre}FbWhen" ${on ? '' : 'hidden'}>
+      <div class="ff">
+        <label class="ff-label" for="${pre}FbClose">Feedback closes</label>
+        <select class="oc-input" id="${pre}FbClose" onchange="document.getElementById('${pre}FbPick').hidden=this.value!=='pick'">
+          ${OC_FB_CHOICES.map(([v, l]) => `<option value="${v}"${v === choice ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ff-when" id="${pre}FbPick" ${choice === 'pick' ? '' : 'hidden'}>
+        <div class="ff ff-when-date"><label class="ff-label" for="${pre}FbDate">Date</label>
+          <input class="oc-input" id="${pre}FbDate" type="date" value="${escAttr(pick.date || '')}"></div>
+        <div class="ff"><label class="ff-label" for="${pre}FbTime">Time</label>
+          <input class="oc-input" id="${pre}FbTime" type="time" value="${escAttr(pick.time || '23:59')}"></div>
+      </div>
+    </div>
+    <p class="ff-help">When the event ends, everyone who checked in sees a rating — stars and an
+      optional comment — on the event and on their Home. You see the average and the comments,
+      never who wrote them; the average appears once five people have rated.</p>`;
+}
+
+// The two column values from the fields, or an error message. `endIso` is when the event ends
+// (its effective end), which the "N days after" choices count from.
+function ocFbRead(pre, endIso) {
+  const on = document.getElementById(pre + 'FbOn')?.checked !== false;
+  const choice = document.getElementById(pre + 'FbClose')?.value || '7';
+  let closes = null;
+  if (choice === 'pick') {
+    const d = document.getElementById(pre + 'FbDate').value, t = document.getElementById(pre + 'FbTime').value || '23:59';
+    if (!d) return { error: 'Pick the date feedback closes' };
+    closes = ocEvLocalToISO(d, t);
+    if (!closes || new Date(closes) <= new Date(endIso)) return { error: 'Feedback has to close after the event ends' };
+  } else if (choice !== '7') {
+    closes = new Date(new Date(endIso).getTime() + Number(choice) * 864e5).toISOString();
+  }
+  return { feedback_enabled: on, feedback_closes_at: closes };
+}
+
+// Saved from the Recap panel, for an event that already happened.
+async function ocSaveFb(eventId) {
+  const e = _ocEvents.find(x => x.id === eventId);
+  if (!e) return;
+  const v = ocFbRead('ocRc', e.effective_ends_at || e.ends_at || e.starts_at);
+  if (v.error) { toast(v.error); return; }
+  const { error } = await supabaseClient.from('events').update(v).eq('id', eventId);
+  if (error) { toast('Could not save: ' + error.message); console.error('[ocSaveFb]', error); return; }
+  _ocFb.set(eventId, { id: eventId, ...v });
+  logEvent('event_feedback_settings', { targetType: 'event', targetId: eventId, targetLabel: e.title,
+                                        school: _orgCtx.orgs.get(_ocOrgId)?.school, after: v });
+  toast(v.feedback_enabled ? 'Feedback settings saved' : 'Feedback turned off');
+  ocPaintRecap();
+}
+
 async function renderOcEvents() {
   const body = document.getElementById('ocBody');
   body.innerHTML = '<div class="oc-note">Loading events…</div>';
@@ -1652,12 +1732,22 @@ async function renderOcEvents() {
   const ids = (events || []).map(e => e.id);
   let regs = [], media = [];
   if (ids.length) {
-    const [r, m] = await Promise.all([
+    const [r, m, fb] = await Promise.all([
       supabaseClient.from('event_registrations').select('event_id, status').in('event_id', ids),
       supabaseClient.from('event_media').select('id, event_id, kind, url, phase, sort_order')
         .in('event_id', ids).order('sort_order'),
+      // Read from events itself: visible_events expands e.* at creation, so it does not carry
+      // columns added later. An error here means sql/2026-09-24_event_feedback_window.sql has
+      // not been run yet — the Feedback settings then stay hidden rather than half-work.
+      supabaseClient.from('events').select('id, feedback_enabled, feedback_closes_at').in('id', ids),
     ]);
     regs = r.data || []; media = m.data || [];
+    _ocFbReady = !fb.error;
+    _ocFb = new Map((fb.data || []).map(x => [x.id, x]));
+  } else {
+    // No events yet: probe once so a brand-new club's first event form can offer the section.
+    const { error: probe } = await supabaseClient.from('events').select('feedback_enabled').limit(1);
+    _ocFbReady = !probe;
   }
 
   _ocEvents = (events || []).map(e => {
@@ -1882,6 +1972,18 @@ function ocEventFormHTML() {
           cannot be taken twice. Students who register are visible to you by name and email — they
           are told that before they tap.</p>
       </div>
+
+      ${_ocFbReady ? `
+      ${section('fb', 'Feedback', (() => {
+        const f = src && src.id ? _ocFb.get(src.id) : null;
+        if (f && f.feedback_enabled === false) return 'Off';
+        const c = ocFbChoice(src, f?.feedback_closes_at);
+        return c === 'pick' ? 'On · closes ' + new Date(f.feedback_closes_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                            : `On · ${c === '14' ? '2 weeks' : c + ' day' + (c === '1' ? '' : 's')} after`;
+      })())}
+      <div class="ff-panel" id="ocEvPanel-fb" ${_ocEvOpen.fb ? '' : 'hidden'}>
+        ${ocFbFieldsHTML('ocEv', src && src.id ? src : null)}
+      </div>` : ''}
 
       ${section('media', 'Photos and video', mediaSummary)}
       <div class="ff-panel" id="ocEvPanel-media" ${_ocEvOpen.media ? '' : 'hidden'}>
@@ -2147,6 +2249,19 @@ async function ocSaveEvent(status = 'published') {
     registration_open: document.getElementById('ocEvRegOpen').checked,
     capacity,
   };
+
+  // Feedback: counted from the event's effective end (the end time, or start + 3 hours, the same
+  // rule the database uses). Sent only once the columns exist, so an un-migrated database is
+  // never asked to write them.
+  if (_ocFbReady) {
+    const effEnd = endsAt || new Date(new Date(startsAt).getTime() + 3 * 36e5).toISOString();
+    const fbv = ocFbRead('ocEv', effEnd);
+    if (fbv.error) {
+      if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+      toast(fbv.error); return;
+    }
+    Object.assign(row, fbv);
+  }
 
   // This block used to sit AFTER the write below, and that is why an uploaded photo never
   // appeared: the cover was assigned to the row object down there, after the database had
@@ -3075,6 +3190,219 @@ async function ocPickLogo(input) {
 
 
 // ============================================================
+// CONSOLE: ANALYTICS (2026-09-24)
+// ============================================================
+// What club platforms show officers — CampusGroups, Anthology Engage, Luma, Eventbrite, Instagram
+// Insights — comes down to five questions, and this answers them in that order:
+//   1. How are we doing?            headline numbers for a period
+//   2. Are we growing?              followers, week by week
+//   3. What worked?                 best turnout, most viewed, highest rated
+//   4. Where do people drop off?    each event from viewed -> saved -> RSVP'd -> came
+//   5. What did people think?       ratings and the anonymous comments; poll results
+//
+// EVERY NUMBER COMES FROM get_org_analytics() (sql/2026-09-15_org_analytics_and_event_views.sql),
+// which returns counts and nothing else — never a name, never a user id. The privacy rules Kal set
+// on 2026-09-14 live there: a view is a student OPENING an event, counted once, never the club's
+// own officers, and the link to the student erased 30 days after the event. Ratings stay hidden
+// below 5 responses (the same rule as get_event_feedback). Nothing here can undo any of that.
+//
+// No semester-wide "students reached" figure, on purpose: once the 30-day erasure has run, the
+// individual views needed to count distinct people are gone, so any such number would be a guess.
+
+let _ocAna = null;              // the last get_org_analytics() result
+let _ocAnaRange = 'semester';   // '30d' | 'semester' | 'all'
+let _ocAnaFb = new Map();       // event id -> get_event_feedback() result, loaded on demand
+let _ocAnaOpenEv = null;
+
+// "This semester": Aug 15 or Jan 10, whichever came last — close enough to both terms' first week.
+function ocAnaSince() {
+  const now = new Date();
+  if (_ocAnaRange === '30d') return new Date(now - 30 * 864e5).toISOString();
+  if (_ocAnaRange === 'all') return null;
+  const y = now.getFullYear();
+  const fall = new Date(y, 7, 15), spring = new Date(y, 0, 10);
+  return (now >= fall ? fall : now >= spring ? spring : new Date(y - 1, 7, 15)).toISOString();
+}
+
+async function renderOcAnalytics() {
+  const body = document.getElementById('ocBody');
+  const orgId = _ocOrgId;
+  body.innerHTML = '<div class="oc-note">Loading analytics…</div>';
+  const { data, error } = await supabaseClient.rpc('get_org_analytics', { p_org_id: orgId, p_since: ocAnaSince() });
+  if (orgId !== _ocOrgId || _ocSection !== 'analytics') return;    // switched away while loading
+  if (error) {
+    const missing = error.code === 'PGRST202' || /Could not find the function/i.test(error.message || '');
+    body.innerHTML = `<div class="oc-empty-card"><b>${missing ? 'Analytics is not switched on yet' : 'Analytics could not load'}</b>
+      <p>${missing ? 'The database update that powers this tab has not been run. Ask a Nestrel admin to run sql/2026-09-15_org_analytics_and_event_views.sql.'
+        : /Not authorized/i.test(error.message || '') ? 'Your role in this club does not include analytics. Ask whoever manages your club to grant it.'
+        : esc(error.message || 'Please try again.')}</p></div>`;
+    if (!missing) console.error('[renderOcAnalytics]', error);
+    return;
+  }
+  _ocAna = data || {};
+  ocAnaPaint();
+}
+
+function ocAnaSetRange(r) { _ocAnaRange = r; _ocAnaOpenEv = null; renderOcAnalytics(); }
+
+function ocAnaPaint() {
+  const body = document.getElementById('ocBody');
+  const a = _ocAna || {};
+  const f = a.followers || { total: 0, new: 0, by_week: [] };
+  const evs = (a.events || []).filter(e => e.status !== 'cancelled');
+  const held = evs.filter(e => e.has_ended);
+  const came = held.reduce((n, e) => n + (e.came || 0) + (e.walk_ins || 0), 0);
+  const rsvpHeld = held.reduce((n, e) => n + (e.rsvps || 0), 0);
+  const cameOfRsvp = held.reduce((n, e) => n + (e.came || 0), 0);
+  const showUp = rsvpHeld ? Math.round(cameOfRsvp / rsvpHeld * 100) : null;
+  // Averaged across events that are allowed to show one (5+ ratings), weighted by how many rated.
+  const rated = held.filter(e => e.rating_avg != null);
+  const nRated = rated.reduce((n, e) => n + e.rating_count, 0);
+  const avg = nRated ? (rated.reduce((n, e) => n + Number(e.rating_avg) * e.rating_count, 0) / nRated) : null;
+
+  const kpi = (n, label, sub) => `<div class="oc-kpi"><div class="oc-kpi-n">${n}</div><div class="oc-kpi-l">${label}</div>${sub ? `<div class="oc-kpi-s">${sub}</div>` : ''}</div>`;
+  const ranges = [['30d', 'Last 30 days'], ['semester', 'This semester'], ['all', 'All time']];
+
+  // Weekly follows, last 16 weeks of the period at most, as bars.
+  const weeks = (f.by_week || []).slice(-16);
+  const most = Math.max(1, ...weeks.map(w => w.new));
+  const chart = weeks.length ? `
+    <div class="oc-ana-card">
+      <div class="oc-ana-h">New followers by week</div>
+      <div class="oc-wks">${weeks.map(w => `
+        <div class="oc-wk" title="${esc(new Date(w.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}: ${w.new}">
+          <i style="height:${Math.round(w.new / most * 100)}%"></i></div>`).join('')}</div>
+      <div class="oc-wk-axis"><span>${esc(new Date(weeks[0].week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><span>This week</span></div>
+      <p class="oc-note">Counts new follows. Unfollows remove the follow entirely, so this shows growth, not the net change.</p>
+    </div>` : '';
+
+  // Call-outs: only among events that have happened, and only when there is something to say.
+  const top = (arr, key) => arr.filter(e => (e[key] || 0) > 0).sort((x, y) => y[key] - x[key])[0];
+  const bestTurnout = top(held.map(e => ({ ...e, _in: (e.came || 0) + (e.walk_ins || 0) })), '_in');
+  const mostViewed = top(evs, 'views');
+  const bestRated = rated.slice().sort((x, y) => y.rating_avg - x.rating_avg)[0];
+  const hl = [
+    bestTurnout && ['Best turnout', bestTurnout.title, `${bestTurnout._in} came`],
+    mostViewed && ['Most viewed', mostViewed.title, `${mostViewed.views} views`],
+    bestRated && ['Highest rated', bestRated.title, `${bestRated.rating_avg} ★ from ${bestRated.rating_count}`],
+  ].filter(Boolean);
+
+  body.innerHTML = `
+    <div class="oc-ana-top">
+      <div class="oc-seg" role="group" aria-label="Period">${ranges.map(([v, l]) =>
+        `<button class="${_ocAnaRange === v ? 'is-on' : ''}" onclick="ocAnaSetRange('${v}')">${l}</button>`).join('')}</div>
+      ${evs.length ? `<button class="org-btn" onclick="ocAnaCsv()">Download CSV</button>` : ''}
+    </div>
+
+    <div class="oc-kpis">
+      ${kpi(f.total, 'Followers', f.new ? `+${f.new} in this period` : 'no new follows in this period')}
+      ${kpi(held.length, 'Events held', evs.length - held.length ? `${evs.length - held.length} coming up` : '')}
+      ${kpi(came, 'Came', 'checked in, including walk-ins')}
+      ${kpi(showUp == null ? '—' : showUp + '%', 'Show-up rate', showUp == null ? 'no RSVPs yet' : `${cameOfRsvp} of ${rsvpHeld} who RSVP'd`)}
+      ${kpi(avg == null ? '—' : avg.toFixed(1) + ' ★', 'Average rating', avg == null ? 'shows once 5 people rate an event' : `from ${nRated} ratings`)}
+    </div>
+
+    ${hl.length ? `<div class="oc-hl">${hl.map(([k, t, n]) =>
+      `<div class="oc-hl-i"><div class="oc-hl-k">${k}</div><div class="oc-hl-t">${esc(t)}</div><div class="oc-hl-n">${esc(n)}</div></div>`).join('')}</div>` : ''}
+
+    ${chart}
+
+    <div class="oc-ana-card">
+      <div class="oc-ana-h">Events</div>
+      ${evs.length ? `
+        <p class="oc-note oc-note-top">From seeing it to showing up. Views count each student once and
+          never your own officers; nobody's name is ever shown.</p>
+        <div class="oc-ev-rows">${evs.map(ocAnaEventHTML).join('')}</div>`
+      : '<p class="oc-note">No events in this period yet.</p>'}
+    </div>
+
+    ${ocAnaPollsHTML(a.polls || [])}`;
+}
+
+// One event as a funnel: each step's number, and a bar for how much of the first step it kept.
+function ocAnaEventHTML(e) {
+  const inCount = (e.came || 0) + (e.walk_ins || 0);
+  const steps = [['Viewed', e.views || 0], ['Saved', e.saves || 0], ["RSVP'd", e.rsvps || 0], ['Came', inCount]];
+  const top = Math.max(1, ...steps.map(s => s[1]));
+  const rating = e.rating_avg != null ? `${e.rating_avg} ★ · ${e.rating_count}`
+    : e.rating_count ? `${e.rating_count} rating${e.rating_count === 1 ? '' : 's'}` : (e.has_ended ? 'No ratings' : '');
+  const open = _ocAnaOpenEv === e.id;
+  return `
+    <div class="oc-ev-ana${open ? ' is-open' : ''}">
+      <div class="oc-ev-ana-head">
+        <div><div class="oc-ev-ana-t">${esc(e.title)}</div>
+          <div class="oc-ev-ana-d">${esc(new Date(e.starts_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }))}${e.has_ended ? '' : ' · coming up'}${e.self_reported ? ` · ${e.self_reported} waiting to be confirmed` : ''}</div></div>
+        ${rating ? `<div class="oc-ev-ana-r">${esc(rating)}</div>` : ''}
+      </div>
+      <div class="oc-funnel">${steps.map(([l, n]) => `
+        <div class="oc-fn"><div class="oc-fn-n">${n}</div><div class="oc-fn-bar"><i style="width:${Math.round(n / top * 100)}%"></i></div><div class="oc-fn-l">${l}</div></div>`).join('')}</div>
+      ${e.has_ended && e.rsvps ? `<div class="oc-note">${Math.round((e.came || 0) / e.rsvps * 100)}% of RSVPs came${e.walk_ins ? ` · ${e.walk_ins} walk-in${e.walk_ins === 1 ? '' : 's'}` : ''}${e.cancelled ? ` · ${e.cancelled} cancelled` : ''}</div>` : ''}
+      ${e.has_ended ? `<button class="hn-link oc-ev-ana-more" onclick="ocAnaToggleFb(${e.id})">${open ? 'Hide feedback' : 'See feedback'}</button>` : ''}
+      ${open ? `<div class="oc-ev-ana-fb">${ocAnaFbHTML(_ocAnaFb.get(e.id))}</div>` : ''}
+    </div>`;
+}
+
+async function ocAnaToggleFb(id) {
+  _ocAnaOpenEv = _ocAnaOpenEv === id ? null : id;
+  if (_ocAnaOpenEv && !_ocAnaFb.has(id)) {
+    ocAnaPaint();
+    const { data, error } = await supabaseClient.rpc('get_event_feedback', { p_event_id: id });
+    _ocAnaFb.set(id, error ? { error: true } : data);
+  }
+  ocAnaPaint();
+}
+
+// The same function, and so the same rules, as the Recap panel: no average and no spread below 5.
+function ocAnaFbHTML(fb) {
+  if (!fb) return '<div class="oc-note">Loading…</div>';
+  if (fb.error) return '<div class="oc-note">Feedback could not load.</div>';
+  if (!fb.count) return `<div class="oc-note">${fb.enabled === false ? 'Feedback was turned off for this event.' : 'No feedback yet. Only people who checked in can leave any.'}</div>`;
+  const dist = Array.isArray(fb.dist) ? fb.dist : null;
+  const most = dist ? Math.max(1, ...dist) : 1;
+  return `
+    ${fb.suppressed ? `<div class="oc-note">${fb.count} response${fb.count === 1 ? '' : 's'} — the average appears at five.</div>` : ''}
+    ${dist ? `<div class="oc-dist">${[5, 4, 3, 2, 1].map(n => `
+      <div class="oc-dist-row"><span>${n}★</span><span class="oc-dist-bar"><i style="width:${Math.round(dist[n - 1] / most * 100)}%"></i></span><span>${dist[n - 1]}</span></div>`).join('')}</div>` : ''}
+    ${(fb.comments || []).length ? fb.comments.map(c => `<div class="oc-recap-c">${esc(c)}</div>`).join('')
+      : '<div class="oc-note">No comments, just ratings.</div>'}`;
+}
+
+function ocAnaPollsHTML(polls) {
+  if (!polls.length) return '';
+  return `
+    <div class="oc-ana-card">
+      <div class="oc-ana-h">Polls</div>
+      ${polls.map(p => {
+        const total = p.total_votes || 0;
+        return `<div class="oc-poll-ana">
+          <div class="oc-ev-ana-t">${esc(p.title)}</div>
+          <div class="oc-ev-ana-d">${total} vote${total === 1 ? '' : 's'}${p.closes_at ? ` · ${new Date(p.closes_at) <= new Date() ? 'closed' : 'closes'} ${esc(new Date(p.closes_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}` : ''}</div>
+          ${(p.options || []).map(o => {
+            const pct = total ? Math.round(o.votes / total * 100) : 0;
+            return `<div class="oc-dist-row oc-poll-row"><span>${esc(o.label)}</span><span class="oc-dist-bar"><i style="width:${pct}%"></i></span><span>${pct}%</span></div>`;
+          }).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// The event table as a CSV, for a club's end-of-semester report. Counts only, like everything here.
+function ocAnaCsv() {
+  const evs = (_ocAna?.events || []);
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [['Event', 'Date', 'Status', 'Views', 'Saves', 'RSVPs', 'Came', 'Walk-ins', 'Cancelled', 'Ratings', 'Average rating']]
+    .concat(evs.map(e => [e.title, new Date(e.starts_at).toISOString().slice(0, 10), e.has_ended ? 'held' : e.status,
+      e.views, e.saves, e.rsvps, e.came, e.walk_ins, e.cancelled, e.rating_count, e.rating_avg ?? '']));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' }));
+  const org = _orgCtx?.orgs.get(_ocOrgId)?.name || 'club';
+  a.download = `${org.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-analytics-${_ocAnaRange}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+
+// ============================================================
 // RECAP  —  after the event
 // ============================================================
 // Two halves under two different flags, which is the resolution TEST 9c pins down: the recap
@@ -3137,11 +3465,17 @@ function ocPaintRecap(msg) {
       <div class="oc-note">An average appears at five. Below that it would say more about who
         answered than about the event.</div>`;
   } else {
+    // The spread arrives only when the function allows it (5+ responses, same rule as the average).
+    const dist = Array.isArray(fb.dist) ? fb.dist : null;
+    const most = dist ? Math.max(1, ...dist) : 1;
     summary = `
       <div class="oc-recap-sum">
         <div class="oc-recap-n">${esc(String(fb.avg))}</div>
         <div class="oc-recap-lab">average from ${fb.count} response${fb.count === 1 ? '' : 's'}</div>
-      </div>`;
+      </div>
+      ${dist ? `<div class="oc-dist">${[5, 4, 3, 2, 1].map(n => `
+        <div class="oc-dist-row"><span>${n}★</span><span class="oc-dist-bar"><i style="width:${Math.round(dist[n - 1] / most * 100)}%"></i></span><span>${dist[n - 1]}</span></div>`).join('')}
+      </div>` : ''}`;
   }
 
   const comments = (fb.comments || []).length
@@ -3151,9 +3485,19 @@ function ocPaintRecap(msg) {
          against who walked through the door when.</div>`
     : '';
 
+  // The window can be changed after the event too — to give people longer, or to stop asking.
+  // Only for officers who can edit events (the same flag the event form needs).
+  const fbSettings = _ocFbReady && ev && orgCanAct('manage_events', _ocOrgId) ? `
+    <div class="oc-reg-head">Feedback settings</div>
+    <div class="oc-fb-set">
+      ${ocFbFieldsHTML('ocRc', ev)}
+      <button class="org-btn org-btn-go" onclick="ocSaveFb(${ev.id})">Save feedback settings</button>
+    </div>` : '';
+
   el.innerHTML = `
     ${summary}
     ${comments}
+    ${fbSettings}
     <div class="oc-reg-head">Recap photos${recapShots.length ? ` · ${recapShots.length}` : ''}</div>
     <div class="oc-ev-strip">${recapShots.map(m => `
       <div class="oc-ev-thumb"><img src="${escAttr(m.url)}" alt="">

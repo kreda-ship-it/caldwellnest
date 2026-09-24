@@ -588,7 +588,7 @@ async function renderFeed() {
   // .home-top is two columns on a wide screen — Campus news, and beside it Up next and This week.
   // On a phone it dissolves (display:contents) and CSS `order` stacks every slot in the design's
   // order: urgent, Up next, Campus news, Featured, This week, Fresh on the Market.
-  body.innerHTML = hero + '<div id="homeUrgent"></div><div id="homeClubsTop"></div>'
+  body.innerHTML = hero + '<div id="homeUrgent"></div><div id="homeRate"></div><div id="homeClubsTop"></div>'
     + '<div class="home-top"><div id="homeNews"></div>'
     + '<aside class="home-aside"><div id="homeUpNext"></div><div id="feedEvents"></div></aside></div>'
     + `<div id="homeFeatured">${feedFeaturedHTML()}</div>`
@@ -602,6 +602,12 @@ async function renderFeed() {
     if (chips) chips.innerHTML = feedChipsHTML();          // now counts today's events too
     const upNext = document.getElementById('homeUpNext');
     if (upNext) upNext.innerHTML = feedUpNextHTML();
+    // The feedback loop's prompt: the last event you checked into that still wants a rating, with
+    // the stars and an optional comment right here (evPendingRatingHTML in events.js).
+    evPendingRatingHTML().then(html => {
+      const rate = document.getElementById('homeRate');
+      if (rate) rate.innerHTML = html;
+    });
     const soon = feedUpcoming();
     const slot = document.getElementById('feedEvents');
     if (slot && soon.length) slot.innerHTML = feedSection('Happening this week', 'All events', "showPage('events')",

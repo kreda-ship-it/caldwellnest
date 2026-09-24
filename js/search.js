@@ -22,7 +22,6 @@ let _sqQuery = '';
 // tapped elsewhere on the page.
 let _sqAutoFocus = false;
 let _sqEvents = [];
-let _sqTimer = null;
 
 // RECENT SEARCHES LIVE IN localStorage, and that is a deliberate exception to the rule the
 // rest of this app follows. Everything else we remember is WHERE YOU WERE, which should die
@@ -85,6 +84,8 @@ async function renderSearch() {
   // already in memory (browseItems), events are not, and a query per character would be a
   // request per character.
   if (!_sqEvents.length) { _sqEvents = await sqLoadEvents(); sqPaintResults(); }
+  // Club names feed the suggestions; the directory may not have been opened yet.
+  if (typeof loadOrgDirectory === 'function' && !_dirOrgs) loadOrgDirectory();
 }
 
 async function sqLoadEvents() {
@@ -103,54 +104,231 @@ async function sqLoadEvents() {
   return rows;
 }
 
+// ---------- Three states, the way TikTok's search works (2026-09-24) ----------
+//   ENTRY    nothing typed: your recent searches as a list, and what is popular on campus
+//   SUGGEST  typing: a live list of things that exist here, the typed part in bold
+//   RESULTS  after Enter or a tap: tabs — All, Listings, Books, Events — each with its count
+// Suggesting before searching matters more on a small campus than a big platform: a student
+// sees at once whether "fridge" exists here, instead of submitting and finding nothing.
+// A term inside an onclick="…": JSON makes it a valid JS string (quotes, backslashes, newlines
+// all escaped), escAttr keeps it inside the attribute. Titles are typed by students, so this is
+// the difference between a suggestion and a script — escAttr alone does not escape a ' .
+function sqJs(t) { return escAttr(JSON.stringify(String(t))); }
+
+let _sqSubmitted = false;
+let _sqTab = 'all';
+let _sqFrom = 'feed';     // the page ← goes back to; goSearch() records it
+
 function sqSet(v) {
   _sqQuery = v;
-  clearTimeout(_sqTimer);
-  // Only the results repaint, so the input keeps focus and the caret stays put. Rebuilding the
+  _sqSubmitted = false;
+  // Only the body repaints, so the input keeps focus and the caret stays put. Rebuilding the
   // shell on every keystroke is the bug the door's search box and the events search both had.
   sqPaintResults();
-  // Remembered on a pause, not on every character: saving as they type would store "n", "nu",
-  // "nu 3" and push the real search off the end of a six-item list.
-  _sqTimer = setTimeout(() => sqRemember(_sqQuery), 900);
+  sqPaintX();
 }
 
+// Enter, a suggestion, a recent search or a popular chip. Remembered HERE, when the student
+// commits to a search — not on a typing pause, which stored half-typed words.
 function sqRun(term) {
   _sqQuery = term;
+  _sqSubmitted = !!term.trim();
+  _sqTab = 'all';
   const el = document.getElementById('sqInput');
-  if (el) el.value = term;
+  if (el) { el.value = term; el.blur(); }
   sqRemember(term);
   sqPaintResults();
-  el?.focus();
+  sqPaintX();
+}
+function sqSubmit() { sqRun(document.getElementById('sqInput')?.value || ''); return false; }
+
+// ↖ on a suggestion: put it in the box and keep typing, without searching yet.
+function sqFill(term) {
+  const el = document.getElementById('sqInput');
+  if (el) { el.value = term + ' '; el.focus(); }
+  sqSet(term + ' ');
 }
 
 // Clears the CATEGORY as well as the text. To a student the × means "start again", and
-// leaving a category chip lit while the box empties would return them to an entry state that
+// leaving a category narrowed while the box empties would return them to an entry state that
 // is quietly still narrowed.
 function sqClear() {
-  _sqQuery = '';
+  _sqQuery = ''; _sqSubmitted = false; _sqTab = 'all';
   if (_filters.category !== 'all') setListingCat('all');
   const el = document.getElementById('sqInput');
   if (el) { el.value = ''; el.focus(); }
+  sqPaintResults();
+  sqPaintX();
+}
+// Cancel: stop searching — empty box, keyboard down, back to the entry state.
+function sqCancel() { sqClear(); document.getElementById('sqInput')?.blur(); }
+function sqBack() { sqCancel(); showPage(_sqFrom && _sqFrom !== 'search' ? _sqFrom : 'feed'); }
+
+function sqPaintX() {
+  const x = document.getElementById('sqX');
+  if (x) x.hidden = !_sqQuery;
+}
+
+function sqForgetAll() {
+  try { localStorage.removeItem(SQ_RECENT_KEY); } catch (e) { /* private mode */ }
   sqPaintResults();
 }
 
 function sqShellHTML() {
   return `
-    <div class="sq-bar">
-      <span class="sq-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg></span>
-      <!-- Its own form, for the reason the listings search box documents: Chrome pools every
-           input NOT inside a form and autofills the saved credential into the first visible
-           one. autocomplete="off" has not stopped that for years. -->
-      <form onsubmit="return false" autocomplete="off" class="form-shell sq-form">
-        <input class="sq-input" id="sqInput" name="cn-search" autocomplete="off"
-               placeholder="Search listings, books and events…"
-               value="${escAttr(_sqQuery)}" oninput="sqSet(this.value)">
-      </form>
-      ${(_sqQuery || _filters.category !== 'all')
-        ? `<button class="sq-x" onclick="sqClear()" aria-label="Clear">&times;</button>` : ''}
+    <div class="sq-head">
+      <button class="sq-back" onclick="sqBack()" aria-label="Back">${icon('chevRight', 22)}</button>
+      <div class="sq-bar">
+        <span class="sq-icon">${icon('search', 17)}</span>
+        <!-- Its own form, for the reason the listings search box documents: Chrome pools every
+             input NOT inside a form and autofills the saved credential into the first visible
+             one. autocomplete="off" has not stopped that for years. -->
+        <form onsubmit="return sqSubmit()" autocomplete="off" class="form-shell sq-form">
+          <input class="sq-input" id="sqInput" name="cn-search" autocomplete="off" enterkeyhint="search"
+                 placeholder="Search rooms, books, free stuff…"
+                 value="${escAttr(_sqQuery)}" oninput="sqSet(this.value)">
+        </form>
+        <button class="sq-x" id="sqX" onclick="sqClear()" aria-label="Clear"${_sqQuery ? '' : ' hidden'}>${icon('x', 14)}</button>
+      </div>
+      <button class="sq-cancel" onclick="sqCancel()">Cancel</button>
     </div>
 
     <div id="sqBody"></div>`;
+}
+
+// ---------- Entry state ----------
+function sqEntryHTML() {
+  const recent = sqRecent();
+  const popular = sqPopular();
+  return `
+    ${recent.length ? `
+      <div class="sq-sec">
+        <div class="sq-sec-head"><h2 class="sq-h">Recent</h2><button class="hn-link" onclick="sqForgetAll()">Clear all</button></div>
+        <div class="sq-list">${recent.map(t => `
+          <div class="sq-li">
+            <button class="sq-li-go" onclick="sqRun(${sqJs(t)})">${icon('clock', 17)}<span>${esc(t)}</span></button>
+            <button class="sq-li-x" onclick="sqForget(${sqJs(t)})" aria-label="Remove ${escAttr(t)}">${icon('x', 15)}</button>
+          </div>`).join('')}</div>
+      </div>` : ''}
+
+    ${popular.length ? `
+      <div class="sq-sec">
+        <h2 class="sq-h">Popular on campus</h2>
+        <div class="sq-chips">${popular.map(t =>
+          `<button class="sq-pop" onclick="sqRun(${sqJs(t)})">${esc(t)}</button>`).join('')}</div>
+      </div>` : ''}
+
+    ${!recent.length && !popular.length ? `<div class="sq-empty"><p>Search listings, books and events at your school.</p></div>` : ''}`;
+}
+
+// "Popular on campus", worked out from what is ACTUALLY listed right now — this app keeps no
+// log of what other students search, and inventing one would be a lie. The words that appear in
+// the most live listing, book and event titles, plus the course codes somebody has a book for.
+const SQ_STOP = new Set(('the and for with from this that your you are new used like good great sale '
+  + 'free near campus room caldwell student students size one two all our its it is in on of to a an '
+  + 'at by or my me we us') .split(' '));
+function sqPopular() {
+  const titles = [...browseItems().filter(isListingLive).map(l => l.title), ..._sqEvents.map(e => e.title)];
+  const count = new Map();
+  titles.forEach(t => new Set(String(t || '').toLowerCase().match(/[a-z][a-z-]{2,}/g) || [])
+    .forEach(w => { if (!SQ_STOP.has(w)) count.set(w, (count.get(w) || 0) + 1); }));
+  const words = [...count].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([w]) => w);
+  const courses = [...new Set((_books || []).filter(b => b.course_code).map(b => b.course_code))].sort().slice(0, 4);
+  return [...words, ...courses].slice(0, 9);
+}
+
+// ---------- Suggest state ----------
+// Things that exist here and contain what was typed: listing, book and event titles, course
+// codes, club names. Ones that START with it first, then ones with a word starting with it.
+function sqSuggestions(q) {
+  const pool = [];
+  browseItems().filter(isListingLive).forEach(l => { pool.push(l.title); if (l.course_code) pool.push(l.course_code); });
+  _sqEvents.forEach(e => pool.push(e.title));
+  (_dirOrgs || []).forEach(o => pool.push(o.name));
+  const seen = new Set(), out = [];
+  const rank = t => { const s = t.toLowerCase(); return s.startsWith(q) ? 0 : s.includes(' ' + q) ? 1 : 2; };
+  pool.filter(Boolean).map(String).filter(t => t.toLowerCase().includes(q))
+    .sort((a, b) => rank(a) - rank(b) || a.length - b.length)
+    .forEach(t => { const k = t.toLowerCase(); if (!seen.has(k) && out.length < 8) { seen.add(k); out.push(t); } });
+  return out;
+}
+
+function sqBold(text, q) {
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<b>' + esc(text.slice(i, i + q.length)) + '</b>' + esc(text.slice(i + q.length));
+}
+
+function sqSuggestHTML(q) {
+  const raw = _sqQuery.trim();
+  const rows = sqSuggestions(q);
+  return `
+    <div class="sq-list">
+      <div class="sq-li"><button class="sq-li-go" onclick="sqRun(${sqJs(raw)})">${icon('search', 17)}<span>Search for “<b>${esc(raw)}</b>”</span></button></div>
+      ${rows.map(t => `
+        <div class="sq-li">
+          <button class="sq-li-go" onclick="sqRun(${sqJs(t)})">${icon('search', 17)}<span>${sqBold(t, q)}</span></button>
+          <button class="sq-li-x sq-li-fill" onclick="sqFill(${sqJs(t)})" aria-label="Use ${escAttr(t)}">${icon('up', 15)}</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ---------- Results ----------
+function sqSetTab(t) { _sqTab = t; sqPaintResults(); }
+
+function sqPaintResults() {
+  const body = document.getElementById('sqBody');
+  if (!body) return;
+  const q = _sqQuery.trim().toLowerCase();
+  if (!q) { body.innerHTML = sqEntryHTML(); return; }
+  if (!_sqSubmitted) { body.innerHTML = sqSuggestHTML(q); return; }
+
+  // Marketplace rows come from browseItems(), which is listings + books already shaped the
+  // same way, filtered by the one visibility rule the feed uses. Search must never show
+  // something the feed would hide.
+  const items = browseItems().filter(isListingLive)
+    .filter(l => _filters.category === 'all' || l.category === _filters.category)
+    .filter(l => matchItemKeyword(l, q));
+  // isBook, not category === 'books'. bookAsListing() sets both, but the flag is the one that
+  // says WHICH TABLE the row came from — and that is what decides which detail opener works.
+  const books = items.filter(l => l.isBook);
+  const goods = items.filter(l => !l.isBook);
+  // Events are excluded once a MARKETPLACE category is chosen. "Housing" is not a kind of
+  // event, and showing events under it would answer a question nobody asked.
+  const events = _filters.category === 'all' ? evMatchEvents(_sqEvents, { q }) : [];
+  const total = goods.length + books.length + events.length;
+
+  const tabs = [['all', 'All', total], ['listings', 'Listings', goods.length], ['books', 'Books', books.length], ['events', 'Events', events.length]];
+  const tabRow = `<div class="sq-tabs" role="tablist">${tabs.map(([v, l, n]) =>
+    `<button role="tab" aria-selected="${_sqTab === v}" class="sq-tab${_sqTab === v ? ' is-on' : ''}" onclick="sqSetTab('${v}')">${l}<span>${n}</span></button>`).join('')}</div>`;
+  const catNote = _filters.category !== 'all'
+    ? `<button class="sq-pop sq-pop-on" onclick="setListingCat('all');sqPaintResults()">${esc(CATEGORY_LABELS[_filters.category] || _filters.category)} ×</button>` : '';
+
+  if (!total) {
+    body.innerHTML = `${tabRow}
+      <div class="sq-empty">
+        <div class="sq-empty-t">Nothing for “${esc(_sqQuery)}”</div>
+        <p>Try a shorter word, or browse instead — there are ${browseItems().filter(isListingLive).length}
+           items and ${_sqEvents.length} event${_sqEvents.length === 1 ? '' : 's'} to look through.</p>
+        ${catNote}
+        <button class="sq-pop" onclick="showPage('listings')">Browse the Market</button>
+      </div>`;
+    return;
+  }
+
+  // "All" keeps the sections (every count at once, one scroll); a tab narrows to one kind.
+  // The grid / list toggle changes listings and books only — an event is identified by when it
+  // is and who runs it, which a tile has no room for.
+  const grid = sqView() === 'grid';
+  const show = t => _sqTab === 'all' || _sqTab === t;
+  body.innerHTML = `
+    ${tabRow}
+    ${_sqTab !== 'events' ? `<div class="sq-tools-row">${catNote}${sqToolsHTML()}</div>` : ''}
+    ${show('listings') ? sqSection('Listings', goods, l => grid ? sqTileHTML(l, `openDetail(${l.id})`) : sqRowHTML(l, `openDetail(${l.id})`), grid) : ''}
+    ${show('books') ? sqSection('Books', books, l => grid ? sqTileHTML(l, `openBookDetail(${l.id})`) : sqRowHTML(l, `openBookDetail(${l.id})`), grid) : ''}
+    ${show('events') ? sqSection('Events', events, e => sqEventRowHTML(e)) : ''}
+    ${_sqTab !== 'all' && !({ listings: goods, books, events }[_sqTab] || []).length
+      ? `<div class="sq-empty"><p>No ${_sqTab} for “${esc(_sqQuery)}”.</p></div>` : ''}`;
 }
 
 // Filters and the layout switch belong WITH the results, not above the entry state. On the
@@ -205,116 +383,6 @@ function sqViewToggleHTML() {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       </button>
     </div>`;
-}
-
-// ---------- Entry state ----------
-function sqEntryHTML() {
-  const recent = sqRecent();
-
-  // Courses that actually have a book listed, not the whole catalogue. A list of every course
-  // at the university is a directory; a list of the ones somebody is selling a book for is a
-  // shortcut. Sorted so it reads predictably rather than by whoever posted last.
-  const courses = [...new Set((_books || [])
-    .filter(b => b.course_code && isListingLive(bookAsListing(b)))
-    .map(b => b.course_code))].sort().slice(0, 12);
-
-  const cats = [['housing', 'Housing'], ['books', 'Books'], ['technology', 'Technology'],
-                ['clothing', 'Clothing'], ['donation', 'Free items'], ['other', 'Other']];
-
-  return `
-    ${recent.length ? `
-      <div class="sq-sec">
-        <div class="sq-lab">Recent</div>
-        <div class="sq-chips">${recent.map(t => `
-          <span class="sq-recent">
-            <button class="sq-recent-go" onclick="sqRun('${escAttr(t)}')">${esc(t)}</button>
-            <button class="sq-recent-x" onclick="sqForget('${escAttr(t)}')" aria-label="Forget">&times;</button>
-          </span>`).join('')}</div>
-      </div>` : ''}
-
-    <!-- Chips that NARROW, not tiles that leave. The previous version made the biggest block
-         on this page six buttons that all navigated to Browse — you tapped Search and the
-         dominant element said "go somewhere else". A category here filters the results below
-         it, which is what makes Search answer a question on its own rather than act as a
-         launcher for another page. -->
-    <div class="sq-sec">
-      <div class="sq-lab">Category</div>
-      <div class="sq-chips">${cats.map(([v, l]) =>
-        `<button class="sq-chip${_filters.category === v ? ' is-on' : ''}"
-                 onclick="sqCat('${v}')">${l}</button>`).join('')}</div>
-    </div>
-
-    ${courses.length ? `
-      <div class="sq-sec">
-        <div class="sq-lab">Courses with books listed</div>
-        <div class="sq-chips">${courses.map(c =>
-          `<button class="sq-chip" onclick="sqRun('${escAttr(c)}')">${esc(c)}</button>`).join('')}</div>
-      </div>` : ''}
-
-    <!-- One line out, at the bottom, where a way out belongs. Browsing the whole feed is a
-         different act from searching it and it has its own tab; it does not need six buttons
-         at the top of this one. -->
-    <button class="sq-out" onclick="showPage('listings')">Browse everything instead &rsaquo;</button>`;
-}
-
-// Tapping a category chip narrows in place. Toggling it off returns to the entry state, which
-// is why the same chip sets 'all' when it is already on — a chip that only ever turns on is a
-// chip you cannot undo without hunting for a Clear button.
-function sqCat(cat) {
-  setListingCat(_filters.category === cat ? 'all' : cat);
-  renderSearch();
-}
-
-// ---------- Results ----------
-function sqPaintResults() {
-  const body = document.getElementById('sqBody');
-  if (!body) return;
-
-  // A category on its own is enough to show results. Without this the chips would set a
-  // filter and leave the student looking at the entry state, wondering what the tap did.
-  const q = _sqQuery.trim().toLowerCase();
-  const narrowed = q || _filters.category !== 'all';
-  if (!narrowed) { body.innerHTML = sqEntryHTML(); return; }
-
-  // Marketplace rows come from browseItems(), which is listings + books already shaped the
-  // same way, filtered by the one visibility rule the feed uses. Search must never show
-  // something the feed would hide.
-  const items = browseItems().filter(isListingLive)
-    .filter(l => _filters.category === 'all' || l.category === _filters.category)
-    .filter(l => matchItemKeyword(l, q));
-  // isBook, not category === 'books'. bookAsListing() sets both, but the flag is the one that
-  // says WHICH TABLE the row came from — and that is what decides which detail opener works.
-  const books = items.filter(l => l.isBook);
-  const goods = items.filter(l => !l.isBook);
-  // Events are excluded once a MARKETPLACE category is chosen. "Housing" is not a kind of
-  // event, and showing events under it would answer a question nobody asked.
-  const events = _filters.category === 'all' ? evMatchEvents(_sqEvents, { q }) : [];
-
-  const total = goods.length + books.length + events.length;
-  if (!total) {
-    body.innerHTML = `
-      ${sqToolsHTML()}
-      <div class="sq-empty">
-        <div class="sq-empty-t">Nothing for “${esc(_sqQuery)}”</div>
-        <p>Try a shorter word, or browse instead — there are ${browseItems().filter(isListingLive).length}
-           items and ${_sqEvents.length} event${_sqEvents.length === 1 ? '' : 's'} to look through.</p>
-        <button class="sq-chip" onclick="sqClear()">Clear</button>
-      </div>`;
-    return;
-  }
-
-  // SECTIONS, NOT TABS. At this corpus size a tab hides results behind a guess about which
-  // one holds the answer; sections show all three counts at once and cost one scroll.
-  // The toggle changes LISTINGS AND BOOKS only. Events stay rows whichever is chosen: an event
-  // is identified by when it is and who is running it, and a grid tile has room for a picture
-  // and a title but not for a date, a place and an organization.
-  const grid = sqView() === 'grid';
-  body.innerHTML = `
-    ${sqToolsHTML()}
-    <div class="sq-count">${total} result${total === 1 ? '' : 's'}</div>
-    ${sqSection('Listings', goods, l => grid ? sqTileHTML(l, `openDetail(${l.id})`) : sqRowHTML(l, `openDetail(${l.id})`), grid)}
-    ${sqSection('Books', books, l => grid ? sqTileHTML(l, `openBookDetail(${l.id})`) : sqRowHTML(l, `openBookDetail(${l.id})`), grid)}
-    ${sqSection('Events', events, e => sqEventRowHTML(e))}`;
 }
 
 function sqSection(label, rows, render, grid = false) {

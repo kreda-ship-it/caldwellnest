@@ -58,6 +58,8 @@ function goSearch(focus = true) {
   // tap that carries no decision. renderSearch() does the focusing, because the input does
   // not exist until it has painted.
   _sqAutoFocus = focus;
+  // Where ← on the search page returns to — read before showPage() records 'search' as last.
+  _sqFrom = sessionStorage.getItem('cn_last_page') || 'feed';
   showPage('search');
 }
 
