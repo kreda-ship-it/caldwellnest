@@ -83,7 +83,7 @@ async function submitWaitlist() {
 // make a stranger trustworthy (how much they have listed, how much they have sold, how long
 // they have been here), ONE clear action — Message — and their listings as tiles with a photo,
 // a title and a price. A full page on a phone and a sheet on a desktop (the .pm-modal shell the
-// posting forms use). `preview` shows your OWN profile the way others see it, without Message.
+// posting forms use).
 function pfJoined(ts) {
   return ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
 }
@@ -93,10 +93,10 @@ function pfStatsHTML(listed, sold, joined) {
   return cell(listed, listed === 1 ? 'Listing' : 'Listings') + cell(sold, 'Sold') + (joined ? cell(esc(joined), 'Joined') : '');
 }
 
-async function viewStudentProfile(profileId, opts = {}) {
+async function viewStudentProfile(profileId) {
   if (!profileId) return;
   const eu = getEffectiveUser();
-  if (eu && profileId === eu.id && !opts.preview) { closeModal('detailModal'); showPage('profile'); return; }
+  if (eu && profileId === eu.id) { closeModal('detailModal'); showPage('profile'); return; }
 
   const body = document.getElementById('pubProfileBody');
   body.innerHTML = '<div class="pp-loading">Loading…</div>';
@@ -130,8 +130,6 @@ async function viewStudentProfile(profileId, opts = {}) {
   const school = (_schoolsList || []).find(s => s.slug === p.school)?.name || '';
   const facts = [p.year, p.major, p.pronouns].filter(Boolean).map(esc).join(' · ');
 
-  const title = document.getElementById('ppTitle');
-  if (title) title.textContent = opts.preview ? 'Your public profile' : 'Profile';
   body.innerHTML = `
     <div class="pf-card pp-card">
       <div class="pf-head">
@@ -147,9 +145,7 @@ async function viewStudentProfile(profileId, opts = {}) {
       </div>
       ${p.bio ? `<div class="pf-bio">${esc(p.bio)}</div>` : ''}
       <div class="pf-stats">${pfStatsHTML(liveItems.length, soldItems.length, pfJoined(p.created_at))}</div>
-      <div class="pf-actions">${opts.preview
-        ? '<p class="pp-preview-note">This is how other students see your profile. Your email, saved items and events are never shown.</p>'
-        : `<button class="pf-btn pf-btn-go" onclick="pfMessage('${escAttr(profileId)}')">${icon('message', 17)} Message ${esc(first)}</button>`}</div>
+      <div class="pf-actions"><button class="pf-btn pf-btn-go" onclick="pfMessage('${escAttr(profileId)}')">${icon('message', 17)} Message ${esc(first)}</button></div>
     </div>
     <h3 class="pp-sec">Listings<span>${liveItems.length}</span></h3>
     ${renderListingGrid(liveItems, false)}
@@ -166,11 +162,6 @@ function pfMessage(profileId) {
   setTimeout(() => openConvo(profileId, info ? { name: info.name, initials: info.initials, color: info.color, avatar_url: info.avatar_url, school: info.school } : null, null), 100);
 }
 
-// "See your public profile" — exactly what others see, so a student can check what they share.
-function pfPreviewPublic() {
-  const eu = getEffectiveUser();
-  if (eu) viewStudentProfile(eu.id, { preview: true });
-}
 
 function openEditProfile() {
   const u = getEffectiveUser(); if (!u) return;

@@ -4451,7 +4451,6 @@ select.ao-input { cursor: pointer; }
 .pf-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 14px;
           border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer;
           font: 600 14px 'DM Sans', sans-serif; color: var(--text); }
-.pf-btn:hover { border-color: var(--brand-light); }
 .pf-btn-go { height: 48px; border: 0; border-radius: 999px; background: var(--brand); color: #fff; font-size: 15px; }
 .pf-btn-go:hover { background: var(--brand-mid); }
 .pf-clubs { margin-top: 14px; }
@@ -4509,7 +4508,6 @@ select.ao-input { cursor: pointer; }
 .pp-sec { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 0; font: 400 21px 'DM Serif Display', Georgia, serif; color: var(--text); }
 .pp-sec span { font: 600 13px 'DM Sans', sans-serif; color: var(--text-faint); }
 .pp-loading { padding: 40px 0; font-size: 14px; text-align: center; color: var(--text-muted); }
-.pp-preview-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--brand-pale); font-size: 13px; line-height: 1.5; color: var(--brand-mid); }
 @media (max-width: 768px) {
   #pubProfileModal { padding: 0; align-items: stretch; }
 }

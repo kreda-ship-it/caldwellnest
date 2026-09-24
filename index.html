@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25k">
+<link rel="stylesheet" href="styles.css?v=2026-09-25l">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -462,8 +462,8 @@
            On a phone they stack in this order, exactly as before; on a wide screen the card and footer
            become a column on the left and the tabs fill the right (styles.css, PROFILE LAYOUT). -->
       <aside class="pf-side">
-        <!-- THE CARD (rebuilt 2026-09-24): who you are, the numbers that make a seller trustworthy,
-             and the two things you do with your own profile. Other students' profiles are drawn from
+        <!-- THE CARD (rebuilt 2026-09-24): who you are and the numbers that make a seller
+             trustworthy. Editing is the pen on the photo (Kal, 2026-09-24: no separate buttons). Other students' profiles are drawn from
              the same header (pfHeaderHTML in js/profile.js), so the two cannot drift apart. -->
         <div class="pf-card">
           <div class="pf-head">
@@ -484,10 +484,6 @@
           </div>
           <div class="pf-bio" id="profileBio" style="display:none"></div>
           <div class="pf-stats" id="pfStats"></div>
-          <div class="pf-actions">
-            <button class="pf-btn" onclick="openEditProfile()">Edit profile</button>
-            <button class="pf-btn" onclick="pfPreviewPublic()" title="See your profile the way other students do">Preview profile</button>
-          </div>
         </div>
 
         <!-- YOUR CLUBS: the logos of the clubs you follow, or an invitation to find some. A doorway
@@ -1968,7 +1964,7 @@
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
 <script src="js/auth.js?v=2026-09-25b"></script>
-<script src="js/profile.js?v=2026-09-25a"></script>
+<script src="js/profile.js?v=2026-09-25b"></script>
 <script src="js/listings.js?v=2026-09-25a"></script>
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
