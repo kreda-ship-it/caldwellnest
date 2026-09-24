@@ -48,6 +48,26 @@ function ibTab(t) {
   if (t === 'activity') activityRefresh(true);
 }
 
+// The one way in (the Inbox button in the nav). With no tab named, it opens on the tab that needs
+// you: Messages when a person is waiting for a reply — the more urgent of the two — Activity when
+// only activity is new, and otherwise wherever you were last.
+function openInbox(tab) {
+  const chats = typeof sUnread === 'object' && sUnread ? Object.keys(sUnread).length : 0;
+  const t = tab || (chats ? 'messages' : actUnreadCount() ? 'activity' : _ibTab);
+  showPage('messages');
+  ibTab(t);
+}
+
+// The Inbox button's badge: everything waiting, in one number — unread chats plus unread activity.
+function paintInboxBadge() {
+  const el = document.getElementById('inboxBadge');
+  if (!el) return;
+  const chats = typeof sUnread === 'object' && sUnread ? Object.keys(sUnread).length : 0;
+  const n = chats + actUnreadCount();
+  el.textContent = n > 9 ? '9+' : String(n);
+  el.classList.toggle('show', n > 0);
+}
+
 // The two counts on the tabs: chats with something unread, and unread activity. The bell's badge
 // is the activity count too (updateNotifBadge in auth.js reads actUnreadCount()).
 function ibPaintCounts() {
@@ -56,6 +76,7 @@ function ibPaintCounts() {
   const set = (id, n) => { const el = document.getElementById(id); if (el) { el.textContent = n; el.hidden = !n; } };
   set('ibCountMsgs', msgs);
   set('ibCountAct', act);
+  paintInboxBadge();
 }
 function actUnreadCount() {
   if (!_actLoaded) return (typeof _notifCache !== 'undefined' ? _notifCache : []).filter(n => !n.read).length;

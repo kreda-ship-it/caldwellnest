@@ -2153,9 +2153,8 @@ select.ao-input { cursor: pointer; }
   font-weight:600;padding:7px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;
   font-family:'DM Sans',sans-serif;font-size:var(--fs-small);}
 .nav-post:hover{background:#ffb61f;}
-/* The unread count keeps the amber it had as a tab badge; .notif-badge alone is the red
-   used for notifications, and the two should not look like the same kind of alert. */
-.notif-badge-msg{background:var(--accent);color:var(--brand);}
+/* One badge now (the Inbox button's) — the amber message badge beside the red one went when the
+   two nav doors became one on 2026-09-24. */
 
 .notif-badge {
   display: none;                 /* .show is added only when the count is > 0 */
@@ -4165,8 +4164,7 @@ select.ao-input { cursor: pointer; }
 
   /* Order: places first, then what is waiting for you, then tools, then Post, then You. */
   body.s-signed #navUser .nav-link{order:1;}
-  body.s-signed #navUser .nav-i-msgs{order:2;}
-  body.s-signed #navUser .nav-i-notif{order:3;}
+  body.s-signed #navUser .nav-i-inbox{order:2;}
   body.s-signed #navUser .nav-i-search{order:4;}
   body.s-signed #navUser .nav-i-console{order:5;}
   body.s-signed #navUser .nav-post{order:6;}

@@ -175,7 +175,7 @@ function feedCampusSVG() {
 function feedChipsHTML() {
   const chips = [];
   const unread = typeof sUnreadCount === 'number' ? sUnreadCount : 0;
-  if (unread) chips.push([`${unread} unread message${unread === 1 ? '' : 's'}`, "showPage('messages')", 'message']);
+  if (unread) chips.push([`${unread} unread message${unread === 1 ? '' : 's'}`, "openInbox('messages')", 'message']);
   // From Campus news, once it has loaded: club posts from the last three days, and open polls
   // you have not answered. Both scroll down to the news rather than opening another page.
   const recent = _feedNews.filter(x => x.kind === 'club' && Date.now() - new Date(x.at).getTime() < 3 * _feedDay).length;

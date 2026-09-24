@@ -693,13 +693,9 @@ async function loadNotifications(userId) {
   updateNotifBadge();
 }
 
+// The badge is the Inbox button's, shared with unread chats (paintInboxBadge in js/inbox.js).
 function updateNotifBadge() {
-  const el = document.getElementById('notifBadge');
-  if (!el) return;
-  // Everything unread in Activity once it has been worked out (js/inbox.js), stored notices until then.
-  const n = typeof actUnreadCount === 'function' ? actUnreadCount() : _notifCache.filter(x => !x.read).length;
-  el.textContent = n > 9 ? '9+' : String(n);
-  el.classList.toggle('show', n > 0);
+  if (typeof paintInboxBadge === 'function') paintInboxBadge();
 }
 
 function renderNotifications() {
@@ -735,10 +731,7 @@ async function markNotificationsRead() {
 
 // The bell opens the Inbox on its Activity tab (2026-09-24; it used to open a pop-up list). The
 // Activity feed is js/inbox.js; it marks things read when they are tapped, or all at once with ✓.
-function openNotifications() {
-  showPage('messages');
-  ibTab('activity');
-}
+function openNotifications() { openInbox('activity'); }
 // Called at boot and after login. Pops up only when something is genuinely unread; otherwise
 // it just refreshes the badge and stays out of the way.
 async function checkStudentNotifications(userId) {

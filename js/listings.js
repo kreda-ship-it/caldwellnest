@@ -82,12 +82,10 @@ function updateMTabbar(name) {
 
 // One source of truth for the unread-message count on both the desktop nav badge
 // and the mobile Messages tab badge.
+// Unread chats now count on the one Inbox badge, with unread activity (paintInboxBadge, js/inbox.js).
 function updateMsgBadges() {
-  const show = sUnreadCount > 0;
-  ['msgBadge'].forEach(id => {
-    const b = document.getElementById(id);
-    if (b) { b.textContent = sUnreadCount; b.style.display = show ? 'inline' : 'none'; }
-  });
+  if (typeof paintInboxBadge === 'function') paintInboxBadge();
+  if (typeof ibPaintCounts === 'function') ibPaintCounts();
 }
 
 // ── Mobile top bar hide-on-scroll (≤768px only) ─────────────
