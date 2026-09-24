@@ -916,6 +916,9 @@ function updateSNav() {
   document.getElementById('navGuest').style.display = u ? 'none' : 'flex';
   const nu = document.getElementById('navUser');
   nu.style.display = u ? 'flex' : 'none';
+  // Signed in: on desktop the nav becomes the left sidebar (styles.css, DESKTOP SIDEBAR).
+  // Signed out keeps the top bar with Log in / Sign up.
+  document.body.classList.toggle('s-signed', !!u);
   if (u) {
     const navAv = document.getElementById('navAvatar');
     navAv.style.backgroundColor = u.color; // not the `background` shorthand — see paintAvatarEl
@@ -924,6 +927,8 @@ function updateSNav() {
     const tabAv = document.getElementById('mTabAvatar');
     if (tabAv) { tabAv.style.backgroundColor = u.color; paintAvatarEl(tabAv, u.avatar_url, u.initials, u.color); }
     document.getElementById('mtab-you')?.classList.add('has-avatar');
+    const youName = document.getElementById('navYouName');
+    if (youName) youName.textContent = u.display_name || u.first || 'You';
     const backBtn = document.getElementById('backToAdminBtn');
     if (backBtn) backBtn.style.display = adminPreviewMode ? 'inline-flex' : 'none';
     // Officers get a route into the org console from their own profile. Not awaited: it is a

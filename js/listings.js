@@ -71,6 +71,10 @@ function updateMTabbar(name) {
     : name === 'profile'  ? 'mtab-you'
     : null; // search, messages, org pages: reached from the top bar, so no tab lights
   document.querySelectorAll('#mTabbar .m-tab').forEach(t => t.classList.toggle('active', t.id === tabId));
+  // The desktop sidebar marks the page you are on too. Its items name their page in data-page;
+  // Home is 'feed' for a signed-in student, and the landing page counts as Home.
+  const current = name === 'home' ? 'feed' : name;
+  document.querySelectorAll('#navUser [data-page]').forEach(b => b.classList.toggle('is-current', b.dataset.page === current));
 }
 
 

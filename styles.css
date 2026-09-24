@@ -618,7 +618,7 @@ select.ap-input{cursor:pointer;}
   /* As many ~210px columns as fit (about 6 on a laptop), like Pinterest — instead of a fixed 3.
      Applies whether or not masonry has started, so the loading placeholders use it too.
      .feed-grid is named as well because the Home feed pins itself to 2 columns further down. */
-  .listings-grid,.listings-grid.feed-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
+  .listings-grid,.listings-grid.feed-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
   .listings-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;}
   .listings-grid.is-masonry .lc-photo{aspect-ratio:auto;}
   .listings-grid.is-masonry .lc-photo-img{height:auto;max-height:520px;}
@@ -662,7 +662,7 @@ select.ap-input{cursor:pointer;}
      down this file, and an equally specific rule later in the file would win. */
   #page-search #searchBody{max-width:none;margin:0;}
   #searchBody > :not(.sq-grid){max-width:720px;}
-  #searchBody .sq-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));}
+  #searchBody .sq-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
   .sq-grid.is-masonry .sq-tile-img{border-radius:16px;}
   .sq-grid.is-masonry .sq-tile-img:has(img){aspect-ratio:auto;}
   .sq-grid.is-masonry .sq-tile-img img{height:auto;max-height:520px;}
@@ -680,10 +680,18 @@ select.ap-input{cursor:pointer;}
      same grid is used inside the small "view someone's profile" pop-up, which stays as it is. */
   #page-profile .profile-wrap{max-width:none;padding:28px 28px 40px;}
   .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:auto;margin-right:auto;}
-  #myListings .listing-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+  #myListings .listing-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
   #myListings .lg-cell{border-radius:16px;}
   /* A button is inline-block, which auto side margins cannot centre. */
   .profile-wrap > .pf-logout{display:block;}
+}
+/* Listing grids: 5 columns on a wide screen (Kal, 2026-09-23 — 6 felt too many), 4 on a laptop,
+   3 below that. Marketplace, Home, search results and your profile's Listings grid. */
+@media(min-width:1024px){
+  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+}
+@media(min-width:1280px){
+  .listings-grid,.listings-grid.feed-grid,#searchBody .sq-grid,#myListings .listing-grid{grid-template-columns:repeat(5,minmax(0,1fr));}
 }
 /* The `hidden` attribute is only a browser default (display:none), and the desktop display:grid
    above outranks it — which would show the collapsed past-events list. This keeps hidden hidden. */
@@ -1358,7 +1366,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
      No avatar — the You tab at the bottom is the way to your profile on a phone. (Desktop
      keeps its avatar until the desktop nav is redesigned: it is the only route there.) */
   .s-nav .s-logo{font-size:23px;}
-  .s-nav #navAvatar{display:none;}
+  .s-nav #navAvatar,.s-nav .nav-you{display:none;}
   .s-nav .nav-user{gap:4px;}
   .s-nav .nav-bell{width:42px;height:42px;padding:0;color:var(--text);}
   .s-nav .nav-bell svg{width:23px;height:23px;}
@@ -3275,4 +3283,78 @@ select.ao-input { cursor: pointer; }
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
     transition-duration:.01ms!important;scroll-behavior:auto!important;}
+}
+
+
+/* ============================================================
+   DESKTOP SIDEBAR — signed in, wider than a phone (2026-09-23)
+   The same .s-nav as the top bar, laid out as a column on the left. updateSNav() in js/auth.js
+   puts .s-signed on <body> when someone is signed in; signed-out visitors keep the top bar with
+   Log in / Sign up. Items are ordered with `order` so the phone top bar keeps its own order.
+   Wide screens get icons + labels; smaller laptops (769–1199px) an icon rail with tooltips.
+   Placed at the end of the file on purpose, so no earlier rule of equal weight can win.
+============================================================ */
+.nav-lbl{display:none;}
+@media(min-width:769px){
+  body.s-signed{--sb-w:244px;}
+  body.s-signed #studentApp{padding-left:var(--sb-w);}
+  body.s-signed .s-nav{position:fixed;top:0;left:0;bottom:0;width:var(--sb-w);height:auto;
+    flex-direction:column;align-items:stretch;justify-content:flex-start;gap:22px;
+    padding:28px 14px 18px;background:var(--bg);border-right:1px solid var(--border);overflow-y:auto;}
+  body.s-signed .s-nav .s-logo{display:block;padding:0 12px;color:var(--brand);font-size:26px;}
+  body.s-signed .s-nav .s-logo span{color:var(--accent-ink);}
+  body.s-signed #navUser{flex:1;flex-direction:column;align-items:stretch;gap:4px;min-height:0;}
+
+  /* Every item: icon + label, a row you can click anywhere on. */
+  body.s-signed #navUser .nav-link,body.s-signed #navUser .nav-bell,body.s-signed #navUser .nav-you{
+    position:relative;display:flex;align-items:center;justify-content:flex-start;gap:14px;width:100%;height:48px;
+    padding:0 12px;border:0;border-radius:12px;background:none;color:var(--text);
+    font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;text-align:left;}
+  body.s-signed #navUser .nav-link:hover,body.s-signed #navUser .nav-bell:hover,body.s-signed #navUser .nav-you:hover{background:var(--bg-alt);}
+  body.s-signed #navUser .nav-link svg,body.s-signed #navUser .nav-bell svg{flex:none;width:24px;height:24px;}
+  body.s-signed #navUser .nav-bell[hidden]{display:none;}
+  body.s-signed .nav-lbl{display:inline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* The page you are on (updateMTabbar): bold, with a heavier icon, the way Instagram marks it. */
+  body.s-signed #navUser .is-current{font-weight:700;}
+  body.s-signed #navUser .is-current svg{stroke-width:2.5;}
+
+  /* Order: places first, then what is waiting for you, then tools, then Post, then You. */
+  body.s-signed #navUser .nav-link{order:1;}
+  body.s-signed #navUser .nav-i-msgs{order:2;}
+  body.s-signed #navUser .nav-i-notif{order:3;}
+  body.s-signed #navUser .nav-i-search{order:4;}
+  body.s-signed #navUser .nav-i-console{order:5;}
+  body.s-signed #navUser .nav-post{order:6;}
+  body.s-signed #navUser #backToAdminBtn{order:7;}
+  body.s-signed #navUser .nav-you{order:8;margin-top:auto;}
+
+  /* Counts sit at the end of the row, as orange pills like the phone's. */
+  body.s-signed #navUser .notif-badge{position:static;margin-left:auto;min-width:22px;height:20px;padding:0 7px;
+    border-radius:var(--radius-pill);background:var(--accent-warm);color:#fff;font-size:11px;line-height:20px;}
+
+  body.s-signed #navUser .nav-post{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;margin-top:10px;
+    border-radius:var(--radius-pill);background:var(--brand);color:#fff;font-size:15px;font-weight:600;}
+  body.s-signed #navUser .nav-post:hover{background:var(--brand-mid);}
+  body.s-signed #navUser .nav-post svg{width:16px;height:16px;}
+  body.s-signed #navUser #backToAdminBtn{align-self:flex-start;margin:6px 12px 0;color:var(--text-muted);border-color:var(--border);background:none;}
+
+  body.s-signed #navUser .nav-you .nav-avatar{flex:none;width:30px;height:30px;font-size:11px;}
+  body.s-signed #navUser .nav-you .nav-lbl{font-weight:600;}
+
+  /* Pages that measured themselves against the old 58px top bar. */
+  body.s-signed .msg-layout{height:100vh;}
+}
+/* Smaller laptops: an icon rail. Labels hide (each item keeps its title= tooltip), the wordmark
+   shrinks to its N, counts sit on the icon, and Post becomes a round + button. */
+@media(min-width:769px) and (max-width:1199px){
+  body.s-signed{--sb-w:76px;}
+  body.s-signed .s-nav{padding:24px 10px 16px;align-items:center;}
+  body.s-signed .s-nav .s-logo{padding:0;font-size:0;text-align:center;}
+  body.s-signed .s-nav .s-logo::first-letter{font-size:28px;}
+  body.s-signed .nav-lbl,body.s-signed #navUser .nav-post span{display:none;}
+  body.s-signed #navUser .nav-link,body.s-signed #navUser .nav-bell,body.s-signed #navUser .nav-you{justify-content:center;padding:0;}
+  body.s-signed #navUser .notif-badge{position:absolute;top:4px;right:6px;margin:0;min-width:18px;height:18px;padding:0 5px;
+    line-height:18px;font-size:10px;box-shadow:0 0 0 2px var(--bg);}
+  body.s-signed #navUser .nav-post{width:46px;padding:0;align-self:center;}
+  body.s-signed #navUser #backToAdminBtn{margin:6px 0 0;padding:4px 6px;font-size:10px;}
 }
