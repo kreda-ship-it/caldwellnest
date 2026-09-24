@@ -183,7 +183,7 @@ function evPaint() {
     <div class="ev-layout">
       <div class="ev-main">
         <div class="ev-stories" id="evStories">${evStoriesHTML()}</div>
-        <div class="ev-strip" id="evStrip">${evStripHTML()}</div>
+        ${evStripHasDays() ? `<div class="ev-strip" id="evStrip">${evStripHTML()}</div>` : ''}
         ${evActiveHTML(rows.length)}
         ${_evFeedOrg ? evClubHeadHTML() : ''}
         <div id="evAskSlot" class="ev-ask-main"></div>
@@ -223,7 +223,20 @@ function evPaint() {
   // chip below an endless list is a chip nobody can reach until the list has ended.
   const tail = () => {
     let html = '';
-    if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
+    // Nothing coming up at all: say so kindly, point at the clubs, and show what already happened
+    // openly — an empty feed with the only content behind a button is a page that looks broken.
+    if (!_evFeed.length) {
+      html += `
+        <div class="ev-quiet">
+          <span class="ev-quiet-icon">${icon('calendar', 22)}</span>
+          <div class="ev-quiet-text"><b>Nothing on the calendar yet</b>
+            <p>Clubs post their events here first. Follow a few and theirs show up in your stories the moment they're up.</p></div>
+          <button class="ev-club-follow" onclick="orgDirGo()">Find clubs</button>
+        </div>`;
+      if (past.length) html += `<h2 class="ev-section-h">Recently on campus</h2>
+        <div class="ev-past-grid">${past.map(evPastTileHTML).join('')}</div>`;
+      return html;
+    }
     else if (!rows.length && _evFeedOrg && !_evFeedType && !_evFeedDay && !_evFeedFollowing) html += `<div class="ev-note">Nothing coming up from
       ${esc(evStoryOrg(_evFeedOrg).name)} right now${past.length ? ' — their past events are below' : ''}.
       <button class="ev-note-btn" onclick="evStory(null)">See every club</button></div>`;
@@ -236,8 +249,8 @@ function evPaint() {
         <button class="ev-past-chip" onclick="evTogglePast(this)">
           ${_evShowPast ? 'Hide' : 'Show'} past events · ${past.length}
         </button>
-        <div class="ev-past ev-grid" ${_evShowPast ? '' : 'hidden'}>
-          ${past.map(e => evCardHTML(e, true)).join('')}
+        <div class="ev-past ev-past-grid" ${_evShowPast ? '' : 'hidden'}>
+          ${past.map(evPastTileHTML).join('')}
         </div>`;
     }
     return html;
@@ -298,6 +311,13 @@ let _evFeedFollowing = false;   // the sheet's "only clubs I follow"
 function evDayKeyToIso(key) {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m, d, 12).toISOString();
+}
+
+// A strip of fourteen greyed-out days is a control that does nothing, so there is no strip when
+// nothing falls inside the next two weeks.
+function evStripHasDays() {
+  const end = Date.now() + 14 * 864e5;
+  return _evFeed.some(e => new Date(e.starts_at).getTime() <= end);
 }
 
 function evStripHTML() {
@@ -416,6 +436,8 @@ function evFilterRefresh() {
 }
 // The number of sheet filters on, shown on the header's filter button.
 function evPaintFilterBadge() {
+  const btn = document.getElementById('evFilterBtn');
+  if (btn) btn.hidden = !_evFeed.length;          // nothing coming up: nothing to filter
   const n = (_evFeedType ? 1 : 0) + (_evFeedFollowing ? 1 : 0);
   const b = document.getElementById('evFilterCount');
   if (b) { b.textContent = n; b.hidden = !n; }
@@ -483,7 +505,15 @@ function evSuggestHTML() {
   // A club just followed from here stays in the list, now reading Following, until the next visit.
   const keep = id => !follows.has(id) || _evSugFollowed.has(id);
   _evFeed.forEach(e => { if (keep(e.org_id)) counts.set(e.org_id, (counts.get(e.org_id) || 0) + 1); });
-  const picks = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  let picks = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  // No club with something coming up that you do not follow: fall back to the campus's most
+  // followed clubs, so the card is still a way in (their count line says followers instead).
+  let byFollowers = false;
+  if (!picks.length && Array.isArray(_dirOrgs)) {
+    picks = _dirOrgs.filter(o => keep(o.id)).sort((a, b) => (b.follower_count || 0) - (a.follower_count || 0))
+      .slice(0, 3).map(o => [o.id, o.follower_count || 0]);
+    byFollowers = true;
+  }
   if (!picks.length) return '';
   return `
     <div class="ev-side-card">
@@ -496,7 +526,7 @@ function evSuggestHTML() {
             <button class="ev-sug-club" onclick="evStory(${Number(id)})">
               <span class="ev-ch-av">${o.logo_url ? `<img src="${escAttr(o.logo_url)}" alt="">`
                 : `<span class="ev-story-letter" data-tint="${((Number(id) || 0) % 6) + 1}">${esc((o.name || '?').charAt(0).toUpperCase())}</span>`}</span>
-              <span class="ev-plan-text"><b>${esc(o.name)}</b><span>${n} upcoming event${n === 1 ? '' : 's'}</span></span>
+              <span class="ev-plan-text"><b>${esc(o.name)}</b><span>${byFollowers ? `${n} follower${n === 1 ? '' : 's'}` : `${n} upcoming event${n === 1 ? '' : 's'}`}</span></span>
             </button>
             <button class="ev-sug-follow${just ? ' is-on' : ''}" onclick="_evSugFollowed.add(${Number(id)});evStoryFollow(${Number(id)})">${just ? 'Following' : 'Follow'}</button>
           </div>`;
@@ -507,6 +537,22 @@ let _evSugFollowed = new Set();   // followed from the suggestions during this v
 function evPaintSuggest() {
   const el = document.getElementById('evSuggest');
   if (el) el.innerHTML = evSuggestHTML();
+}
+
+// A past event as a small tile: its poster and when it was. Past events are for looking back
+// (and at recap photos), so they do not need the full post a coming event gets.
+function evPastTileHTML(e) {
+  const org = _evOrgs.get(e.org_id);
+  const days = Math.max(0, Math.round((Date.now() - new Date(e.starts_at).getTime()) / 864e5));
+  const when = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago`
+    : new Date(e.starts_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `
+    <button class="ev-past-tile ev-tone-${escAttr(e.event_type || 'other')}" onclick="evOpen(${e.id})">
+      <span class="ev-past-img">${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">`
+        : `<span class="ev-past-made">${esc(e.title)}</span>`}</span>
+      <span class="ev-past-t">${esc(e.title)}</span>
+      <span class="ev-past-d">${esc(when)}${org?.name ? ' · ' + esc(org.name) : ''}</span>
+    </button>`;
 }
 
 // ---------- Your plans (the discovery column) ----------

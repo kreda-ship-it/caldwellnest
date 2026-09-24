@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24z">
+<link rel="stylesheet" href="styles.css?v=2026-09-25d">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -325,7 +325,7 @@
           <p class="page-lead">What's on around campus, soonest first.</p>
         </div>
         <div class="ev-head-actions">
-          <button class="ev-search-btn" onclick="evFilterOpen()" aria-label="Filter events" title="Filter">
+          <button class="ev-search-btn" id="evFilterBtn" onclick="evFilterOpen()" aria-label="Filter events" title="Filter">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
             <span class="ev-filter-count" id="evFilterCount" hidden></span>
           </button>
@@ -437,86 +437,93 @@
            session is restored and renderProfile() bails until it has a user, so sample text
            here would stay on screen reading as "you are logged in as someone else".
            renderProfile() writes six of these ids with no null check — keep every one. -->
-      <div class="pf-head">
-        <div class="pf-avatar-wrap">
-          <div class="profile-avatar-lg" id="profileAvatar"></div>
-          <!-- Edit lives ON the avatar, as chosen in the mockup review. It LOOKS 25px but takes
-               taps across 44px (see .pf-edit-badge::before) — a small mark, not a small target. -->
-          <button class="pf-edit-badge" onclick="openEditProfile()" aria-label="Edit profile" title="Edit profile">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-          </button>
-        </div>
-        <div class="pf-id">
-          <div class="pf-name" id="profileName"></div>
-          <div class="pf-handle-row">
-            <span class="pf-handle" id="profileUsername"></span>
-            <span class="edu-badge pf-edu"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>.edu verified</span>
+      <!-- Three groups (2026-09-24): the profile card, the tabs with their content, and the footer.
+           On a phone they stack in this order, exactly as before; on a wide screen the card and footer
+           become a column on the left and the tabs fill the right (styles.css, PROFILE LAYOUT). -->
+      <aside class="pf-side">
+        <div class="pf-head">
+          <div class="pf-avatar-wrap">
+            <div class="profile-avatar-lg" id="profileAvatar"></div>
+            <!-- Edit lives ON the avatar, as chosen in the mockup review. It LOOKS 25px but takes
+                 taps across 44px (see .pf-edit-badge::before) — a small mark, not a small target. -->
+            <button class="pf-edit-badge" onclick="openEditProfile()" aria-label="Edit profile" title="Edit profile">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            </button>
           </div>
-          <div class="pf-meta" id="profileInfo"></div>
-          <div class="pf-email" id="profileEmail"></div>
+          <div class="pf-id">
+            <div class="pf-name" id="profileName"></div>
+            <div class="pf-handle-row">
+              <span class="pf-handle" id="profileUsername"></span>
+              <span class="edu-badge pf-edu"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>.edu verified</span>
+            </div>
+            <div class="pf-meta" id="profileInfo"></div>
+            <div class="pf-email" id="profileEmail"></div>
+          </div>
         </div>
+        <div class="pf-bio" id="profileBio" style="display:none"></div>
+
+        <!-- COUNTS. Three columns with light rules between them and no box, as chosen. Each opens
+             its tab: profileTab() lights anything carrying data-pftab, so these and the tab bar
+             stay in step with no second piece of code. Each number is reported by the pane that
+             draws it (pfCount), so a count can never disagree with the list beneath it. -->
+        <div class="pf-counts">
+          <button class="pf-count is-on" data-pftab="listings" onclick="profileTab('listings')"><span class="pf-count-n" id="pfCount-listings">&ndash;</span><span class="pf-count-l">Listings</span></button>
+          <button class="pf-count" data-pftab="saved" onclick="profileTab('saved')"><span class="pf-count-n" id="pfCount-saved">&ndash;</span><span class="pf-count-l">Saved</span></button>
+          <button class="pf-count" data-pftab="going" onclick="profileTab('going')"><span class="pf-count-n" id="pfCount-going">&ndash;</span><span class="pf-count-l">Going</span></button>
+        </div>
+
+        <!-- CLUBS, ABOVE the tabs, as chosen: a doorway out to the campus, not one of your own
+             collections, so it does not belong beneath them. The officer-console button travels
+             with it — both are about organizations. -->
+        <button class="profile-row" onclick="orgDirGo()">
+            <span class="profile-row-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
+            <span class="profile-row-body">
+              <span class="profile-row-title">Clubs &amp; organizations</span>
+              <span class="profile-row-sub">Browse what&#8217;s on campus and follow the ones you care about</span>
+            </span>
+            <span class="profile-row-chev" aria-hidden="true">&#8250;</span>
+          </button>
+        <div id="orgConsoleEntry"></div>
+      </aside>
+      <div class="pf-main">
+        <div class="pf-tabs" role="tablist">
+            <button class="pf-tab is-on" data-pftab="listings" role="tab" onclick="profileTab('listings')">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              <span>Listings</span>
+            </button>
+            <!-- The SAME mark the save control uses. It was a star here while the control was a
+                 heart and then a bookmark, so one feature wore three symbols — the tab a student
+                 taps and the button they tapped to fill it have to be the same thing. -->
+            <button class="pf-tab" data-pftab="saved" role="tab" onclick="profileTab('saved')">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span>Saved</span>
+            </button>
+            <button class="pf-tab" data-pftab="going" role="tab" onclick="profileTab('going')">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Going</span>
+            </button>
+          </div>
+        <div class="pf-pane" id="pfPane-listings"><div id="myListings"></div></div>
+        <div class="pf-pane" id="pfPane-saved" hidden><div id="mySaved"></div></div>
+        <div class="pf-pane" id="pfPane-going" hidden><div id="myGoing"></div></div>
       </div>
-      <div class="pf-bio" id="profileBio" style="display:none"></div>
-
-      <!-- COUNTS. Three columns with light rules between them and no box, as chosen. Each opens
-           its tab: profileTab() lights anything carrying data-pftab, so these and the tab bar
-           stay in step with no second piece of code. Each number is reported by the pane that
-           draws it (pfCount), so a count can never disagree with the list beneath it. -->
-      <div class="pf-counts">
-        <button class="pf-count is-on" data-pftab="listings" onclick="profileTab('listings')"><span class="pf-count-n" id="pfCount-listings">&ndash;</span><span class="pf-count-l">Listings</span></button>
-        <button class="pf-count" data-pftab="saved" onclick="profileTab('saved')"><span class="pf-count-n" id="pfCount-saved">&ndash;</span><span class="pf-count-l">Saved</span></button>
-        <button class="pf-count" data-pftab="going" onclick="profileTab('going')"><span class="pf-count-n" id="pfCount-going">&ndash;</span><span class="pf-count-l">Going</span></button>
+      <div class="pf-foot">
+        <div class="section-divider"></div>
+        <button class="btn-full pf-logout" onclick="sLogout()">Log out</button>
+        <!-- The only route to the legal pages once a student is signed in: the site footer
+               lives inside #page-home, which a logged-in student never sees again. Same
+               target="_blank" as the signup consent row — leaving the SPA would drop them
+               back at the entry router. -->
+          <div class="profile-legal">
+            <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+            <span aria-hidden="true">&#183;</span>
+            <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+          </div>
+        <!-- The ONLY #profileConsent now. There used to be a second one up under the Edit button,
+             and getElementById returned that one — so "You accepted these on…" printed a screen
+             away from the two links "these" refers to, and this one was always empty. -->
+        <div class="profile-consent" id="profileConsent"></div>
       </div>
-
-      <!-- CLUBS, ABOVE the tabs, as chosen: a doorway out to the campus, not one of your own
-           collections, so it does not belong beneath them. The officer-console button travels
-           with it — both are about organizations. -->
-      <button class="profile-row" onclick="orgDirGo()">
-          <span class="profile-row-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></span>
-          <span class="profile-row-body">
-            <span class="profile-row-title">Clubs &amp; organizations</span>
-            <span class="profile-row-sub">Browse what&#8217;s on campus and follow the ones you care about</span>
-          </span>
-          <span class="profile-row-chev" aria-hidden="true">&#8250;</span>
-        </button>
-      <div id="orgConsoleEntry"></div>
-
-      <div class="pf-tabs" role="tablist">
-          <button class="pf-tab is-on" data-pftab="listings" role="tab" onclick="profileTab('listings')">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            <span>Listings</span>
-          </button>
-          <!-- The SAME mark the save control uses. It was a star here while the control was a
-               heart and then a bookmark, so one feature wore three symbols — the tab a student
-               taps and the button they tapped to fill it have to be the same thing. -->
-          <button class="pf-tab" data-pftab="saved" role="tab" onclick="profileTab('saved')">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            <span>Saved</span>
-          </button>
-          <button class="pf-tab" data-pftab="going" role="tab" onclick="profileTab('going')">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>Going</span>
-          </button>
-        </div>
-      <div class="pf-pane" id="pfPane-listings"><div id="myListings"></div></div>
-      <div class="pf-pane" id="pfPane-saved" hidden><div id="mySaved"></div></div>
-      <div class="pf-pane" id="pfPane-going" hidden><div id="myGoing"></div></div>
-
-      <div class="section-divider"></div>
-      <button class="btn-full pf-logout" onclick="sLogout()">Log out</button>
-      <!-- The only route to the legal pages once a student is signed in: the site footer
-             lives inside #page-home, which a logged-in student never sees again. Same
-             target="_blank" as the signup consent row — leaving the SPA would drop them
-             back at the entry router. -->
-        <div class="profile-legal">
-          <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
-          <span aria-hidden="true">&#183;</span>
-          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
-        </div>
-      <!-- The ONLY #profileConsent now. There used to be a second one up under the Edit button,
-           and getElementById returned that one — so "You accepted these on…" printed a screen
-           away from the two links "these" refers to, and this one was always empty. -->
-      <div class="profile-consent" id="profileConsent"></div>
     </div>
   </div>
   <!-- MOBILE BOTTOM TAB BAR — hidden on desktop (see "MOBILE APP CHROME" in styles.css) -->
@@ -1949,8 +1956,8 @@
 <script src="js/messages.js?v=2026-09-11a"></script>
 <script src="js/admin.js?v=2026-09-24a"></script>
 <script src="js/orgs.js?v=2026-09-24c"></script>
-<script src="js/events.js?v=2026-09-24i"></script>
-<script src="js/search.js?v=2026-09-24a"></script>
+<script src="js/events.js?v=2026-09-25a"></script>
+<script src="js/search.js?v=2026-09-25a"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>
 <script src="js/feed.js?v=2026-09-24e"></script>
   <script src="js/boot.js?v=2026-09-24a"></script>

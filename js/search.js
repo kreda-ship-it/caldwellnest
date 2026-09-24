@@ -200,7 +200,9 @@ function sqShellHTML() {
 function sqEntryHTML() {
   const recent = sqRecent();
   const popular = sqPopular();
-  return `
+  // Two groups: what you searched and what is popular, and beside it (below, on a phone) a way in
+  // for someone who does not know what to type yet — the categories, each with how many are live.
+  return `<div class="sq-entry"><div class="sq-entry-main">
     ${recent.length ? `
       <div class="sq-sec">
         <div class="sq-sec-head"><h2 class="sq-h">Recent</h2><button class="hn-link" onclick="sqForgetAll()">Clear all</button></div>
@@ -218,7 +220,33 @@ function sqEntryHTML() {
           `<button class="sq-pop" onclick="sqRun(${sqJs(t)})">${esc(t)}</button>`).join('')}</div>
       </div>` : ''}
 
-    ${!recent.length && !popular.length ? `<div class="sq-empty"><p>Search listings, books and events at your school.</p></div>` : ''}`;
+    ${!recent.length && !popular.length ? `<div class="sq-empty"><p>Search listings, books and events at your school.</p></div>` : ''}
+    </div>
+    <aside class="sq-entry-side">${sqBrowseHTML()}</aside></div>`;
+}
+
+// Browse by category: a tile per category with its live count. A tap shows that category's
+// results right here (no words needed) — the × on its chip, or Cancel, goes back.
+const SQ_BROWSE = [['housing', 'Housing'], ['books', 'Books'], ['technology', 'Technology'],
+                   ['clothing', 'Clothing'], ['donation', 'Free items'], ['other', 'Other']];
+function sqBrowseHTML() {
+  const live = browseItems().filter(isListingLive);
+  return `
+    <h2 class="sq-h">Browse by category</h2>
+    <div class="sq-browse">${SQ_BROWSE.map(([cat, label]) => {
+      const n = live.filter(l => l.category === cat).length;
+      return `<button class="sq-cat" data-cat="${cat}" onclick="sqBrowseCat('${cat}')">
+        <span class="sq-cat-icon">${catIcon(cat, 20)}</span>
+        <span class="sq-cat-text"><b>${label}</b><span>${n ? `${n} listed` : 'Nothing yet'}</span></span>
+      </button>`;
+    }).join('')}</div>`;
+}
+function sqBrowseCat(cat) {
+  setListingCat(cat);
+  _sqQuery = ''; _sqSubmitted = true; _sqTab = 'all';
+  const el = document.getElementById('sqInput'); if (el) el.value = '';
+  sqPaintX();
+  sqPaintResults();
 }
 
 // "Popular on campus", worked out from what is ACTUALLY listed right now — this app keeps no
@@ -280,8 +308,9 @@ function sqPaintResults() {
   const body = document.getElementById('sqBody');
   if (!body) return;
   const q = _sqQuery.trim().toLowerCase();
-  if (!q) { body.innerHTML = sqEntryHTML(); return; }
-  if (!_sqSubmitted) { body.innerHTML = sqSuggestHTML(q); return; }
+  // Words, or a category picked from Browse, are each enough to show results.
+  if (!q && _filters.category === 'all') { body.innerHTML = sqEntryHTML(); return; }
+  if (q && !_sqSubmitted) { body.innerHTML = sqSuggestHTML(q); return; }
 
   // Marketplace rows come from browseItems(), which is listings + books already shaped the
   // same way, filtered by the one visibility rule the feed uses. Search must never show
@@ -303,11 +332,12 @@ function sqPaintResults() {
     `<button role="tab" aria-selected="${_sqTab === v}" class="sq-tab${_sqTab === v ? ' is-on' : ''}" onclick="sqSetTab('${v}')">${l}<span>${n}</span></button>`).join('')}</div>`;
   const catNote = _filters.category !== 'all'
     ? `<button class="sq-pop sq-pop-on" onclick="setListingCat('all');sqPaintResults()">${esc(CATEGORY_LABELS[_filters.category] || _filters.category)} ×</button>` : '';
+  const what = _sqQuery.trim() ? `“${esc(_sqQuery.trim())}”` : esc(CATEGORY_LABELS[_filters.category] || 'that');
 
   if (!total) {
     body.innerHTML = `${tabRow}
       <div class="sq-empty">
-        <div class="sq-empty-t">Nothing for “${esc(_sqQuery)}”</div>
+        <div class="sq-empty-t">Nothing for ${what}</div>
         <p>Try a shorter word, or browse instead — there are ${browseItems().filter(isListingLive).length}
            items and ${_sqEvents.length} event${_sqEvents.length === 1 ? '' : 's'} to look through.</p>
         ${catNote}
@@ -328,7 +358,7 @@ function sqPaintResults() {
     ${show('books') ? sqSection('Books', books, l => grid ? sqTileHTML(l, `openBookDetail(${l.id})`) : sqRowHTML(l, `openBookDetail(${l.id})`), grid) : ''}
     ${show('events') ? sqSection('Events', events, e => sqEventRowHTML(e)) : ''}
     ${_sqTab !== 'all' && !({ listings: goods, books, events }[_sqTab] || []).length
-      ? `<div class="sq-empty"><p>No ${_sqTab} for “${esc(_sqQuery)}”.</p></div>` : ''}`;
+      ? `<div class="sq-empty"><p>No ${_sqTab} for ${what}.</p></div>` : ''}`;
 }
 
 // Filters and the layout switch belong WITH the results, not above the entry state. On the

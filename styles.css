@@ -727,7 +727,6 @@ select.ap-input{cursor:pointer;}
   /* #page-search / #page-events / #page-profile prefixes: the base rules for these live further
      down this file, and an equally specific rule later in the file would win. */
   #page-search #searchBody{max-width:none;margin:0;}
-  #searchBody > :not(.sq-grid){max-width:720px;}
   #searchBody .sq-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .sq-grid.is-masonry .sq-tile-img{border-radius:16px;}
   .sq-grid.is-masonry .sq-tile-img:has(img){aspect-ratio:auto;}
@@ -736,10 +735,12 @@ select.ap-input{cursor:pointer;}
   /* PROFILE. The header, counts, tabs and the Saved / Going lists keep the 640px column; only
      your Listings grid goes wide, with as many square tiles as fit. Scoped to #myListings: the
      same grid is used inside the small "view someone's profile" pop-up, which stays as it is. */
-  .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:0;margin-right:0;}
+  /* The profile card and footer keep a readable column; the tabs and their content fill the page.
+     Wide enough, the card becomes a column on the left (PROFILE LAYOUT, end of file). */
+  .pf-side,.pf-foot{max-width:640px;}
   #myListings .listing-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
   #myListings .lg-cell{border-radius:16px;}
-  .profile-wrap > .pf-logout{display:block;}
+  .pf-foot .pf-logout{display:block;}
 }
 /* Listing grids: 4 columns on a wide screen, 3 on a laptop, 2 below that — one fewer at every
    size than before, so each listing is bigger (Kal, 2026-09-23: 6, then 5, felt too many).
@@ -3229,6 +3230,7 @@ select.ao-input { cursor: pointer; }
 .ev-head-text { min-width: 0; }
 .ev-head-actions { display: flex; gap: 8px; margin-left: auto; }
 .ev-head-actions .ev-search-btn { position: relative; margin-left: 0; }
+.ev-head-actions .ev-search-btn[hidden] { display: none; }
 .ev-filter-count { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px;
                    border: 2px solid var(--bg); border-radius: 999px; background: var(--accent-warm); color: #fff;
                    font-size: 10.5px; font-weight: 700; line-height: 14px; text-align: center; }
@@ -3259,6 +3261,29 @@ select.ao-input { cursor: pointer; }
 .ev-sd.is-on .ev-sd-dots i { background: #fff; }
 
 .ev-active { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 10px; }
+
+/* Nothing coming up: a quiet card that points at the clubs, then what already happened. */
+.ev-quiet { display: flex; align-items: center; gap: 14px; margin: 6px 0 22px; padding: 16px; border: 1px dashed var(--border);
+            border-radius: 18px; background: var(--surface); }
+.ev-quiet-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 46px; height: 46px;
+                 border-radius: 14px; background: var(--brand-pale); color: var(--brand); }
+.ev-quiet-text { flex: 1; min-width: 0; }
+.ev-quiet-text b { display: block; font-size: 15.5px; color: var(--text); }
+.ev-quiet-text p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.ev-section-h { margin: 0 0 12px; font: 400 21px 'DM Serif Display', Georgia, serif; color: var(--text); }
+/* Past events as small tiles — for looking back, not the full post a coming event gets. */
+.ev-past-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px 12px; margin-top: 12px; }
+.ev-past-grid[hidden] { display: none; }
+.ev-past-tile { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0; border: 0; background: none;
+                cursor: pointer; font-family: inherit; text-align: left; }
+.ev-past-img { display: block; aspect-ratio: 4 / 5; overflow: hidden; margin-bottom: 5px; border-radius: 14px;
+               background: linear-gradient(150deg, var(--ev-g1, #eeebe4), var(--ev-g2, #d6cfc2)); }
+.ev-past-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.ev-past-tile:hover .ev-past-img img { transform: scale(1.04); }
+.ev-past-made { display: flex; align-items: flex-end; height: 100%; padding: 12px; box-sizing: border-box;
+                font: 400 17px/1.15 'DM Serif Display', Georgia, serif; color: var(--text); }
+.ev-past-t { overflow: hidden; font-size: 13.5px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.ev-past-d { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
 .ev-active-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px 0 12px; border: 0;
                   border-radius: 999px; background: var(--brand); color: #fff; cursor: pointer; font: 600 12.5px 'DM Sans', sans-serif; }
 .ev-active-n { margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
@@ -3383,6 +3408,7 @@ select.ao-input { cursor: pointer; }
   .ev-side::-webkit-scrollbar { display: none; }
   .ev-side-col { display: flex; flex-direction: column; gap: 14px; }
   .ev-side-col:empty { display: none; }
+  .ev-side-col > :empty { display: none; }   /* an empty slot must not add a gap */
   .ev-ask-main { display: none; }          /* the nudge lives in the discovery column here */
   .ev-side .ev-nudge-rate, .ev-side .ev-nudge-more { margin-left: 0; }
   .ev-side .ev-nudge-helps { display: none; }   /* narrower here: the short promise only */
@@ -3494,7 +3520,7 @@ select.ao-input { cursor: pointer; }
    A column, like the events feed. Results are scanned top to bottom, and a full-width row of
    text on a wide screen makes the eye travel further than the content is worth.
    ============================================================ */
-#searchBody { max-width: var(--col-read); margin-inline: auto; }
+#searchBody { max-width: none; margin-inline: 0; }   /* widths are decided inside (SEARCH WIDTHS, end of file) */
 
 /* ---- Search, TikTok-style (2026-09-24): ← , a pill search box, Cancel; then Recent as a list,
    Popular on campus as chips; suggestions while typing; tabs once a search is run. ---- */
@@ -4226,4 +4252,53 @@ select.ao-input { cursor: pointer; }
    greeting, and You has no title line, so its header sat higher than the titles beside it. */
 #page-feed .home-hero { padding-top: 6px; }
 #page-profile .pf-head { margin-top: 8px; }
+
+/* ============================================================
+   PROFILE LAYOUT (2026-09-24). On a phone: the card, the tabs, the footer — one column, as
+   before. With room (the page itself at least 1000px wide — a container query, so the sidebar's
+   width is accounted for): the card and footer become a column on the left and the tabs fill
+   the right, the way desktop profiles on Depop, LinkedIn and X are built. Before this the card
+   sat in a 640px column with the rest of a wide screen empty beside it.
+   ============================================================ */
+#page-profile { container: pfpage / inline-size; }
+.pf-side, .pf-main, .pf-foot { min-width: 0; }
+@container pfpage (min-width: 1000px) {
+  #page-profile .profile-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-areas: "side main" "foot main"; grid-template-rows: auto 1fr; column-gap: 40px; align-items: start; }
+  .pf-side { grid-area: side; max-width: none; }
+  .pf-main { grid-area: main; }
+  .pf-foot { grid-area: foot; max-width: none; }
+  /* In the narrow column the card stacks: the avatar above the name. */
+  .pf-side .pf-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .pf-side .profile-row { margin-top: 14px; }
+  .pf-main .pf-tabs { margin-top: 8px; }
+}
+
+/* ============================================================
+   SEARCH WIDTHS (2026-09-24). One old rule capped EVERYTHING on this page at 720px — the photo grid
+   included — and left the rest of a desktop empty. Now each part gets the width that suits it:
+     the search bar and list rows: a comfortable reading width (a result row stretched across the
+       screen puts its price a mile from its title);
+     the tabs and the photo grid: the whole page, like the Marketplace;
+     before typing: Recent / Popular beside Browse by category (below it, on a phone).
+   ============================================================ */
+#searchBody { container: sqpage / inline-size; }
+#searchBody .sq-head { max-width: 760px; }
+#sqBody .sq-row, #sqBody .sq-empty, #sqBody .sq-lab-res + .sq-row { max-width: 760px; }
+.sq-entry { display: flex; flex-direction: column; gap: 26px; }
+.sq-entry-main { min-width: 0; max-width: 620px; }
+.sq-entry-main:empty { display: none; }
+@container sqpage (min-width: 900px) {
+  .sq-entry { display: grid; grid-template-columns: minmax(0, 620px) minmax(300px, 460px); gap: 48px; align-items: start; }
+}
+.sq-browse { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sq-cat { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 16px;
+          background: var(--surface); cursor: pointer; font-family: inherit; text-align: left;
+          transition: border-color .15s ease, transform .15s ease; }
+.sq-cat:hover { border-color: var(--brand-light); transform: translateY(-1px); }
+.sq-cat-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 12px;
+               background: var(--cat-tint, var(--bg-alt)); color: var(--cat-deep, var(--text-muted)); }
+.sq-cat-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sq-cat-text b { font-size: 14.5px; color: var(--text); }
+.sq-cat-text span { font-size: 12px; color: var(--text-muted); }
 
