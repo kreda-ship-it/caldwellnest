@@ -906,6 +906,54 @@ function priceLabel(l) {
   return `${prefix}$${l.rent}${per}`;
 }
 
+// ---- Desktop masonry (2026-09-23) ----
+// Wider than a phone, each card takes its photo's real shape and the cards pack into the columns
+// like Pinterest. CSS can't size a grid row to its content AND pack the columns, so this tells the
+// grid how tall each card is: every .listings-grid gets .is-masonry, its rows become 4px tall,
+// and each card spans as many of them as its height needs (masonryFit).
+//
+// A ResizeObserver re-measures a card whenever its size changes — which covers its photo loading,
+// fonts arriving and the window being resized — and a MutationObserver picks up new cards when a
+// feed is re-rendered, so no render function has to remember to call anything.
+// Phones keep the even 4:5 grid; below the breakpoint the spans are cleared and the class removed.
+// If this never runs, .is-masonry is never added and the page is the ordinary even grid.
+const MASONRY_ROW = 4;    // must match grid-auto-rows in styles.css
+const MASONRY_GAP = 12;   // must match column-gap in styles.css (rows get the same space)
+const _masonryWide = window.matchMedia('(min-width: 681px)');
+let _masonryRO = null;
+
+function masonryFit(card) {
+  const grid = card.parentElement;
+  if (!grid || !grid.classList.contains('listings-grid')) return;
+  grid.classList.toggle('is-masonry', _masonryWide.matches);
+  if (!_masonryWide.matches) { card.style.gridRowEnd = ''; return; }
+  const h = card.getBoundingClientRect().height;
+  card.style.gridRowEnd = 'span ' + Math.max(1, Math.ceil((h + MASONRY_GAP) / MASONRY_ROW));
+}
+
+function masonryScan() {
+  document.querySelectorAll('.listings-grid > .listing-card:not([data-mz])').forEach(card => {
+    card.dataset.mz = '1';
+    _masonryRO.observe(card);   // observe() also fires once straight away, which does the first fit
+  });
+}
+
+// Called once from boot.js.
+function masonryInit() {
+  if (!('ResizeObserver' in window)) return;   // very old browser: keep the even grid
+  _masonryRO = new ResizeObserver(entries => entries.forEach(e => masonryFit(e.target)));
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; masonryScan(); });
+  }).observe(document.body, { childList: true, subtree: true });
+  // Crossing the breakpoint changes the rules, not necessarily any card's size, so refit all.
+  _masonryWide.addEventListener('change', () =>
+    document.querySelectorAll('.listings-grid > .listing-card').forEach(masonryFit));
+  masonryScan();
+}
+
 function listingCardHTML(l, isPinned) {
   const catLabel  = catShort(l.category);
   const photoCount = l.photo_urls?.length || 0;

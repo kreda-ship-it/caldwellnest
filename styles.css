@@ -597,7 +597,55 @@ select.ap-input{cursor:pointer;}
    scannable 2-up, and dropping to a single column would turn it back into a list. */
 .listings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;}
 @media(max-width:1100px){.listings-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media(max-width:680px){.listings-grid{gap:12px;}}
+/* Phones (Marketplace and the Home feed, which share this grid and card), 2026-09-23: cards sit
+   close together, Pinterest-style, and the photo is 4:5 — taller than wide — so more of a phone
+   photo shows and the photo fills more of the card. The two-column grid stays. The rules for
+   .lc-photo / .lc-noimg / .lc-body below are the defaults; these win on narrow screens because
+   they are more specific (the media query adds no weight, the .listings-grid prefix does). */
+@media(max-width:680px){
+  .listings-grid{gap:6px;}
+  .listings-grid .lc-photo,.listings-grid .lc-noimg{aspect-ratio:4/5;}
+  .listings-grid .lc-body{padding:7px 9px 9px;gap:4px;}
+}
+/* Wider than a phone: Pinterest masonry, 2026-09-23. Each card takes its photo's real shape (a
+   tall photo makes a tall card), and cards pack into the columns with no row lines between.
+   The grid stays a grid — reading order is still left to right — and each card is told how many
+   4px rows to span by masonryFit() in js/listings.js, which re-measures when a photo loads or
+   the window resizes. That script adds .is-masonry; without it (script failed, not run yet)
+   these rules do not apply and the page is simply the even grid above.
+   ROW and GAP in masonryFit() must match grid-auto-rows and column-gap here. */
+@media(min-width:681px){
+  /* As many ~210px columns as fit (about 6 on a laptop), like Pinterest — instead of a fixed 3.
+     Applies whether or not masonry has started, so the loading placeholders use it too.
+     .feed-grid is named as well because the Home feed pins itself to 2 columns further down. */
+  .listings-grid,.listings-grid.feed-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
+  .listings-grid.is-masonry{column-gap:12px;row-gap:0;grid-auto-rows:4px;}
+  .listings-grid.is-masonry .lc-photo{aspect-ratio:auto;}
+  .listings-grid.is-masonry .lc-photo-img{height:auto;max-height:520px;}
+
+  /* Pinterest cards: no box around the pin. The photo is the card — rounded on its own — and a
+     short caption sits under it, so the picture is most of what you see. */
+  .listings-grid.is-masonry .listing-card{background:none;border:0;border-radius:0;box-shadow:none;overflow:visible;}
+  .listings-grid.is-masonry .listing-card:hover{transform:none;box-shadow:none;}
+  .listings-grid.is-masonry .lc-photo,.listings-grid.is-masonry .lc-noimg{border-radius:16px;overflow:hidden;}
+  .listings-grid.is-masonry .lc-photo-img{transition:filter var(--dur) var(--ease);}
+  .listings-grid.is-masonry .listing-card:hover .lc-photo-img{filter:brightness(.9);}
+  .listings-grid.is-masonry .listing-card:hover .lc-noimg{filter:brightness(.96);}
+  /* Featured keeps its purple ring, drawn on the photo now that the card has no border. */
+  .listings-grid.is-masonry .listing-card.pinned-card{border:0;box-shadow:none;}
+  .listings-grid.is-masonry .pinned-card .lc-photo,.listings-grid.is-masonry .pinned-card .lc-noimg{box-shadow:0 0 0 2px rgba(107,33,168,.35);}
+  .listings-grid.is-masonry .lc-body{padding:7px 4px 0;gap:2px;}
+  /* The category chip is the row of category buttons above the grid, said again; on a caption
+     this small it is the first thing to go. Phones keep it. */
+  .listings-grid.is-masonry .lc-badge{display:none;}
+  .listings-grid.is-masonry .lc-title{-webkit-line-clamp:1;line-clamp:1;font-size:13.5px;font-weight:500;}
+  .listings-grid.is-masonry .lc-loc{font-size:12px;}
+  .listings-grid.is-masonry .lc-price{margin-top:2px;font-size:15px;}
+
+  /* The Marketplace fills the window, as Pinterest does, instead of sitting in the 980px
+     reading column. Home keeps its column: it is a page of mixed sections, not a grid. */
+  #page-listings > .page-wrap{max-width:none;padding:28px 28px 40px;}
+}
 /* PINNED SECTION */
 /* LISTING CARD */
 .listing-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);
