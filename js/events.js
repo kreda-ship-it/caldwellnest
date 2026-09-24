@@ -384,22 +384,62 @@ async function evOpen(id) {
   _evDetail._media = media || [];
   if (!_evOrgs.has(data.org_id)) await evLoadOrgs([data]);
 
+  _ldIndex = 0;
   evPaintDetail();
   openModal('evDetailModal');
+  document.querySelector('#evDetailModal .modal').scrollTop = 0;
 
-  // Put the event in the address bar. Three things fall out of one line: a refresh reopens it
-  // through the cold-route path already built, the URL is shareable without anybody having to
-  // find a share button, and it is the same address the QR encodes — so the deep link and an
-  // opened modal are not two different states.
+  // Put the event in the address bar. Three things fall out of it: a refresh reopens it through
+  // the cold-route path already built, the URL is shareable without anybody having to find a
+  // share button, and it is the same address the QR encodes — so the deep link and an opened
+  // event are not two different states.
   //
-  // replaceState, not pushState: pushState would make Back step through every event the
-  // student browsed rather than leaving the feed. Neither fires hashchange, so the listener
-  // does not re-enter this function.
-  if (`#/event/${e.id}` !== window.location.hash) {
-    history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/event/${e.id}`);
+  // A PUSHED entry since 2026-09-24 (it was replaceState): the phone's back gesture now closes
+  // the event instead of leaving the app, the same as a listing. Opening and closing are paired,
+  // so Back never steps through every event browsed. On a cold link the entry underneath is
+  // cleaned first, so closing lands on the app without the event still in the address bar.
+  // Neither pushState nor replaceState fires hashchange, so the listener does not re-enter here.
+  const url = `${window.location.pathname}${window.location.search}#/event/${e.id}`;
+  if (history.state?.cnEvent) history.replaceState({ cnEvent: true }, '', url);
+  else {
+    if (evRouteFromHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
+    history.pushState({ cnEvent: true }, '', url);
   }
 }
 
+function evDetailOpen() { return document.getElementById('evDetailModal')?.classList.contains('open'); }
+
+// Back arrow, X, backdrop, Esc: close, and use up the entry evOpen pushed (which takes the event
+// out of the address bar with it).
+function evCloseDetail() {
+  closeModal('evDetailModal');
+  if (history.state?.cnEvent) history.back();
+  else evClearRoute();
+}
+// For closes that go straight on to another screen (the club's page): the entry is neutralised
+// in place rather than popped, because a later pop could undo the NEXT screen's own entry.
+function evDismissDetail() {
+  closeModal('evDetailModal');
+  if (history.state?.cnEvent) history.replaceState(null, '', window.location.pathname + window.location.search);
+  else evClearRoute();
+}
+window.addEventListener('popstate', () => { if (evDetailOpen()) closeModal('evDetailModal'); });
+document.getElementById('evDetailModal')?.addEventListener('click', ev => {
+  if (ev.target.id === 'evDetailModal') evCloseDetail();
+});
+document.addEventListener('keydown', ev => {
+  if (!evDetailOpen()) return;
+  if (ev.key === 'Escape') evCloseDetail();
+  else if (ev.key === 'ArrowRight') ldGo(_ldIndex + 1);
+  else if (ev.key === 'ArrowLeft') ldGo(_ldIndex - 1);
+});
+
+// The detail page, redesigned 2026-09-24 onto the same page as listings and books
+// (ldPageHTML in listings.js). What goes where comes from how event pages are read — Luma,
+// Partiful, Eventbrite all order it the same way: the poster, WHAT it is, WHO is hosting,
+// WHEN and WHERE as two scannable rows, then the one thing to do (register / I'm here) —
+// pinned to the bottom on a phone, near the top on a desktop — and only then the description.
+// The poster is shown whole, never cropped: a flyer is designed edge to edge.
 function evPaintDetail() {
   const e = _evDetail;
   const org = _evOrgs.get(e.org_id);
@@ -410,131 +450,138 @@ function evPaintDetail() {
   // fails the check is dropped rather than drawn broken.
   const videos = e._media.filter(m => m.kind === 'video_link');
 
+  // The poster first, then the event's other photos, in one swipeable strip.
+  const photos = [e.poster_url, ...images.map(m => m.url)].filter(Boolean)
+    .filter((u, i, a) => a.indexOf(u) === i);
+  const media = photos.length ? '' : `
+    <div class="ld-media ld-media-made" style="background:${eventGradient(e.id)}">
+      <div class="ev-p-org">${esc(org?.name || '')}</div>
+      <div class="ev-p-title">${esc(e.title)}</div>
+    </div>`;
+
   const starts = new Date(e.starts_at);
-  const whenFull = starts.toLocaleString(undefined,
-    { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  const endBit = e.ends_at
-    ? ' – ' + new Date(e.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-    : '';
+  const dayLine = starts.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const kind = EV_TYPES.find(([v]) => v === e.event_type);
+  const parts = evActionParts(e);
 
-  document.getElementById('evDetailBody').innerHTML = `
-    ${e.status === 'cancelled' ? `
-      <div class="evd-cancelled">
-        <strong>This event was cancelled.</strong>
-        ${e.cancelled_reason ? `<div>${esc(e.cancelled_reason)}</div>` : ''}
-      </div>` : ''}
+  const badges = [];
+  if (e.status === 'cancelled') badges.push('<span class="pill ld-pill-bad">Cancelled</span>');
+  else if (e.has_ended) badges.push('<span class="pill">Ended</span>');
+  if (e.members_only) badges.push(`<span class="pill">${icon('lock', 11)} Members only</span>`);
 
-    <div class="evd-poster">
-      ${e.poster_url
-        ? `<img src="${escAttr(e.poster_url)}" alt="">`
-        : `<div class="ev-poster-made" style="background:${eventGradient(e.id)}">
-             <div class="ev-p-org">${esc(org?.name || '')}</div>
-             <div class="ev-p-title">${esc(e.title)}</div>
-           </div>`}
-    </div>
+  const facts = [];
+  if (Number(e.going_count) > 0) facts.push(['Going', String(e.going_count)]);
+  if (e.seats_left !== null && e.seats_left !== undefined && e.status !== 'cancelled' && !e.has_ended) facts.push(['Spots left', String(e.seats_left)]);
+  if (kind) facts.push(['Type', kind[1]]);
 
-    <button class="ev-org evd-org" onclick="closeModal('evDetailModal');evClearRoute();orgPageOpen(${e.org_id})">
-      ${org?.logo_url ? `<img class="ev-org-logo" src="${escAttr(org.logo_url)}" alt="">`
-                      : `<span class="ev-org-logo ev-org-logo-blank"></span>`}
-      <span class="ev-org-name">${esc(org?.name || 'Campus')}</span>
-      ${org?.is_verified ? icon('check',10) : ''}
-    </button>
+  const host = `
+    <button class="ld-seller" onclick="evDismissDetail();orgPageOpen(${Number(e.org_id)})">
+      ${org?.logo_url ? `<img class="ld-host-logo" src="${escAttr(org.logo_url)}" alt="">`
+                      : `<span class="ld-host-logo dir-logo-none" data-tint="${((Number(e.org_id) || 0) % 6) + 1}">${esc((org?.name || '?').charAt(0).toUpperCase())}</span>`}
+      <span class="ld-seller-text">
+        <span class="ld-seller-sub">Hosted by</span>
+        <span class="ld-seller-name">${esc(org?.name || 'Campus')}${org?.is_verified ? `<span class="ld-verified">${icon('check', 12)} Verified</span>` : ''}</span>
+      </span>
+      <span class="ld-seller-go">${icon('chevRight', 18)}</span>
+    </button>`;
 
-    <h2 class="evd-title">${esc(e.title)}</h2>
-
-    <div class="evd-when">${esc(whenFull + endBit)}</div>
-    <div class="evd-where">${esc(e.location)}</div>
-
-    <div class="evd-cal">
-      <button class="evd-cal-btn" onclick="evAddToGoogle()">Add to Google Calendar</button>
-      <button class="evd-cal-btn" onclick="evDownloadIcs()">Download .ics</button>
-    </div>
-
-    ${e.description ? `<p class="evd-desc">${esc(e.description)}</p>` : ''}
-
-    ${images.length > 1 ? `<div class="evd-gallery">${
-      images.map(m => `<img src="${escAttr(m.url)}" alt="${escAttr(m.caption || '')}" loading="lazy">`).join('')
-    }</div>` : ''}
-
-    ${videos.map(v => safeUrl(v.url)).filter(Boolean).map(href => `
-      <a class="evd-video" href="${escAttr(href)}" target="_blank" rel="noopener noreferrer">
-        <span class="evd-video-play">${icon('play',13,true)}</span>
-        <span>Watch on ${esc(evVideoHost(href))}</span>
-      </a>`).join('')}
-
-    ${evRegisterBlockHTML(e)}`;
+  document.getElementById('evDetailBody').innerHTML = ldPageHTML({
+    photos, media, title: e.title, close: 'evCloseDetail()',
+    kicker: `<span class="ld-cat ev-tone-${kind ? kind[0] : 'other'}">${esc(kind ? kind[1] : 'Event')}</span>`,
+    badges: badges.join(''),
+    where: '',
+    price: `<span class="ld-when-short">${parts.label}</span>`,
+    cta: parts.btn,
+    facts: `
+      <div class="ld-rows">
+        <div class="ld-row">
+          <span class="ld-row-icon">${icon('calendar', 18)}</span>
+          <span class="ld-row-text"><b>${esc(dayLine)}</b><span>${esc(evTimeRange(e))}</span>
+            <span class="ld-row-links"><button class="hn-link" onclick="evAddToGoogle()">Add to Google Calendar</button> · <button class="hn-link" onclick="evDownloadIcs()">Download .ics</button></span></span>
+        </div>
+        ${e.location ? `<div class="ld-row">
+          <span class="ld-row-icon">${icon('mapPin', 18)}</span>
+          <span class="ld-row-text"><b>${esc(e.location)}</b></span>
+        </div>` : ''}
+      </div>
+      ${e.status === 'cancelled' ? `<div class="evd-cancelled"><strong>This event was cancelled.</strong>${e.cancelled_reason ? `<div>${esc(e.cancelled_reason)}</div>` : ''}</div>` : ''}
+      ${parts.note}
+      ${facts.length ? `<dl class="detail-specs">${facts.map(([k, v]) => `<div class="detail-spec"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}`,
+    body: (e.description ? `<p class="ld-desc">${esc(e.description)}</p>` : '')
+      + videos.map(v => safeUrl(v.url)).filter(Boolean).map(href => `
+        <a class="evd-video" href="${escAttr(href)}" target="_blank" rel="noopener noreferrer">
+          <span class="evd-video-play">${icon('play', 13, true)}</span>
+          <span>Watch on ${esc(evVideoHost(href))}</span>
+        </a>`).join(''),
+    seller: host,
+    fav: ['event', e.id],
+    report: '',
+  });
+  // A repaint (after Register etc.) redraws the strip at its first photo, so the counter starts there too.
+  _ldPhotos = photos;
+  ldMark(0);
 }
 
-// Every state the button can be in, in one place, so none of them can be reached by accident.
-function evRegisterBlockHTML(e) {
+// Every state the action can be in, in one place, so none of them can be reached by accident.
+// Split in three since the redesign: `btn` is the one thing to do (pinned to the bottom on a
+// phone), `label` sits beside it, and `note` is whatever needs explaining, shown in the page.
+function evActionParts(e) {
   const mine = _evGoing.get(e.id);
+  const short = new Date(e.starts_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    + '<span>' + esc(evTime(e.starts_at)) + '</span>';
+  const cal = `<button class="ld-msg ld-msg-ghost" onclick="evAddToGoogle()">${icon('calendar', 17)} Add to calendar</button>`;
 
-  if (e.status === 'cancelled') return '';
-  if (e.has_ended) return '<div class="evd-note">This event has ended.</div>';
+  if (e.status === 'cancelled') return { label: 'Cancelled', btn: '', note: '' };
+  if (e.has_ended) return { label: 'Ended', btn: '', note: '<div class="evd-note">This event has ended.</div>' };
   if (!e.registration_open) {
-    return '<div class="evd-note">No sign-up needed — just turn up.</div>';
+    return { label: short, btn: cal, note: '<div class="evd-note">No sign-up needed — just turn up.</div>' };
   }
   // Already through the door. Nothing to offer and nothing to undo — a student who wants out
   // after arriving is talking to the officer, not to a button.
   if (mine && (mine.status === 'checked_in' || mine.status === 'walk_in')) {
-    return '<div class="evd-here">You are checked in ' + icon('check',14) + '</div>';
+    return { label: short, btn: `<div class="ld-msg ld-msg-done">${icon('check', 17)} You're checked in</div>`, note: '' };
   }
-
   // PERSISTENT, not a toast. The student tapped a button and now has to stand there while
   // somebody finds them on a list; a message that fades after three seconds leaves them
   // wondering whether the tap landed at all, and tapping again is the natural response.
   if (mine && mine.status === 'self_reported') {
-    return `
+    return { label: short, btn: `<div class="ld-msg ld-msg-done">Waiting to be confirmed</div>`, note: `
       <div class="evd-waiting">
         <strong>Waiting for the organizer to confirm you</strong>
         <div>Show them this screen if there is a queue.</div>
-      </div>`;
+      </div>` };
   }
-
   if (mine) {
-    return `
-      ${e.checkin_is_open ? `
-        <div class="evd-reg">
-          <button class="evd-btn evd-btn-go" onclick="evImHere()">I'm here</button>
-        </div>
-        <p class="evd-privacy">Tell the organizers you have arrived. They confirm it at the door.</p>` : ''}
-      <div class="evd-reg">
-        <div class="evd-going">You are going ${icon('check',14)}</div>
-        <button class="evd-btn evd-btn-ghost" onclick="evUnregister()">Cancel my place</button>
-      </div>
-      ${evPrivacyLine()}`;
+    const going = `<div class="evd-reg"><div class="evd-going">You are going ${icon('check', 14)}</div>
+      <button class="evd-btn evd-btn-ghost" onclick="evUnregister()">Cancel my place</button></div>`;
+    return e.checkin_is_open
+      ? { label: short, btn: `<button class="ld-msg evd-btn-go" onclick="evImHere()">I'm here</button>`,
+          note: going + '<p class="evd-privacy">Tell the organizers you have arrived. They confirm it at the door.</p>' }
+      : { label: short, btn: `<div class="ld-msg ld-msg-done">${icon('check', 17)} You're going</div>`, note: going + evPrivacyLine() };
   }
-
   // Not registered, but standing at the door. This is the walk-up-and-scan case and it is most
   // of the value of the QR: one tap registers AND reports arrival, because somebody at the
   // door should not have to do two things in the right order to get in.
   if (e.checkin_is_open && e.seats_left !== 0) {
-    return `
-      <div class="evd-reg">
-        <button class="evd-btn evd-btn-go" onclick="evImHere()">I'm here</button>
-      </div>
-      <p class="evd-privacy">This signs you up and tells the organizers you have arrived.
-         They will see your name and email.</p>`;
+    return { label: short, btn: `<button class="ld-msg evd-btn-go" onclick="evImHere()">I'm here</button>`,
+      note: `<p class="evd-privacy">This signs you up and tells the organizers you have arrived.
+         They will see your name and email.</p>` };
   }
   if (e.seats_left === 0) {
-    return `<div class="evd-reg"><button class="evd-btn" disabled>Full</button></div>
-            <div class="evd-note">Every place has been taken. There is no waiting list yet.</div>`;
+    return { label: 'Full', btn: '<button class="ld-msg" disabled>Full</button>',
+      note: '<div class="evd-note">Every place has been taken. There is no waiting list yet.</div>' };
   }
-  return `
-    <div class="evd-reg">
-      <button class="evd-btn evd-btn-go" onclick="evRegister()">Register</button>
-      ${e.seats_left !== null && e.seats_left !== undefined
-        ? `<span class="evd-seats">${e.seats_left} left</span>` : ''}
-    </div>
-    ${evPrivacyLine()}`;
+  const left = e.seats_left !== null && e.seats_left !== undefined ? `${e.seats_left} spots left` : '';
+  return { label: left ? `${left}<span>${short.replace(/<span>.*$/, '')}</span>` : short,
+    btn: `<button class="ld-msg evd-btn-go" onclick="evRegister()">Register</button>`, note: evPrivacyLine() };
 }
 
 // Stated once, plainly, directly under the button — §4.1 is explicit that it must not be
-// buried. The star is private and this is not, and a student is entitled to know which is
+// buried. The bookmark is private and this is not, and a student is entitled to know which is
 // which BEFORE they tap, not in a settings page afterwards.
 function evPrivacyLine() {
-  return `<p class="evd-privacy">The organizers will see your name and email. Saving with the
-          star does not tell anyone.</p>`;
+  return `<p class="evd-privacy">The organizers will see your name and email. Saving it with
+          the bookmark does not tell anyone.</p>`;
 }
 
 function evVideoHost(url) {

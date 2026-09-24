@@ -1390,6 +1390,56 @@ function ldMenu(open) {
   m.hidden = open === undefined ? !m.hidden : !open;
 }
 
+// The page itself, shared by every kind of item that opens here — marketplace listings
+// (openDetail) and books (openBookDetail in books.js) — so they cannot drift into two designs.
+//   o.photos, o.category, o.catLabel, o.title        what it is
+//   o.badges      extra pills after the category (Featured, Pending sale…) — HTML
+//   o.where       the line under the title — HTML
+//   o.price, o.cta   the action row: price, and the Message button (or '') — HTML
+//   o.facts, o.body, o.seller, o.extra               everything below — HTML
+//   o.fav         [type, id] for the Save button, or null
+//   o.report      onclick for "Report", or '' for no ⋮ menu
+//   o.close       onclick for Back / X (default closeDetail()) — events close their own modal
+//   o.kicker, o.media   replace the category pill row / the photo area entirely — HTML
+function ldPageHTML(o) {
+  const close = o.close || 'closeDetail()';
+  return `
+    <div class="ld">
+      <div class="ld-top">
+        <button class="ld-round ld-back" aria-label="Back" onclick="${close}">${icon('chevRight', 20)}</button>
+        <span class="ld-top-end">
+          ${o.fav ? favButtonHTML(o.fav[0], o.fav[1], 'ld-round ld-fav') : ''}
+          ${o.report ? `<button class="ld-round" aria-label="More" onclick="ldMenu()">${icon('more', 20)}</button>` : ''}
+          <button class="ld-round ld-x" aria-label="Close" onclick="${close}">${icon('x', 18)}</button>
+        </span>
+        ${o.report ? `<div class="ld-menu" id="ldMenu" hidden>
+          <button onclick="dismissDetail();${o.report}">${icon('flag', 15)} Report this listing</button>
+        </div>` : ''}
+      </div>
+      <div class="ld-gallery">${o.media || ldMediaHTML({ photo_urls: o.photos, category: o.category, title: o.title })}</div>
+      <div class="ld-info">
+        <div class="ld-kicker">${o.kicker || `<span class="ld-cat" data-cat="${escAttr(o.category)}">${esc(o.catLabel)}</span>`}${o.badges || ''}</div>
+        <h2 class="ld-title">${esc(o.title)}</h2>
+        ${o.where ? `<div class="ld-where">${o.where}</div>` : ''}
+        <div class="ld-action"><div class="ld-price">${o.price}</div>${o.cta || ''}</div>
+        ${o.facts || ''}
+        ${o.body || ''}
+        ${o.seller || ''}
+        ${o.extra || ''}
+      </div>
+    </div>`;
+}
+
+// Puts the page on screen: first photo, top of the page, and a history entry for Back.
+function ldShow(photos) {
+  _ldPhotos = photos || [];
+  _ldIndex = 0;
+  openModal('detailModal');
+  document.querySelector('#detailModal .modal').scrollTop = 0;
+  ldMark(0);
+  if (!history.state?.cnDetail) history.pushState({ cnDetail: true }, '');
+}
+
 function openDetail(id) {
   const l = DB.listings.find(x => x.id === id) || DB.pending.find(x => x.id === id); if (!l) return;
   const eu = getEffectiveUser();
@@ -1397,8 +1447,6 @@ function openDetail(id) {
   const canReport = !!eu && !mine && !l.poster.official;
   const canMessage = !l.poster.official && !mine;
   const first = (l.poster.name || '').split(' ')[0];
-  _ldPhotos = l.photo_urls || [];
-  _ldIndex = 0;
 
   const status = [];
   if (l.pinned) status.push(`<span class="pill pill-pinned">${icon('star', 11)} Featured</span>`);
@@ -1408,40 +1456,21 @@ function openDetail(id) {
   }
   const where = [l.location ? esc(l.location) : '', esc(ldPosted(l))].filter(Boolean).join(' · ');
 
-  document.getElementById('detailContent').innerHTML = `
-    <div class="ld">
-      <div class="ld-top">
-        <button class="ld-round ld-back" aria-label="Back" onclick="closeDetail()">${icon('chevRight', 20)}</button>
-        <span class="ld-top-end">
-          ${favButtonHTML('listing', l.id, 'ld-round ld-fav')}
-          ${canReport ? `<button class="ld-round" aria-label="More" onclick="ldMenu()">${icon('more', 20)}</button>` : ''}
-          <button class="ld-round ld-x" aria-label="Close" onclick="closeDetail()">${icon('x', 18)}</button>
-        </span>
-        ${canReport ? `<div class="ld-menu" id="ldMenu" hidden>
-          <button onclick="dismissDetail();openReportModal(${l.id})">${icon('flag', 15)} Report this listing</button>
-        </div>` : ''}
-      </div>
-      <div class="ld-gallery">${ldMediaHTML(l)}</div>
-      <div class="ld-info">
-        <div class="ld-kicker"><span class="ld-cat" data-cat="${escAttr(l.category)}">${esc(CATEGORY_LABELS[l.category] || 'Listing')}</span>${status.join('')}</div>
-        <h2 class="ld-title">${esc(l.title)}</h2>
-        ${where ? `<div class="ld-where">${l.location ? icon('pin', 15) : ''}<span>${where}</span></div>` : ''}
-        <div class="ld-action">
-          <div class="ld-price">${priceLabel(l)}</div>
-          ${canMessage ? `<button class="ld-msg" onclick="dismissDetail();sContact(${l.id})">${icon('message', 18)} Message ${esc(first)}</button>` : ''}
-        </div>
-        ${listingSpecsHTML(l)}
-        ${l.desc ? `<p class="ld-desc">${esc(l.desc)}</p>` : ''}
-        ${l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-        ${ldSellerHTML(l)}
-        ${ownerManagePanelHtml(l)}
-      </div>
-    </div>`;
-
-  openModal('detailModal');
-  document.querySelector('#detailModal .modal').scrollTop = 0;
-  ldMark(0);
-  if (!history.state?.cnDetail) history.pushState({ cnDetail: true }, '');
+  document.getElementById('detailContent').innerHTML = ldPageHTML({
+    photos: l.photo_urls, category: l.category, catLabel: CATEGORY_LABELS[l.category] || 'Listing', title: l.title,
+    badges: status.join(''),
+    where: where ? `${l.location ? icon('pin', 15) : ''}<span>${where}</span>` : '',
+    price: priceLabel(l),
+    cta: canMessage ? `<button class="ld-msg" onclick="dismissDetail();sContact(${l.id})">${icon('message', 18)} Message ${esc(first)}</button>` : '',
+    facts: listingSpecsHTML(l),
+    body: (l.desc ? `<p class="ld-desc">${esc(l.desc)}</p>` : '')
+      + (l.tags && l.tags.length ? `<div class="detail-tags">${l.tags.map(t => `<span class="detail-tag">${esc(t)}</span>`).join('')}</div>` : ''),
+    seller: ldSellerHTML(l),
+    extra: ownerManagePanelHtml(l),
+    fav: ['listing', l.id],
+    report: canReport ? `openReportModal(${l.id})` : '',
+  });
+  ldShow(l.photo_urls);
 }
 
 // Owner-only "manage this listing" panel — mark sold/claimed, withdraw, reactivate,
@@ -1662,25 +1691,86 @@ async function submitReport() {
   document.getElementById('reportSuccess').style.display = 'block';
 }
 
+// ---- The posting form (rebuilt 2026-09-24 from the approved design) ----
+// Step 1 is a list of what you can post, each with a line saying what belongs there. Step 2 is
+// the form for that one category: photos first (listings with photos get the messages), then
+// the basics, the optional details that double as search filters, a description, and — where
+// it applies — how the thing changes hands. Examples in every box are written for the category.
+const PM_CATS = [
+  ['housing',    'Housing',    'A room, a sublet, a roommate spot'],
+  ['clothing',   'Clothing',   'Clothes, shoes, accessories'],
+  ['technology', 'Technology', 'Laptops, monitors, cables'],
+  ['donation',   'Free items', 'Give something away'],
+  ['books',      'Books',      'Textbooks and course books'],
+  ['other',      'Other',      'Anything else students need'],
+];
+const PM_HINTS = {
+  housing:    ['e.g. Single room, 8 min walk to campus', "Who you'd live with, what's nearby, house rules, move-in details…"],
+  clothing:   ['e.g. North Face puffer jacket, size M', 'Fit, fabric, any wear or flaws…'],
+  technology: ['e.g. Dell 27" monitor with HDMI cable', "Specs, battery health, what's in the box, any issues…"],
+  donation:   ['e.g. Desk lamp, works fine', 'What it is, its condition, when it can be picked up…'],
+  other:      ['e.g. Mini fridge', "What it is, its condition, why you're letting it go…"],
+};
+
+function pmPaintCats() {
+  const host = document.getElementById('pmCats');
+  if (!host) return;
+  host.innerHTML = PM_CATS.map(([cat, label, sub]) => `
+    <button class="pm-cat" data-cat="${cat}" onclick="${cat === 'books' ? 'closePostModal();openPostBook()' : `selectCategory('${cat}')`}">
+      <span class="pm-cat-icon">${catIcon(cat, 24)}</span>
+      <span class="pm-cat-text"><b>${label}</b><span>${sub}</span></span>
+      <span class="pm-cat-go">${icon('chevRight', 18)}</span>
+    </button>`).join('') + `
+    <button class="pm-cat pm-cat-locked" onclick="pmEventTap()">
+      <span class="pm-cat-icon">${icon('lock', 22)}</span>
+      <span class="pm-cat-text"><b>Event</b><span>Only club officers can post events. Follow a club to see theirs — or, if you run one, tap to open your club console.</span></span>
+    </button>`;
+}
+pmPaintCats();
+
+// Officers go to their console, where events are made; everyone else is pointed at the clubs.
+function pmEventTap() {
+  if (typeof orgIsOfficerAnywhere === 'function' && orgIsOfficerAnywhere()) { closePostModal(); orgConsoleOpen(); return; }
+  closePostModal();
+  if (typeof orgDirGo === 'function') orgDirGo();
+}
+
+function pmCount(el, id) {
+  const out = document.getElementById(id);
+  if (out) out.textContent = `${el.value.length} / ${el.maxLength}`;
+}
+
 function selectCategory(cat) {
   _postCategory = cat;
   document.getElementById('postStep1').style.display = 'none';
   document.getElementById('postStep2').style.display = '';
-  const _catC = CATEGORY_COLORS[cat] || CATEGORY_COLORS.other;
-  document.getElementById('postCatBadge').innerHTML = `<span style="color:${_catC.text};margin-right:6px">${catIcon(cat, 13)}</span>${CATEGORY_LABELS[cat]}`;
+  document.getElementById('postCatBadge').innerHTML = `<span class="pm-cat-icon pm-cat-icon-sm" data-cat="${cat}">${catIcon(cat, 15)}</span>${CATEGORY_LABELS[cat]}`;
   document.querySelectorAll('[id^="catFields-"]').forEach(el => el.style.display = 'none');
   // Guarded: not every category has an extra-fields block, and one of them stopped having
   // one when events left this form. An unknown category should open the plain form, not
   // throw on a null and leave the modal half-drawn.
   const cf = document.getElementById('catFields-' + cat);
   if (cf) cf.style.display = '';
-  fillSpecSelects();   // the new detail dropdowns come from LISTING_SPECS
+  // The per-category pieces outside the basics, and the sections that hold them: a section
+  // with nothing for this category is hidden rather than drawn as an empty heading.
+  document.querySelectorAll('#postModal .pm-only').forEach(el => { el.hidden = el.dataset.cat !== cat; });
+  document.querySelectorAll('#postModal [data-for]').forEach(el => { el.hidden = !el.dataset.for.split(' ').includes(cat); });
+  const [tHint, dHint] = PM_HINTS[cat] || PM_HINTS.other;
+  document.getElementById('pTitle').placeholder = tHint;
+  document.getElementById('pDesc').placeholder = dHint;
+  // The header's left button steps back to the list rather than throwing the form away.
+  const back = document.getElementById('pmBackBtn');
+  if (back) { back.textContent = '‹ Back'; back.setAttribute('onclick', 'backToCategories()'); }
+  fillSpecSelects();   // the detail dropdowns come from LISTING_SPECS
+  document.querySelector('#postModal .modal').scrollTop = 0;
 }
 
 function backToCategories() {
   _postCategory = null;
   document.getElementById('postStep1').style.display = '';
   document.getElementById('postStep2').style.display = 'none';
+  const back = document.getElementById('pmBackBtn');
+  if (back) { back.textContent = 'Cancel'; back.setAttribute('onclick', 'closePostModal()'); }
 }
 
 function closePostModal() {
@@ -1690,11 +1780,7 @@ function closePostModal() {
   if (inp) inp.value = '';
   const prev = document.getElementById('pPhotoPreview');
   if (prev) prev.innerHTML = '';
-  setTimeout(() => {
-    _postCategory = null;
-    document.getElementById('postStep1').style.display = '';
-    document.getElementById('postStep2').style.display = 'none';
-  }, 200);
+  setTimeout(backToCategories, 200);
 }
 
 // ---- Photo upload helpers ----

@@ -1387,7 +1387,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
    overlaps the photo's foot, price + Message pinned to the bottom.
    Desktop: a wide window, the photo on the left at full height, details scrolling beside it.
    Photos are never cropped (contain); a blurred copy of the same photo fills the frame. */
-body:has(#detailModal.open){overflow:hidden;}
+body:has(#detailModal.open),body:has(#evDetailModal.open){overflow:hidden;}
 .ld{position:relative;}
 .ld-top{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;
   padding:calc(12px + env(safe-area-inset-top)) 14px 0;pointer-events:none;}
@@ -1448,9 +1448,35 @@ button.ld-seller:hover{border-color:var(--brand-light);}
 .ld-seller-sub{font-size:13px;line-height:1.4;color:var(--text-muted);}
 .ld-seller-go{flex:none;color:var(--text-faint);}
 .ld-info > :last-child{margin-bottom:12px;}
+.ld-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:16px;padding:10px 12px;border-radius:12px;
+  background:var(--warning-pale);font-size:13px;color:var(--text-muted);}
+.ld-owner{margin-top:20px;}
+/* Events on the same page (evPaintDetail): WHEN and WHERE as two icon rows, a host card, and the
+   action row's left side carrying the date instead of a price. */
+.ld-cat[class*="ev-tone-"]{background:var(--ev-g1,var(--bg-alt));color:var(--ev-ink,var(--text));}
+.ld-pill-bad{background:var(--danger-pale);color:var(--danger);}
+.ld-media-made{display:flex;flex-direction:column;justify-content:flex-end;padding:90px 24px 48px;color:#fff;}
+.ld-rows{display:flex;flex-direction:column;gap:14px;margin-top:18px;}
+.ld-row{display:flex;align-items:flex-start;gap:12px;}
+.ld-row-icon{flex:none;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;
+  background:var(--brand-pale);color:var(--brand);}
+.ld-row-text{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:14px;color:var(--text-muted);}
+.ld-row-text b{font-size:15px;font-weight:600;color:var(--text);}
+.ld-row-links{margin-top:4px;font-size:13px;}
+.ld-when-short{display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;}
+.ld-when-short span{font-size:13px;font-weight:500;color:var(--text-muted);}
+.ld-msg-ghost{background:var(--surface);color:var(--brand);box-shadow:inset 0 0 0 1.5px var(--brand);}
+.ld-msg-ghost:hover{background:var(--brand-pale);}
+.ld-msg-done{background:var(--brand-pale);color:var(--brand);cursor:default;}
+.ld-msg-done:hover{background:var(--brand-pale);}
+.ld-msg:disabled{opacity:.55;cursor:default;}
+.ld-host-logo{flex:none;width:50px;height:50px;border-radius:14px;object-fit:cover;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:18px;}
+.ld .evd-note,.ld .evd-waiting,.ld .evd-cancelled{margin-top:16px;}
+.ld .evd-reg{margin-top:16px;}
 
 @media(max-width:768px){
-  #detailModal{padding:0;align-items:stretch;background:var(--bg);}
+  #detailModal,#evDetailModal{padding:0;align-items:stretch;background:var(--bg);}
   .ld-modal{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;background:var(--bg);
     overscroll-behavior:contain;}
   .ld{padding-bottom:calc(88px + env(safe-area-inset-bottom));}
@@ -1461,13 +1487,13 @@ button.ld-seller:hover{border-color:var(--brand-light);}
     background:var(--surface);border-top:1px solid var(--border);box-shadow:0 -4px 18px rgba(36,31,26,.06);}
 }
 @media(min-width:769px){
-  #detailModal{padding:24px;}
+  #detailModal,#evDetailModal{padding:24px;}
   .ld-modal{width:min(1120px,100%);max-width:none;height:min(780px,calc(100vh - 48px));max-height:none;padding:0;
     overflow:hidden;border-radius:20px;}
   /* minmax(0,1fr) rows: an auto row would grow to the photo's natural height and crop it. */
   /* #detailContent sits between the window and .ld; without a height of its own, .ld's 100% has
      nothing to be a percentage OF, and the photo grows to its natural size. */
-  .ld-modal > #detailContent{height:100%;}
+  .ld-modal > #detailContent,.ld-modal > #evDetailBody{height:100%;}
   .ld{display:grid;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:minmax(0,1fr);height:100%;}
   .ld-top{left:auto;width:420px;padding:14px 16px 0;justify-content:flex-end;}
   .ld-back{display:none;}
@@ -1748,6 +1774,74 @@ button.ld-seller:hover{border-color:var(--brand-light);}
    this line is where the option used to be — a removed choice with no explanation reads
    as a bug to the person who used it last week. */
 .post-cat-note{margin-top:14px;font-size:12px;color:var(--text-muted);line-height:1.6;text-align:center;}
+
+/* ---- Post a listing (2026-09-24, from the approved design) ----
+   A page on a phone, a centred sheet on a desktop. Step 1: a list of categories, each a card
+   with its icon on its category tint. Step 2: short labelled sections, the submit pinned at
+   the foot on a phone. */
+.pm-modal{padding:0;display:flex;flex-direction:column;background:var(--bg);}
+.pm-head{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;
+  padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg);}
+.pm-cancel{justify-self:start;padding:6px 0;border:0;background:none;cursor:pointer;font:500 15px 'DM Sans',sans-serif;color:var(--text-muted);}
+.pm-cancel:hover{color:var(--text);}
+.pm-title{font-family:'DM Serif Display',serif;font-size:21px;color:var(--text);}
+.pm-body{padding:22px 18px 28px;}
+.pm-h1{margin:0;font-family:'DM Serif Display',serif;font-size:clamp(28px,7.5vw,34px);font-weight:400;line-height:1.12;color:var(--text);}
+.pm-lead{margin:6px 0 20px;font-size:15px;color:var(--text-muted);}
+.pm-cats{display:flex;flex-direction:column;gap:10px;}
+.pm-cat{display:flex;align-items:center;gap:16px;width:100%;padding:14px 16px;border:1px solid var(--border);border-radius:18px;
+  background:var(--surface);cursor:pointer;text-align:left;font-family:inherit;color:var(--text);
+  transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease);}
+.pm-cat:hover{border-color:var(--brand-light);transform:translateY(-1px);}
+.pm-cat-icon{flex:none;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;
+  background:var(--cat-tint,var(--bg-alt));color:var(--cat-deep,var(--text-muted));}
+.pm-cat-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.pm-cat-text b{font-size:17px;font-weight:600;}
+.pm-cat-text span{font-size:14px;line-height:1.4;color:var(--text-muted);}
+.pm-cat-go{flex:none;color:var(--text-faint);}
+.pm-cat-locked{margin-top:10px;border-style:dashed;background:var(--bg-alt);color:var(--text-muted);}
+.pm-cat-locked:hover{transform:none;}
+.pm-cat-locked .pm-cat-icon{background:rgba(36,31,26,.06);}
+.pm-cat-locked b{color:var(--text-muted);}
+
+.pm-cat-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.pm-cat-badge{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--text);}
+.pm-cat-icon-sm{width:30px;height:30px;border-radius:9px;}
+.pm-sec{padding:18px 0;border-bottom:1px solid var(--border);}
+.pm-sec[hidden]{display:none;}
+.pm-sec:last-of-type{border-bottom:0;}
+.pm-sec-title{margin:0 0 4px;font-size:17px;font-weight:700;color:var(--text);}
+.pm-sec-title + .form-group,.pm-sec-title + textarea{margin-top:10px;}
+.pm-opt{margin-left:4px;font-size:12.5px;font-weight:500;color:var(--text-faint);}
+.pm-sec-hint{margin:0 0 12px;font-size:13px;line-height:1.5;color:var(--text-muted);}
+.pm-only[hidden]{display:none;}
+.pm-drop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 16px;border:2px dashed var(--border);
+  border-radius:16px;background:var(--surface);cursor:pointer;text-align:center;color:var(--text-muted);}
+.pm-drop:hover{border-color:var(--brand-light);color:var(--brand);}
+.pm-drop b{font-size:15px;color:var(--text);}
+.pm-preview{margin-top:10px;}
+.pm-count{margin-top:4px;font-size:11.5px;text-align:right;color:var(--text-faint);}
+.pm-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.pm-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--border);border-radius:var(--radius-pill);
+  background:var(--surface);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text);}
+.pm-chip input{accent-color:var(--brand);margin:0;}
+.pm-chip:has(input:checked){border-color:var(--brand-light);background:var(--brand-pale);color:var(--brand);}
+.pm-fair{margin-top:6px;padding:12px 14px;border-radius:12px;background:#fef3c7;font-size:12.5px;line-height:1.5;color:#92400e;}
+.pm-fair a{color:#92400e;font-weight:600;}
+.pm-submit{padding-top:14px;}
+.pm-review{margin:0 0 10px;font-size:12.5px;text-align:center;color:var(--text-muted);}
+@media(max-width:768px){
+  #postModal{padding:0;align-items:stretch;}
+  .pm-modal{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;overflow-y:auto;}
+  .pm-head{padding-top:calc(14px + env(safe-area-inset-top));}
+  .pm-submit{position:sticky;bottom:0;margin:0 -18px -28px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+    background:var(--bg);border-top:1px solid var(--border);}
+}
+@media(min-width:769px){
+  .pm-modal{max-width:620px;max-height:90vh;overflow-y:auto;border-radius:20px;}
+  .pm-body{padding:26px 30px 30px;}
+}
+body:has(#postModal.open){overflow:hidden;}
 
 /* The school / brand chip. It had been hand-written 18 times in 12 slightly different
    variants across admin.js — 9/10/11/12px fonts and six different paddings — so the same
@@ -2874,32 +2968,14 @@ select.ao-input { cursor: pointer; }
 
 
 /* ---------- Event detail ---------- */
-.evd-modal { max-width: 560px; }
-#evDetailBody { padding: 0 24px 26px; }
 
 /* The banner is first and it is loud, because for a registrant it is the ONLY way they find
    out — there is no notification layer, so this is the whole of §6's mitigation. */
 .evd-cancelled { padding: 12px 14px; margin-bottom: 16px; border-radius: 10px;
                  background: #fdecec; color: #c0392b; font-size: 13px; line-height: 1.6; }
 
-.evd-poster { aspect-ratio: 4/5; max-height: 380px; border-radius: 12px; overflow: hidden;
-              background: var(--bg-alt); }
-.evd-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.evd-org { border: 0; border-bottom: 1px solid var(--border); padding: 12px 0; }
-.evd-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.2;
-             color: var(--text); margin: 14px 0 10px; }
-.evd-when  { font-size: 15px; color: var(--text); font-weight: 500; }
-.evd-where { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
 
-.evd-cal { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
-.evd-cal-btn { padding: 8px 12px; font-size: 12px; border: 1px solid var(--border);
-               border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer;
-               font-family: inherit; }
-.evd-cal-btn:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
 
-.evd-desc { font-size: 14px; line-height: 1.75; color: var(--text); margin: 16px 0; }
-.evd-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 16px 0; }
-.evd-gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
 
 .evd-video { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 8px 0;
              border: 1px solid var(--border); border-radius: 10px; text-decoration: none;
@@ -2918,7 +2994,6 @@ select.ao-input { cursor: pointer; }
 .evd-btn-ghost { flex: none; padding: 10px 14px; font-size: 13px; font-weight: 500; }
 .evd-btn:disabled { opacity: .55; cursor: default; }
 .evd-going { flex: 1; font-size: 15px; font-weight: 600; color: var(--brand, #3B5BA5); }
-.evd-seats { font-size: 13px; color: var(--text-muted); flex: none; }
 
 /* Directly under the button, not in a settings page, not in a tooltip. §4.1 says do not bury
    it, and the reason is that the star and the register button differ on exactly this point. */
@@ -2934,9 +3009,6 @@ select.ao-input { cursor: pointer; }
                background: var(--warning-pale, #fdf6e3); color: var(--warning, #8a6d1f);
                font-size: 14px; line-height: 1.6; }
 .evd-waiting strong { display: block; margin-bottom: 4px; }
-.evd-here { margin-top: 22px; padding: 18px; border-radius: 12px; text-align: center;
-            background: var(--success-pale, #eaf6ef); color: var(--success, #2e7d52);
-            font-size: 16px; font-weight: 600; }
 
 
 /* ============================================================

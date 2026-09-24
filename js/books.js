@@ -179,11 +179,7 @@ async function openBookDetail(id) {
     if (!data) { toast('Could not load this book.'); return; }
     b = data;
   }
-  const col = BOOK_COLORS[b.book_type] || BOOK_COLORS.other;
   const course = b.course_code ? courseByCode(b.course_code) : null;
-  const hero = b.photo_urls?.length
-    ? photoGalleryHtml(b.photo_urls, { natural: true, maxHeight: '60vh', radius: '0', mainId: 'bookGalMain', alt: b.title })
-    : `<div style="background:${col.bg};color:${col.text};padding:40px 28px;text-align:center;font-size:20px;font-weight:600;">${esc(b.title)}</div>`;
 
   const facts = [];
   if (b.book_type === 'course') facts.push(['Course', course ? `${course.code} – ${course.name}` : 'Not listed yet']);
@@ -217,34 +213,30 @@ async function openBookDetail(id) {
       + (canRelist ? `<button class="btn-full btn-brand" style="margin-top:10px" onclick="relistBook(${b.id})">Mark as active again</button>` : '');
   }
 
-  const actionBtn = own
-    ? ownerActions
-    : `<button class="btn-full btn-brand" onclick="closeModal('bookDetailModal');bContact(${b.id})">Message seller</button>`;
-
   // Buyers must see a deal is already in progress BEFORE they message (same reason the
   // browse card carries the badge) — someone else is in talks, so hurry or move on.
   const buyerPendingNote = (!own && ls === 'pending_sale')
-    ? `<div style="text-align:center;margin-bottom:10px;font-size:12px;color:var(--text-muted)"><span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span> &nbsp;Another student is already in talks — you can still message the seller.</div>`
+    ? `<div class="ld-note"><span class="pill" style="background:${sBg};color:${sCol}">${sLabel}</span> Another student is already in talks — you can still message the seller.</div>`
     : '';
 
-  document.getElementById('bookDetailContent').innerHTML = `
-    ${hero}
-    <div style="padding:20px 24px 24px;">
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${esc(bookChipLabel(b))} · Posted ${new Date(b.created_at).toLocaleDateString()}</div>
-      <div style="font-size:19px;font-weight:700;margin-bottom:4px;">${esc(b.title)}</div>
-      <div style="font-size:20px;font-weight:700;color:var(--brand);margin-bottom:14px;">${b.price > 0 ? '$' + b.price : 'Free'}</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px;margin-bottom:14px;">
-        ${facts.map(([k, v]) => `<div style="color:var(--text-muted)">${esc(k)}</div><div>${esc(v)}</div>`).join('')}
-      </div>
-      ${b.description ? `<div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:16px;">${esc(b.description)}</div>` : ''}
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);margin-bottom:16px;">
-        ${p ? avatarHTML({ ...p, name: posterName }, 38) : ''}
-        <div style="font-size:13px;"><div style="font-weight:600">${esc(posterName)}</div><div style="color:var(--text-muted)">Caldwell University</div></div>
-      </div>
-      ${buyerPendingNote}
-      ${actionBtn}
-    </div>`;
-  openModal('bookDetailModal');
+  // The same page as a marketplace listing (ldPageHTML in listings.js), filled with a book.
+  const poster = p
+    ? { name: posterName, initials: p.initials, color: p.color, avatar_url: p.avatar_url, verified: true,
+        memberSince: p.created_at, year: p.year, major: p.major }
+    : { name: 'Caldwell student', initials: 'CS', color: '#3e7a5c' };
+  document.getElementById('detailContent').innerHTML = ldPageHTML({
+    photos: b.photo_urls || [], category: 'books', catLabel: bookChipLabel(b) || 'Books', title: b.title,
+    where: `<span>${esc(ldPosted(b))}</span>`,
+    price: b.price > 0 ? '$' + b.price : '<span class="lc-soft">Free</span>',
+    cta: own ? '' : `<button class="ld-msg" onclick="dismissDetail();bContact(${b.id})">${icon('message', 18)} Message ${esc(posterName.split(' ')[0])}</button>`,
+    facts: `<dl class="detail-specs">${facts.map(([k, v]) => `<div class="detail-spec"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`,
+    body: buyerPendingNote + (b.description ? `<p class="ld-desc">${esc(b.description)}</p>` : ''),
+    seller: ldSellerHTML({ poster, poster_id: p ? b.poster_id : null, school: p?.school || b.school }),
+    extra: own ? `<div class="ld-owner">${ownerActions}</div>` : '',
+    fav: ['book', b.id],
+    report: '',
+  });
+  ldShow(b.photo_urls);
 }
 
 async function bContact(bookId) {
@@ -271,7 +263,7 @@ async function markBookSold(id) {
     .update({ lifecycle_status: 'sold', sold_at: new Date().toISOString() }).eq('id', id);
   if (error) { toast('Could not update — please try again.'); console.error(error.message); return; }
   logEvent('book_sold', { targetType: 'book_listing', targetId: id, targetLabel: b?.title, before: { lifecycle_status: prev }, after: { lifecycle_status: 'sold' } });
-  closeModal('bookDetailModal');
+  dismissDetail();
   toast('Marked as sold — congrats!');
   await loadBooks();
   renderListings(); // books live in the main grid now
@@ -295,7 +287,7 @@ async function bookLifecycleAction(id, newStatus) {
     targetType: 'book_listing', targetId: id, targetLabel: b?.title,
     before: { lifecycle_status: prev }, after: { lifecycle_status: newStatus }
   });
-  closeModal('bookDetailModal');
+  dismissDetail();
   toast(newStatus === 'pending_sale' ? 'Marked pending sale' : 'Back to active');
   await loadBooks();
   renderListings();
@@ -308,7 +300,7 @@ async function relistBook(id) {
   const { error } = await supabaseClient.rpc('change_listing_status', { p_listing_id: id, p_new_status: 'active', p_table: 'book_listings' });
   if (error) { toast('Could not relist — please try again.'); console.error('[relistBook]', error.message); return; }
   logEvent('book_relisted', { targetType: 'book_listing', targetId: id, before: { lifecycle_status: 'sold' }, after: { lifecycle_status: 'active' } });
-  closeModal('bookDetailModal');
+  dismissDetail();
   toast('Book is live again');
   await loadBooks();
   renderListings();

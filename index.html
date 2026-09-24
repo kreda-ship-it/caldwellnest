@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24i">
+<link rel="stylesheet" href="styles.css?v=2026-09-24k">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1539,118 +1539,141 @@
 
 <!-- POST LISTING -->
 <div class="modal-overlay" id="postModal">
-  <div class="modal"><div class="modal-header"><div class="modal-title" id="postModalTitle">Post a listing</div><button class="modal-close" onclick="closePostModal()">&#215;</button></div>
-  <div class="modal-body">
+  <!-- Rebuilt 2026-09-24 from the approved design: a page on a phone, a centred sheet on a
+       desktop. Step 1 asks WHAT, step 2 asks only what matters for it, in short labelled
+       sections, photos first. Every field keeps its old id, so submitListing() is unchanged. -->
+  <div class="modal pm-modal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle">
+    <div class="pm-head">
+      <button class="pm-cancel" id="pmBackBtn" onclick="closePostModal()">Cancel</button>
+      <div class="pm-title" id="postModalTitle">New listing</div>
+      <span class="pm-head-end"></span>
+    </div>
+    <div class="pm-body">
 
-    <!-- STEP 1: Category picker -->
+    <!-- STEP 1: what are you posting? -->
     <div id="postStep1">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">What are you posting?</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-        <button class="cat-pick-btn cat-housing" onclick="selectCategory('housing')">Housing</button>
-        <button class="cat-pick-btn cat-clothing" onclick="selectCategory('clothing')">Clothing</button>
-        <button class="cat-pick-btn cat-technology" onclick="selectCategory('technology')">Technology</button>
-        <button class="cat-pick-btn cat-donation" onclick="selectCategory('donation')">Free items</button>
-        <button class="cat-pick-btn cat-books" onclick="closePostModal();openPostBook()">Books</button>
-        <button class="cat-pick-btn cat-other" onclick="selectCategory('other')">Other</button>
-      </div>
-      <!-- Events left this form on 2026-09-07. Removing an option without saying where it
-           went reads as a bug, so the line stays even though the button does not. -->
-      <div class="post-cat-note">Running an event? Ask your organization to post it from the club console.</div>
+      <h2 class="pm-h1">What are you posting?</h2>
+      <p class="pm-lead">Pick one and we'll ask only what matters for it.</p>
+      <div class="pm-cats" id="pmCats"></div>
     </div>
 
-    <!-- STEP 2: Form -->
+    <!-- STEP 2: the form -->
     <div id="postStep2" style="display:none">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <button onclick="backToCategories()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text-muted);font-family:'DM Sans',sans-serif;">&#8592; Back</button>
-        <span id="postCatBadge" class="pill pill-active" style="font-size:12px;"></span>
-      </div>
+      <div class="pm-cat-row"><span id="postCatBadge" class="pm-cat-badge"></span>
+        <button class="hn-link" onclick="backToCategories()">Change</button></div>
 
-      <!-- Shared fields -->
-      <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="pTitle" placeholder="Give your listing a clear title"></div>
-      <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="pDesc" rows="3" placeholder="Add details, condition, what's included…"></textarea></div>
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">Photos</h3>
+        <p class="pm-sec-hint">Listings with photos get far more messages. The first one is the cover.</p>
+        <label for="pPhotoInput" id="pPhotoDropzone" class="pm-drop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><b>Add photos</b><span class="note-xs">Up to 6 · JPEG, PNG or WebP · 10 MB each</span></label>
+        <input type="file" id="pPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickListingPhoto(this)">
+        <div id="pPhotoPreview" class="pm-preview"></div>
+      </section>
 
-      <!-- HOUSING fields -->
-      <div id="catFields-housing" style="display:none">
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Room type</label><select class="form-select" id="pH_type"><option value="Private Room">Private Room</option><option value="Shared Room">Shared Room</option><option value="Full Apartment">Full Apartment</option><option value="Looking for Room">Looking for Room</option></select></div>
-          <div class="form-group"><label class="form-label">Monthly rent ($)</label><input class="form-input" id="pH_price" type="number" placeholder="800"></div>
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">The basics</h3>
+        <div class="form-group"><label class="form-label" for="pTitle">Title</label>
+          <input class="form-input" id="pTitle" maxlength="80" autocomplete="off" placeholder="Give your listing a clear title" oninput="pmCount(this,'pTitleCount')">
+          <div class="pm-count" id="pTitleCount">0 / 80</div></div>
+
+        <!-- HOUSING -->
+        <div id="catFields-housing" style="display:none">
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pH_type">Room type</label><select class="form-select" id="pH_type"><option value="Private Room">Private Room</option><option value="Shared Room">Shared Room</option><option value="Full Apartment">Full Apartment</option><option value="Looking for Room">Looking for Room</option></select></div>
+            <div class="form-group"><label class="form-label" for="pH_price">Monthly rent ($)</label><input class="form-input" id="pH_price" type="number" inputmode="numeric" min="0" placeholder="800"></div>
+          </div>
+          <div class="form-group"><label class="form-label" for="pH_loc">Address or neighborhood</label><input class="form-input" id="pH_loc" autocomplete="off" placeholder="e.g. Bloomfield Ave, Caldwell"></div>
         </div>
-        <div class="form-group"><label class="form-label">Address / Neighborhood</label><input class="form-input" id="pH_loc" placeholder="e.g. Caldwell, NJ · 0.3 mi from campus"></div>
-        <!-- Optional details. Each one is a filter a student can search by (LISTING_SPECS in
-             js/listings.js fills these dropdowns, so the form and the filters always agree). -->
-        <div class="post-subhead">About the place <span class="label-hint">— optional, each one helps students find it</span></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label" for="pH_distance">Distance to campus</label><select class="form-select" id="pH_distance" data-spec="housing.distance"></select></div>
-          <div class="form-group"><label class="form-label" for="pH_available">Available from</label><input class="form-input" id="pH_available" type="date"></div>
-        </div>
-        <div class="form-group"><label class="form-label" for="pH_lease">Lease</label><select class="form-select" id="pH_lease" data-spec="housing.lease"></select></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label" for="pH_beds">Bedrooms</label><select class="form-select" id="pH_beds" data-spec="housing.bedrooms"></select></div>
-          <div class="form-group"><label class="form-label" for="pH_baths">Bathrooms</label><select class="form-select" id="pH_baths" data-spec="housing.bathrooms"></select></div>
-        </div>
-        <div class="form-group"><label class="form-label">Includes</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;" id="pTags">
-            <label class="check-label"><input type="checkbox" value="Utilities included"> Utilities</label>
-            <label class="check-label"><input type="checkbox" value="Furnished"> Furnished</label>
-            <label class="check-label"><input type="checkbox" value="Parking"> Parking</label>
-            <label class="check-label"><input type="checkbox" value="Pet friendly"> Pets OK</label>
-            <label class="check-label"><input type="checkbox" value="Quiet"> Quiet</label>
-            <label class="check-label"><input type="checkbox" value="Laundry"> Laundry</label>
-            <label class="check-label"><input type="checkbox" value="Private bathroom"> Private bathroom</label>
+        <!-- CLOTHING -->
+        <div id="catFields-clothing" style="display:none">
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pCL_price">Price ($)</label><input class="form-input" id="pCL_price" type="number" inputmode="numeric" min="0" placeholder="20"></div>
+            <div class="form-group"><label class="form-label" for="pCL_cond">Condition</label><select class="form-select" id="pCL_cond"><option>New</option><option>Like New</option><option>Used</option></select></div>
           </div>
         </div>
-        <div style="padding:10px 14px;background:#fef3c7;border-radius:var(--radius-sm);font-size:12px;color:#92400e;margin-bottom:8px;line-height:1.5;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M6 21h12"/><path d="M3 8l9-3 9 3"/><path d="M6.5 8 3 15h7z"/><path d="M17.5 8 14 15h7z"/></svg> <strong>Fair Housing reminder:</strong> Listings may not express preferences based on race, color, religion, sex, national origin, disability, or familial status. <a href="https://www.hud.gov/program_offices/fair_housing_equal_opp" target="_blank" style="color:#92400e;font-weight:600;">Learn more at HUD.gov</a></div>
-        <div style="font-size:11px;color:var(--text-faint);margin-bottom:14px;">This notice is a starting point — real legal review is recommended before launch.</div>
-      </div>
-
-      <!-- CLOTHING fields -->
-      <div id="catFields-clothing" style="display:none">
-        <div class="form-group"><label class="form-label" for="pCL_type">Type <span class="label-hint">(optional)</span></label><select class="form-select" id="pCL_type" data-spec="clothing.item_type"></select></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pCL_price" type="number" placeholder="20"></div>
-          <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pCL_cond"><option>New</option><option>Like New</option><option>Used</option></select></div>
+        <!-- TECHNOLOGY -->
+        <div id="catFields-technology" style="display:none">
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pTK_price">Price ($)</label><input class="form-input" id="pTK_price" type="number" inputmode="numeric" min="0" placeholder="50"></div>
+            <div class="form-group"><label class="form-label" for="pTK_cond">Condition</label><select class="form-select" id="pTK_cond"><option>New</option><option>Like New</option><option>Used</option><option>For Parts</option></select></div>
+          </div>
         </div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label" for="pCL_sizeSel">Size</label><select class="form-select" id="pCL_sizeSel" data-spec="clothing.size" data-other="1" onchange="onClothingSize(this)"></select><input class="form-input is-hidden post-other" id="pCL_size" placeholder="e.g. 10, 32x32" autocomplete="off"></div>
-          <div class="form-group"><label class="form-label">Brand</label><input class="form-input" id="pCL_brand" placeholder="e.g. Nike, Uniqlo"></div>
+        <!-- FREE ITEMS (stored category value stays 'donation' — label only) -->
+        <div id="catFields-donation" style="display:none">
+          <div class="form-group"><label class="form-label" for="pDN_cond">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
         </div>
-        <div class="form-group"><label class="form-label">Pickup or delivery</label><select class="form-select" id="pCL_delivery"><option value="Pickup only">Pickup only</option><option value="Delivery available">Delivery available</option><option value="Either">Either</option></select></div>
-      </div>
-
-      <!-- TECHNOLOGY fields -->
-      <div id="catFields-technology" style="display:none">
-        <div class="form-group"><label class="form-label" for="pTK_device">Device <span class="label-hint">(optional)</span></label><select class="form-select" id="pTK_device" data-spec="technology.device"></select></div>
-        <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Price ($)</label><input class="form-input" id="pTK_price" type="number" placeholder="50"></div>
-          <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pTK_cond"><option>New</option><option>Like New</option><option>Used</option><option>For Parts</option></select></div>
+        <!-- OTHER -->
+        <div id="catFields-other" style="display:none">
+          <div class="form-group"><label class="form-label" for="pOT_price">Price ($) <span class="label-hint">(optional)</span></label><input class="form-input" id="pOT_price" type="number" inputmode="numeric" min="0" placeholder="Leave blank if free or ask for a price"></div>
         </div>
-        <div class="form-group"><label class="form-label">Brand / Model</label><input class="form-input" id="pTK_brand" placeholder="e.g. MacBook Pro 2021, Samsung Galaxy S22"></div>
-      </div>
+      </section>
 
-      <!-- FREE ITEMS fields (stored category value stays 'donation' — label only) -->
-      <div id="catFields-donation" style="display:none">
-        <div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
-        <div class="form-group"><label class="form-label">Pickup info</label><input class="form-input" id="pDN_pickup" placeholder="e.g. Caldwell dorms, contact to arrange"></div>
-      </div>
+      <!-- Details: each one is also a filter students search by (LISTING_SPECS in js/listings.js
+           fills the dropdowns, so the form and the filters always agree). Shown per category. -->
+      <section class="pm-sec pm-details" data-for="housing clothing technology donation">
+        <h3 class="pm-sec-title">Details <span class="pm-opt">optional</span></h3>
+        <p class="pm-sec-hint">Each one helps the right student find it in the filters.</p>
+        <div class="pm-only" data-cat="housing">
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pH_distance">Distance to campus</label><select class="form-select" id="pH_distance" data-spec="housing.distance"></select></div>
+            <div class="form-group"><label class="form-label" for="pH_available">Available from</label><input class="form-input" id="pH_available" type="date"></div>
+          </div>
+          <div class="form-group"><label class="form-label" for="pH_lease">Lease</label><select class="form-select" id="pH_lease" data-spec="housing.lease"></select></div>
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pH_beds">Bedrooms</label><select class="form-select" id="pH_beds" data-spec="housing.bedrooms"></select></div>
+            <div class="form-group"><label class="form-label" for="pH_baths">Bathrooms</label><select class="form-select" id="pH_baths" data-spec="housing.bathrooms"></select></div>
+          </div>
+          <div class="form-group"><label class="form-label">What's included</label>
+            <div class="pm-chips" id="pTags">
+            <label class="pm-chip"><input type="checkbox" value="Utilities included"> Utilities</label>
+            <label class="pm-chip"><input type="checkbox" value="Furnished"> Furnished</label>
+            <label class="pm-chip"><input type="checkbox" value="Parking"> Parking</label>
+            <label class="pm-chip"><input type="checkbox" value="Pet friendly"> Pets OK</label>
+            <label class="pm-chip"><input type="checkbox" value="Quiet"> Quiet</label>
+            <label class="pm-chip"><input type="checkbox" value="Laundry"> Laundry</label>
+            <label class="pm-chip"><input type="checkbox" value="Private bathroom"> Private bathroom</label>
+            </div>
+          </div>
+        </div>
+        <div class="pm-only" data-cat="clothing">
+          <div class="form-group"><label class="form-label" for="pCL_type">Type</label><select class="form-select" id="pCL_type" data-spec="clothing.item_type"></select></div>
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pCL_sizeSel">Size</label><select class="form-select" id="pCL_sizeSel" data-spec="clothing.size" data-other="1" onchange="onClothingSize(this)"></select><input class="form-input is-hidden post-other" id="pCL_size" placeholder="e.g. 10, 32x32" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label" for="pCL_brand">Brand</label><input class="form-input" id="pCL_brand" autocomplete="off" placeholder="e.g. Nike, Uniqlo"></div>
+          </div>
+        </div>
+        <div class="pm-only" data-cat="technology">
+          <div class="form-group"><label class="form-label" for="pTK_device">Device</label><select class="form-select" id="pTK_device" data-spec="technology.device"></select></div>
+          <div class="form-group"><label class="form-label" for="pTK_brand">Brand and model</label><input class="form-input" id="pTK_brand" autocomplete="off" placeholder="e.g. MacBook Pro 2021, Galaxy S22"></div>
+        </div>
+      </section>
 
-      <!-- OTHER fields -->
-      <div id="catFields-other" style="display:none">
-        <div class="form-group"><label class="form-label">Price ($) <span style="color:var(--text-faint);font-weight:400">(optional)</span></label><input class="form-input" id="pOT_price" type="number" placeholder="Leave blank if free or contact for price"></div>
-      </div>
+      <section class="pm-sec">
+        <h3 class="pm-sec-title">Description</h3>
+        <textarea class="form-textarea" id="pDesc" rows="4" maxlength="1500" placeholder="Add details, condition, what's included…" oninput="pmCount(this,'pDescCount')"></textarea>
+        <div class="pm-count" id="pDescCount">0 / 1500</div>
+      </section>
 
-      <div class="form-group">
-        <label class="form-label">Photo <span class="label-hint">(optional)</span></label>
-        <label for="pPhotoInput" id="pPhotoDropzone" style="display:block;border:2px dashed var(--border);border-radius:var(--radius-sm);padding:18px;text-align:center;cursor:pointer;color:var(--text-muted);font-size:13px;transition:border-color .15s;" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Tap to choose or drag here<br><span class="note-xs">JPEG · PNG · WebP · up to 6 photos · max 10 MB each · compressed before upload</span>
-        </label>
-        <input type="file" id="pPhotoInput" accept="image/jpeg,image/png,image/webp,image/*" multiple style="display:none;" onchange="pickListingPhoto(this)">
-        <div id="pPhotoPreview" style="margin-top:10px;"></div>
+      <section class="pm-sec pm-only-sec" data-for="clothing donation">
+        <h3 class="pm-sec-title">Getting it to them</h3>
+        <div class="pm-only" data-cat="clothing">
+          <div class="form-group"><label class="form-label" for="pCL_delivery">Pickup or delivery</label><select class="form-select" id="pCL_delivery"><option value="Pickup only">Pickup only</option><option value="Delivery available">Delivery available</option><option value="Either">Either</option></select></div>
+        </div>
+        <div class="pm-only" data-cat="donation">
+          <div class="form-group"><label class="form-label" for="pDN_pickup">Where to pick it up</label><input class="form-input" id="pDN_pickup" autocomplete="off" placeholder="e.g. Rosary Hall lobby, message to arrange"></div>
+        </div>
+      </section>
+
+      <div class="pm-only" data-cat="housing"><div class="pm-fair"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M6 21h12"/><path d="M3 8l9-3 9 3"/><path d="M6.5 8 3 15h7z"/><path d="M17.5 8 14 15h7z"/></svg> <strong>Fair Housing reminder:</strong> Listings may not express preferences based on race, color, religion, sex, national origin, disability, or familial status. <a href="https://www.hud.gov/program_offices/fair_housing_equal_opp" target="_blank">Learn more at HUD.gov</a></div></div>
+
+      <div class="pm-submit">
+        <p class="pm-review">Reviewed by an admin before it goes live.</p>
+        <button id="pSubmitBtn" class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
       </div>
-      <div style="padding:10px 14px;background:var(--warning-pale);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);margin-bottom:14px;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Your listing will be reviewed by admin before going live.</div>
-      <button id="pSubmitBtn" class="btn-full btn-brand" onclick="submitListing()">Submit for review</button>
     </div>
 
-  </div></div>
+    </div>
+  </div>
 </div>
 
 <!-- LISTING DETAIL -->
@@ -1662,12 +1685,8 @@
 <!-- EVENT DETAIL — the one detail view. The #/event/:id deep link opens this same modal on
      load rather than a second page, so the two cannot drift apart. -->
 <div class="modal-overlay" id="evDetailModal">
-  <div class="modal evd-modal">
-    <div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;">
-      <button class="modal-close" onclick="closeModal('evDetailModal');evClearRoute()">&#215;</button>
-    </div>
-    <div id="evDetailBody"></div>
-  </div>
+  <!-- Its own Back / Close buttons are drawn by evPaintDetail (js/events.js), inside the content. -->
+  <div class="modal ld-modal evd-modal" role="dialog" aria-modal="true" aria-label="Event"><div id="evDetailBody"></div></div>
 </div>
 
 <!-- POST A BOOK -->
@@ -1730,10 +1749,6 @@
 </div>
 
 <!-- BOOK DETAIL -->
-<div class="modal-overlay" id="bookDetailModal">
-  <div class="modal" style="max-width:560px"><div class="modal-header" style="padding:16px 24px 0;justify-content:flex-end;"><button class="modal-close" onclick="closeModal('bookDetailModal')">&#215;</button></div>
-  <div id="bookDetailContent"></div></div>
-</div>
 
 <!-- ADMIN EDIT LISTING -->
 <div class="modal-overlay" id="aEditModal">
@@ -1884,13 +1899,13 @@
 <script src="js/data.js?v=2026-09-12a"></script>
 <script src="js/auth.js?v=2026-09-24a"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
-<script src="js/listings.js?v=2026-09-24f"></script>
-<script src="js/books.js?v=2026-09-10e"></script>
+<script src="js/listings.js?v=2026-09-24h"></script>
+<script src="js/books.js?v=2026-09-24a"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
 <script src="js/admin.js?v=2026-09-24a"></script>
 <script src="js/orgs.js?v=2026-09-24a"></script>
-<script src="js/events.js?v=2026-09-23d"></script>
+<script src="js/events.js?v=2026-09-24b"></script>
 <script src="js/search.js?v=2026-09-12a"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>
 <script src="js/feed.js?v=2026-09-24b"></script>
