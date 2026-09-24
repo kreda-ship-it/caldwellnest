@@ -88,7 +88,7 @@ async function renderEvents() {
   evPaint();
   // The stories need who you follow and each club's logo, which the club directory loads. The
   // feed does not wait for it: the row repaints itself when it arrives.
-  if (typeof loadOrgDirectory === 'function') loadOrgDirectory().then(ok => { if (ok) evPaintStories(); });
+  if (typeof loadOrgDirectory === 'function') loadOrgDirectory().then(ok => { if (ok) { evPaintStories(); evPaintSuggest(); } });
   // Painted after the feed rather than inside it: it needs two more queries, and holding the
   // whole feed back for a prompt would make the common case — nothing to rate — slower for
   // everybody.
@@ -189,9 +189,16 @@ function evPaint() {
         <div id="evAskSlot" class="ev-ask-main"></div>
         <div id="evStream"></div>
       </div>
-      <aside class="ev-side" aria-label="Your plans">
-        <div id="evAskSide"></div>
-        <div id="evPlans">${evPlansHTML()}</div>
+      <aside class="ev-side" aria-label="Plans and highlights">
+        <div class="ev-side-col">
+          <div id="evAskSide"></div>
+          <div id="evPlans">${evPlansHTML()}</div>
+          ${evPopularHTML()}
+        </div>
+        <div class="ev-side-col">
+          ${evGlanceHTML()}
+          <div id="evSuggest">${evSuggestHTML()}</div>
+        </div>
       </aside>
     </div>`;
 
@@ -414,7 +421,95 @@ function evPaintFilterBadge() {
   if (b) { b.textContent = n; b.hidden = !n; }
 }
 
-// ---------- Your plans (the side column on a desktop) ----------
+// ---------- The discovery column (2026-09-24) ----------
+// The space beside the feed on a wider screen. Beside a poster feed (read one at a time) it offers
+// the OTHER ways people plan: what they already said yes to, what everyone else is going to, the
+// whole week at a glance, and clubs worth following. Each card is short and ends in an action.
+// It is drawn from _evFeed as a whole, not the filtered feed: it is the overview, not the result.
+
+// The three most-attended things in the next seven days — ranked, like a chart.
+function evPopularHTML() {
+  const week = Date.now() + 7 * 864e5;
+  const top = _evFeed.filter(e => new Date(e.starts_at).getTime() <= week && Number(e.going_count) > 0)
+    .sort((a, b) => Number(b.going_count) - Number(a.going_count)).slice(0, 3);
+  if (!top.length) return '';
+  return `
+    <div class="ev-side-card">
+      <h2 class="ev-side-h">Popular this week</h2>
+      ${top.map((e, i) => `
+        <button class="ev-pop" onclick="evOpen(${e.id})">
+          <span class="ev-pop-rank">${i + 1}</span>
+          <span class="ev-pop-thumb ev-tone-${escAttr(e.event_type || 'other')}">${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">` : ''}</span>
+          <span class="ev-plan-text"><b>${esc(e.title)}</b><span>${Number(e.going_count)} going · ${esc(evDayLabel(e.starts_at).split(',')[0])}</span></span>
+        </button>`).join('')}
+    </div>`;
+}
+
+// The next seven days as a short agenda — time and title, grouped by day. Tapping a day narrows
+// the feed to it (the same as the date strip); tapping an event opens it.
+function evGlanceHTML() {
+  const week = Date.now() + 7 * 864e5;
+  const rows = _evFeed.filter(e => new Date(e.starts_at).getTime() <= week);
+  if (!rows.length) return '';
+  const days = [];
+  rows.forEach(e => {
+    const k = evDayKey(e.starts_at);
+    let d = days.find(x => x.k === k);
+    if (!d) { d = { k, iso: e.starts_at, items: [] }; days.push(d); }
+    d.items.push(e);
+  });
+  let shown = 0;
+  return `
+    <div class="ev-side-card">
+      <h2 class="ev-side-h">The week at a glance</h2>
+      ${days.map(d => {
+        if (shown >= 9) return '';
+        const items = d.items.slice(0, 9 - shown); shown += items.length;
+        return `
+          <button class="ev-gl-day" onclick="evPickDay('${d.k}')">${esc(evDayLabel(d.iso).split(',')[0])}<span>${d.items.length}</span></button>
+          ${items.map(e => `
+            <button class="ev-gl-row" onclick="evOpen(${e.id})">
+              <span class="ev-gl-time">${esc(evTime(e.starts_at))}</span>
+              <span class="ev-gl-title">${esc(e.title)}</span>
+            </button>`).join('')}`;
+      }).join('')}
+    </div>`;
+}
+
+// Clubs worth following: ones you do not follow that have the most coming up.
+function evSuggestHTML() {
+  const follows = typeof _dirFollows !== 'undefined' ? _dirFollows : new Set();
+  const counts = new Map();
+  // A club just followed from here stays in the list, now reading Following, until the next visit.
+  const keep = id => !follows.has(id) || _evSugFollowed.has(id);
+  _evFeed.forEach(e => { if (keep(e.org_id)) counts.set(e.org_id, (counts.get(e.org_id) || 0) + 1); });
+  const picks = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (!picks.length) return '';
+  return `
+    <div class="ev-side-card">
+      <h2 class="ev-side-h">Clubs to follow</h2>
+      ${picks.map(([id, n]) => {
+        const o = evStoryOrg(id);
+        const just = follows.has(id);
+        return `
+          <div class="ev-sug">
+            <button class="ev-sug-club" onclick="evStory(${Number(id)})">
+              <span class="ev-ch-av">${o.logo_url ? `<img src="${escAttr(o.logo_url)}" alt="">`
+                : `<span class="ev-story-letter" data-tint="${((Number(id) || 0) % 6) + 1}">${esc((o.name || '?').charAt(0).toUpperCase())}</span>`}</span>
+              <span class="ev-plan-text"><b>${esc(o.name)}</b><span>${n} upcoming event${n === 1 ? '' : 's'}</span></span>
+            </button>
+            <button class="ev-sug-follow${just ? ' is-on' : ''}" onclick="_evSugFollowed.add(${Number(id)});evStoryFollow(${Number(id)})">${just ? 'Following' : 'Follow'}</button>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+let _evSugFollowed = new Set();   // followed from the suggestions during this visit
+function evPaintSuggest() {
+  const el = document.getElementById('evSuggest');
+  if (el) el.innerHTML = evSuggestHTML();
+}
+
+// ---------- Your plans (the discovery column) ----------
 function evPlansHTML() {
   const mine = _evFeed.filter(e => _evGoing.has(e.id)).slice(0, 5);
   return `
@@ -545,11 +640,12 @@ function evStoryFollow(orgId) {
   if (!was) {
     _evJustFollowed.add(orgId);
     toast('Following ' + evStoryOrg(orgId).name);
+    // The suggestion keeps saying Following (it would otherwise vanish mid-tap); the story's ✓ fades.
     setTimeout(() => { _evJustFollowed.delete(orgId); evPaintStories(); }, 1600);
   }
-  evPaintStories();
+  evPaintStories(); evPaintSuggest();
   if (_evFeedOrg === orgId) evPaintClubHead();
-  Promise.resolve(p).then(() => { evPaintStories(); if (_evFeedOrg === orgId) evPaintClubHead(); });
+  Promise.resolve(p).then(() => { evPaintStories(); evPaintSuggest(); if (_evFeedOrg === orgId) evPaintClubHead(); });
 }
 
 // The picked club, above its events: who they are, how much is coming up, and the two doors
@@ -1463,7 +1559,7 @@ function evNudgeHTML(e) {
         <span class="ev-nudge-badge">${icon('starFill', 18, true)}</span>
         <div class="ev-nudge-text">
           <div class="ev-nudge-q">How was <b>${esc(e.title)}</b>?</div>
-          <div class="ev-nudge-sub">You were there · 5 seconds · anonymous${org ? ` · helps ${esc(org)} plan the next one` : ''}</div>
+          <div class="ev-nudge-sub">You were there · 5 seconds · anonymous${org ? `<span class="ev-nudge-helps"> · helps ${esc(org)} plan the next one</span>` : ''}</div>
         </div>
         <button class="ev-nudge-x" onclick="evNudgeSetMin(${e.id}, true);evNudgeRepaint()" aria-label="Not now" title="Not now">${icon('x', 15)}</button>
       </div>

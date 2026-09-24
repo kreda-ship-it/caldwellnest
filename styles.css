@@ -2867,10 +2867,10 @@ select.ao-input { cursor: pointer; }
    either enormous or, worse, sits in the corner of a card with a field of white beside it —
    which is what the first version did. Capping the column is what makes the poster the right
    size at every window width without a single media query about the poster itself. */
-#evFeed { max-width: var(--col-read); margin-inline: auto; }
+#evFeed { max-width: none; margin-inline: 0; }   /* width is decided inside, by the container queries below */
 /* The title and search button sit over the feed column, not out at the page's edge, so the page
    reads as one column — one post at a time, like Instagram. */
-#page-events .page-header { max-width: var(--col-read); margin-inline: auto; }
+#page-events .page-header { max-width: none; margin-inline: 0; }
 
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */
@@ -3363,14 +3363,64 @@ select.ao-input { cursor: pointer; }
 .ev-plan-text b { overflow: hidden; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
 .ev-plan-text span { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
 .ev-plan:hover b { color: var(--brand); }
-@media (min-width: 1100px) {
-  #evFeed, #page-events .page-header { max-width: 920px; }
-  .ev-layout { display: grid; grid-template-columns: minmax(0, 560px) 320px; gap: 40px; align-items: start; }
-  .ev-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px; }
-  .ev-ask-main { display: none; }          /* the nudge lives in the side column here */
-  .ev-side .ev-nudge-rate, .ev-side .ev-nudge-more { margin-left: 0; }
+/* THE LAYOUT RESPONDS TO ITS OWN WIDTH, not the window's (container queries, 2026-09-24). The same
+   window can leave the feed 660px or 1600px depending on whether the sidebar is full or a rail, so
+   the window's width says little; the room the feed actually has says everything. The left edge
+   never moves — only what fills the space to its right:
+     narrow   the feed alone (at most 620px wide, so a poster never gets taller than a screen)
+     660px+   the feed and one discovery column — a half-screen window, a laptop, a tablet
+     1080px+  the feed and the discovery column split in two — a full desktop, filled to the edge */
+#evFeed { container: evfeed / inline-size; }
+.ev-main { max-width: 620px; }
+@media (min-width: 769px) {
   .ev-strip { margin-inline: 0; padding-inline: 0; }
 }
+@container evfeed (min-width: 660px) {
+  .ev-layout { display: grid; grid-template-columns: minmax(380px, 600px) minmax(250px, 1fr); gap: 24px; align-items: start; }
+  .ev-main { max-width: none; }
+  .ev-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px;
+             max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: none; }
+  .ev-side::-webkit-scrollbar { display: none; }
+  .ev-side-col { display: flex; flex-direction: column; gap: 14px; }
+  .ev-side-col:empty { display: none; }
+  .ev-ask-main { display: none; }          /* the nudge lives in the discovery column here */
+  .ev-side .ev-nudge-rate, .ev-side .ev-nudge-more { margin-left: 0; }
+  .ev-side .ev-nudge-helps { display: none; }   /* narrower here: the short promise only */
+}
+/* A half-screen window is narrow enough to get the phone's top bar, so the column pins below it. */
+@media (max-width: 768px) {
+  .ev-side { top: calc(var(--m-topbar-h) + env(safe-area-inset-top) + 12px); max-height: calc(100vh - var(--m-topbar-h) - 90px); }
+}
+@container evfeed (min-width: 1080px) {
+  .ev-layout { grid-template-columns: minmax(480px, 620px) minmax(520px, 1fr); gap: 32px; }
+  .ev-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+}
+
+/* The discovery column's cards (evPopularHTML, evGlanceHTML, evSuggestHTML). */
+.ev-pop { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--border);
+          background: none; cursor: pointer; font-family: inherit; text-align: left; }
+.ev-pop:first-of-type { border-top: 0; }
+.ev-pop-rank { flex: none; width: 18px; font: 400 26px 'DM Serif Display', Georgia, serif; line-height: 1; color: var(--accent-warm); text-align: center; }
+.ev-pop-thumb { flex: none; width: 44px; height: 55px; overflow: hidden; border-radius: 8px;
+                background: linear-gradient(150deg, var(--ev-g1, #eeebe4), var(--ev-g2, #d6cfc2)); }
+.ev-pop-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ev-pop:hover b, .ev-gl-row:hover .ev-gl-title, .ev-sug-club:hover b { color: var(--brand); }
+.ev-gl-day { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 10px; padding: 4px 0; border: 0; background: none;
+             cursor: pointer; font: 700 11.5px 'DM Sans', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.ev-gl-day:first-of-type { margin-top: 0; }
+.ev-gl-day span { padding: 1px 7px; border-radius: 999px; background: var(--bg-alt); font-size: 10.5px; letter-spacing: 0; }
+.ev-gl-day:hover { color: var(--brand); }
+.ev-gl-row { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 5px 0; border: 0; background: none;
+             cursor: pointer; font-family: inherit; text-align: left; }
+.ev-gl-time { flex: none; width: 64px; font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ev-gl-title { min-width: 0; overflow: hidden; font-size: 13.5px; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.ev-sug { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+.ev-sug:first-of-type { border-top: 0; }
+.ev-sug-club { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none;
+               cursor: pointer; font-family: inherit; text-align: left; }
+.ev-sug-follow { flex: none; height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--brand); color: #fff;
+                 cursor: pointer; font: 700 12.5px 'DM Sans', sans-serif; }
+.ev-sug-follow.is-on { background: var(--bg-alt); color: var(--text); }
 
 
 
@@ -4141,9 +4191,9 @@ select.ao-input { cursor: pointer; }
      * ONE page title: serif, 28px on a phone / 32px on a desktop, with one line under it
        (Apple's large titles are identical across tabs for the same reason).
      * On a desktop every page starts at the SAME LEFT EDGE, and only its width differs: the
-       Marketplace and Search fill the window like Pinterest, Home, Events and You use a 1240px
-       frame. At common laptop widths the frame is wider than the window, so all four start at
-       exactly the same place; Events and You used to be centred, and jumped sideways on a tab.
+       Marketplace, Search and Events fill the window (Events with its discovery column), Home and
+       You use a 1240px frame. At common laptop widths that frame is wider than the window, so all
+       four start at exactly the same place; Events and You used to be centred, and jumped sideways.
    ============================================================ */
 :root { --page-gutter: 16px; --page-top: 20px; --page-frame: 1240px; }
 @media (min-width: 769px) { :root { --page-gutter: 28px; --page-top: 28px; } }
@@ -4156,10 +4206,11 @@ select.ao-input { cursor: pointer; }
 
 @media (min-width: 769px) {
   #page-feed > .page-wrap,
-  #page-events > .page-wrap,
   #page-profile > .profile-wrap { max-width: var(--page-frame); margin-inline: auto; }
-  /* Events: the feed and its side column start at the frame's edge instead of centring. */
-  #evFeed, #page-events .page-header { margin-inline: 0; }
+  /* Events fills the width like the Marketplace (2026-09-24): its discovery column uses the room
+     to the right instead of leaving it empty. Both start at the same left edge as every page. */
+  #page-events > .page-wrap { max-width: none; }
+  #evFeed, #page-events .page-header { max-width: none; margin-inline: 0; }
 }
 
 /* The page title and its line: the Marketplace's, now shared with Events. */
