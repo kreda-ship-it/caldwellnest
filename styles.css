@@ -431,9 +431,7 @@ select.ap-input{cursor:pointer;}
    .mk-search is a <button> that looks like an input, and that is deliberate. Tapping it
    opens the Search page, which owns the query, the recent-search history and the results.
    A real <input> here would raise the keyboard and then navigate out from under it. */
-.mk-head{margin-bottom:var(--sp-4);}
-.mk-title{font-family:'DM Serif Display',serif;font-size:var(--fs-display);line-height:1.08;color:var(--text);}
-.mk-sub{font-size:var(--fs-lead);color:var(--text-muted);margin-top:var(--sp-1);}
+/* .mk-head, .mk-title and .mk-sub are defined with the shared page frame (PAGE FRAME, end of file). */
 
 .mk-tools{display:flex;gap:var(--sp-3);margin-bottom:var(--sp-4);}
 .mk-search{flex:1;min-width:0;height:50px;background:var(--surface);border:1px solid var(--border);
@@ -629,8 +627,6 @@ select.ap-input{cursor:pointer;}
   .filter-drawer-backdrop{background:rgba(0,0,0,.35);}
   /* The bottom bar's + already posts, so this button is a second door to the same room. */
   .mk-post{display:none;}
-  .mk-title{font-size:var(--fs-title);}
-  .mk-sub{font-size:var(--fs-body);}
   .mk-search,.mk-filter{height:46px;}
   .mk-filter{width:46px;}
 }
@@ -740,11 +736,9 @@ select.ap-input{cursor:pointer;}
   /* PROFILE. The header, counts, tabs and the Saved / Going lists keep the 640px column; only
      your Listings grid goes wide, with as many square tiles as fit. Scoped to #myListings: the
      same grid is used inside the small "view someone's profile" pop-up, which stays as it is. */
-  #page-profile .profile-wrap{max-width:none;padding:28px 28px 40px;}
-  .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:auto;margin-right:auto;}
+  .profile-wrap > :not(#pfPane-listings){max-width:640px;margin-left:0;margin-right:0;}
   #myListings .listing-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
   #myListings .lg-cell{border-radius:16px;}
-  /* A button is inline-block, which auto side margins cannot centre. */
   .profile-wrap > .pf-logout{display:block;}
 }
 /* Listing grids: 4 columns on a wide screen, 3 on a laptop, 2 below that — one fewer at every
@@ -3231,8 +3225,8 @@ select.ao-input { cursor: pointer; }
 /* ================= EVENTS PAGE, redesigned 2026-09-24 =================
    Header (title + filter + search) → stories → the date strip (pinned) → the feed.
    On a desktop the feed gets a side column: the rating nudge and Your plans. */
-.ev-head { align-items: center; margin-bottom: 14px; }
-.ev-head .page-title { font-size: 30px; }
+.ev-head { align-items: flex-start; flex-wrap: nowrap; margin-bottom: 16px; }
+.ev-head-text { min-width: 0; }
 .ev-head-actions { display: flex; gap: 8px; margin-left: auto; }
 .ev-head-actions .ev-search-btn { position: relative; margin-left: 0; }
 .ev-filter-count { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px;
@@ -3241,10 +3235,10 @@ select.ao-input { cursor: pointer; }
 .ev-filter-count[hidden] { display: none; }
 
 /* The date strip. Pinned under the phone's top bar, and it follows the bar when the bar hides. */
-.ev-strip { position: sticky; top: 0; z-index: 5; margin: 0 -16px 6px; padding: 6px 16px 8px;
+.ev-strip { position: sticky; top: 0; z-index: 5; margin: 0 calc(-1 * var(--page-gutter)) 6px; padding: 6px var(--page-gutter) 8px;
             background: var(--bg); transition: top .25s ease; }
 @media (max-width: 768px) {
-  .ev-strip { top: calc(var(--m-topbar-h) + env(safe-area-inset-top)); margin-inline: -14px; padding-inline: 14px; }
+  .ev-strip { top: calc(var(--m-topbar-h) + env(safe-area-inset-top)); }
   body:has(.s-nav.m-hidden) .ev-strip { top: 0; }
 }
 .ev-strip-in { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
@@ -3370,8 +3364,8 @@ select.ao-input { cursor: pointer; }
 .ev-plan-text span { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
 .ev-plan:hover b { color: var(--brand); }
 @media (min-width: 1100px) {
-  #evFeed, #page-events .page-header { max-width: 900px; }
-  .ev-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+  #evFeed, #page-events .page-header { max-width: 920px; }
+  .ev-layout { display: grid; grid-template-columns: minmax(0, 560px) 320px; gap: 40px; align-items: start; }
   .ev-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px; }
   .ev-ask-main { display: none; }          /* the nudge lives in the side column here */
   .ev-side .ev-nudge-rate, .ev-side .ev-nudge-more { margin-left: 0; }
@@ -3850,16 +3844,16 @@ select.ao-input { cursor: pointer; }
      covers the full width of the glow — otherwise the dusk would end on a straight line below it. */
   .home-campus{position:absolute;left:-60px;right:-60px;bottom:0;width:calc(100% + 120px);height:auto;margin:0;}
 }
-/* Home's margins (Kal, 2026-09-23: shorter). Phones: 14px sides, and the banner runs edge to edge
-   so its fade reaches the screen. Desktop: a wider column than the 980px reading width. */
+/* Home's margins come from the shared page frame (PAGE FRAME at the end of this file). On a phone
+   the banner runs edge to edge so its fade reaches the screen; on a desktop its greeting starts at
+   the frame's edge, level with every other page's title — the glow has no box to be inset in. */
 @media(max-width:768px){
-  #page-feed > .page-wrap{padding:20px 14px 32px;}
-  #page-feed .home-hero{margin-inline:-14px;padding-inline:14px;}
+  #page-feed .home-hero{margin-inline:calc(-1 * var(--page-gutter));padding-inline:var(--page-gutter);}
   /* The skyline runs to the screen's edges too; inside the padding it would end on a cut line. */
-  #page-feed .home-campus{width:calc(100% + 28px);margin-inline:-14px;}
+  #page-feed .home-campus{width:calc(100% + 2 * var(--page-gutter));margin-inline:calc(-1 * var(--page-gutter));}
 }
 @media(min-width:769px){
-  #page-feed > .page-wrap{max-width:1180px;padding:28px 28px 40px;}
+  #page-feed .home-hero{padding-inline:0;}
 }
 
 /* Up next for you: your next RSVP, toned like its event type (.ev-tone-*). */
@@ -4136,3 +4130,49 @@ select.ao-input { cursor: pointer; }
   body.s-signed #navUser .nav-post{width:46px;padding:0;align-self:center;}
   body.s-signed #navUser #backToAdminBtn{margin:6px 0 0;padding:4px 6px;font-size:10px;}
 }
+
+/* ============================================================
+   PAGE FRAME (2026-09-24) — one set of margins and one title style for Home, Marketplace,
+   Events and You, so switching tabs feels like turning pages of one app.
+   The rules the frame follows, from Material 3's layout guidance and Apple's HIG:
+     * ONE side margin per screen size for every page: 16px on a phone (both systems' compact
+       margin), 28px on a desktop. Home was 14px, the others 24px.
+     * ONE top gap: 20px on a phone, 28px on a desktop.
+     * ONE page title: serif, 28px on a phone / 32px on a desktop, with one line under it
+       (Apple's large titles are identical across tabs for the same reason).
+     * On a desktop every page starts at the SAME LEFT EDGE, and only its width differs: the
+       Marketplace and Search fill the window like Pinterest, Home, Events and You use a 1240px
+       frame. At common laptop widths the frame is wider than the window, so all four start at
+       exactly the same place; Events and You used to be centred, and jumped sideways on a tab.
+   ============================================================ */
+:root { --page-gutter: 16px; --page-top: 20px; --page-frame: 1240px; }
+@media (min-width: 769px) { :root { --page-gutter: 28px; --page-top: 28px; } }
+
+#page-feed > .page-wrap,
+#page-listings > .page-wrap,
+#page-search > .page-wrap,
+#page-events > .page-wrap,
+#page-profile > .profile-wrap { padding: var(--page-top) var(--page-gutter) 40px; }
+
+@media (min-width: 769px) {
+  #page-feed > .page-wrap,
+  #page-events > .page-wrap,
+  #page-profile > .profile-wrap { max-width: var(--page-frame); margin-inline: auto; }
+  /* Events: the feed and its side column start at the frame's edge instead of centring. */
+  #evFeed, #page-events .page-header { margin-inline: 0; }
+}
+
+/* The page title and its line: the Marketplace's, now shared with Events. */
+.mk-title, #page-events .page-title { font-family: 'DM Serif Display', serif; font-weight: 400;
+  font-size: 28px; line-height: 1.08; color: var(--text); }
+.mk-sub, .page-lead { margin: 4px 0 0; font-size: 15px; line-height: 1.45; color: var(--text-muted); }
+@media (min-width: 769px) {
+  .mk-title, #page-events .page-title { font-size: var(--fs-display); }
+  .mk-sub, .page-lead { font-size: var(--fs-lead); }
+}
+.mk-head, #page-events .ev-head { margin-bottom: 16px; }
+/* The first line of every page at one height. Home's banner used to add its own 26–40px above the
+   greeting, and You has no title line, so its header sat higher than the titles beside it. */
+#page-feed .home-hero { padding-top: 6px; }
+#page-profile .pf-head { margin-top: 8px; }
+

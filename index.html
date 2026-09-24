@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24u">
+<link rel="stylesheet" href="styles.css?v=2026-09-24w">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -316,10 +316,14 @@
 
   <div id="page-events" class="page">
     <div class="page-wrap">
-      <!-- One line: the title and two round buttons. The kinds of event moved into the filter
-           sheet (evFilterOpen) on 2026-09-24 — eight chips across the page became this one button. -->
+      <!-- The title and its one line, as on the Marketplace, with two round buttons beside them.
+           The kinds of event moved into the filter sheet (evFilterOpen) on 2026-09-24 — eight
+           chips across the page became one button. -->
       <div class="page-header ev-head">
-        <h1 class="page-title">Events</h1>
+        <div class="ev-head-text">
+          <h1 class="page-title">Events</h1>
+          <p class="page-lead">What's on around campus, soonest first.</p>
+        </div>
         <div class="ev-head-actions">
           <button class="ev-search-btn" onclick="evFilterOpen()" aria-label="Filter events" title="Filter">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>
