@@ -2880,9 +2880,11 @@ select.ao-input { cursor: pointer; }
 
 /* Sticky so the day you are looking at stays named while you scroll through it. A feed of
    cards with no visible day is a feed you have to remember your way through. */
-.ev-day { position: sticky; top: 0; z-index: 2; padding: 14px 0 8px;
-          font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
-          color: var(--text-faint); background: var(--bg); }
+/* A day heading: the day in the serif, the date beside it. No longer sticky (2026-09-24) — the
+   date strip, pinned above the feed, lights the day being read instead. */
+.ev-day { display: flex; align-items: baseline; gap: 8px; padding: 18px 2px 10px; }
+.ev-day b { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; font-weight: 400; color: var(--text); }
+.ev-day span { font-size: 13px; color: var(--text-muted); }
 
 /* ---- The event card, after the Nestrel Redesign canvas (Events board), 2026-09-23 ----
    evCardHTML() in js/events.js. One tone per event type colours the banner, the date badge
@@ -2906,7 +2908,6 @@ select.ao-input { cursor: pointer; }
    title and a six-word title both sit right, and the top stays clear for the badge and tag. */
 .ev-made { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
            padding: 24px 22px 22px; color: var(--ev-ink); }
-.ev-made-org { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
 .ev-made-title { margin: 8px 0 14px; font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1.1;
                  color: var(--text); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .ev-made-rule { display: block; width: 34px; height: 2px; margin-bottom: 10px; background: currentColor; opacity: .7; }
@@ -2918,14 +2919,10 @@ select.ao-input { cursor: pointer; }
 .ev-date-badge span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
 .ev-date-badge b { display: block; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400;
                    font-size: 21px; line-height: 1.05; }
-.ev-tag { position: absolute; top: 12px; right: 12px; padding: 5px 11px; border-radius: var(--radius-pill);
-          background: var(--ev-tint); color: var(--ev-ink); font-size: 10.5px; font-weight: 700; }
 .ev-body { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
 .ev-card .ev-title { font-size: 16.5px; line-height: 1.28; cursor: pointer; }
 .ev-rows { display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; }
 .ev-card .ev-row { margin-top: 0; }
-.ev-club { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
-.ev-club:hover { color: var(--text); text-decoration: underline; }
 .ev-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px;
            min-height: 36px; margin-top: 2px; }
 .ev-foot-actions { display: flex; align-items: center; gap: 4px; flex: none; }
@@ -3231,6 +3228,156 @@ select.ao-input { cursor: pointer; }
                  justify-content: center; }
 .ev-search-btn:hover { border-color: var(--brand, #3B5BA5); color: var(--brand, #3B5BA5); }
 
+/* ================= EVENTS PAGE, redesigned 2026-09-24 =================
+   Header (title + filter + search) → stories → the date strip (pinned) → the feed.
+   On a desktop the feed gets a side column: the rating nudge and Your plans. */
+.ev-head { align-items: center; margin-bottom: 14px; }
+.ev-head .page-title { font-size: 30px; }
+.ev-head-actions { display: flex; gap: 8px; margin-left: auto; }
+.ev-head-actions .ev-search-btn { position: relative; margin-left: 0; }
+.ev-filter-count { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px;
+                   border: 2px solid var(--bg); border-radius: 999px; background: var(--accent-warm); color: #fff;
+                   font-size: 10.5px; font-weight: 700; line-height: 14px; text-align: center; }
+.ev-filter-count[hidden] { display: none; }
+
+/* The date strip. Pinned under the phone's top bar, and it follows the bar when the bar hides. */
+.ev-strip { position: sticky; top: 0; z-index: 5; margin: 0 -16px 6px; padding: 6px 16px 8px;
+            background: var(--bg); transition: top .25s ease; }
+@media (max-width: 768px) {
+  .ev-strip { top: calc(var(--m-topbar-h) + env(safe-area-inset-top)); margin-inline: -14px; padding-inline: 14px; }
+  body:has(.s-nav.m-hidden) .ev-strip { top: 0; }
+}
+.ev-strip-in { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.ev-strip-in::-webkit-scrollbar { display: none; }
+.ev-sd { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; width: 50px; padding: 7px 0 6px;
+         border: 0; border-radius: 16px; background: none; cursor: pointer; scroll-snap-align: start;
+         font-family: inherit; color: var(--text); transition: background .15s ease, color .15s ease; }
+.ev-sd-w { font-size: 10.5px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); white-space: nowrap; }
+.ev-sd-n { font: 400 20px 'DM Serif Display', Georgia, serif; line-height: 1.15; }
+.ev-sd-dots { display: flex; gap: 3px; height: 5px; }
+.ev-sd-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-warm); }
+.ev-sd:hover:not(:disabled) { background: var(--bg-alt); }
+.ev-sd.is-empty { opacity: .38; cursor: default; }
+/* "Here": the day being read while scrolling everything. "On": the day picked. */
+.ev-sd.is-here { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--border); }
+.ev-sd.is-on { background: var(--brand); color: #fff; }
+.ev-sd.is-on .ev-sd-w { color: rgba(255,255,255,.8); }
+.ev-sd.is-on .ev-sd-dots i { background: #fff; }
+
+.ev-active { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 10px; }
+.ev-active-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px 0 12px; border: 0;
+                  border-radius: 999px; background: var(--brand); color: #fff; cursor: pointer; font: 600 12.5px 'DM Sans', sans-serif; }
+.ev-active-n { margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
+
+/* The post header on each card, as on Instagram. */
+.ev-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; }
+.ev-ch-club { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 0; border: 0; background: none;
+              cursor: pointer; font-family: inherit; color: var(--text); }
+.ev-ch-av { flex: none; display: flex; width: 32px; height: 32px; overflow: hidden; border-radius: 50%; }
+.ev-ch-av img { width: 100%; height: 100%; object-fit: cover; }
+.ev-ch-av .ev-story-letter { font-size: 14px; }
+.ev-ch-name { overflow: hidden; font-size: 14px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.ev-ch-club:hover .ev-ch-name { text-decoration: underline; }
+.ev-ch-type { flex: none; padding: 4px 10px; border-radius: 999px; background: var(--ev-tint); color: var(--ev-ink);
+              font-size: 11px; font-weight: 700; }
+
+/* The filter sheet: a bottom sheet on a phone, a centred card on a desktop. */
+.ev-sheet-wrap { position: fixed; inset: 0; z-index: 600; display: flex; align-items: flex-end; justify-content: center;
+                 background: rgba(0,0,0,0); transition: background .2s ease; }
+.ev-sheet-wrap[hidden] { display: none; }
+.ev-sheet-wrap.is-open { background: rgba(0,0,0,.4); }
+.ev-sheet { width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+            border-radius: 22px 22px 0 0; background: var(--bg); transform: translateY(100%); transition: transform .22s ease; }
+.ev-sheet-wrap.is-open .ev-sheet { transform: none; }
+@media (min-width: 769px) {
+  .ev-sheet-wrap { align-items: center; }
+  .ev-sheet { border-radius: 22px; transform: translateY(16px); opacity: 0; transition: transform .2s ease, opacity .2s ease; }
+  .ev-sheet-wrap.is-open .ev-sheet { opacity: 1; }
+}
+.ev-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ev-sheet-head h2 { margin: 0; font: 400 24px 'DM Serif Display', Georgia, serif; color: var(--text); }
+.ev-sheet-x { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0;
+              border-radius: 50%; background: var(--bg-alt); color: var(--text); cursor: pointer; }
+.ev-sheet-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0;
+                border-bottom: 1px solid var(--border); cursor: pointer; }
+.ev-sheet-row b { display: block; font-size: 15px; color: var(--text); }
+.ev-sheet-row small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-muted); }
+.ev-switch { flex: none; appearance: none; -webkit-appearance: none; position: relative; width: 46px; height: 28px; margin: 0;
+             border-radius: 999px; background: var(--border); cursor: pointer; transition: background .15s ease; }
+.ev-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+                    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s ease; }
+.ev-switch:checked { background: var(--brand); }
+.ev-switch:checked::after { transform: translateX(18px); }
+.ev-sheet-lab { margin: 16px 0 10px; font-size: 13px; font-weight: 700; color: var(--text); }
+.ev-sheet-kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.ev-kind { height: 38px; padding: 0 16px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--surface);
+           cursor: pointer; font: 600 13.5px 'DM Sans', sans-serif; color: var(--text); }
+.ev-kind.is-on { border-color: var(--brand); background: var(--brand); color: #fff; }
+.ev-sheet-foot { display: flex; align-items: center; gap: 16px; margin-top: 20px; }
+.ev-sheet-foot .ld-msg { flex: 1; }
+
+/* The rating nudge: slim while asking, a pill when "not now", a thin thank-you when done. */
+.ev-nudge { margin-bottom: 12px; padding: 12px 14px; border-radius: 18px; background: var(--surface);
+            border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(36,31,26,.05); animation: ev-slide .25s ease; }
+.ev-nudge-top { display: flex; align-items: flex-start; gap: 10px; }
+.ev-nudge-badge { flex: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+                  border-radius: 12px; background: #fdf3df; color: #e8a317; }
+.ev-nudge-text { flex: 1; min-width: 0; }
+.ev-nudge-q { font-size: 15px; line-height: 1.3; color: var(--text); }
+.ev-nudge-q b { font-weight: 700; }
+.ev-nudge-sub { margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+.ev-nudge-x { flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
+              border: 0; border-radius: 50%; background: none; color: var(--text-faint); cursor: pointer; }
+.ev-nudge-x:hover { background: var(--bg-alt); color: var(--text); }
+.ev-nudge-rate { display: flex; align-items: center; gap: 10px; margin: 4px 0 0 38px; }
+.ev-nudge-rate .ev-stars { margin: 0; }
+.ev-nudge-rate .ev-star-btn { width: 40px; height: 40px; }
+.ev-nudge-word { font-size: 13px; font-weight: 700; color: #a87309; }
+.ev-nudge-more { margin: 6px 0 0 46px; animation: ev-slide .2s ease; }
+.ev-nudge-more[hidden] { display: none; }
+.ev-nudge-more .ev-rate-send { height: 44px; }
+.ev-star-btn.is-on svg { animation: ev-star .3s ease; }
+@keyframes ev-star { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.ev-nudge-pill { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; margin-bottom: 12px; padding: 8px 14px 8px 8px;
+                 border: 1px solid var(--border); border-radius: 999px; background: var(--surface); cursor: pointer;
+                 font: 500 13.5px 'DM Sans', sans-serif; color: var(--text); }
+.ev-nudge-pill > span:nth-child(2) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ev-nudge-pill-star { flex: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+                      border-radius: 50%; background: #fdf3df; color: #e8a317; }
+.ev-nudge-pill-t { flex: none; font-size: 11.5px; color: var(--text-faint); }
+.ev-nudge-pill:hover { border-color: #e8a317; }
+.ev-nudge-done { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 8px 8px 10px;
+                 border-radius: 999px; background: var(--success-pale); color: var(--success); animation: ev-slide .25s ease; }
+.ev-nudge-burst { flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+                  border-radius: 50%; background: var(--success); color: #fff; animation: ev-pop .45s ease; }
+.ev-nudge-done-t { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text); }
+.ev-nudge-done-stars { color: #e8a317; white-space: nowrap; }
+.ev-nudge-done .hn-link { flex: none; font-size: 13px; }
+
+/* The desktop side column. */
+.ev-side { display: none; }
+.ev-side-card { padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.ev-side-h { margin: 0 0 10px; font: 400 20px 'DM Serif Display', Georgia, serif; color: var(--text); }
+.ev-side-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-muted); }
+.ev-plan { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--border);
+           background: none; cursor: pointer; font-family: inherit; text-align: left; }
+.ev-plan:first-of-type { border-top: 0; }
+.ev-plan-date { flex: none; width: 44px; padding: 5px 0; border-radius: 10px; background: var(--ev-tint); color: var(--ev-ink); text-align: center; }
+.ev-plan-date span { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; }
+.ev-plan-date b { display: block; font: 400 18px 'DM Serif Display', Georgia, serif; line-height: 1.1; }
+.ev-plan-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ev-plan-text b { overflow: hidden; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.ev-plan-text span { overflow: hidden; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
+.ev-plan:hover b { color: var(--brand); }
+@media (min-width: 1100px) {
+  #evFeed, #page-events .page-header { max-width: 900px; }
+  .ev-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-items: start; }
+  .ev-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 20px; }
+  .ev-ask-main { display: none; }          /* the nudge lives in the side column here */
+  .ev-side .ev-nudge-rate, .ev-side .ev-nudge-more { margin-left: 0; }
+  .ev-strip { margin-inline: 0; padding-inline: 0; }
+}
+
 
 
 /* The clubs you follow scroll sideways rather than wrapping. On a campus feed this is the
@@ -3246,6 +3393,7 @@ select.ao-input { cursor: pointer; }
 .evs-count { margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
 .evs-results-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
 #page-events.is-searching .page-header { display: none; }
+#page-events.is-searching #evFeed { max-width: var(--col-read); }   /* search reads as a column, like the main search */
 
 /* ---- Club stories on the Events page (2026-09-24) ----
    A ring means "events you have not looked at yet"; grey once seen. The + follows in place. */
@@ -3854,6 +4002,18 @@ select.ao-input { cursor: pointer; }
 .hn-res-pct{font-weight:600;}
 .hn-res.is-mine,.hn-res.is-lead{font-weight:700;color:var(--brand);}
 .hn-foot{margin-top:9px;font-size:12px;color:var(--text-faint);}
+/* A poll you have answered settles into one line (feedPollHTML's SETTLED mood) that opens on a tap. */
+.hn-poll-min{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:10px 12px;border:0;border-radius:12px;
+  background:var(--brand-pale);cursor:pointer;font:400 13.5px 'DM Sans',sans-serif;color:var(--text);text-align:left;}
+.hn-poll-check{flex:none;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;
+  background:var(--brand);color:#fff;}
+.hn-poll-line{flex:1;min-width:0;line-height:1.35;}
+.hn-poll-line b{font-weight:700;}
+.hn-poll-more{flex:none;display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--text-muted);}
+.hn-poll-min:hover .hn-poll-more{color:var(--brand);}
+/* The moment after voting: the bars grow in from nothing. */
+.hn-results.is-fresh .hn-bar{animation:hn-grow .8s cubic-bezier(.2,.8,.2,1);}
+@keyframes hn-grow{from{width:0;}}
 
 /* Home's order. On a phone every slot is one column, stacked as the design has it; the
    wrappers dissolve (display:contents) so their children can take part in that order. */

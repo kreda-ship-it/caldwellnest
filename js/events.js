@@ -17,7 +17,7 @@ let _evGoing  = new Map(); // event id -> this student's own registration row
 let _evDetail = null;      // the event currently open in the detail modal
 let _evRated  = new Map(); // event id -> this student's own feedback row
 let _evShowPast = false;
-// The on-page filter chips (evFeedChipsHTML). NOT the search's state: search resets on open and
+// The feed's own filters (stories, date strip, filter sheet). NOT the search's state: search resets on open and
 // replaces the whole feed, these narrow the feed in place. Not persisted either — a filter
 // describes this visit, and a feed silently narrowed on the next launch would look as if
 // events had disappeared.
@@ -148,13 +148,23 @@ function evTime(iso) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
+// ---------- The page (redesigned 2026-09-24) ----------
+// What event apps that feel calm have in common — Luma, Partiful, DICE, Instagram, and the date
+// strips in calendar and Meetup-style apps — and what this page now follows:
+//   * ONE row of each kind of control, never a wall of chips. Stories answer "who", the date
+//     strip answers "when", and the rarer "what kind" / "only clubs I follow" live in a sheet
+//     behind the filter button in the header.
+//   * The first event is visible on the first screen. The rating prompt is a slim nudge, not a
+//     form (see evNudgeHTML), and on a desktop it moves to the side column with Your plans.
+//   * One post at a time, like Instagram: a header naming the club, the poster, then the facts.
 function evPaint() {
   const wrap = document.getElementById('evFeed');
 
   // Search replaces the feed rather than sitting above it. Both answer "what is on", and two
   // lists of events on one screen makes the student work out which one they are reading.
-  // While searching, the page title and its search button step aside: the search has its own header.
+  // While searching, the page title and its buttons step aside: the search has its own header.
   document.getElementById('page-events')?.classList.toggle('is-searching', _evSearchOn);
+  evPaintFilterBadge();
   if (_evSearchOn) { wrap.innerHTML = evSearchHTML(); evSearchPaintChips(); return; }
 
   if (!_evFeed.length && !_evPast.length) {
@@ -167,13 +177,23 @@ function evPaint() {
     return;
   }
 
-  // The chips narrow the upcoming list in place. They are drawn only when there is an upcoming
-  // list to narrow, and they go with the rest of the feed while search is open, so the page
-  // never shows two sets of filters at once.
-  const rows = evMatchEvents(_evFeed, { type: _evFeedType, when: _evFeedWhen, orgId: _evFeedOrg });
-  wrap.innerHTML = `<div class="ev-stories" id="evStories">${evStoriesHTML()}</div>`
-    + (_evFeedOrg ? evClubHeadHTML() : '')
-    + (_evFeed.length ? evFeedChipsHTML() : '') + '<div id="evAskSlot"></div><div id="evStream"></div>';
+  const rows = evFeedRows();
+
+  wrap.innerHTML = `
+    <div class="ev-layout">
+      <div class="ev-main">
+        <div class="ev-stories" id="evStories">${evStoriesHTML()}</div>
+        <div class="ev-strip" id="evStrip">${evStripHTML()}</div>
+        ${evActiveHTML(rows.length)}
+        ${_evFeedOrg ? evClubHeadHTML() : ''}
+        <div id="evAskSlot" class="ev-ask-main"></div>
+        <div id="evStream"></div>
+      </div>
+      <aside class="ev-side" aria-label="Your plans">
+        <div id="evAskSide"></div>
+        <div id="evPlans">${evPlansHTML()}</div>
+      </aside>
+    </div>`;
 
   // One post at a time, in one column, like Instagram — and drawn as the student scrolls
   // (streamSections in listings.js), 6 posters per step. Each day is a section of the stream,
@@ -183,24 +203,25 @@ function evPaint() {
   for (const e of rows) {
     const key = evDayKey(e.starts_at);
     if (key !== lastKey) {
-      days.push({ items: [], headHTML: `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div>`, cardHTML: ev => evCardHTML(ev) });
+      days.push({ items: [], cardHTML: ev => evCardHTML(ev), headHTML: evDayHeadHTML(e.starts_at) });
       lastKey = key;
     }
     days[days.length - 1].items.push(e);
   }
 
-  // What follows the upcoming list — drawn once the stream has shown its last event, because a
-  // chip below an endless list is a chip nobody can reach until the list has ended.
   // With a club picked, its past events are the interesting part of the tail too.
   const past = _evFeedOrg ? _evPast.filter(e => e.org_id === _evFeedOrg) : _evPast;
+  const filtered = _evFeedOrg || _evFeedType || _evFeedWhen || _evFeedDay || _evFeedFollowing;
+  // What follows the upcoming list — drawn once the stream has shown its last event, because a
+  // chip below an endless list is a chip nobody can reach until the list has ended.
   const tail = () => {
     let html = '';
     if (!_evFeed.length) html += '<div class="ev-note">Nothing coming up right now.</div>';
-    else if (!rows.length && _evFeedOrg && !_evFeedType && !_evFeedWhen) html += `<div class="ev-note">Nothing coming up from
-      ${esc(_evOrgs.get(_evFeedOrg)?.name || evStoryOrg(_evFeedOrg).name)} right now${past.length ? ' — their past events are below' : ''}.
+    else if (!rows.length && _evFeedOrg && !_evFeedType && !_evFeedDay && !_evFeedFollowing) html += `<div class="ev-note">Nothing coming up from
+      ${esc(evStoryOrg(_evFeedOrg).name)} right now${past.length ? ' — their past events are below' : ''}.
       <button class="ev-note-btn" onclick="evStory(null)">See every club</button></div>`;
-    else if (!rows.length) html += `<div class="ev-note">No events match these filters.
-      <button class="ev-note-btn" onclick="evFeedSet('all')">Show all</button></div>`;
+    else if (!rows.length && filtered) html += `<div class="ev-note">Nothing matches that.
+      <button class="ev-note-btn" onclick="evFeedClear()">Show everything</button></div>`;
     // Past events are behind a chip, not in the list. The photo count is the reason anyone
     // taps it — a past event with recap photos is worth looking at, and one without is not.
     if (past.length) {
@@ -217,13 +238,198 @@ function evPaint() {
   const stream = document.getElementById('evStream');
   streamSections(stream, days, { batch: 6, gridClass: 'ev-grid',
     done: () => stream.insertAdjacentHTML('afterend', tail()) });
+  evSpyWire();
+  evSpy();
 }
 
-async function evPaintAsk() {
-  const slot = document.getElementById('evAskSlot');
-  if (!slot) return;
-  slot.innerHTML = await evPendingRatingHTML();
+// A day heading: "Today  Thursday, Sep 24", or "Saturday  Sep 26". Shared by the feed and the
+// events search, so both are read the same way.
+function evDayHeadHTML(iso) {
+  const label = evDayLabel(iso);
+  const near = label === 'Today' || label === 'Tomorrow';
+  const full = new Date(iso).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  const [wk, ...rest] = full.split(',');
+  return `<div class="ev-day" data-day="${evDayKey(iso)}"><b>${esc(near ? label : wk)}</b><span>${esc(near ? full : rest.join(',').trim())}</span></div>`;
 }
+
+// Everything that narrows the feed, in one place: the club (stories), the day (strip), and the
+// sheet's kind and "clubs I follow". _evFeedWhen is still honoured for Home's "N events today".
+function evFeedRows(opts = {}) {
+  const follows = typeof _dirFollows !== 'undefined' ? _dirFollows : new Set();
+  return evMatchEvents(_evFeed, { type: _evFeedType, when: _evFeedWhen, orgId: _evFeedOrg })
+    .filter(e => opts.ignoreDay || !_evFeedDay || evDayKey(e.starts_at) === _evFeedDay)
+    .filter(e => !_evFeedFollowing || follows.has(e.org_id));
+}
+
+function evFeedClear() {
+  _evFeedOrg = null; _evFeedType = null; _evFeedWhen = null; _evFeedDay = null; _evFeedFollowing = false;
+  evPaint();
+}
+
+// Only when something is narrowing the feed: what, and how to undo each piece.
+function evActiveHTML(n) {
+  const kind = _evFeedType ? (EV_TYPES.find(([v]) => v === _evFeedType) || [])[1] : '';
+  const chips = [
+    _evFeedDay ? [evDayLabel(evDayKeyToIso(_evFeedDay)), "evPickDay(null)"] : null,
+    _evFeedWhen === 'today' && !_evFeedDay ? ['Today', "_evFeedWhen=null;evPaint()"] : null,
+    kind ? [kind, "_evFeedType=null;evPaint()"] : null,
+    _evFeedFollowing ? ['Clubs I follow', "_evFeedFollowing=false;evPaint()"] : null,
+  ].filter(Boolean);
+  if (!chips.length) return '';
+  return `<div class="ev-active">${chips.map(([l, fn]) =>
+    `<button class="ev-active-chip" onclick="${fn}">${esc(l)}${icon('x', 12)}</button>`).join('')}
+    <span class="ev-active-n">${n} event${n === 1 ? '' : 's'}</span></div>`;
+}
+
+// ---------- The date strip ----------
+// The next two weeks as a row of days, a dot for each event (up to three). Tap a day to see just
+// that day; tap it again for everything. While scrolling the full feed, the strip lights the
+// day being read (evSpy) — it takes over the job the sticky day headings used to do.
+let _evFeedDay = null;          // 'y-m-d' key of the picked day, or null
+let _evFeedFollowing = false;   // the sheet's "only clubs I follow"
+
+function evDayKeyToIso(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m, d, 12).toISOString();
+}
+
+function evStripHTML() {
+  const base = evFeedRows({ ignoreDay: true });
+  const count = new Map();
+  base.forEach(e => { const k = evDayKey(e.starts_at); count.set(k, (count.get(k) || 0) + 1); });
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const days = Array.from({ length: 14 }, (_, i) => new Date(today.getTime() + i * 864e5));
+  return `<div class="ev-strip-in">${days.map((d, i) => {
+    const key = evDayKey(d.toISOString());
+    const n = count.get(key) || 0;
+    const wk = i === 0 ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'short' });
+    const on = _evFeedDay === key;
+    return `<button class="ev-sd${on ? ' is-on' : ''}${n ? '' : ' is-empty'}" data-day="${key}"
+      ${n ? '' : 'disabled'} aria-pressed="${on}" onclick="evPickDay('${key}')"
+      aria-label="${escAttr(d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}: ${n || 'no'} event${n === 1 ? '' : 's'}">
+      <span class="ev-sd-w">${esc(wk)}</span><span class="ev-sd-n">${d.getDate()}</span>
+      <span class="ev-sd-dots">${'<i></i>'.repeat(Math.min(n, 3))}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function evPickDay(key) {
+  _evFeedDay = key && _evFeedDay !== key ? key : null;
+  _evFeedWhen = null;
+  const strip = document.getElementById('evStrip');
+  const top = strip ? strip.getBoundingClientRect().top + window.scrollY : null;
+  evPaint();
+  // Land with the strip at the top, so the picked day's events start right under it.
+  const stuck = document.getElementById('evStrip');
+  if (top !== null && stuck && window.scrollY > top) window.scrollTo({ top: top - 60, behavior: 'smooth' });
+}
+
+// Which day is being read: the last day heading that has scrolled up under the strip.
+let _evSpyTick = false, _evSpyWired = false;
+function evSpyWire() {
+  if (_evSpyWired) return;
+  _evSpyWired = true;
+  window.addEventListener('scroll', () => {
+    if (_evSpyTick) return;
+    _evSpyTick = true;
+    setTimeout(() => { _evSpyTick = false; evSpy(); }, 90);
+  }, { passive: true });
+}
+function evSpy() {
+  const strip = document.getElementById('evStrip');
+  if (!strip || strip.offsetParent === null || _evFeedDay) {
+    strip?.querySelectorAll('.ev-sd.is-here').forEach(b => b.classList.remove('is-here'));
+    return;
+  }
+  const line = strip.getBoundingClientRect().bottom + 12;
+  let current = null;
+  document.querySelectorAll('#evStream .ev-day[data-day]').forEach(h => {
+    if (h.getBoundingClientRect().top <= line) current = h.dataset.day;
+  });
+  if (!current) current = document.querySelector('#evStream .ev-day[data-day]')?.dataset.day || null;
+  strip.querySelectorAll('.ev-sd').forEach(b => {
+    const here = b.dataset.day === current;
+    if (here && !b.classList.contains('is-here')) {
+      // Keep the lit day in view inside the strip without moving the page.
+      const row = strip.querySelector('.ev-strip-in');
+      if (row) row.scrollTo({ left: b.offsetLeft - row.clientWidth / 2 + b.clientWidth / 2, behavior: 'smooth' });
+    }
+    b.classList.toggle('is-here', here);
+  });
+}
+
+// ---------- The filter sheet ----------
+// Kinds of event and "only clubs I follow" — the rarer questions, one tap away in the header
+// instead of eight chips across the page. Changes apply as they are tapped.
+function evFilterOpen() {
+  let el = document.getElementById('evFilterSheet');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'evFilterSheet';
+    el.className = 'ev-sheet-wrap';
+    el.addEventListener('click', ev => { if (ev.target === el) evFilterClose(); });
+    document.body.appendChild(el);
+  }
+  el.innerHTML = evFilterSheetHTML();
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('is-open'));
+}
+function evFilterClose() {
+  const el = document.getElementById('evFilterSheet');
+  if (!el) return;
+  el.classList.remove('is-open');
+  setTimeout(() => { el.hidden = true; }, 200);
+}
+function evFilterSheetHTML() {
+  const kinds = EV_TYPES.filter(([v]) => _evFeed.some(e => e.event_type === v));
+  const n = evFeedRows().length;
+  return `
+    <div class="ev-sheet" role="dialog" aria-modal="true" aria-label="Filter events">
+      <div class="ev-sheet-head"><h2>Filter events</h2>
+        <button class="ev-sheet-x" onclick="evFilterClose()" aria-label="Close">${icon('x', 18)}</button></div>
+      <label class="ev-sheet-row">
+        <span><b>Only clubs I follow</b><small>Events from the clubs in your stories with a follow</small></span>
+        <input type="checkbox" class="ev-switch" ${_evFeedFollowing ? 'checked' : ''} onchange="_evFeedFollowing=this.checked;evFilterRefresh()">
+      </label>
+      <div class="ev-sheet-lab">Kind of event</div>
+      <div class="ev-sheet-kinds">
+        <button class="ev-kind${_evFeedType ? '' : ' is-on'}" onclick="_evFeedType=null;evFilterRefresh()">All kinds</button>
+        ${kinds.map(([v, l]) => `<button class="ev-kind ev-tone-${v}${_evFeedType === v ? ' is-on' : ''}" onclick="_evFeedType=_evFeedType==='${v}'?null:'${v}';evFilterRefresh()">${esc(l)}</button>`).join('')}
+      </div>
+      <div class="ev-sheet-foot">
+        <button class="hn-link" onclick="_evFeedType=null;_evFeedFollowing=false;evFilterRefresh()">Clear</button>
+        <button class="ld-msg" onclick="evFilterClose()">Show ${n} event${n === 1 ? '' : 's'}</button>
+      </div>
+    </div>`;
+}
+function evFilterRefresh() {
+  evPaint();
+  const el = document.getElementById('evFilterSheet');
+  if (el) el.innerHTML = evFilterSheetHTML();
+}
+// The number of sheet filters on, shown on the header's filter button.
+function evPaintFilterBadge() {
+  const n = (_evFeedType ? 1 : 0) + (_evFeedFollowing ? 1 : 0);
+  const b = document.getElementById('evFilterCount');
+  if (b) { b.textContent = n; b.hidden = !n; }
+}
+
+// ---------- Your plans (the side column on a desktop) ----------
+function evPlansHTML() {
+  const mine = _evFeed.filter(e => _evGoing.has(e.id)).slice(0, 5);
+  return `
+    <div class="ev-side-card">
+      <h2 class="ev-side-h">Your plans</h2>
+      ${mine.length ? mine.map(e => {
+        const d = new Date(e.starts_at);
+        return `<button class="ev-plan" onclick="evOpen(${e.id})">
+          <span class="ev-plan-date ev-tone-${escAttr(e.event_type || 'other')}"><span>${esc(d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase())}</span><b>${d.getDate()}</b></span>
+          <span class="ev-plan-text"><b>${esc(e.title)}</b><span>${esc(evTime(e.starts_at))}${e.location ? ' · ' + esc(e.location) : ''}</span></span>
+        </button>`;
+      }).join('') : `<p class="ev-side-empty">Nothing planned yet. Tap <b>I'm going</b> on anything that looks good and it shows up here.</p>`}
+    </div>`;
+}
+
 
 function evTogglePast(btn) {
   _evShowPast = !_evShowPast;
@@ -376,33 +582,10 @@ function evTimeRange(e) {
   return `${start} – ${evTime(e.ends_at)}`;
 }
 
-// One compact row, like the marketplace's. Kind chips appear only for kinds that actually have
-// something coming up, so no chip leads to an empty list; the time chips always show.
-function evFeedChipsHTML() {
-  const kinds = EV_TYPES.filter(([v]) => _evFeed.some(e => e.event_type === v));
-  const chip = (kind, value, label) => {
-    const on = kind === 'all'  ? !_evFeedType && !_evFeedWhen
-             : kind === 'when' ? _evFeedWhen === value
-             :                   _evFeedType === value;
-    return `<button class="evs-chip ev-fchip${on ? ' is-on' : ''}" aria-pressed="${on}"
-              onclick="evFeedSet('${kind}', '${value}')">${label}</button>`;
-  };
-  return `<div class="ev-chips">${chip('all', '', 'All')}${chip('when', 'today', 'Today')}`
-       + `${chip('when', 'week', 'This week')}${chip('when', 'weekend', 'This weekend')}`
-       + `${kinds.map(([v, l]) => chip('type', v, l)).join('')}</div>`;
-}
-
-// A time chip and a kind chip combine; tapping an active chip clears it; All clears both.
-function evFeedSet(kind, value) {
-  if (kind === 'all')  { _evFeedType = null; _evFeedWhen = null; }
-  if (kind === 'when') _evFeedWhen = _evFeedWhen === value ? null : value;
-  if (kind === 'type') _evFeedType = _evFeedType === value ? null : value;
-  evPaint();
-}
-
-// The event card, after the Nestrel Redesign canvas (Events board), 2026-09-23: a full-size 4:5
-// poster with a date badge and the type tag on it, then the details, and a footer with the going
-// count, the private save star and "I'm going".
+// The event card, after the Nestrel Redesign canvas (Events board), 2026-09-23, with an
+// Instagram-style header row since 2026-09-24: the club and the kind of event above a full-size
+// 4:5 poster with its date badge, then the details, and a footer with the going count, the
+// private save and "I'm going".
 //
 // One tone per event type (.ev-tone-<type> in styles.css) colours the poster, the date badge and
 // the tag together, so a Service event reads green all over its card.
@@ -420,11 +603,21 @@ function evCardHTML(e, past = false) {
   const weekday = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
 
   const made = !e.poster_url;
+  // The post header, as on Instagram: who is posting, and what kind of thing it is. Tapping the
+  // club does what tapping its story does — the feed becomes that club's events.
+  const head = `
+    <div class="ev-card-head">
+      <button class="ev-ch-club" onclick="event.stopPropagation();evStory(${Number(e.org_id)})">
+        <span class="ev-ch-av">${org?.logo_url ? `<img src="${escAttr(org.logo_url)}" alt="">`
+          : `<span class="ev-story-letter" data-tint="${((Number(e.org_id) || 0) % 6) + 1}">${esc(orgName.charAt(0).toUpperCase())}</span>`}</span>
+        <span class="ev-ch-name">${esc(orgName)}</span>
+      </button>
+      ${type ? `<span class="ev-ch-type">${esc(type)}</span>` : ''}
+    </div>`;
   const banner = `
     <div class="ev-banner" onclick="evOpen(${e.id})">
       ${made
         ? `<div class="ev-made">
-             <div class="ev-made-org">${esc(orgName)}</div>
              <div class="ev-made-title">${esc(e.title)}</div>
              <span class="ev-made-rule"></span>
              <div class="ev-made-when">${esc(evTimeRange(e))}</div>
@@ -432,19 +625,17 @@ function evCardHTML(e, past = false) {
            </div>`
         : `<img class="ev-banner-img" src="${escAttr(e.poster_url)}" alt="" loading="lazy">`}
       <div class="ev-date-badge"><span>${esc(weekday)}</span><b>${d.getDate()}</b></div>
-      ${type ? `<span class="ev-tag">${esc(type)}</span>` : ''}
     </div>`;
 
-  // The club's name is its own button, so it still opens the club page.
-  const club = `<button class="ev-club" onclick="event.stopPropagation();orgPageOpen(${e.org_id})">${esc(orgName)}</button>`;
-  const place = [e.location ? esc(e.location) : '', club].filter(Boolean).join(' · ');
+  // The club is named once, in the header; the rows say when and where.
+  const place = e.location ? esc(e.location) : '';
   // Two rows when there is a same-day end time to show ("6:00 PM – 9:00 PM" / "Student Center ·
   // SGA"); otherwise it all fits on one ("11:00 AM · Main Quad · Eco Club"), as in the mockup.
   const sameDayEnd = e.ends_at && evDayKey(e.ends_at) === evDayKey(e.starts_at);
   const rows = sameDayEnd
     ? `<div class="ev-row">${icon('clock', 14)}<span>${esc(evTimeRange(e))}</span></div>
-       <div class="ev-row">${icon('mapPin', 14)}<span>${place}</span></div>`
-    : `<div class="ev-row">${icon('clock', 14)}<span>${esc(evTime(e.starts_at))} · ${place}</span></div>`;
+       ${place ? `<div class="ev-row">${icon('mapPin', 14)}<span>${place}</span></div>` : ''}`
+    : `<div class="ev-row">${icon('clock', 14)}<span>${esc(evTime(e.starts_at))}${place ? ' · ' + place : ''}</span></div>`;
 
   // seats_left is NULL for an unlimited event and 0 for a full one. They are opposites, so the
   // null check comes first — treating them alike would print "0 spots left" on an event with no
@@ -471,6 +662,7 @@ function evCardHTML(e, past = false) {
 
   return `
     <article class="ev-card ev-tone-${tone}${past ? ' is-past' : ''}">
+      ${head}
       ${banner}
       <div class="ev-body">
         ${made ? '' : `<div class="ev-title" onclick="evOpen(${e.id})">${esc(e.title)}</div>
@@ -1187,6 +1379,11 @@ function evPickStar(eventId, n) {
     });
     const send = form.querySelector('.ev-rate-send');
     if (send) send.disabled = false;
+    // In a nudge, the first star opens the comment box and names the choice.
+    const more = form.querySelector('.ev-nudge-more');
+    if (more && more.hidden) { more.hidden = false; }
+    const word = form.querySelector('.ev-nudge-word');
+    if (word) word.textContent = EV_STAR_WORDS[n];
   });
 }
 
@@ -1197,7 +1394,7 @@ async function evSubmitRating(eventId, btn) {
   if (!eu?.id) { requireAuth(); return; }
   const rating = _evDraft.get(eventId);
   if (!rating) { toast('Pick a star rating first'); return; }
-  const comment = (btn?.closest('.ev-rate')?.querySelector('.ev-rate-note')?.value || '').trim() || null;
+  const comment = (btn?.closest('[data-rate]')?.querySelector('.ev-rate-note')?.value || '').trim() || null;
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
   // `school` is omitted deliberately: event_feedback_set_school fills it from the event, so
@@ -1216,9 +1413,14 @@ async function evSubmitRating(eventId, btn) {
   }
   _evRated.set(eventId, { event_id: eventId, rating, comment });
   _evDraft.delete(eventId);
-  toast('Thank you — sent anonymously');
-  // Every place the form was showing becomes a thank-you.
-  document.querySelectorAll(`[data-rate="${eventId}"]`).forEach(f => { f.outerHTML = evRatedHTML(rating); });
+  // Nudges shrink to a thank-you strip (and offer the next event, if one is waiting); the full
+  // form on the event page becomes a thank-you line.
+  const title = btn?.closest('[data-title]')?.dataset.title
+    || _evDue.find(x => x.id === eventId)?.title || (_evDetail?.id === eventId ? _evDetail.title : 'it');
+  _evDue = _evDue.filter(x => x.id !== eventId);
+  _evNudgeDone = { id: eventId, title, rating };
+  evNudgeRepaint();
+  document.querySelectorAll(`.ev-rate[data-rate="${eventId}"]`).forEach(f => { f.outerHTML = evRatedHTML(rating); });
   if (evDetailOpen() && _evDetail?.id === eventId) evPaintDetail();
   renderGoing();
 }
@@ -1227,18 +1429,98 @@ function evRatedHTML(rating) {
   return `<div class="ev-rated">${icon('check', 15)} You rated it ${icon('starFill', 13, true).repeat(rating)} — thank you</div>`;
 }
 
-// ---------- The one contextual slot ----------
-// The most recent event you checked into that still wants your rating. Shown at the top of the
-// Events page and on Home — there is no notification layer, so a prompt in the place the student
-// already looks is the whole delivery mechanism, and the most recent event is the one they remember.
-async function evPendingRating() {
+// ---------- The nudge (2026-09-24) ----------
+// On Home and the Events page the rating is a NUDGE, not a form, because prompts that people
+// actually answer — Uber's stars, Airbnb's reviews, Duolingo's check-ins — share three habits:
+//   1. ask one tiny thing inline: tap a star. The comment box appears only after that tap.
+//   2. say what it costs and who sees it, up front: "5 seconds · anonymous".
+//   3. once answered, thank and GET OUT OF THE WAY — shrink to a thin strip, never stay a big card.
+// And "Not now" does not nag or vanish: it minimizes to a one-line pill that stays reachable.
+// The event page keeps the full form (evRateFormHTML): someone who opened the event came for it.
+const EV_NUDGE_MIN_KEY = 'cn_rate_minimized';
+let _evDue = [];            // events waiting for this student's rating, most recent first
+let _evNudgeDone = null;    // { id, title, rating } — the thank-you strip, until closed
+
+function evNudgeMin() { try { return new Set(JSON.parse(localStorage.getItem(EV_NUDGE_MIN_KEY) || '[]')); } catch (e) { return new Set(); } }
+function evNudgeSetMin(id, on) {
+  const s = evNudgeMin(); if (on) s.add(id); else s.delete(id);
+  try { localStorage.setItem(EV_NUDGE_MIN_KEY, JSON.stringify([...s].slice(-50))); } catch (e) { /* private mode */ }
+}
+
+const EV_STAR_WORDS = ['', 'Not great', 'It was okay', 'Good', 'Really good', 'Loved it!'];
+
+function evNudgeHTML(e) {
+  if (evNudgeMin().has(e.id)) {
+    return `<button class="ev-nudge-pill" onclick="evNudgeSetMin(${e.id}, false);evNudgeRepaint()">
+      <span class="ev-nudge-pill-star">${icon('starFill', 14, true)}</span>
+      <span>Rate <b>${esc(e.title)}</b></span><span class="ev-nudge-pill-t">5 sec</span></button>`;
+  }
+  const n = _evDraft.get(e.id) || 0;
+  const org = _evOrgs.get(e.org_id)?.name;
+  return `
+    <div class="ev-nudge" data-rate="${e.id}" data-title="${escAttr(e.title)}">
+      <div class="ev-nudge-top">
+        <span class="ev-nudge-badge">${icon('starFill', 18, true)}</span>
+        <div class="ev-nudge-text">
+          <div class="ev-nudge-q">How was <b>${esc(e.title)}</b>?</div>
+          <div class="ev-nudge-sub">You were there · 5 seconds · anonymous${org ? ` · helps ${esc(org)} plan the next one` : ''}</div>
+        </div>
+        <button class="ev-nudge-x" onclick="evNudgeSetMin(${e.id}, true);evNudgeRepaint()" aria-label="Not now" title="Not now">${icon('x', 15)}</button>
+      </div>
+      <div class="ev-nudge-rate">
+        <div class="ev-stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map(i =>
+          `<button class="ev-star-btn${i <= n ? ' is-on' : ''}" role="radio" aria-checked="${i === n}" aria-label="${i} out of 5 — ${EV_STAR_WORDS[i]}"
+                   onclick="evPickStar(${e.id}, ${i})">${icon('starFill', 30, true)}</button>`).join('')}</div>
+        <span class="ev-nudge-word" aria-live="polite">${n ? EV_STAR_WORDS[n] : ''}</span>
+      </div>
+      <div class="ev-nudge-more"${n ? '' : ' hidden'}>
+        <textarea class="form-textarea ev-rate-note" rows="2" maxlength="500"
+          placeholder="Anything they should know? (optional)"></textarea>
+        <button class="ld-msg ev-rate-send" onclick="evSubmitRating(${e.id}, this)"${n ? '' : ' disabled'}>Send anonymously</button>
+        <p class="ev-rate-fine">Organizers see the average and comments, never who wrote them.</p>
+      </div>
+    </div>`;
+}
+
+function evNudgeDoneHTML() {
+  const d = _evNudgeDone;
+  const left = _evDue.length;
+  return `
+    <div class="ev-nudge-done" role="status">
+      <span class="ev-nudge-burst">${icon('check', 16)}</span>
+      <span class="ev-nudge-done-t">Thanks! You rated <b>${esc(d.title)}</b>
+        <span class="ev-nudge-done-stars">${icon('starFill', 12, true).repeat(d.rating)}</span></span>
+      ${left ? `<button class="hn-link" onclick="_evNudgeDone=null;evNudgeRepaint()">Rate the next one</button>` : ''}
+      <button class="ev-nudge-x" onclick="_evNudgeDone=null;_evDueHidden=true;evNudgeRepaint()" aria-label="Close">${icon('x', 14)}</button>
+    </div>`;
+}
+let _evDueHidden = false;   // closed the thank-you with nothing else asked for this visit
+
+// What a nudge slot shows right now: the thank-you, or the most recent event still waiting.
+function evNudgeSlotHTML() {
+  if (_evNudgeDone) return evNudgeDoneHTML();
+  if (_evDueHidden || !_evDue.length) return '';
+  return evNudgeHTML(_evDue[0]);
+}
+// Every place a nudge can be: Home, and the Events page (in the feed on a phone, in the side
+// column on a desktop). They show the same state, so answering in one answers everywhere.
+function evNudgeRepaint() {
+  ['evAskSlot', 'evAskSide', 'homeRate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = evNudgeSlotHTML();
+  });
+}
+
+// The events still waiting for this student's rating: checked in, over, inside the officer's
+// window, not yet rated. Most recent first — the one they remember best.
+async function evPendingRatings() {
   const eu = getEffectiveUser();
-  if (!eu?.id) return null;
+  if (!eu?.id) return [];
 
   const { data: regs } = await supabaseClient
     .from('event_registrations').select('event_id, status').eq('user_id', eu.id)
     .in('status', ['checked_in', 'walk_in']);
-  if (!regs || !regs.length) return null;
+  if (!regs || !regs.length) return [];
 
   const [{ data: evs }] = await Promise.all([
     supabaseClient.from('visible_events')
@@ -1247,23 +1529,23 @@ async function evPendingRating() {
     evLoadFbWindows(regs.map(r => r.event_id)),
     _evRated.size ? null : evLoadRated(),
   ]);
+  await evLoadOrgs(evs || []);
 
   const byReg = new Map(regs.map(r => [r.event_id, r]));
-  const due = (evs || [])
+  return (evs || [])
     .filter(e => evCanRate(e, byReg.get(e.id)) && !_evRated.has(e.id))
     .sort((a, b) => new Date(b.effective_ends_at) - new Date(a.effective_ends_at));
-  return due[0] || null;
 }
 
+// For Home (feed.js): refreshes the list and returns what the slot should show.
 async function evPendingRatingHTML() {
-  const e = await evPendingRating();
-  if (!e) return '';
-  return `
-    <div class="ev-ask">
-      <div class="ev-ask-kicker">You were there</div>
-      <button class="ev-ask-title" onclick="evOpen(${e.id})">${esc(e.title)}</button>
-      ${evRateFormHTML(e)}
-    </div>`;
+  _evDue = await evPendingRatings();
+  return evNudgeSlotHTML();
+}
+
+async function evPaintAsk() {
+  _evDue = await evPendingRatings();
+  evNudgeRepaint();
 }
 
 
@@ -1494,7 +1776,7 @@ function evSearchResultsHTML() {
     const key = evDayKey(e.starts_at);
     if (key !== lastKey) {
       if (lastKey !== null) html += '</div>';
-      html += `<div class="ev-day">${esc(evDayLabel(e.starts_at))}</div><div class="ev-grid">`;
+      html += `${evDayHeadHTML(e.starts_at)}<div class="ev-grid">`;
       lastKey = key;
     }
     html += evCardHTML(e);

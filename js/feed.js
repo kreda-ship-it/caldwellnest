@@ -193,7 +193,8 @@ function feedChipsHTML() {
 
 // "N events today" opens Events already narrowed to today.
 function feedGoToday() {
-  _evFeedType = null; _evFeedWhen = 'today';
+  // The date strip's Today, so the strip shows it picked and a tap on it undoes it.
+  _evFeedType = null; _evFeedWhen = null; _evFeedDay = evDayKey(new Date().toISOString());
   showPage('events');
 }
 
@@ -423,6 +424,15 @@ function feedSchoolName() {
   return (_schoolsList || []).find(s => s.slug === u?.school)?.name || 'Your school';
 }
 
+// A poll on Home, in three moods (2026-09-24):
+//   ASKING   the options, one tap each — "One tap · see what everyone picked right after"
+//   JUST     the moment after voting: the results, with the bars growing in. For a few seconds.
+//   SETTLED  voted (or closed): ONE line — what you picked and how it is going — that opens to
+//            the full results on a tap. A poll you have answered should not keep its full height
+//            in the feed; it is done, and the feed should say so and move on.
+let _feedPollOpen = new Set();   // poll ids opened back up to full results
+let _feedPollJust = new Set();   // poll ids voted on a moment ago (full results, animated)
+
 function feedPollHTML(x) {
   const mine = x.votes.find(v => v.user_id === _feedMe) || null;
   const closed = feedPollClosed(x);
@@ -435,30 +445,64 @@ function feedPollHTML(x) {
         ${x.options.map(o => `<button class="hn-opt${mine && mine.option_id === o.id ? ' is-mine' : ''}"
           onclick="feedVote(${x.id}, ${o.id})">${esc(o.label)}</button>`).join('')}
       </div>
-      <div class="hn-foot">${x.membersOnly ? 'Only members see this' : 'Results show after you vote'}${
+      <div class="hn-foot">${x.membersOnly ? 'Only members see this' : 'One tap · see what everyone picked right after'}${
         mine ? ` · <button class="hn-link" onclick="feedRevote(${x.id}, false)">Keep my vote</button>` : ''}</div>`;
   }
 
   const counted = x.options.map(o => ({ o, n: x.votes.filter(v => v.option_id === o.id).length }));
-  if (closed) counted.sort((a, b) => b.n - a.n);
-  const top = counted.length ? Math.max(...counted.map(c => c.n)) : 0;
-  const winner = closed && top > 0 && counted.filter(c => c.n === top).length === 1;
+  const byVotes = counted.slice().sort((a, b) => b.n - a.n);
+  const top = byVotes.length ? byVotes[0].n : 0;
+  const tie = byVotes.length > 1 && byVotes[1].n === top;
+  const pctOf = n => (total ? Math.round(n / total * 100) : 0);
+  const myOpt = mine ? x.options.find(o => o.id === mine.option_id) : null;
+
+  // SETTLED: one line. What you picked, and where it stands — "you're with the majority" when you
+  // are, because a poll that tells you something back is one people answer next time too.
+  if (!_feedPollJust.has(x.id) && !_feedPollOpen.has(x.id)) {
+    const lead = top > 0 && !tie ? byVotes[0] : null;
+    let line;
+    if (closed) {
+      line = lead ? `Final: <b>${esc(lead.o.label)}</b> won with ${pctOf(lead.n)}%` : 'Final results: a tie';
+      if (myOpt) line += ` · you picked ${esc(myOpt.label)}`;
+    } else if (myOpt && lead && lead.o.id === myOpt.id) {
+      line = `You voted <b>${esc(myOpt.label)}</b> · you're with the majority (${pctOf(lead.n)}%)`;
+    } else if (myOpt && lead) {
+      line = `You voted <b>${esc(myOpt.label)}</b> · ${esc(lead.o.label)} leads with ${pctOf(lead.n)}%`;
+    } else {
+      line = myOpt ? `You voted <b>${esc(myOpt.label)}</b> · it's close` : `${total} vote${total === 1 ? '' : 's'}`;
+    }
+    return `
+      <button class="hn-poll-min" onclick="feedPollToggle(${x.id}, true)" aria-expanded="false">
+        <span class="hn-poll-check">${icon(closed ? 'flag' : 'check', 13)}</span>
+        <span class="hn-poll-line">${line}</span>
+        <span class="hn-poll-more">${total} vote${total === 1 ? '' : 's'}${icon('chevDown', 14)}</span>
+      </button>`;
+  }
+
+  const winner = closed && top > 0 && !tie;
+  const rows = closed ? byVotes : counted;
   return `
-    <div class="hn-results">
-      ${counted.map((c, i) => {
-        const pct = total ? Math.round(c.n / total * 100) : 0;
+    <div class="hn-results${_feedPollJust.has(x.id) ? ' is-fresh' : ''}">
+      ${rows.map((c, i) => {
         const isMine = mine && mine.option_id === c.o.id;
         const lead = closed ? (winner && i === 0) : false;
         return `<div class="hn-res${isMine ? ' is-mine' : ''}${lead ? ' is-lead' : ''}">
-          <span class="hn-bar" style="--pct:${pct}%"></span>
+          <span class="hn-bar" style="--pct:${pctOf(c.n)}%"></span>
           <span class="hn-res-label">${esc(c.o.label)}${isMine ? ' ✓' : ''}${lead ? ' · winner' : ''}</span>
-          <span class="hn-res-pct">${pct}%</span>
+          <span class="hn-res-pct">${pctOf(c.n)}%</span>
         </div>`;
       }).join('')}
     </div>
     <div class="hn-foot">${total} vote${total === 1 ? '' : 's'} · ${closed
       ? 'final results'
-      : `<button class="hn-link" onclick="feedRevote(${x.id}, true)">Change my vote</button>`}</div>`;
+      : `<button class="hn-link" onclick="feedRevote(${x.id}, true)">Change my vote</button>`}
+      · <button class="hn-link" onclick="feedPollToggle(${x.id}, false)">Done</button></div>`;
+}
+
+function feedPollToggle(id, open) {
+  _feedPollJust.delete(id);
+  if (open) _feedPollOpen.add(id); else _feedPollOpen.delete(id);
+  feedPaintNews();
 }
 
 function feedNewsCardHTML(x) {
@@ -525,7 +569,11 @@ async function feedVote(postId, optionId) {
   const { data } = await supabaseClient.from('poll_votes').select('post_id, option_id, user_id').eq('post_id', postId);
   x.votes = data || [{ post_id: postId, option_id: optionId, user_id: _feedMe }];
   _feedRevote.delete(postId);
+  _feedPollOpen.delete(postId);
+  // The results grow in for a few seconds, then the card settles into its one-line summary.
+  _feedPollJust.add(postId);
   feedPaintNews();
+  setTimeout(() => { if (_feedPollJust.delete(postId)) feedPaintNews(); }, 4000);
 }
 
 // Listings an admin has pinned. They also lead the Marketplace; here they get their own row.
