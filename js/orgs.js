@@ -2671,39 +2671,135 @@ function ocEventCardHTML(e) {
     </div>`;
 }
 
+// The composer, rebuilt 2026-09-24 from the approved design: a live preview beside it shows the
+// card exactly as it will look on Home (it is drawn by feed.js's own feedNewsCardHTML, so the
+// two cannot drift), polls take 2 to 6 options and a closing time, and a post can be saved as a
+// draft instead of published.
+//
+// Drawn FROM _ocType. It used to hard-code Announcement as selected and the poll options as
+// hidden, while _ocType kept whatever it was last set to — so after an officer posted a poll,
+// the next post showed Announcement but went out as a poll with its options hidden, and was
+// refused for having fewer than two. The UI shows the state; it does not assume it.
+const OC_OPT_MIN = 2, OC_OPT_MAX = 6;
+const OC_CLOSES = [['1d', 'In 1 day'], ['3d', 'In 3 days'], ['7d', 'In a week'], ['pick', 'Pick a date']];
+let _ocOpts = ['', ''];      // the poll options as typed, so re-drawing the list keeps them
+let _ocCloses = '3d';
+
 function ocComposerHTML() {
-  // Drawn FROM _ocType. It used to hard-code Announcement as selected and the poll options as
-  // hidden, while _ocType kept whatever it was last set to — so after an officer posted a poll,
-  // the next post showed Announcement but went out as a poll with its options hidden, and was
-  // refused for having fewer than two. The UI shows the state; it does not assume it.
   const poll = _ocType === 'poll';
+  const pinned = _ocPosts.find(x => x.post.is_pinned && x.post.status === 'published');
   return `
-    <div class="oc-composer">
-      <div class="oc-type-row">
-        <button class="oc-type${poll ? '' : ' active'}" id="oc-t-announcement" onclick="ocSetType('announcement')">Announcement</button>
-        <button class="oc-type${poll ? ' active' : ''}" id="oc-t-poll" onclick="ocSetType('poll')">Poll</button>
+    <div class="oc-compose">
+      <div class="oc-composer">
+        <div class="oc-type-row">
+          <button class="oc-type${poll ? '' : ' active'}" id="oc-t-announcement" onclick="ocSetType('announcement')">Announcement</button>
+          <button class="oc-type${poll ? ' active' : ''}" id="oc-t-poll" onclick="ocSetType('poll')">Poll</button>
+        </div>
+        <label class="oc-lbl" for="ocTitle" id="ocTitleLbl">${poll ? 'Question' : 'Headline'}</label>
+        <input class="oc-input" id="ocTitle" autocomplete="off" oninput="ocPreview()"
+          placeholder="${poll ? 'Which Saturday works for the next cleanup?' : 'Volunteer shirts are here!'}">
+        <label class="oc-lbl" for="ocBodyText">Message <span class="oc-lbl-opt">optional</span></label>
+        <textarea class="oc-input" id="ocBodyText" rows="3" oninput="ocPreview()" placeholder="Say more"></textarea>
+        <div id="ocPollFields" class="oc-poll-fields"${poll ? '' : ' hidden'}>
+          <div class="oc-lbl">Options · ${OC_OPT_MIN} to ${OC_OPT_MAX}</div>
+          <div id="ocOptList">${ocOptListHTML()}</div>
+          <div class="oc-lbl">Voting closes</div>
+          <div class="oc-close-row" id="ocCloseRow">${ocCloseRowHTML()}</div>
+          <input class="oc-input" type="datetime-local" id="ocCloseAt" onchange="ocPreview()"${_ocCloses === 'pick' ? '' : ' hidden'}>
+        </div>
+        <label class="oc-check"><input type="checkbox" id="ocPinned" onchange="ocPreview()">
+          <span><b>Pin to the top</b><small>One pinned post per club.${pinned
+            ? ` This would replace “${esc(pinned.post.title)}”.` : ''}</small></span></label>
+        <label class="oc-check"><input type="checkbox" id="ocUrgent" onchange="ocPreview()">
+          <span><b>Urgent</b><small>Shows as a red banner at the top of your followers' Home for 3 days.
+            Keep it for changes people must not miss. It does not email anyone.</small></span></label>
+        <label class="oc-check"><input type="checkbox" id="ocMembersOnly" onchange="ocPreview()">
+          <span><b>Members only</b><small>Only your members see it. Followers who aren't members don't.</small></span></label>
+        <div class="oc-compose-actions">
+          <button class="ff-btn ff-btn-ghost" onclick="ocPostCloseForm()">Cancel</button>
+          <button class="ff-btn ff-btn-ghost" id="ocDraftBtn" onclick="ocCreatePost('draft')">Save draft</button>
+          <button class="ff-btn ff-btn-go" id="ocPostBtn" onclick="ocCreatePost('published')">${poll ? 'Publish poll' : 'Publish'}</button>
+        </div>
       </div>
-      <input class="oc-input" id="ocTitle" placeholder="Title" autocomplete="off">
-      <textarea class="oc-input" id="ocBodyText" rows="3" placeholder="Say more (optional)"></textarea>
-      <div id="ocPollFields" class="oc-poll-fields"${poll ? '' : ' hidden'}>
-        <input class="oc-input" id="ocOpt1" placeholder="Option 1" autocomplete="off">
-        <input class="oc-input" id="ocOpt2" placeholder="Option 2" autocomplete="off">
-        <input class="oc-input" id="ocOpt3" placeholder="Option 3 (optional)" autocomplete="off">
-        <input class="oc-input" id="ocOpt4" placeholder="Option 4 (optional)" autocomplete="off">
-        <div class="oc-note">Members see the results once they have voted. Early results skew later votes, so the tally stays hidden until someone has committed to an answer.</div>
-      </div>
-      <div class="oc-toggle-row">
-        <label class="oc-toggle"><input type="checkbox" id="ocPinned"> Pin to top</label>
-        <label class="oc-toggle"><input type="checkbox" id="ocMembersOnly"> Members only</label>
-        <label class="oc-toggle"><input type="checkbox" id="ocUrgent"> Mark urgent</label>
-      </div>
-      <div class="oc-note">Pinning replaces whatever is currently pinned — one per organization, so the pin keeps meaning something.
-        “Urgent” shows a red marker to students who open the app; it does <strong>not</strong> email or notify anyone yet.</div>
-      <div class="ff-actions">
-        <button class="ff-btn ff-btn-ghost" onclick="ocPostCloseForm()">Cancel</button>
-        <button class="ff-btn ff-btn-go" id="ocPostBtn" onclick="ocCreatePost()">Post</button>
-      </div>
+      <aside class="oc-preview">
+        <div class="oc-lbl">How it looks on Home</div>
+        <div id="ocPreview"></div>
+        <p class="oc-note" id="ocReach"></p>
+      </aside>
     </div>`;
+}
+
+function ocOptListHTML() {
+  return _ocOpts.map((v, i) => `
+    <div class="oc-opt-row">
+      <input class="oc-input" value="${escAttr(v)}" placeholder="Option ${i + 1}" autocomplete="off"
+        oninput="_ocOpts[${i}]=this.value;ocPreview()">
+      ${_ocOpts.length > OC_OPT_MIN ? `<button class="oc-opt-x" aria-label="Remove option" onclick="ocOptRemove(${i})">${icon('x', 14)}</button>` : ''}
+    </div>`).join('')
+    + (_ocOpts.length < OC_OPT_MAX ? `<button class="oc-add-opt" onclick="ocOptAdd()">+ Add option</button>` : '');
+}
+function ocOptAdd() {
+  if (_ocOpts.length >= OC_OPT_MAX) return;
+  _ocOpts.push('');
+  document.getElementById('ocOptList').innerHTML = ocOptListHTML();
+  document.querySelectorAll('#ocOptList .oc-input')[_ocOpts.length - 1]?.focus();
+  ocPreview();
+}
+function ocOptRemove(i) {
+  if (_ocOpts.length <= OC_OPT_MIN) return;
+  _ocOpts.splice(i, 1);
+  document.getElementById('ocOptList').innerHTML = ocOptListHTML();
+  ocPreview();
+}
+
+function ocCloseRowHTML() {
+  return OC_CLOSES.map(([v, l]) =>
+    `<button class="oc-close${_ocCloses === v ? ' active' : ''}" onclick="ocSetCloses('${v}')">${l}</button>`).join('');
+}
+function ocSetCloses(v) {
+  _ocCloses = v;
+  document.getElementById('ocCloseRow').innerHTML = ocCloseRowHTML();
+  const pick = document.getElementById('ocCloseAt');
+  pick.hidden = v !== 'pick';
+  if (v === 'pick') pick.focus();
+  ocPreview();
+}
+// When the poll closes, as an ISO string. A picked date in the past is refused by ocCreatePost.
+function ocClosesAt() {
+  if (_ocCloses === 'pick') {
+    const v = document.getElementById('ocCloseAt')?.value;
+    return v ? new Date(v).toISOString() : null;
+  }
+  const days = { '1d': 1, '3d': 3, '7d': 7 }[_ocCloses] || 3;
+  return new Date(Date.now() + days * 864e5).toISOString();
+}
+
+// The preview is the real Home card, fed the composer's values. It is inert (see .oc-preview in
+// styles.css): voting on a preview would be voting on a poll that does not exist yet.
+function ocPreview() {
+  const host = document.getElementById('ocPreview');
+  if (!host || typeof feedNewsCardHTML !== 'function') return;
+  const org = _orgCtx.orgs.get(_ocOrgId) || { id: _ocOrgId, name: 'Your club' };
+  const poll = _ocType === 'poll';
+  const title = document.getElementById('ocTitle').value.trim();
+  const labels = _ocOpts.map((v, i) => v.trim() || `Option ${i + 1}`);
+  const membersOnly = document.getElementById('ocMembersOnly').checked;
+  host.innerHTML = feedNewsCardHTML({
+    key: 'preview', kind: 'club', id: 0, org,
+    title: title || (poll ? 'Your question' : 'Your headline'),
+    body: document.getElementById('ocBodyText').value.trim(),
+    at: new Date().toISOString(), pinned: document.getElementById('ocPinned').checked, urgent: false,
+    membersOnly, isPoll: poll, closesAt: poll ? ocClosesAt() : null,
+    options: poll ? labels.map((label, i) => ({ id: i, label })) : [], votes: [],
+  });
+  const followers = _ocStats && _ocStats.orgId === _ocOrgId ? _ocStats.followers : null;
+  const reach = membersOnly
+    ? 'Goes to the Home of your members who follow the club, and to your club page — members only.'
+    : `Goes to the Home of your ${followers != null ? `<b>${followers} follower${followers === 1 ? '' : 's'}</b>` : 'followers'} and to your club page.`;
+  const urgent = document.getElementById('ocUrgent').checked
+    ? ' Marked urgent, it also shows as the red banner at the top of their Home for 3 days.' : '';
+  const results = poll ? " You'll see the results as votes come in; students see them after they vote." : '';
+  document.getElementById('ocReach').innerHTML = reach + urgent + results;
 }
 
 let _ocType = 'announcement';
@@ -2711,37 +2807,54 @@ let _ocType = 'announcement';
 let _ocPostFormOpen = false;
 let _ocPostShellOrg = null;
 
-// The button, or the composer. The line under the button is the truth about reach: nothing
-// emails or notifies followers when a club posts — the approved mockup said announcements "go to
-// your followers", and that is not something this app does yet.
+// The button, or the composer.
 function ocPostPaintTop() {
   const top = document.getElementById('ocPostTop');
   if (!top) return;
   top.innerHTML = _ocPostFormOpen ? ocComposerHTML() : `
     <button class="oc-cta" onclick="ocPostOpenForm()">+ New post</button>
-    <p class="oc-post-note">Posts appear on your club's page. They don't notify followers yet.</p>`;
+    <p class="oc-post-note">Posts appear on your club's page and on your followers' Home. They don't email or notify anyone yet.</p>`;
+  if (_ocPostFormOpen) ocPreview();
 }
 
 function ocPostPaintList() {
   const host = document.getElementById('ocPostList');
   if (!host) return;
   host.innerHTML = _ocPosts.length
-    ? _ocPosts.map(ocPostCardHTML).join('')
+    ? '<h3 class="oc-list-title">Your posts</h3>' + _ocPosts.map(ocPostCardHTML).join('')
     : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>';
 }
 
-// A new post starts as an announcement, whatever the last one was.
+// A new post starts as an empty announcement, whatever the last one was.
 function ocPostOpenForm() {
-  _ocPostFormOpen = true; _ocType = 'announcement';
+  _ocPostFormOpen = true; _ocType = 'announcement'; _ocOpts = ['', '']; _ocCloses = '3d';
   ocPostPaintTop();
   document.getElementById('ocTitle')?.focus();
 }
 function ocPostCloseForm() { _ocPostFormOpen = false; ocPostPaintTop(); }
 function ocSetType(t) {
   _ocType = t;
-  document.getElementById('oc-t-announcement').classList.toggle('active', t === 'announcement');
-  document.getElementById('oc-t-poll').classList.toggle('active', t === 'poll');
-  document.getElementById('ocPollFields').hidden = (t !== 'poll');
+  const poll = t === 'poll';
+  document.getElementById('oc-t-announcement').classList.toggle('active', !poll);
+  document.getElementById('oc-t-poll').classList.toggle('active', poll);
+  document.getElementById('ocPollFields').hidden = !poll;
+  document.getElementById('ocTitleLbl').textContent = poll ? 'Question' : 'Headline';
+  document.getElementById('ocTitle').placeholder = poll ? 'Which Saturday works for the next cleanup?' : 'Volunteer shirts are here!';
+  document.getElementById('ocPostBtn').textContent = poll ? 'Publish poll' : 'Publish';
+  ocPreview();
+}
+
+// One line saying what the post is and where it stands: "Poll · Open · closes in 2 days".
+function ocPostStatusLine(p) {
+  const kind = p.type === 'poll' ? 'Poll' : 'Announcement';
+  if (p.status === 'draft') return `${kind} · Draft`;
+  if (p.status === 'archived') return `${kind} · Archived`;
+  if (p.type === 'poll' && p.poll_closes_at) {
+    return new Date(p.poll_closes_at).getTime() <= Date.now()
+      ? `${kind} · Closed ${fmtDate(p.poll_closes_at)}`
+      : `${kind} · Open · ${feedClosesLabel(p.poll_closes_at)}`;
+  }
+  return `${kind} · Published · ${fmtDate(p.created_at)}`;
 }
 
 function ocPostCardHTML(x) {
@@ -2752,6 +2865,8 @@ function ocPostCardHTML(x) {
   // yes and the database said no, `votes` would simply be empty and the bars would read zero.
   const canSeeResults = !!x.myVote || orgCanAct('view_analytics', _ocOrgId);
   const total = x.votes.length;
+  const open = p.type === 'poll' && p.status === 'published'
+    && !(p.poll_closes_at && new Date(p.poll_closes_at).getTime() <= Date.now());
 
   const poll = p.type !== 'poll' ? '' : `
     <div class="oc-poll">
@@ -2759,11 +2874,11 @@ function ocPostCardHTML(x) {
         const n = x.votes.filter(v => v.option_id === o.id).length;
         const pct = total ? Math.round(n / total * 100) : 0;
         const mine = x.myVote && x.myVote.option_id === o.id;
-        return canSeeResults
+        return canSeeResults || !open
           ? `<div class="oc-opt-result${mine ? ' mine' : ''}">
                <div class="oc-opt-bar" style="width:${pct}%"></div>
                <span class="oc-opt-label">${esc(o.label)}</span>
-               <span class="oc-opt-count">${n}</span>
+               <span class="oc-opt-count">${canSeeResults ? n : ''}</span>
              </div>`
           : `<button class="oc-opt-vote" onclick="ocVote(${p.id}, ${o.id})">${esc(o.label)}</button>`;
       }).join('')}
@@ -2772,41 +2887,53 @@ function ocPostCardHTML(x) {
         : 'Vote to see the results.'}</div>
     </div>`;
 
+  // What an officer can do depends on where the post stands.
+  const btn = (label, fn, cls = '') => `<button class="org-btn${cls}" onclick="${fn}">${label}</button>`;
+  let actions = [];
+  if (p.status === 'draft') {
+    actions = [btn('Publish', `ocSetPostStatus(${p.id}, 'published')`, ' org-btn-go'), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn')];
+  } else if (p.status === 'published') {
+    actions = [btn(p.is_pinned ? 'Unpin' : 'Pin', `ocTogglePin(${p.id}, ${!p.is_pinned})`)];
+    if (open) actions.push(btn('Close now', `ocClosePoll(${p.id})`));
+    actions.push(btn('Archive', `ocSetPostStatus(${p.id}, 'archived')`), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn'));
+  } else {
+    actions = [btn('Restore', `ocSetPostStatus(${p.id}, 'published')`), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn')];
+  }
+
   return `
-    <div class="oc-post${p.is_urgent ? ' oc-post-urgent' : ''}">
+    <div class="oc-post${p.is_urgent ? ' oc-post-urgent' : ''}${p.status !== 'published' ? ' oc-post-off' : ''}">
       <div class="oc-post-head">
         ${p.is_pinned ? '<span class="oc-chip oc-chip-pin">Pinned</span>' : ''}
         ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
         ${p.members_only ? '<span class="oc-chip">Members only</span>' : ''}
-        ${p.status !== 'published' ? `<span class="oc-chip">${esc(p.status)}</span>` : ''}
-        <span class="oc-post-date">${fmtDate(p.created_at)}</span>
+        <span class="oc-post-status">${esc(ocPostStatusLine(p))}</span>
       </div>
       <div class="oc-post-title">${esc(p.title)}</div>
       ${p.body ? `<div class="oc-post-body">${esc(p.body)}</div>` : ''}
       ${poll}
-      ${canManage ? `<div class="oc-post-actions">
-        <button class="org-btn" onclick="ocTogglePin(${p.id}, ${!p.is_pinned})">${p.is_pinned ? 'Unpin' : 'Pin'}</button>
-        <button class="org-btn org-btn-warn" onclick="ocDeletePost(${p.id})">Delete</button>
-      </div>` : ''}
+      ${canManage ? `<div class="oc-post-actions">${actions.join('')}</div>` : ''}
     </div>`;
 }
 
-async function ocCreatePost() {
+// status: 'published' or 'draft'.
+async function ocCreatePost(status) {
   const title = document.getElementById('ocTitle').value.trim();
-  if (!title) { toast('A post needs a title'); return; }
+  const poll = _ocType === 'poll';
+  if (!title) { toast(poll ? 'A poll needs a question' : 'A post needs a headline'); return; }
 
-  const opts = _ocType === 'poll'
-    ? [1,2,3,4].map(i => document.getElementById('ocOpt' + i).value.trim()).filter(Boolean)
-    : [];
-  if (_ocType === 'poll' && opts.length < 2) { toast('A poll needs at least two options'); return; }
+  const opts = poll ? _ocOpts.map(v => v.trim()).filter(Boolean) : [];
+  if (poll && opts.length < OC_OPT_MIN) { toast('A poll needs at least two options'); return; }
+  const closesAt = poll ? ocClosesAt() : null;
+  if (poll && (!closesAt || new Date(closesAt).getTime() <= Date.now())) { toast('Pick a closing time in the future'); return; }
 
   // Disabled while it works: without this a double tap posted the same announcement twice.
-  const btn = document.getElementById('ocPostBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
-  const restore = () => { if (btn) { btn.disabled = false; btn.textContent = 'Post'; } };
+  const btns = ['ocPostBtn', 'ocDraftBtn'].map(id => document.getElementById(id)).filter(Boolean);
+  btns.forEach(b => { b.disabled = true; });
+  const restore = () => btns.forEach(b => { b.disabled = false; });
 
   const { data: { user } } = await supabaseClient.auth.getUser();
-  const wantPin = document.getElementById('ocPinned').checked;
+  // A draft is not on show, so it does not take the pin from the post that has it.
+  const wantPin = status === 'published' && document.getElementById('ocPinned').checked;
 
   // One pinned post per org is a partial unique index, so pinning a second one is refused by
   // the database rather than silently allowed. Unpin the incumbent first — that is what
@@ -2822,6 +2949,8 @@ async function ocCreatePost() {
     is_pinned: wantPin,
     is_urgent: document.getElementById('ocUrgent').checked,
     members_only: document.getElementById('ocMembersOnly').checked,
+    status,
+    poll_closes_at: closesAt,
     created_by: user?.id || null,
   }).select('id').single();
 
@@ -2842,11 +2971,11 @@ async function ocCreatePost() {
     }
   }
 
-  logEvent('org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
-                                 school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType } });
+  logEvent(status === 'draft' ? 'org_post_drafted' : 'org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
+                                 school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType, status } });
   _ocType = 'announcement'; _ocPostFormOpen = false;
   ocPostPaintTop();
-  toast('Posted');
+  toast(status === 'draft' ? 'Draft saved' : 'Posted');
   renderOcPosts();
 }
 
@@ -2864,6 +2993,36 @@ async function ocTogglePin(postId, pin) {
   if (pin) await supabaseClient.from('org_posts').update({ is_pinned: false }).eq('org_id', _ocOrgId).eq('is_pinned', true);
   const { error } = await supabaseClient.from('org_posts').update({ is_pinned: pin }).eq('id', postId);
   if (error) { toast('Could not update: ' + error.message); console.error('[ocTogglePin]', error); return; }
+  renderOcPosts();
+}
+
+// Publish a draft, archive a post (it leaves Home and the club page, and keeps its votes), or
+// restore an archived one. An archived post gives up its pin: pinned-but-hidden would hold the
+// club's one pin slot while showing nothing.
+async function ocSetPostStatus(postId, status) {
+  const x = _ocPosts.find(p => p.post.id === postId);
+  if (status === 'archived' && !confirm('Archive this post? It leaves Home and your club page. You can restore it later.')) return;
+  if (status === 'published' && x?.post.type === 'poll' && x.post.poll_closes_at
+      && new Date(x.post.poll_closes_at).getTime() <= Date.now() && x.post.status === 'draft') {
+    toast('This poll’s closing time has passed — make a new poll instead'); return;
+  }
+  const patch = { status, updated_at: new Date().toISOString() };
+  if (status === 'archived') patch.is_pinned = false;
+  const { error } = await supabaseClient.from('org_posts').update(patch).eq('id', postId);
+  if (error) { toast('Could not update: ' + error.message); console.error('[ocSetPostStatus]', error); return; }
+  logEvent('org_post_' + status, { targetType: 'organization', targetId: _ocOrgId, targetLabel: x?.post.title || null });
+  toast(status === 'published' ? 'Published' : status === 'archived' ? 'Archived' : 'Updated');
+  renderOcPosts();
+}
+
+// Ends voting now. Voters keep seeing the final result on Home for 3 days.
+async function ocClosePoll(postId) {
+  if (!confirm('Close this poll now? Nobody can vote after this.')) return;
+  const { error } = await supabaseClient.from('org_posts')
+    .update({ poll_closes_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', postId);
+  if (error) { toast('Could not close the poll: ' + error.message); console.error('[ocClosePoll]', error); return; }
+  logEvent('org_poll_closed', { targetType: 'organization', targetId: _ocOrgId });
+  toast('Poll closed');
   renderOcPosts();
 }
 

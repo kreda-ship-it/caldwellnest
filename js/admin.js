@@ -284,7 +284,7 @@ async function buildMultiSchoolStats() {
     </div>`;
 }
 
-const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Broadcast', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
+const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
 // ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
 // (There used to be a second, earlier definition here. It never ran: two function declarations
 // with the same name in one script scope means the LAST one wins for the whole scope, so this
@@ -1023,15 +1023,18 @@ async function aHardDeleteListing(id) {
   renderAListings(); updateAdminBadges(); toast('Listing permanently deleted');
 }
 
+// Featured spots on Home and the Marketplace. Was 3; the approved Home design has 6 (2026-09-24).
+const FEATURED_MAX = 6;
+
 async function aTogglePin(id) {
   const l = DB.listings.find(x => x.id === id); if (!l) return;
-  if (!l.pinned && DB.listings.filter(x => x.pinned).length >= 3) { toast('Max 3 pinned. Unpin one first.'); return; }
+  if (!l.pinned && DB.listings.filter(x => x.pinned).length >= FEATURED_MAX) { toast(`Max ${FEATURED_MAX} featured. Unfeature one first.`); return; }
   const newPinned = !l.pinned;
   const { error } = await supabaseClient.from('listings').update({ pinned: newPinned }).eq('id', id);
   if (error) { toast('Could not update pin — please try again.'); console.error(error.message); return; }
   l.pinned = newPinned;
   logAdminAction(newPinned ? 'pin_listing' : 'unpin_listing', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, before: { pinned: !newPinned }, after: { pinned: newPinned } });
-  renderAListings(); renderAPinned(); renderListings(); updateAdminBadges();
+  renderAListings(); renderAPinned(); renderListings(); renderBcastFeatured(); updateAdminBadges();
   toast(l.pinned ? '&#128204; Listing pinned — visible on student board' : 'Listing unpinned');
 }
 
@@ -2596,7 +2599,87 @@ function openBcastLanding(b) {
   openModal('bcastLandingModal');
 }
 
+// ---- Live now (2026-09-24) ----
+// What students can see on Home at this moment, and where. The placement and the automatic end
+// mirror js/feed.js: Urgent ('warning') is the red banner for 3 days, everything else an
+// Official card in Campus news for 14 days — unless the admin set an end. "End now" sets that end
+// to now, so the row leaves Home and stays in History.
+const BCAST_AUTO_END_DAYS = { warning: 3, other: 14 };
+
+function bcastEndsAt(b) {
+  if (b.expires_at) return new Date(b.expires_at);
+  const days = b.type === 'warning' ? BCAST_AUTO_END_DAYS.warning : BCAST_AUTO_END_DAYS.other;
+  return new Date(new Date(b.scheduled_at || b.created_at).getTime() + days * 864e5);
+}
+
+async function renderBcastLive() {
+  const el = document.getElementById('bLive');
+  if (!el) return;
+  const now = new Date().toISOString();
+  const { data: rows, error } = await supabaseClient.from('broadcasts')
+    .select('id, subject, type, display_type, status, created_at, scheduled_at, expires_at')
+    .in('status', ['sent', 'scheduled'])
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: false }).limit(30);
+  if (error) { el.innerHTML = '<div class="bh-empty">Could not load what is live.</div>'; console.error('[renderBcastLive]', error); return; }
+  const live = (rows || []).filter(b => b.display_type !== 'notification' && bcastEndsAt(b) > new Date());
+  if (!live.length) { el.innerHTML = '<div class="bh-empty">Nothing official on Home right now.</div>'; return; }
+  const kinds = { warning: 'Urgent', reminder: 'Reminder', feature: 'New feature', announcement: 'Announcement' };
+  el.innerHTML = live.map(b => {
+    const urgent = b.type === 'warning';
+    const ends = bcastEndsAt(b);
+    return `<div class="bh-row">
+      <div class="bh-row-main">
+        <div class="bh-row-title">${esc(b.subject)}</div>
+        <div class="bh-row-meta"><span class="bh-kind${urgent ? ' is-urgent' : ''}">${kinds[b.type] || esc(b.type)}</span>
+          ${urgent ? 'Top-of-Home banner' : 'Home · Campus news'} · Ends ${esc(fmtDate(ends.toISOString()))}${b.expires_at ? '' : ' (automatic)'}</div>
+      </div>
+      <button class="btn-sm-a btn-a-neutral" onclick="bEndBcast('${escAttr(String(b.id))}')">End now</button>
+    </div>`;
+  }).join('');
+}
+
+async function bEndBcast(id) {
+  if (!confirm('Take this off Home now? It stays in History.')) return;
+  const { error } = await supabaseClient.from('broadcasts').update({ expires_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Could not end it — please try again.'); console.error(error); return; }
+  logAdminAction('broadcast_updated', { targetType: 'broadcast', targetId: id, meta: { ended: true } });
+  toast('Taken off Home');
+  renderBcastHistory();
+}
+
+// ---- Featured on Home (2026-09-24) ----
+// The pinned listings, with when each was featured (from the activity log, as renderAPinned does
+// — there is no pinned_at column, and the log already records every pin).
+async function renderBcastFeatured() {
+  const el = document.getElementById('bFeatured');
+  if (!el) return;
+  const pins = DB.listings.filter(l => l.pinned && l.status === 'approved');
+  const spots = document.getElementById('bFeatSpots');
+  if (spots) spots.textContent = `${pins.length} of ${FEATURED_MAX} spots`;
+  const since = {};
+  if (pins.length) {
+    const { data: logRows } = await supabaseClient.from('admin_activity_log')
+      .select('target_id, created_at').eq('action_type', 'pin_listing')
+      .in('target_id', pins.map(l => String(l.id))).order('created_at', { ascending: false });
+    (logRows || []).forEach(r => { if (!since[r.target_id]) since[r.target_id] = r.created_at; });
+  }
+  el.innerHTML = (pins.length ? pins.map(l => `
+    <div class="bh-row">
+      <div class="bh-row-main">
+        <div class="bh-row-title">${esc(l.title)}</div>
+        <div class="bh-row-meta">${priceLabel(l)} · ${esc(l.poster?.name || '')}${since[String(l.id)] ? ' · featured ' + esc(fmtActivityTime(since[String(l.id)])) : ''}${isListingLive(l) ? '' : ' · <b>not live — hidden from Home</b>'}</div>
+      </div>
+      <button class="btn-sm-a btn-a-neutral" onclick="aTogglePin(${Number(l.id)})">Unfeature</button>
+    </div>`).join('') : '<div class="bh-empty">No featured listings. Home skips the Featured row until there is one.</div>')
+    + (pins.length < FEATURED_MAX
+      ? `<button class="bh-add" onclick="ago('pinned', document.querySelector('.a-nav-item[onclick*=&quot;pinned&quot;]'))">+ Feature a listing</button>` : '');
+}
+
 async function renderBcastHistory() {
+  renderBcastLive();
+  renderBcastFeatured();
   const el = document.getElementById('bHistory');
   if (!el) return;
   el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-faint);font-size:13px">Loading…</div>';
@@ -2620,7 +2703,7 @@ async function renderBcastHistory() {
     if (s === 'deleted')   return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#fde8e8;color:#c0392b">Deleted</span>`;
     return `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666">Draft</span>`;
   };
-  const typeBadge    = t => `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--border);color:var(--text-muted)">${t}</span>`;
+  const typeBadge    = t => `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--border);color:var(--text-muted)">${esc({ warning: 'urgent', feature: 'new feature' }[t] || t)}</span>`;
   const landingChip  = b => b.landing_body ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#f0f7ff;color:#3B5BA5">${icon('book',11)} Landing page</span>` : '';
   el.innerHTML = rows.map(b => {
     const subEsc = (b.subject || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
@@ -2660,12 +2743,6 @@ function selBType(el, type) {
   el.classList.add('active-type');
 }
 
-function setBDisplayType(el, type) {
-  _bDisplayType = type;
-  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach(b => b.classList.remove('active-type'));
-  el.classList.add('active-type');
-}
-
 function setBHistFilter(tab, el) {
   _bHistFilter = tab;
   document.querySelectorAll('#bHistTabs .filter-chip').forEach(b => b.classList.remove('active'));
@@ -2698,10 +2775,11 @@ function resetBcastForm() {
   document.getElementById('bAudience').selectedIndex = 0;
   bType = 'announcement';
   document.querySelectorAll('#bTypeRow .msg-type-btn').forEach((b, i) => b.classList.toggle('active-type', i === 0));
+  // Every new broadcast shows on Home. The Banner / Notification / Both choice was removed
+  // 2026-09-24 when Home took over from the thin bar; an old row keeps its value (see bEditBcast).
   _bDisplayType = 'both';
-  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach((b, i) => b.classList.toggle('active-type', i === 2));
   document.getElementById('bCancelEditBtn').style.display = 'none';
-  document.getElementById('bFormTitle').textContent = 'New broadcast';
+  document.getElementById('bFormTitle').textContent = 'New announcement';
   _bUpdateBtn();
   document.getElementById('bLandingTitle').value = '';
   document.getElementById('bLandingBody').value = '';
@@ -2722,10 +2800,8 @@ async function bEditBcast(id) {
   document.querySelectorAll('#bTypeRow .msg-type-btn').forEach(btn =>
     btn.classList.toggle('active-type', btn.getAttribute('onclick')?.includes(`'${bType}'`)));
   _bDisplayType = b.display_type || 'both';
-  document.querySelectorAll('#bDisplayRow .msg-type-btn').forEach(btn =>
-    btn.classList.toggle('active-type', btn.getAttribute('onclick')?.includes(`'${_bDisplayType}'`)));
   document.getElementById('bCancelEditBtn').style.display = '';
-  document.getElementById('bFormTitle').textContent = 'Edit broadcast';
+  document.getElementById('bFormTitle').textContent = 'Edit announcement';
   _bUpdateBtn();
   document.getElementById('bLandingTitle').value = b.landing_title || '';
   document.getElementById('bLandingBody').value  = b.landing_body  || '';
@@ -3841,6 +3917,7 @@ const _agoMap = {
   // built and take the whole admin file down with a ReferenceError. The arrow defers the
   // lookup to call time, by which point orgs.js has defined it. Same reason as `exports`.
   orgs: () => renderOrgs(),
+  broadcast: () => { renderBcastHistory(); },
   health: renderHealth,
   appeals: renderAppeals,
 };

@@ -180,5 +180,4 @@ if (!adminPreviewMode && !_recoveryMode) {
   startGlobalMsgListener(session.user.id);
   startNotifListener(session.user.id);
   startProfileListener(session.user.id);
-  loadStudentBroadcasts();
 })();

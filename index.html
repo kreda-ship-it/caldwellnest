@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-24e">
+<link rel="stylesheet" href="styles.css?v=2026-09-24g">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -73,7 +73,6 @@
   </div>
 
   <div id="sBanner"></div>
-  <div id="sBcastBanner"></div>
 
   <!-- HOME -->
   <div id="page-home" class="page active">
@@ -577,7 +576,7 @@
         <button class="a-nav-item" onclick="ago('appeals',this)" data-tooltip="Appeals"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg></span><span class="n-label">Appeals</span><span class="n-badge red" id="appealsBadge" style="display:none">0</span></button>
         <div class="a-sec-label">Platform</div>
         <button class="a-nav-item" onclick="ago('editor',this)" data-tooltip="Site editor"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg></span><span class="n-label">Site editor</span></button>
-        <button class="a-nav-item" onclick="ago('broadcast',this)" data-tooltip="Broadcast"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></span><span class="n-label">Broadcast</span></button>
+        <button class="a-nav-item" onclick="ago('broadcast',this)" data-tooltip="Home &amp; announcements"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></span><span class="n-label">Home &amp; announcements</span></button>
         <button class="a-nav-item" onclick="ago('analytics',this)" data-tooltip="Analytics"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="6"/><line x1="16" y1="20" x2="16" y2="10"/><line x1="22" y1="20" x2="22" y2="3"/></svg></span><span class="n-label">Analytics</span></button>
         <button class="a-nav-item" onclick="ago('activity',this)" data-tooltip="Activity log"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><span class="n-label">Activity log</span></button>
         <button class="a-nav-item" onclick="ago('exports',this)" data-tooltip="Data export"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span><span class="n-label">Data export</span></button>
@@ -717,7 +716,7 @@
 
         <!-- PINNED -->
         <div class="a-section" id="asec-pinned">
-          <div style="margin-bottom:14px;padding:11px 14px;background:var(--pin-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--pin);border:1px solid rgba(107,33,168,0.2);"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Pinned listings appear at the top of the student board with a Featured badge. Max 3 at a time. Changes are live immediately.</div>
+          <div style="margin-bottom:14px;padding:11px 14px;background:var(--pin-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--pin);border:1px solid rgba(107,33,168,0.2);"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Pinned listings appear in the Featured row on Home and at the top of the Marketplace, with a Featured badge. Max 6 at a time. Changes are live immediately.</div>
           <div id="aPinnedGrid"></div>
           <div style="margin-top:18px"><div style="font-size:14px;font-weight:600;margin-bottom:12px">Approved listings — click to pin</div><div id="aPinAllGrid"></div></div>
         </div>
@@ -854,33 +853,27 @@
 
         <!-- BROADCAST -->
         <div class="a-section" id="asec-broadcast">
+          <p class="bh-intro">What every student sees on Home: official announcements and featured listings.</p>
           <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
           <div class="a-bc-layout">
             <!-- Compose -->
             <div class="tcard tcard-flush">
               <div class="tcard-head">
-                <div class="tcard-title" id="bFormTitle">New broadcast</div>
+                <div class="tcard-title" id="bFormTitle">New announcement</div>
                 <button id="bCancelEditBtn" class="btn-sm-a btn-a-neutral" onclick="resetBcastForm()" style="display:none"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> Cancel edit</button>
               </div>
               <div style="padding:18px;">
                 <div class="form-group">
-                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Message type</label>
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Kind</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bTypeRow">
                     <div class="msg-type-btn active-type" onclick="selBType(this,'announcement')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg> Announcement</div>
-                    <div class="msg-type-btn" onclick="selBType(this,'warning')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Warning</div>
+                    <div class="msg-type-btn" onclick="selBType(this,'warning')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17" x2="12" y2="17"/></svg> Urgent</div>
                     <div class="msg-type-btn" onclick="selBType(this,'reminder')">&#8987; Reminder</div>
-                    <div class="msg-type-btn" onclick="selBType(this,'feature')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg> Feature</div>
+                    <div class="msg-type-btn" onclick="selBType(this,'feature')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg> New feature</div>
                   </div>
                 </div>
-                <div class="form-group">
-                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Display as</label>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bDisplayRow">
-                    <div class="msg-type-btn" onclick="setBDisplayType(this,'banner')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.6.8-4.9 4.6 1.3 6.7L12 17.1 6.1 20.4l1.3-6.7-4.9-4.6 6.6-.8z"/></svg> Banner</div>
-                    <div class="msg-type-btn" onclick="setBDisplayType(this,'notification')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notification</div>
-                    <div class="msg-type-btn active-type" onclick="setBDisplayType(this,'both')">Both</div>
-                  </div>
-                </div>
-                <div class="form-group"><label class="form-label">Subject</label><input class="form-input" id="bSubject" placeholder="e.g. New listings this week!"></div>
+                <p class="bh-hint" id="bKindHint">Shows on every student's Home as an <b>Official</b> card in Campus news, for 14 days unless you set an end. <b>Urgent</b> goes to the red banner at the top of Home instead, for 3 days unless you set an end.</p>
+                <div class="form-group"><label class="form-label">Headline</label><input class="form-input" id="bSubject" placeholder="e.g. Library hours extend to midnight from Monday"></div>
                 <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="bBody" rows="4" placeholder="Write your message to students..."></textarea></div>
                 <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
                   <button type="button" id="bLandingToggle" onclick="toggleBLanding()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;text-align:left;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z"/><path d="M5 17.5h14"/></svg> Add landing page <span style="float:right;opacity:.5">optional</span></button>
@@ -910,7 +903,7 @@
                     <input class="form-input" type="datetime-local" id="bScheduleAt" oninput="_bUpdateBtn()" style="margin-bottom:0">
                   </div>
                   <div>
-                    <label class="form-label">Expires on <span class="label-hint">(optional)</span></label>
+                    <label class="form-label">Ends <span class="label-hint">(optional)</span></label>
                     <input class="form-input" type="datetime-local" id="bExpiresAt" style="margin-bottom:0">
                   </div>
                 </div>
@@ -922,6 +915,17 @@
             </div>
             <!-- Right column -->
             <div>
+              <!-- What students see right now, and the listings leading Home. Filled by
+                   renderBcastLive() and renderBcastFeatured() in js/admin.js. -->
+              <div class="tcard bh-card">
+                <div class="tcard-head"><div class="tcard-title">Live now</div></div>
+                <div id="bLive"></div>
+              </div>
+              <div class="tcard bh-card">
+                <div class="tcard-head"><div class="tcard-title">Featured on Home</div><span class="bh-spots" id="bFeatSpots"></span></div>
+                <p class="bh-sub">Your pinned listings. They lead the Featured row on Home and the Marketplace, newest first.</p>
+                <div id="bFeatured"></div>
+              </div>
               <div class="tcard" style="margin-bottom:14px">
                 <div class="tcard-head">
                   <div class="tcard-title">History</div>
@@ -1878,19 +1882,19 @@
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-23f"></script>
+<script src="js/auth.js?v=2026-09-24a"></script>
 <script src="js/profile.js?v=2026-09-23b"></script>
 <script src="js/listings.js?v=2026-09-24e"></script>
 <script src="js/books.js?v=2026-09-10e"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-11a"></script>
-<script src="js/admin.js?v=2026-09-12b"></script>
-<script src="js/orgs.js?v=2026-09-14a"></script>
+<script src="js/admin.js?v=2026-09-24a"></script>
+<script src="js/orgs.js?v=2026-09-24a"></script>
 <script src="js/events.js?v=2026-09-23d"></script>
 <script src="js/search.js?v=2026-09-12a"></script>
 <script src="js/orgdir.js?v=2026-09-11b"></script>
-<script src="js/feed.js?v=2026-09-23e"></script>
-  <script src="js/boot.js?v=2026-09-23d"></script>
+<script src="js/feed.js?v=2026-09-24b"></script>
+  <script src="js/boot.js?v=2026-09-24a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

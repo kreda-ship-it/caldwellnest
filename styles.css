@@ -1227,6 +1227,24 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .btn-a-success{background:var(--success-pale);color:var(--success);}.btn-a-success:hover{background:var(--success);color:#fff;}
 .btn-a-neutral{background:var(--bg);color:var(--text-muted);border:1px solid var(--border);}.btn-a-neutral.active{background:var(--brand);color:#fff;border-color:var(--brand);}
 .btn-a-pin{background:var(--pin-pale);color:var(--pin);}.btn-a-pin:hover{background:var(--pin);color:#fff;}
+/* Admin · Home & announcements (2026-09-24): Live now and Featured on Home, beside the composer. */
+.bh-intro{margin:-4px 0 16px;font-size:14px;color:var(--text-muted);}
+.bh-hint{margin:-2px 0 16px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg);font-size:12.5px;line-height:1.55;color:var(--text-muted);}
+.bh-hint b{color:var(--text);}
+.bh-card{margin-bottom:14px;}
+.bh-spots{font-size:12px;font-weight:600;color:var(--pin);}
+.bh-sub{margin:0;padding:0 18px 6px;font-size:12.5px;line-height:1.5;color:var(--text-muted);}
+.bh-row{display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid var(--border);}
+.bh-row-main{flex:1;min-width:0;}
+.bh-row-title{overflow:hidden;font-size:13.5px;font-weight:600;white-space:nowrap;text-overflow:ellipsis;}
+.bh-row-meta{margin-top:3px;font-size:12px;color:var(--text-muted);}
+.bh-row-meta .lc-price,.bh-row-meta span{font-size:inherit;}
+.bh-kind{display:inline-block;margin-right:4px;padding:1px 8px;border-radius:10px;background:var(--brand-pale);color:var(--brand);font-size:10.5px;font-weight:700;}
+.bh-kind.is-urgent{background:#fbeae6;color:#a8402f;}
+.bh-empty{padding:14px 18px 16px;font-size:13px;color:var(--text-faint);}
+.bh-add{display:block;width:calc(100% - 36px);margin:4px 18px 14px;padding:9px;border:1px dashed var(--border);border-radius:var(--radius-sm);
+  background:none;cursor:pointer;font:600 13px 'DM Sans',sans-serif;color:var(--brand);}
+.bh-add:hover{border-color:var(--brand-light);background:var(--brand-pale);}
 .btn-a-brand{background:var(--brand);color:#fff;}.btn-a-brand:hover{background:var(--brand-mid);}
 
 /* APPROVAL CARDS */
@@ -2228,6 +2246,46 @@ select.ao-input { cursor: pointer; }
 .oc-toggle-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 4px; }
 .oc-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
 
+/* The composer from the approved design (2026-09-24): labelled fields, 2–6 poll options, a
+   closing time, three explained checkboxes, and beside it the live Home preview. The preview
+   stacks under the form in the 680px console column; on a wide screen the column widens while
+   the composer is open so the two sit side by side, as in the design. */
+.oc-compose { display: grid; gap: 18px; margin-bottom: 22px; }
+.oc-compose .oc-composer { margin-bottom: 0; padding: 18px; }
+@media (min-width: 1100px) {
+  .oc-body:has(.oc-compose) { max-width: 1040px; }
+  .oc-compose { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .oc-preview { position: sticky; top: 16px; }
+}
+.oc-lbl { display: block; margin: 12px 0 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted); }
+.oc-lbl-opt { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-faint); }
+.oc-type-row + .oc-lbl { margin-top: 4px; }
+.oc-opt-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.oc-composer .oc-opt-row .oc-input { flex: 1; margin: 0; }
+.oc-opt-x { flex: none; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border: 0; border-radius: 8px; background: none; color: var(--text-faint); cursor: pointer; }
+.oc-opt-x:hover { background: var(--bg-alt); color: var(--danger); }
+.oc-add-opt { padding: 6px 0; border: 0; background: none; cursor: pointer; font: 600 13px 'DM Sans', sans-serif; color: var(--brand); }
+.oc-close-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.oc-close { height: 32px; padding: 0 13px; border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface); cursor: pointer; font: 600 12.5px 'DM Sans', sans-serif; color: var(--text-muted); }
+.oc-close.active { border-color: var(--brand); background: var(--brand-pale); color: var(--brand); }
+.oc-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; cursor: pointer; }
+.oc-check input { flex: none; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--brand); }
+.oc-check b { display: block; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.oc-check small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.oc-compose-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.oc-compose-actions .ff-btn { flex: 0 0 auto; padding: 11px 18px; }
+.oc-compose-actions .ff-btn:first-child { margin-right: auto; }
+.oc-preview .oc-lbl { margin-top: 0; }
+/* The preview is the real Home card; tapping an option on it must not try to vote. */
+.oc-preview .hn-card { pointer-events: none; box-shadow: var(--shadow-sm); }
+.oc-preview .oc-note { margin-top: 10px; }
+.oc-list-title { margin: 8px 0 12px; font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; font-weight: 400; color: var(--text); }
+.oc-post-status { margin-left: auto; font-size: 11.5px; color: var(--text-muted); }
+.oc-post-off { background: var(--bg); box-shadow: none; }
+
 /* ---------- Event form ---------- */
 /* Every field is a labelled row in one vertical rhythm. The screenshot this replaced had
    three unlabelled boxes in a line — mm/dd/yyyy, --:--, --:-- — where nothing said which
@@ -2308,7 +2366,6 @@ select.ao-input { cursor: pointer; }
    an urgent post is the one people most need to actually read. */
 .oc-post-urgent { border-left: 3px solid #c0392b; }
 .oc-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
-.oc-post-date { margin-left: auto; font-size: 11px; color: var(--text-muted); }
 .oc-post-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
 .oc-post-body { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
 .oc-post-actions { display: flex; gap: 6px; margin-top: 11px; }
@@ -3435,6 +3492,90 @@ select.ao-input { cursor: pointer; }
   padding:3px 9px;border-radius:var(--radius-pill);}
 @media(max-width:768px){
   .feed-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* ---- Home: urgent banner, Campus news, Featured (2026-09-24, from the approved design) ----
+   One urgent banner at most, then news cards. Who is speaking comes first on every card: a
+   club's logo, or the school's building mark with "Official". */
+.home-urgent{display:flex;align-items:flex-start;gap:11px;margin-bottom:var(--sp-5);padding:12px 12px 12px 14px;
+  border-radius:16px;background:#fbeae6;}
+.hu-icon{flex:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;
+  background:#f6d5cc;color:#a8402f;}
+.hu-text{flex:1;min-width:0;}
+.hu-kicker{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a8402f;}
+.hu-title{margin-top:2px;font-size:14.5px;font-weight:600;line-height:1.3;color:var(--text);}
+.hu-body{margin-top:3px;font-size:12.5px;line-height:1.45;color:var(--text-muted);}
+.hu-more{padding:0;border:0;background:none;cursor:pointer;font:inherit;font-weight:600;color:var(--accent-warm);}
+.hu-close{flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:0;
+  border-radius:8px;background:none;color:#a8402f;cursor:pointer;}
+.hu-close:hover{background:#f6d5cc;}
+
+.hn-list{display:flex;flex-direction:column;gap:12px;}
+.hn-card{padding:14px;border:1px solid var(--border);border-radius:18px;background:var(--surface);}
+.hn-card-official{border-color:#c6d3c9;background:#f3f8f4;}
+.hn-head{display:flex;align-items:center;gap:9px;}
+.hn-logo{flex:none;width:30px;height:30px;border-radius:9px;object-fit:cover;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;}
+.hn-logo-official{background:var(--brand);color:#fff;}
+.hn-org{cursor:pointer;}
+.hn-who{flex:1;min-width:0;font-size:13px;line-height:1.3;}
+.hn-who b{font-weight:700;color:var(--text);}
+.hn-meta{color:var(--text-faint);}
+.hn-official{color:var(--brand-mid);font-weight:600;}
+.hn-badge{flex:none;display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--radius-pill);
+  font-size:10.5px;font-weight:700;}
+.hn-badge-pin{background:var(--pin-pale);color:var(--pin);}
+.hn-badge-members{background:var(--bg-alt);color:var(--text-muted);}
+.hn-title{margin-top:10px;font-size:15.5px;font-weight:600;line-height:1.3;color:var(--text);}
+/* Three lines, then a tap opens the rest in place. */
+.hn-body{margin-top:4px;font-size:13.5px;line-height:1.5;color:#4a423b;white-space:pre-line;cursor:pointer;
+  display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.hn-body.is-open{display:block;}
+.hn-link{padding:0;border:0;background:none;cursor:pointer;font:inherit;font-weight:600;color:var(--accent-warm);}
+.hn-link:hover{color:#9e4a2c;}
+.hn-read{margin-top:6px;font-size:13px;}
+/* A poll: one tap votes. Results replace the buttons once you have voted. */
+.hn-opts,.hn-results{margin-top:10px;display:flex;flex-direction:column;gap:7px;}
+.hn-opt{height:42px;padding:0 14px;border:1.5px solid #dfd6c7;border-radius:12px;background:var(--surface);cursor:pointer;
+  text-align:left;font:500 14px 'DM Sans',sans-serif;color:var(--text);}
+.hn-opt:hover{border-color:var(--brand-light);background:var(--brand-pale);}
+.hn-opt.is-mine{border-color:var(--brand-light);}
+.hn-res{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;height:42px;
+  padding:0 14px;border-radius:12px;background:#f3efe7;overflow:hidden;font-size:14px;color:var(--text);}
+/* The bar's length is the one value that has to come from the data, so it arrives as --pct. */
+.hn-bar{position:absolute;inset:0 auto 0 0;width:var(--pct,0%);background:#e6ded1;}
+.hn-res.is-mine .hn-bar,.hn-res.is-lead .hn-bar{background:#cfe0d3;}
+.hn-res-label,.hn-res-pct{position:relative;}
+.hn-res-label{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.hn-res-pct{font-weight:600;}
+.hn-res.is-mine,.hn-res.is-lead{font-weight:700;color:var(--brand);}
+.hn-foot{margin-top:9px;font-size:12px;color:var(--text-faint);}
+
+/* Home's order. On a phone every slot is one column, stacked as the design has it; the
+   wrappers dissolve (display:contents) so their children can take part in that order. */
+#feedBody{display:flex;flex-direction:column;}
+#feedBody > *{min-width:0;}
+.home-top,.home-aside{display:contents;}
+#feedBody .home-hero{order:0;}
+#homeUrgent{order:1;}
+#homeClubsTop{order:2;}
+#homeUpNext{order:3;}
+#homeNews{order:4;}
+#homeFeatured{order:5;}
+#feedEvents{order:6;}
+#homeMarket{order:7;}
+#homeClubsBottom{order:8;}
+/* Wide screens: Campus news on the left, Up next and This week beside it — only when there is
+   news; without it the page stays one column, as before. */
+@media(min-width:1100px){
+  .home-top.has-news{order:3;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start;}
+  .home-top.has-news .home-aside{display:block;}
+  .home-top.has-news #homeNews{order:0;}   /* the phone order would otherwise put news after the aside */
+  .home-top.has-news .feed-events{flex-direction:column;overflow:visible;}
+  .home-top.has-news .fev-card{flex:none;max-width:none;width:100%;display:flex;align-items:stretch;}
+  .home-top.has-news .fev-banner{flex:none;width:72px;height:auto;min-height:72px;}
+  .home-top.has-news .fev-date{top:50%;left:50%;transform:translate(-50%,-50%);}
+  .home-top.has-news .fev-body{flex:1;min-width:0;justify-content:center;}
 }
 
 /* ============================================================

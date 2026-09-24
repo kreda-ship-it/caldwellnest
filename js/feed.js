@@ -7,12 +7,15 @@
 // "Today at Caldwell" (2026-09-23). Home is the lobby, not a third browse page: the Marketplace
 // has every listing and Events every event, so Home shows what matters to THIS student right
 // now — each section short, each ending in a doorway to the full page — and it has a bottom.
-// Top to bottom: a greeting over a campus illustration with at-a-glance chips, your next RSVP,
-// this week's events, the newest listings, and clubs you do not follow yet (moved up for a
-// student who follows none, because an empty campus is the worst first impression).
+// Top to bottom: a greeting over a campus illustration with at-a-glance chips, at most one
+// urgent banner, your next RSVP, Campus news (club posts and polls, official announcements),
+// Featured listings, this week's events, the newest listings, and clubs you do not follow yet
+// (moved up for a student who follows none, because an empty campus is the worst first
+// impression).
 //
-// This owns no data. It reads what listings.js, events.js and orgdir.js already load and
-// arranges it. If a section has nothing in it, the section is not drawn — an empty heading is
+// Mostly this owns no data: it reads what listings.js, events.js and orgdir.js already load and
+// arranges it. Campus news is the exception — nothing else loads club posts for a student's
+// followed clubs, or official announcements, so feedLoadNews() does. If a section has nothing in it, the section is not drawn — an empty heading is
 // worse than no heading.
 //
 // Loaded as a plain script (not a module) so every function stays global; the HTML's
@@ -173,6 +176,12 @@ function feedChipsHTML() {
   const chips = [];
   const unread = typeof sUnreadCount === 'number' ? sUnreadCount : 0;
   if (unread) chips.push([`${unread} unread message${unread === 1 ? '' : 's'}`, "showPage('messages')", 'message']);
+  // From Campus news, once it has loaded: club posts from the last three days, and open polls
+  // you have not answered. Both scroll down to the news rather than opening another page.
+  const recent = _feedNews.filter(x => x.kind === 'club' && Date.now() - new Date(x.at).getTime() < 3 * _feedDay).length;
+  if (recent) chips.push([`${recent} new from your clubs`, 'feedGoNews()', 'bell']);
+  const waiting = _feedNews.filter(x => x.isPoll && !feedPollClosed(x) && !x.votes.some(v => v.user_id === _feedMe)).length;
+  if (waiting) chips.push([`${waiting} poll${waiting === 1 ? '' : 's'} waiting for you`, 'feedGoNews()', 'check']);
   const todayKey = evDayKey(new Date().toISOString());
   const today = (_evFeed || []).filter(e => evDayKey(e.starts_at) === todayKey).length;
   if (today) chips.push([`${today} event${today === 1 ? '' : 's'} today`, 'feedGoToday()', 'calendar']);
@@ -234,6 +243,302 @@ function feedClubsHTML(followsNone) {
     <div class="home-row">${cards}</div>`);
 }
 
+// ============================================================
+// CAMPUS NEWS, THE URGENT BANNER AND FEATURED (2026-09-24)
+// ============================================================
+// Built from the approved Home design. Three sources, one list:
+//  - club posts (org_posts) from the clubs you follow — announcements and polls, pinned first;
+//  - official announcements (broadcasts) written by admins — everyone at the school sees them;
+//  - listings an admin has pinned, as the Featured row.
+// And at most ONE urgent banner above everything: an official broadcast of type 'warning'
+// (the admin form calls it Urgent), or a club post marked urgent by a club you follow. It lasts
+// until its end date, or 3 days when it has none, and dismissing it hides it on this device —
+// after which it sits in Campus news like any other post.
+//
+// This replaces the thin broadcast bar that used to run across the top of every page.
+//
+// Who sees what is decided by the database, not here: members-only posts reach members only
+// (org_posts RLS), and poll results arrive only after you have voted (poll_votes RLS). So a
+// student who has not voted cannot know the tally — the card says "results show after you
+// vote" instead of a vote count, because the count is not ours to show them yet.
+
+const FEED_URGENT_DAYS = 3;       // an urgent post with no end date leaves the banner after this
+const FEED_NEWS_DAYS = 30;        // club posts older than this are the club page's business
+const FEED_OFFICIAL_DAYS = 14;    // an official card with no end date leaves Home after this
+const FEED_CLOSED_POLL_DAYS = 3;  // a closed poll leaves Home this long after it closes
+const FEED_NEWS_SHOWN = 3;        // cards before "See all"
+const FEED_DISMISS_KEY = 'cn_dismissed_bcast';  // the old bar's key, so a banner dismissed there stays dismissed
+
+let _feedNews = [];               // [{ key, kind:'club'|'official', ... }] — see feedLoadNews
+let _feedUrgent = null;           // the one item in the banner, or null
+let _feedNewsAll = false;         // "See all" pressed
+let _feedRevote = new Set();      // poll ids whose "Change my vote" is open
+let _feedMe = null;               // the signed-in user's id, for "is this my vote"
+
+const _feedDay = 864e5;
+
+function feedDismissed() {
+  try { return JSON.parse(localStorage.getItem(FEED_DISMISS_KEY) || '[]'); } catch (e) { return []; }
+}
+
+// "5m", "2h", "3d", then a date. Short, because it sits in a line with the club's name.
+function feedAgo(ts) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 6e4));
+  if (m < 60) return (m || 1) + 'm';
+  if (m < 1440) return Math.round(m / 60) + 'h';
+  if (m < 10080) return Math.round(m / 1440) + 'd';
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function feedClosesLabel(ts) {
+  const ms = new Date(ts).getTime() - Date.now();
+  if (ms <= 0) return 'closed ' + new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const h = ms / 36e5;
+  if (h < 1) return 'closes within the hour';
+  if (h < 24) return `closes in ${Math.round(h)} hour${Math.round(h) === 1 ? '' : 's'}`;
+  const d = Math.round(h / 24);
+  return `closes in ${d} day${d === 1 ? '' : 's'}`;
+}
+
+function feedPollClosed(item) {
+  return !!(item.closesAt && new Date(item.closesAt).getTime() <= Date.now());
+}
+
+// Loads all three sources. Needs the club directory already loaded (the follow set, and each
+// club's name and logo), which is why renderFeed calls it after loadOrgDirectory.
+async function feedLoadNews() {
+  const eu = getEffectiveUser();
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  _feedMe = session?.user?.id || null;
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const follows = [..._dirFollows];
+
+  const [postsRes, bcastRes] = await Promise.all([
+    follows.length
+      ? supabaseClient.from('org_posts')
+          .select('id, org_id, type, title, body, is_pinned, is_urgent, members_only, poll_closes_at, created_at')
+          .in('org_id', follows).eq('status', 'published')
+          .gte('created_at', new Date(now - FEED_NEWS_DAYS * _feedDay).toISOString())
+          .order('created_at', { ascending: false }).limit(40)
+      : Promise.resolve({ data: [] }),
+    // The same rule the old bar used: sent, or scheduled and its time has come; not expired.
+    // display_type 'notification' was never meant for the page, so it stays off Home too.
+    supabaseClient.from('broadcasts')
+      .select('id, subject, body, type, display_type, school, landing_title, landing_body, created_at, scheduled_at, expires_at')
+      .in('status', ['sent', 'scheduled'])
+      .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`)
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+      .order('created_at', { ascending: false }).limit(20),
+  ]);
+  if (postsRes.error) console.error('[feedLoadNews posts]', postsRes.error);
+  if (bcastRes.error) console.error('[feedLoadNews broadcasts]', bcastRes.error);
+
+  const posts = postsRes.data || [];
+  const pollIds = posts.filter(p => p.type === 'poll').map(p => p.id);
+  let options = [], votes = [];
+  if (pollIds.length) {
+    const [o, v] = await Promise.all([
+      supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
+      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+    ]);
+    options = o.data || []; votes = v.data || [];
+  }
+
+  const orgs = new Map((_dirOrgs || []).map(o => [o.id, o]));
+  const clubItems = posts.map(p => ({
+    key: 'p' + p.id, kind: 'club', id: p.id, org: orgs.get(p.org_id) || { id: p.org_id, name: 'A club' },
+    title: p.title, body: p.body, at: p.created_at, pinned: p.is_pinned, urgent: p.is_urgent,
+    membersOnly: p.members_only, isPoll: p.type === 'poll', closesAt: p.poll_closes_at,
+    options: options.filter(o => o.post_id === p.id),
+    votes: votes.filter(v => v.post_id === p.id),
+  }))
+    // A closed poll stays a few days so its voters see the final result; one you never voted
+    // in has nothing left to show you (the results were never yours to see), so it goes at once.
+    .filter(x => {
+      if (!x.isPoll || !feedPollClosed(x)) return true;
+      const mine = x.votes.some(v => v.user_id === _feedMe);
+      return mine && Date.now() - new Date(x.closesAt).getTime() < FEED_CLOSED_POLL_DAYS * _feedDay;
+    });
+
+  const officialItems = (bcastRes.data || [])
+    .filter(b => !b.school || b.school === eu?.school)
+    .filter(b => b.display_type !== 'notification')
+    .map(b => ({
+      key: String(b.id), kind: 'official', id: b.id, title: b.subject, body: b.body,
+      at: b.scheduled_at || b.created_at, urgent: b.type === 'warning', expires: b.expires_at, raw: b,
+    }))
+    .filter(x => x.expires || Date.now() - new Date(x.at).getTime() < FEED_OFFICIAL_DAYS * _feedDay);
+  officialItems.forEach(x => { _bcastCache[x.id] = x.raw; });   // openBcastLanding reads it
+
+  // The banner: official first (it speaks for the school), then the newest club alarm.
+  const dismissed = feedDismissed();
+  const inWindow = x => x.expires ? true : Date.now() - new Date(x.at).getTime() < FEED_URGENT_DAYS * _feedDay;
+  const urgent = [...officialItems, ...clubItems]
+    .filter(x => x.urgent && inWindow(x) && !dismissed.includes(x.kind === 'club' ? x.key : String(x.id)));
+  _feedUrgent = urgent[0] || null;
+
+  // Pinned club posts first, then everything newest first. The banner's item is not repeated
+  // below it; once dismissed it joins the list.
+  const byDate = (a, b) => new Date(b.at) - new Date(a.at);
+  const all = [...clubItems, ...officialItems].filter(x => x !== _feedUrgent);
+  _feedNews = [...all.filter(x => x.pinned).sort(byDate), ...all.filter(x => !x.pinned).sort(byDate)];
+}
+
+function feedUrgentHTML() {
+  const x = _feedUrgent;
+  if (!x) return '';
+  const who = x.kind === 'official' ? feedSchoolName() : x.org.name;
+  const more = x.kind === 'official'
+    ? (x.raw.landing_body ? `<button class="hu-more" onclick="openBcastLanding(_bcastCache['${escAttr(String(x.id))}'])">Read more</button>` : '')
+    : `<button class="hu-more" onclick="orgPageOpen(${Number(x.org.id)})">Read more</button>`;
+  return `
+    <div class="home-urgent" role="alert">
+      <span class="hu-icon">${icon('alert', 18)}</span>
+      <div class="hu-text">
+        <div class="hu-kicker">${esc(who)} · Urgent</div>
+        <div class="hu-title">${esc(x.title)}</div>
+        ${x.body || more ? `<div class="hu-body">${x.body ? esc(x.body) : ''} ${more}</div>` : ''}
+      </div>
+      <button class="hu-close" aria-label="Dismiss" onclick="feedDismissUrgent()">${icon('x', 15)}</button>
+    </div>`;
+}
+
+function feedDismissUrgent() {
+  const x = _feedUrgent;
+  if (!x) return;
+  const list = feedDismissed();
+  list.push(x.kind === 'club' ? x.key : String(x.id));
+  try { localStorage.setItem(FEED_DISMISS_KEY, JSON.stringify(list)); } catch (e) {}
+  // Into Campus news with the rest, in date order.
+  _feedUrgent = null;
+  _feedNews.push(x);
+  const byDate = (a, b) => new Date(b.at) - new Date(a.at);
+  _feedNews = [..._feedNews.filter(n => n.pinned).sort(byDate), ..._feedNews.filter(n => !n.pinned).sort(byDate)];
+  feedPaintNews();
+}
+
+function feedSchoolName() {
+  const u = getEffectiveUser();
+  return (_schoolsList || []).find(s => s.slug === u?.school)?.name || 'Your school';
+}
+
+function feedPollHTML(x) {
+  const mine = x.votes.find(v => v.user_id === _feedMe) || null;
+  const closed = feedPollClosed(x);
+  const showResults = (mine && !_feedRevote.has(x.id)) || closed;
+  const total = x.votes.length;
+
+  if (!showResults) {
+    return `
+      <div class="hn-opts">
+        ${x.options.map(o => `<button class="hn-opt${mine && mine.option_id === o.id ? ' is-mine' : ''}"
+          onclick="feedVote(${x.id}, ${o.id})">${esc(o.label)}</button>`).join('')}
+      </div>
+      <div class="hn-foot">${x.membersOnly ? 'Only members see this' : 'Results show after you vote'}${
+        mine ? ` · <button class="hn-link" onclick="feedRevote(${x.id}, false)">Keep my vote</button>` : ''}</div>`;
+  }
+
+  const counted = x.options.map(o => ({ o, n: x.votes.filter(v => v.option_id === o.id).length }));
+  if (closed) counted.sort((a, b) => b.n - a.n);
+  const top = counted.length ? Math.max(...counted.map(c => c.n)) : 0;
+  const winner = closed && top > 0 && counted.filter(c => c.n === top).length === 1;
+  return `
+    <div class="hn-results">
+      ${counted.map((c, i) => {
+        const pct = total ? Math.round(c.n / total * 100) : 0;
+        const isMine = mine && mine.option_id === c.o.id;
+        const lead = closed ? (winner && i === 0) : false;
+        return `<div class="hn-res${isMine ? ' is-mine' : ''}${lead ? ' is-lead' : ''}">
+          <span class="hn-bar" style="--pct:${pct}%"></span>
+          <span class="hn-res-label">${esc(c.o.label)}${isMine ? ' ✓' : ''}${lead ? ' · winner' : ''}</span>
+          <span class="hn-res-pct">${pct}%</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="hn-foot">${total} vote${total === 1 ? '' : 's'} · ${closed
+      ? 'final results'
+      : `<button class="hn-link" onclick="feedRevote(${x.id}, true)">Change my vote</button>`}</div>`;
+}
+
+function feedNewsCardHTML(x) {
+  let head;
+  if (x.kind === 'official') {
+    head = `<span class="hn-logo hn-logo-official">${icon('school', 16)}</span>
+      <span class="hn-who"><b>${esc(feedSchoolName())}</b> <span class="hn-official">· Official</span> <span class="hn-meta">· ${esc(feedAgo(x.at))}</span></span>`;
+  } else {
+    const meta = x.isPoll ? `Poll · ${x.closesAt ? feedClosesLabel(x.closesAt) : feedAgo(x.at)}` : feedAgo(x.at);
+    head = `<span class="hn-org" onclick="orgPageOpen(${Number(x.org.id)})">${_dirLogoHTML(x.org, 'hn-logo')}</span>
+      <span class="hn-who"><b class="hn-org" onclick="orgPageOpen(${Number(x.org.id)})">${esc(x.org.name)}</b> <span class="hn-meta">· ${esc(meta)}</span></span>
+      ${x.membersOnly ? `<span class="hn-badge hn-badge-members">${icon('lock', 11)}Members</span>` : ''}
+      ${x.pinned ? `<span class="hn-badge hn-badge-pin">${icon('star', 11)}Pinned</span>` : ''}`;
+  }
+  // Long text stops at three lines; a tap on it opens the rest in place.
+  const body = x.body
+    ? `<div class="hn-body" onclick="this.classList.toggle('is-open')">${esc(x.body)}</div>` : '';
+  const more = x.kind === 'official' && x.raw.landing_body
+    ? `<button class="hn-link hn-read" onclick="openBcastLanding(_bcastCache['${escAttr(String(x.id))}'])">Read more</button>` : '';
+  return `
+    <article class="hn-card${x.kind === 'official' ? ' hn-card-official' : ''}" id="hn-${escAttr(x.key)}">
+      <div class="hn-head">${head}</div>
+      <div class="hn-title">${esc(x.title)}</div>
+      ${body}${more}
+      ${x.isPoll ? feedPollHTML(x) : ''}
+    </article>`;
+}
+
+function feedPaintNews() {
+  const urgent = document.getElementById('homeUrgent');
+  if (urgent) urgent.innerHTML = feedUrgentHTML();
+  const host = document.getElementById('homeNews');
+  if (!host) return;
+  const top = host.closest('.home-top');
+  if (!_feedNews.length) { host.innerHTML = ''; top?.classList.remove('has-news'); return; }
+  top?.classList.add('has-news');
+  const shown = _feedNewsAll ? _feedNews : _feedNews.slice(0, FEED_NEWS_SHOWN);
+  const extra = _feedNews.length - FEED_NEWS_SHOWN;
+  host.innerHTML = feedSection('Campus news',
+    extra > 0 ? (_feedNewsAll ? 'Show less' : 'See all') : '', extra > 0 ? 'feedToggleNews()' : '',
+    `<div class="hn-list">${shown.map(feedNewsCardHTML).join('')}</div>`);
+  const chips = document.getElementById('homeChips');
+  if (chips) chips.innerHTML = feedChipsHTML();
+}
+
+function feedToggleNews() { _feedNewsAll = !_feedNewsAll; feedPaintNews(); }
+function feedGoNews() { document.getElementById('homeNews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+function feedRevote(postId, open) {
+  if (open) _feedRevote.add(postId); else _feedRevote.delete(postId);
+  feedPaintNews();
+}
+
+// One vote per person per poll: an upsert on (post_id, user_id), so voting again changes your
+// answer. Then this poll's votes are fetched again — now that you have voted, RLS lets you see
+// everyone's, which is the moment the results appear.
+async function feedVote(postId, optionId) {
+  const x = _feedNews.find(n => n.kind === 'club' && n.id === postId);
+  if (!x || !_feedMe) { requireAuth?.(); return; }
+  if (feedPollClosed(x)) { toast('This poll has closed'); return; }
+  const { error } = await supabaseClient.from('poll_votes')
+    .upsert({ post_id: postId, option_id: optionId, user_id: _feedMe }, { onConflict: 'post_id,user_id' });
+  if (error) { toast('Could not record your vote'); console.error('[feedVote]', error); return; }
+  const { data } = await supabaseClient.from('poll_votes').select('post_id, option_id, user_id').eq('post_id', postId);
+  x.votes = data || [{ post_id: postId, option_id: optionId, user_id: _feedMe }];
+  _feedRevote.delete(postId);
+  feedPaintNews();
+}
+
+// Listings an admin has pinned. They also lead the Marketplace; here they get their own row.
+function feedFeaturedHTML() {
+  const pins = browseItems().filter(isListingLive).filter(l => l.pinned)
+    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  if (!pins.length) return '';
+  return feedSection('Featured', 'Browse all', "showPage('listings')", `
+    <div class="home-row home-market home-featured">
+      ${pins.map(l => listingCardHTML(l, true)).join('')}
+    </div>`);
+}
+
 async function renderFeed() {
   const body = document.getElementById('feedBody');
   if (!body) return;
@@ -276,11 +581,19 @@ async function renderFeed() {
     : '';
 
   // Painted in passes: everything already in memory first, then what needs a query (events,
-  // then clubs). Holding the page back for the slowest part would make all of it feel slow.
-  // Two club slots, because where the section goes depends on how many clubs you follow —
-  // which is only known once the directory has loaded.
-  body.innerHTML = hero + '<div id="homeClubsTop"></div><div id="homeUpNext"></div><div id="feedEvents"></div>'
-    + market + '<div id="homeClubsBottom"></div>';
+  // then clubs, then Campus news). Holding the page back for the slowest part would make all of
+  // it feel slow. Two club slots, because where the section goes depends on how many clubs you
+  // follow — which is only known once the directory has loaded.
+  //
+  // .home-top is two columns on a wide screen — Campus news, and beside it Up next and This week.
+  // On a phone it dissolves (display:contents) and CSS `order` stacks every slot in the design's
+  // order: urgent, Up next, Campus news, Featured, This week, Fresh on the Market.
+  body.innerHTML = hero + '<div id="homeUrgent"></div><div id="homeClubsTop"></div>'
+    + '<div class="home-top"><div id="homeNews"></div>'
+    + '<aside class="home-aside"><div id="homeUpNext"></div><div id="feedEvents"></div></aside></div>'
+    + `<div id="homeFeatured">${feedFeaturedHTML()}</div>`
+    + `<div id="homeMarket">${market}</div><div id="homeClubsBottom"></div>`;
+  feedPaintNews();   // anything already loaded from a previous visit, straight away
 
   const res = await loadEvents();
   // Silence is right for a failure here: the rest of Home is already on screen and useful.
@@ -299,4 +612,7 @@ async function renderFeed() {
   const followsNone = _dirFollows.size === 0;
   const clubsSlot = document.getElementById(followsNone ? 'homeClubsTop' : 'homeClubsBottom');
   if (clubsSlot) clubsSlot.innerHTML = feedClubsHTML(followsNone);
+
+  await feedLoadNews();
+  feedPaintNews();
 }

@@ -656,60 +656,11 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
   startGlobalMsgListener(userId);
   startNotifListener(userId);
   startProfileListener(userId);
-  loadStudentBroadcasts();
 }
 
-async function loadStudentBroadcasts() {
-  const el = document.getElementById('sBcastBanner');
-  if (!el) return;
-  const eu = getEffectiveUser();
-  if (!eu) { el.innerHTML = ''; return; }
-  const now = new Date().toISOString();
-  const { data: rows } = await supabaseClient
-    .from('broadcasts')
-    .select('id, subject, body, type, display_type, school, landing_title, landing_body')
-    .in('status', ['sent', 'scheduled'])
-    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .order('created_at', { ascending: false })
-    .limit(10);
-  if (!rows || rows.length === 0) { el.innerHTML = ''; return; }
-  const mySchool = eu.school || null;
-  let dismissed = [];
-  try { dismissed = JSON.parse(localStorage.getItem('cn_dismissed_bcast') || '[]'); } catch {}
-  const toShow = rows
-    .filter(b => !b.school || b.school === mySchool)
-    .filter(b => !dismissed.includes(b.id))
-    .filter(b => b.display_type === 'banner' || b.display_type === 'both')
-    .slice(0, 3);
-  if (toShow.length === 0) { el.innerHTML = ''; return; }
-  toShow.forEach(b => { _bcastCache[b.id] = b; });
-  const colors = {
-    warning:      { bg: '#fff3cd', color: '#856404' },
-    reminder:     { bg: '#fff8e6', color: '#d4860a' },
-    feature:      { bg: '#e8f5e9', color: '#1a7a45' },
-    announcement: { bg: 'var(--brand-pale)', color: 'var(--brand)' },
-  };
-  el.innerHTML = toShow.map(b => {
-    const c = colors[b.type] || colors.announcement;
-    const readMore = b.landing_body
-      ? ` <button onclick="openBcastLanding(_bcastCache['${b.id}'])" style="background:none;border:none;font-size:12px;cursor:pointer;color:inherit;font-weight:700;padding:0;text-decoration:underline;text-underline-offset:2px;font-family:'DM Sans',sans-serif;">Read more &#8594;</button>`
-      : '';
-    return `<div id="bcast-${b.id}" style="padding:10px 44px 10px 16px;background:${c.bg};color:${c.color};font-size:13px;line-height:1.5;position:relative;border-bottom:1px solid rgba(0,0,0,0.07);">
-      <strong>${b.subject}</strong>&ensp;${b.body}${readMore}
-      <button onclick="dismissBcast('${b.id}')" title="Dismiss" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;opacity:.5;color:inherit;line-height:1;padding:0;">&#215;</button>
-    </div>`;
-  }).join('');
-}
-
-function dismissBcast(id) {
-  let dismissed = [];
-  try { dismissed = JSON.parse(localStorage.getItem('cn_dismissed_bcast') || '[]'); } catch {}
-  if (!dismissed.includes(id)) dismissed.push(id);
-  localStorage.setItem('cn_dismissed_bcast', JSON.stringify(dismissed));
-  const el = document.getElementById('bcast-' + id);
-  if (el) el.remove();
-}
+// The thin broadcast bar that used to run across the top of every page (loadStudentBroadcasts,
+// dismissBcast) was removed 2026-09-24. Official announcements now appear on Home — as
+// "Official" cards in Campus news, and type 'warning' as the urgent banner — see js/feed.js.
 
 // ── Notifications ────────────────────────────────────────────────────────────
 // Rewritten 2026-09-04. The old version fetched ONLY unread rows, showed them, and marked
