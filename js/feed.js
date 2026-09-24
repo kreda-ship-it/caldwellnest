@@ -79,10 +79,13 @@ function feedUpcoming(limit = 6) {
     .slice(0, limit);
 }
 
-// The newest live listings, for Home's short "Fresh on the Market" row.
+// The newest live listings, for Home's short "Fresh on the Market" row. Featured (pinned) listings
+// are left out: they already have their own row above, and one listing twice on one page reads as
+// a duplicate (fixed 2026-09-25).
 function feedNewest(limit = 10) {
   return browseItems()
     .filter(isListingLive)
+    .filter(l => !l.pinned)
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
     .slice(0, limit);
 }

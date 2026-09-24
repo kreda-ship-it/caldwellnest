@@ -335,16 +335,29 @@ function renderProfile() {
 // The one My Listings grid: cached marketplace rows (all statuses — owners see their
 // pending/sold/etc. with badges) merged with a fresh fetch of the student's own books
 // (the public `_books` cache only holds live ones, so own books need their own query).
+// FIXED 2026-09-25 — this DOUBLED your books. It appended them to the shared _pfMine after an
+// await, so when the profile was drawn twice in quick succession (opening it, a refresh, a live
+// update) each draw added the books again: three draws, three copies of every book. Now the list
+// is built fresh from local values, only the newest draw may finish (the sequence number), and
+// anything that somehow appears twice is dropped by its id.
+let _pfDrawSeq = 0;
+function pfUnique(items) {
+  const seen = new Set();
+  return items.filter(l => { const k = (l.isBook ? 'b' : 'l') + l.id; if (seen.has(k)) return false; seen.add(k); return true; });
+}
 async function renderMyListingsGrid(u) {
   const grid = document.getElementById('myListings');
   if (!grid) return;
-  _pfMine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
+  const seq = ++_pfDrawSeq;
+  const mine = pfUnique([...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id));
+  _pfMine = mine;
   pfPaintMine(); // paint immediately; books join in a beat
   const { data: books, error } = await supabaseClient.from('book_listings')
     .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
+  if (seq !== _pfDrawSeq) return;          // a newer draw has taken over the grid
   if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
   if (!books || !books.length) return;
-  _pfMine = [..._pfMine, ...books.map(bookAsListing)]
+  _pfMine = pfUnique([...mine, ...books.map(bookAsListing)])
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   pfPaintMine();
 }
