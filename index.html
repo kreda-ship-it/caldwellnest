@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25l">
+<link rel="stylesheet" href="styles.css?v=2026-09-25n">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -521,16 +521,20 @@
         <div class="pf-pane" id="pfPane-going" hidden><p class="pf-private">Only you can see this list. Organizers see the events you register for.</p><div id="myGoing"></div></div>
       </div>
       <div class="pf-foot">
-        <!-- ACCOUNT: the private and the rarely-used, together at the bottom — your email, the legal
-             pages (the only route to them once signed in: the site footer lives on the landing page),
-             and Log out. Same target="_blank" as the signup consent row. -->
-        <h2 class="pf-foot-h">Account</h2>
-        <div class="pf-account">
-          <div class="pf-acc-row"><span>Signed in as</span><b class="pf-email" id="profileEmail"></b></div>
-          <a class="pf-acc-row pf-acc-link" href="terms.html" target="_blank" rel="noopener"><span>Terms &amp; Conditions</span>&#8250;</a>
-          <a class="pf-acc-row pf-acc-link" href="privacy.html" target="_blank" rel="noopener"><span>Privacy Policy</span>&#8250;</a>
-          <button class="pf-acc-row pf-acc-link pf-logout" onclick="sLogout()"><span>Log out</span></button>
-        </div>
+        <!-- ACCOUNT, kept quiet (2026-09-24): who you are signed in as, one Log out, and the legal
+             pages as small print — no heading and no box, because this is the part of the page a
+             student rarely needs. The legal links are the only route to those pages once signed in
+             (the site footer lives on the landing page); same target="_blank" as the signup consent row. -->
+        <p class="pf-signed">Signed in as <b class="pf-email" id="profileEmail"></b></p>
+        <button class="pf-logout" onclick="sLogout()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          Log out
+        </button>
+        <p class="pf-legal">
+          <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+          <span aria-hidden="true">&#183;</span>
+          <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+        </p>
         <div class="profile-consent" id="profileConsent"></div>
       </div>
     </div>
