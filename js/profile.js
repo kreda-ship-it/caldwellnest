@@ -78,34 +78,44 @@ async function submitWaitlist() {
   }
 }
 
-async function viewStudentProfile(profileId) {
+// ---------- Another student's profile (rebuilt 2026-09-24) ----------
+// Built like good seller profiles (Depop, Vinted, Poshmark): who they are, the numbers that
+// make a stranger trustworthy (how much they have listed, how much they have sold, how long
+// they have been here), ONE clear action — Message — and their listings as tiles with a photo,
+// a title and a price. A full page on a phone and a sheet on a desktop (the .pm-modal shell the
+// posting forms use). `preview` shows your OWN profile the way others see it, without Message.
+function pfJoined(ts) {
+  return ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+}
+// The three trust numbers, the same on both profiles.
+function pfStatsHTML(listed, sold, joined) {
+  const cell = (n, l) => `<div class="pf-stat"><b>${n}</b><span>${l}</span></div>`;
+  return cell(listed, listed === 1 ? 'Listing' : 'Listings') + cell(sold, 'Sold') + (joined ? cell(esc(joined), 'Joined') : '');
+}
+
+async function viewStudentProfile(profileId, opts = {}) {
   if (!profileId) return;
   const eu = getEffectiveUser();
-  if (eu && profileId === eu.id) { closeModal('detailModal'); showPage('profile'); return; }
+  if (eu && profileId === eu.id && !opts.preview) { closeModal('detailModal'); showPage('profile'); return; }
 
   const body = document.getElementById('pubProfileBody');
-  body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">Loading…</div>';
-  // The listing detail has to close first, or the profile opens UNDERNEATH it. Both are
-  // .modal-overlay with z-index 500, and when z-index ties the winner is whichever comes
-  // later in the HTML -- #detailModal sits at index.html:1344 and #pubProfileModal at 1172,
-  // so the listing always paints over the profile no matter which was opened last. The bug
-  // looked like "tapping the avatar does nothing"; the modal was open the whole time.
-  //
-  // The branch a few lines above already does this when you tap your OWN avatar. This is the
-  // same thing for everyone else. closeModal() on an already-closed modal is a no-op, so this
-  // stays correct when the profile is opened from somewhere other than a listing.
+  body.innerHTML = '<div class="pp-loading">Loading…</div>';
+  // The listing detail has to close first, or the profile opens UNDERNEATH it: both are
+  // .modal-overlay with z-index 500, and on a tie the one later in the HTML wins.
+  // closeModal() on an already-closed modal is a no-op.
+  if (typeof dismissDetail === 'function' && document.getElementById('detailModal')?.classList.contains('open')) dismissDetail();
   switchModal('detailModal', 'pubProfileModal');
 
   const [{ data: p }, { data: listings }, { data: books }] = await Promise.all([
-    supabaseClient.from('public_profiles').select('first_name, last_name, display_name, username, bio, pronouns, year, initials, color, avatar_url, created_at').eq('id', profileId).single(),
+    supabaseClient.from('public_profiles').select('first_name, last_name, display_name, username, bio, pronouns, major, year, school, initials, color, avatar_url, created_at').eq('id', profileId).single(),
     supabaseClient.from('listings').select('id, title, price, category, details, emoji, status, lifecycle_status, expires_at, created_at, photo_urls').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false }),
     supabaseClient.from('book_listings').select('*').eq('poster_id', profileId).eq('status', 'approved').order('created_at', { ascending: false })
   ]);
 
-  if (!p) { body.innerHTML = '<div style="text-align:center;padding:32px 0;color:var(--text-faint);font-size:14px">This profile no longer exists.</div>'; return; }
+  if (!p) { body.innerHTML = '<div class="pp-loading">This profile no longer exists.</div>'; return; }
 
   const displayName = p.display_name || p.first_name; // first-name-only privacy default (matches listing cards)
-  const joined = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
+  const first = (displayName || '').split(' ')[0];
   const normalised = (listings || []).map(l => ({
     id: l.id, title: l.title, rent: l.price, category: l.category,
     emoji: l.emoji || CATEGORY_EMOJI[l.category] || '🏠',
@@ -113,30 +123,53 @@ async function viewStudentProfile(profileId) {
     photo_urls: l.photo_urls || []
   })).concat((books || []).map(bookAsListing))
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  // Live items shown normally; sold/claimed ones move to a badged, dimmed "Sold" group
-  // (the honest-marketplace behavior — outcomes visible, nothing vanishes mysteriously).
-  // Withdrawn and expired stay fully hidden from the public view.
+  // Live items shown normally; sold ones in their own group — outcomes visible, nothing vanishes
+  // mysteriously. Withdrawn and expired stay hidden from the public view.
   const liveItems = normalised.filter(isListingLive);
   const soldItems = normalised.filter(l => l.lifecycle_status === 'sold');
-  const listingsHtml = `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Listings</div>${renderListingGrid(liveItems, false)}`
-    + (soldItems.length ? `<div style="font-weight:600;font-size:14px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin:16px 0 10px">Sold</div><div style="opacity:.72">${renderListingGrid(soldItems, true)}</div>` : '');
+  const school = (_schoolsList || []).find(s => s.slug === p.school)?.name || '';
+  const facts = [p.year, p.major, p.pronouns].filter(Boolean).map(esc).join(' · ');
 
+  const title = document.getElementById('ppTitle');
+  if (title) title.textContent = opts.preview ? 'Your public profile' : 'Profile';
   body.innerHTML = `
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-      <div style="width:60px;height:60px;border-radius:50%;background:${escAttr(p.color)};background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:#fff;flex-shrink:0">${p.avatar_url ? `<img src="${escAttr(p.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">` : esc(p.initials)}</div>
-      <div>
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;line-height:1.2">${esc(displayName)}</div>
-        ${p.username ? `<div style="font-size:13px;color:var(--brand);font-weight:500;margin-top:2px">@${esc(p.username)}</div>` : ''}
-        <div class="edu-badge" style="margin-top:6px">${icon('check',12)} .edu verified</div>
+    <div class="pf-card pp-card">
+      <div class="pf-head">
+        ${avatarHTML({ ...p, name: displayName }, 84)}
+        <div class="pf-id">
+          <h2 class="pf-name">${esc(displayName)}</h2>
+          <div class="pf-handle-row">
+            ${p.username ? `<span class="pf-at">@${esc(p.username)}</span>` : ''}
+            <span class="edu-badge pf-edu">${icon('check', 11)} .edu verified</span>
+          </div>
+          ${facts || school ? `<div class="pf-meta">${[facts, esc(school)].filter(Boolean).join(' · ')}</div>` : ''}
+        </div>
       </div>
+      ${p.bio ? `<div class="pf-bio">${esc(p.bio)}</div>` : ''}
+      <div class="pf-stats">${pfStatsHTML(liveItems.length, soldItems.length, pfJoined(p.created_at))}</div>
+      <div class="pf-actions">${opts.preview
+        ? '<p class="pp-preview-note">This is how other students see your profile. Your email, saved items and events are never shown.</p>'
+        : `<button class="pf-btn pf-btn-go" onclick="pfMessage('${escAttr(profileId)}')">${icon('message', 17)} Message ${esc(first)}</button>`}</div>
     </div>
-    ${p.bio ? `<div style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:14px">${esc(p.bio)}</div>` : ''}
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-      ${p.year ? `<span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:4px 10px;border-radius:20px;font-weight:500">${esc(p.year)}</span>` : ''}
-      ${p.pronouns ? `<span style="font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:20px">${esc(p.pronouns)}</span>` : ''}
-      ${joined ? `<span style="font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:20px">Joined ${joined}</span>` : ''}
-    </div>
-    ${listingsHtml}`;
+    <h3 class="pp-sec">Listings<span>${liveItems.length}</span></h3>
+    ${renderListingGrid(liveItems, false)}
+    ${soldItems.length ? `<h3 class="pp-sec">Sold<span>${soldItems.length}</span></h3>${renderListingGrid(soldItems, false)}` : ''}`;
+  _ppInfo = { id: profileId, name: displayName, initials: p.initials, color: p.color, avatar_url: p.avatar_url, school: p.school };
+}
+let _ppInfo = null;
+
+// Message from a profile: the same chat as from a listing, just not about one yet.
+function pfMessage(profileId) {
+  const info = _ppInfo && _ppInfo.id === profileId ? _ppInfo : null;
+  closeModal('pubProfileModal');
+  showPage('messages');
+  setTimeout(() => openConvo(profileId, info ? { name: info.name, initials: info.initials, color: info.color, avatar_url: info.avatar_url, school: info.school } : null, null), 100);
+}
+
+// "See your public profile" — exactly what others see, so a student can check what they share.
+function pfPreviewPublic() {
+  const eu = getEffectiveUser();
+  if (eu) viewStudentProfile(eu.id, { preview: true });
 }
 
 function openEditProfile() {
@@ -280,9 +313,12 @@ function renderProfile() {
   // four of those above the tabs is what pushed everything a student came to do off the
   // screen. Empty values are omitted rather than printed as "Not set", which says nothing
   // except that a form was skipped.
-  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
+  // The join date moved into the stats row (pfStatsHTML), beside Listings and Sold.
+  const school = (_schoolsList || []).find(s => s.slug === u.school)?.name || '';
   document.getElementById('profileInfo').textContent =
-    [u.year, u.major, u.pronouns, joined ? 'Joined ' + joined : ''].filter(Boolean).join('  ·  ');
+    [u.year, u.major, u.pronouns, school].filter(Boolean).join(' · ');
+  pfPaintStats();
+  pfPaintClubs();
 
   // What this person agreed to, and when. Deliberately silent when there is no record:
   // every account created before 2026-09-01 predates consent recording, and saying
@@ -311,17 +347,75 @@ function renderProfile() {
 async function renderMyListingsGrid(u) {
   const grid = document.getElementById('myListings');
   if (!grid) return;
-  const mine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
-  grid.innerHTML = renderListingGrid(mine, true); // paint immediately; books join in a beat
-  pfCount('listings', mine.length);
+  _pfMine = [...DB.listings, ...DB.pending].filter(l => l.poster_id === u.id);
+  pfPaintMine(); // paint immediately; books join in a beat
   const { data: books, error } = await supabaseClient.from('book_listings')
     .select('*').eq('poster_id', u.id).order('created_at', { ascending: false });
   if (error) { console.error('[renderMyListingsGrid]', error.message); return; }
   if (!books || !books.length) return;
-  const merged = [...mine, ...books.map(bookAsListing)]
+  _pfMine = [..._pfMine, ...books.map(bookAsListing)]
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-  grid.innerHTML = renderListingGrid(merged, true);
-  pfCount('listings', merged.length);
+  pfPaintMine();
+}
+
+// Your listings, filtered by where they stand. Owners manage their things by state — what is up,
+// what is waiting for review, what sold — so the chips appear once there is more than one state.
+let _pfMine = [];
+let _pfListFilter = 'all';
+function pfListState(l) {
+  if (l.status === 'pending') return 'review';
+  if (l.lifecycle_status === 'sold') return 'sold';
+  if (isListingLive(l)) return 'active';
+  return 'ended';   // expired, withdrawn, removed, rejected
+}
+function pfPaintMine() {
+  const grid = document.getElementById('myListings');
+  if (!grid) return;
+  const counts = { active: 0, review: 0, sold: 0, ended: 0 };
+  _pfMine.forEach(l => { counts[pfListState(l)]++; });
+  const states = [['active', 'Active'], ['review', 'In review'], ['sold', 'Sold'], ['ended', 'Ended']].filter(([k]) => counts[k]);
+  if (_pfListFilter !== 'all' && !counts[_pfListFilter]) _pfListFilter = 'all';
+  const chips = document.getElementById('pfListChips');
+  if (chips) chips.innerHTML = states.length > 1
+    ? [['all', 'All', _pfMine.length], ...states.map(([k, l]) => [k, l, counts[k]])].map(([k, l, n]) =>
+        `<button class="ib-chip${_pfListFilter === k ? ' is-on' : ''}" onclick="_pfListFilter='${k}';pfPaintMine()">${l}<span>${n}</span></button>`).join('')
+    : '';
+  const shown = _pfListFilter === 'all' ? _pfMine : _pfMine.filter(l => pfListState(l) === _pfListFilter);
+  grid.innerHTML = renderListingGrid(shown, true);
+  pfCount('listings', _pfMine.length);
+  pfPaintStats();
+}
+
+// Your stats: the same three numbers others see on your public profile.
+function pfPaintStats() {
+  const el = document.getElementById('pfStats');
+  const u = getEffectiveUser();
+  if (!el || !u) return;
+  const live = _pfMine.filter(l => pfListState(l) === 'active').length;
+  const sold = _pfMine.filter(l => pfListState(l) === 'sold').length;
+  el.innerHTML = pfStatsHTML(live, sold, pfJoined(u.created_at));
+}
+
+// Your clubs: the logos of the clubs you follow, with how many, or an invitation to find some.
+async function pfPaintClubs() {
+  const el = document.getElementById('pfClubs');
+  if (!el) return;
+  if (typeof loadOrgDirectory === 'function' && !_dirOrgs) { if (await loadOrgDirectory() !== true) return; }
+  const mine = (_dirOrgs || []).filter(o => _dirFollows.has(o.id));
+  const title = el.querySelector('.profile-row-title');
+  const sub = el.querySelector('.profile-row-sub');
+  const iconEl = el.querySelector('.profile-row-icon');
+  if (!mine.length) {
+    if (title) title.textContent = 'Find clubs to follow';
+    if (sub) sub.textContent = 'Their events and news show up on your Home and in your stories';
+    return;
+  }
+  if (title) title.textContent = `Following ${mine.length} club${mine.length === 1 ? '' : 's'}`;
+  if (sub) sub.textContent = mine.slice(0, 3).map(o => o.name).join(', ') + (mine.length > 3 ? ` and ${mine.length - 3} more` : '');
+  if (iconEl) {
+    iconEl.classList.add('pf-club-stack');
+    iconEl.innerHTML = mine.slice(0, 3).map(o => _dirLogoHTML(o, 'pf-club-logo')).join('');
+  }
 }
 
 

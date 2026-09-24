@@ -963,16 +963,6 @@ img{image-orientation:from-image;}
 .no-chat{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-faint);font-size:14px;}
 /* PROFILE */
 .profile-wrap{max-width:640px;margin:0 auto;padding:var(--sp-5) var(--sp-5) var(--sp-7);}
-/* Fine print under Log out — deliberately quiet, but a real tap target on mobile. */
-.profile-legal{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:12px;color:var(--text-faint);}
-/* Padding, not font-size, does the work here: it grows the thumb target to ~34px without
-   making the fine print look any bigger. margin-top is pulled back to compensate. */
-.profile-legal a{color:var(--text-muted);text-decoration:none;padding:10px 8px;}
-.profile-legal a:hover{color:var(--text);text-decoration:underline;}
-/* The Log out button. Transparent rather than --bg: without the card behind it, a cream fill
-   on a cream page is no fill at all, and the border is what makes it a button. */
-.pf-logout{background:transparent;color:var(--text-muted);border:1px solid var(--border);margin-top:16px;}
-.pf-logout:hover{border-color:var(--brand-light);color:var(--text);}
 .profile-consent{text-align:center;font-size:11px;color:var(--text-faint);}
 .profile-consent:empty{display:none;}
 /* Key/value row in admin detail modals. The rows above it in aViewStu still carry these
@@ -1043,7 +1033,6 @@ img{image-orientation:from-image;}
 .lg-cap-title{font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
 .lg-cap-rent{font-size:10px;color:var(--brand);font-weight:600;}
 .lg-badge{position:absolute;top:5px;right:5px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:8px;letter-spacing:.02em;}
-.section-divider{height:1px;background:var(--border);margin:20px 0;}
 /* HOW IT WORKS */
 .hiw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin-top:36px;}
 .hiw-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:28px 26px 30px;box-shadow:var(--shadow-sm);}
@@ -3815,16 +3804,7 @@ select.ao-input { cursor: pointer; }
 
 /* COUNTS — no box, light rules between the columns. The active tab's number turns green so
    the counts and the tab bar agree about where you are. */
-.pf-counts { display: flex; margin: 16px 0 4px; }
-.pf-count { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
-            background: none; border: 0; border-right: 1px solid var(--border); padding: 2px 0;
-            cursor: pointer; font-family: inherit; }
-.pf-count:last-child { border-right: 0; }
-.pf-count-n { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; line-height: 1.15;
-              color: var(--text); }
-.pf-count-l { font-size: 11px; color: var(--text-muted); }
-.pf-count.is-on .pf-count-n { color: var(--brand); }
-.pf-count:focus-visible { outline: var(--focus-ring); outline-offset: 2px; border-radius: 6px; }
+/* The counts row went on 2026-09-24: the numbers are in the tabs now (.pf-tab-n). */
 
 /* Sticky, because that is what makes a long Saved list navigable rather than somewhere to get
    lost. Full-bleed border under the row so the tabs read as a divider between the
@@ -4448,4 +4428,90 @@ select.ao-input { cursor: pointer; }
 .mlc-price { margin-top: 3px; font: 400 17px 'DM Serif Display', serif; color: var(--brand); }
 .mlc-price span { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-muted); }
 .bubble-listing .bubble-meta { margin: 6px 6px 2px 8px; }
+
+/* ============================================================
+   PROFILES (2026-09-24) — yours and other students', from one set of classes.
+   A card (photo, name, @handle, verified, year · major · school, bio), three trust numbers
+   (Listings · Sold · Joined), one clear action, then tiles with a photo, title and price.
+   ============================================================ */
+.pf-card { padding-bottom: 4px; }
+.pf-head { align-items: center; gap: 16px; }
+.profile-avatar-lg { width: 84px; height: 84px; font-size: 30px; }   /* others' photos are drawn at 84px by avatarHTML */
+.pf-name { margin: 0; font-size: 26px; line-height: 1.1; font-weight: 400; }
+.pf-at { font-size: 14px; }
+.pf-meta { margin-top: 5px; font-size: 13px; line-height: 1.45; }
+.pf-bio { margin-top: 14px; font-size: 14.5px; line-height: 1.55; }
+.pf-stats { display: flex; margin-top: 16px; padding: 12px 0; border-block: 1px solid var(--border); }
+.pf-stats:empty { display: none; }
+.pf-stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; border-right: 1px solid var(--border); }
+.pf-stat:last-child { border-right: 0; }
+.pf-stat b { font: 400 20px/1.15 'DM Serif Display', Georgia, serif; color: var(--text); }
+.pf-stat span { font-size: 12px; color: var(--text-muted); }
+.pf-actions { display: flex; gap: 8px; margin-top: 14px; }
+.pf-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 14px;
+          border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer;
+          font: 600 14px 'DM Sans', sans-serif; color: var(--text); }
+.pf-btn:hover { border-color: var(--brand-light); }
+.pf-btn-go { height: 48px; border: 0; border-radius: 999px; background: var(--brand); color: #fff; font-size: 15px; }
+.pf-btn-go:hover { background: var(--brand-mid); }
+.pf-clubs { margin-top: 14px; }
+.pf-club-stack { display: flex; width: auto !important; padding: 0 !important; background: none !important; }
+.pf-club-logo { width: 32px; height: 32px; border: 2px solid var(--surface); border-radius: 50%; object-fit: cover;
+                display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.pf-club-logo + .pf-club-logo { margin-left: -10px; }
+.pf-tab-n { font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.pf-tab-n:empty { display: none; }
+.pf-tab.is-on .pf-tab-n { color: var(--text-muted); }
+.pf-chips { display: flex; gap: 8px; margin: 12px 0 2px; overflow-x: auto; scrollbar-width: none; }
+.pf-chips:empty { display: none; }
+.pf-chips::-webkit-scrollbar { display: none; }
+.pf-private { display: flex; align-items: center; gap: 6px; margin: 12px 0 4px; font-size: 12.5px; color: var(--text-faint); }
+.pf-private::before { content: '🔒'; font-size: 11px; }
+
+/* Tiles: photo, then title and price underneath; a badge only when something is not normal. */
+.listing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; margin-top: 12px; }
+.lg-cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer;
+           aspect-ratio: auto; overflow: visible; font-family: inherit; text-align: left; }
+.lg-cell:hover { opacity: 1; }
+.lg-img { position: relative; display: flex; align-items: flex-start; aspect-ratio: 1; overflow: hidden; border-radius: 14px;
+          background: var(--cat-tint, var(--bg-alt)); color: var(--cat-deep, var(--text)); }
+.lg-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.lg-cell:hover .lg-img img { transform: scale(1.04); }
+.lg-fill-title { padding: 10px; font-size: 15px; }
+.lg-badge { top: auto; bottom: 7px; right: auto; left: 7px; font-size: 10px; padding: 3px 8px; border-radius: 999px; }   /* bottom: a tile with no photo has its title at the top */
+.lg-cap-rent .lc-soft { font: inherit; color: var(--text); }   /* "Free" / "Contact" as plain price text here, not the feed's serif */
+.lg-cap { display: flex; flex-direction: column; gap: 1px; padding: 0 2px; background: none; }
+.lg-cap-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.lg-cap-rent { font-size: 13px; font-weight: 700; color: var(--text); }
+.lg-cap-rent span { font-weight: 500; color: var(--text-muted); }
+.lg-cell.is-sold .lg-img img, .lg-cell.is-sold .lg-fill-title { opacity: .5; }   /* the picture fades, the Sold badge does not */
+.lg-empty { padding: 28px 0; font-size: 14px; text-align: center; color: var(--text-muted); }
+@container pfpage (min-width: 1000px) { .pf-main .listing-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+
+/* Account, at the bottom. */
+.pf-foot { margin-top: 26px; }
+.pf-foot-h { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+.pf-account { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.pf-acc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px;
+              border: 0; border-top: 1px solid var(--border); background: none; font: 400 14.5px 'DM Sans', sans-serif;
+              color: var(--text); text-align: left; text-decoration: none; }
+.pf-acc-row:first-child { border-top: 0; }
+.pf-acc-row > span { color: var(--text-muted); }
+.pf-acc-link { cursor: pointer; color: var(--text-faint); }
+.pf-acc-link > span { color: var(--text); }
+.pf-acc-link:hover { background: var(--bg-alt); }
+.pf-email { margin: 0; overflow: hidden; font-size: 14px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
+.pf-logout > span { color: var(--danger); font-weight: 600; }
+.profile-consent { margin-top: 10px; font-size: 12px; text-align: center; color: var(--text-faint); }
+
+/* Another student's profile (a page on a phone, a sheet on a desktop). */
+.pp-card { margin-bottom: 8px; }
+.pp-sec { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 0; font: 400 21px 'DM Serif Display', Georgia, serif; color: var(--text); }
+.pp-sec span { font: 600 13px 'DM Sans', sans-serif; color: var(--text-faint); }
+.pp-loading { padding: 40px 0; font-size: 14px; text-align: center; color: var(--text-muted); }
+.pp-preview-note { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--brand-pale); font-size: 13px; line-height: 1.5; color: var(--brand-mid); }
+@media (max-width: 768px) {
+  #pubProfileModal { padding: 0; align-items: stretch; }
+}
+body:has(#pubProfileModal.open) { overflow: hidden; }
 

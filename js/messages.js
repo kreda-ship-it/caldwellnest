@@ -965,22 +965,27 @@ function renderListingGrid(listings, isOwn) {
   // the viewer's browser, and a raw photo URL could close src="…" and add an attribute of its
   // own. Guarded by check 6 in tests/load-order.js.
   if (!listings || !listings.length) {
-    return `<div style="text-align:center;padding:28px 0;color:var(--text-faint);font-size:13px">
-      ${isOwn ? `No listings yet. <a onclick="openModal('postModal')" style="color:var(--brand);cursor:pointer">Post one now →</a>` : 'No active listings yet.'}
+    return `<div class="lg-empty">
+      ${isOwn ? `Nothing here yet. <button class="hn-link" onclick="requireAuth('postListing')">Post something</button>` : 'No listings right now.'}
     </div>`;
   }
+  // Tiles as a shop shows them (2026-09-24): the photo, then the title and the price underneath —
+  // the old tiles were colour squares that told you nothing without a tap. A status badge appears
+  // only when something is NOT normal (in review, pending sale, sold, ended); "Active" on every
+  // tile was noise.
   return `<div class="listing-grid">${listings.map(l => {
     const [bg, col, label] = listingLifecycleBadge(l);
-    const cat = CATEGORY_COLORS[l.category] || CATEGORY_COLORS.other;
-    const rent = l.rent ? (l.category === 'housing' ? `$${l.rent}/mo` : `$${l.rent}`) : '';
-    const inner = l.photo_urls?.[0]
-      ? `<img src="${escAttr(l.photo_urls[0])}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy" alt="${escAttr(l.title)}">
-         <div class="lg-cap"><div class="lg-cap-title">${esc(l.title)}</div><div class="lg-cap-rent">${esc(rent)}</div></div>`
-      : `<div class="lg-fill" style="background:${cat.bg};color:${cat.text}"><div class="lg-fill-title">${esc(l.title)}</div></div>
-         <div class="lg-cap"><div class="lg-cap-rent">${esc(rent)}</div></div>`;
-    return `<div class="lg-cell" onclick="${l.isBook ? 'openBookDetail' : 'openDetail'}(${l.id})">
-      ${inner}
-      ${isOwn ? `<div class="lg-badge" style="background:${bg};color:${col}">${label}</div>` : ''}
-    </div>`;
+    const normal = label === 'Active';
+    const sold = l.lifecycle_status === 'sold';
+    const price = priceLabel(l);
+    const open = l.isBook ? 'openBookDetail' : 'openDetail';
+    return `<button class="lg-cell${sold ? ' is-sold' : ''}" onclick="${open}(${Number(l.id)})">
+      <span class="lg-img" data-cat="${escAttr(l.category || 'other')}">${l.photo_urls?.[0]
+        ? `<img src="${escAttr(l.photo_urls[0])}" alt="" loading="lazy">`
+        : `<span class="lg-fill-title">${esc(l.title)}</span>`}
+        ${(isOwn && !normal) || sold ? `<span class="lg-badge" style="background:${bg};color:${col}">${esc(label)}</span>` : ''}
+      </span>
+      <span class="lg-cap"><span class="lg-cap-title">${esc(l.title)}</span><span class="lg-cap-rent">${price}</span></span>
+    </button>`;
   }).join('')}</div>`;
 }
