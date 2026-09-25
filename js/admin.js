@@ -422,16 +422,24 @@ const fmtActivityTime = d => {
 };
 
 const UNDOABLE_ACTIONS = new Set(['reject_listing','remove_listing','pin_listing','unpin_listing','approve_listing','suspend_student']);
+// The shape of an account id. target_id is plain text, so "is it a UUID?" is asked before one is
+// ever put into an onclick — see openActivityDetail().
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function activityItem(e) {
   const m = ACTION_META[e.action_type] || { label: e.action_type, color: '#888' };
   const suffix = e.target_label
     ? ` <span style="color:var(--text-muted)">—</span> <em style="color:var(--text)">"${esc(e.target_label)}"</em>`
     : '';
   const undone = e.undone_at ? ` <span style="font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 7px;color:var(--text-faint);margin-left:4px">reversed</span>` : '';
+  // Only the entry's NUMBER goes into these onclicks. action_type and target_id are text that
+  // students can write into this table (logEvent() records their own actions), and inside
+  // onclick="…" one quote turns text into code — esc() cannot help, because the browser decodes
+  // &#39; back into ' before the JavaScript runs. undoActivityEntry() reads the rest back from
+  // the database instead. Guarded by check 9 in tests/load-order.js.
   const undoBtn = (!e.undone_at && UNDOABLE_ACTIONS.has(e.action_type) && e.target_id)
-    ? `<button onclick="event.stopPropagation();undoActivityEntry('${e.id}','${e.action_type}','${e.target_id}')" style="flex-shrink:0;align-self:center;font-size:11px;padding:2px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit" title="Undo this action">&#8617; Undo</button>`
+    ? `<button onclick="event.stopPropagation();undoActivityEntry(${Number(e.id)})" style="flex-shrink:0;align-self:center;font-size:11px;padding:2px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit" title="Undo this action">&#8617; Undo</button>`
     : '';
-  return `<div class="al-item" onclick="openActivityDetail('${e.id}')" title="View detail">
+  return `<div class="al-item" onclick="openActivityDetail(${Number(e.id)})" title="View detail">
     <div class="al-dot" style="background:${escAttr(m.color)}"></div>
     <div class="al-text">${esc(m.label)}${suffix}${undone}</div>
     <div class="al-time" style="align-self:center">${fmtActivityTime(e.created_at)}</div>
@@ -462,6 +470,7 @@ async function logAdminAction(actionType, opts = {}) {
   if (error) console.error('[logAdminAction] insert failed:', error.message, { actionType });
 }
 
+// Records a student's or club officer's own action.
 async function logEvent(actionType, opts = {}) {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
@@ -546,7 +555,9 @@ async function openActivityDetail(entryId) {
     let link = '';
     if (e.target_type === 'listing' && e.target_id)
       link = ` <span class="stu-link-a" style="font-size:12px" onclick="closeHDrawer();openListingDrawer(${+e.target_id})">view listing →</span>`;
-    else if (e.target_type === 'student' && e.target_id)
+    // Only a real account id reaches this onclick. A student can write their own log rows, and a
+    // target_id holding a quote would otherwise break out of aOpenStudentHistory('…').
+    else if (e.target_type === 'student' && UUID_RE.test(e.target_id || ''))
       link = ` <span class="stu-link-a" style="font-size:12px" onclick="closeHDrawer();aOpenStudentHistory('${e.target_id}')">view profile →</span>`;
     targetVal = `"${esc(e.target_label)}" <span style="color:var(--text-faint);font-size:11px">(${esc(e.target_type || '—')})</span>${link}`;
   }
@@ -586,16 +597,27 @@ function showUndoWarning(message, onConfirm) {
   openModal('undoWarningModal');
 }
 
-async function undoActivityEntry(entryId, actionType, targetId) {
+// The Undo button carries only the entry's number (see activityItem). What gets undone is read back
+// from the database here, so it is what the log really says — not whatever text travelled in the
+// button. Undoing acts for real (undoing a rejection APPROVES the listing), so this must never trust
+// anything a student could have written.
+async function undoActivityEntry(entryId) {
+  const { data: e } = await supabaseClient.from('admin_activity_log')
+    .select('id, action_type, target_id, undone_at').eq('id', entryId).single();
+  if (!e || e.undone_at || !UNDOABLE_ACTIONS.has(e.action_type) || !e.target_id) {
+    toast('This action can no longer be undone');
+    renderAdminDashLog();
+    return;
+  }
   const WARN = {
     approve_listing: "This will return the listing to the pending queue for re-review. The poster won't be notified.",
     suspend_student: "This will immediately restore the student's account access.",
   };
-  if (WARN[actionType]) {
-    showUndoWarning(WARN[actionType], () => _executeUndo(entryId, actionType, targetId));
+  if (WARN[e.action_type]) {
+    showUndoWarning(WARN[e.action_type], () => _executeUndo(e.id, e.action_type, e.target_id));
     return;
   }
-  await _executeUndo(entryId, actionType, targetId);
+  await _executeUndo(e.id, e.action_type, e.target_id);
 }
 
 async function _executeUndo(entryId, actionType, targetId) {

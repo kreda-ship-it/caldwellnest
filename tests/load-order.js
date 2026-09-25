@@ -261,5 +261,32 @@ if (ran) {
             : pass('every inline handler calls a function that exists');
 }
 
+// ------------------------------------------------ 9. a log entry's text stays out of onclick
+// Students write rows into admin_activity_log on purpose — logEvent() records their own actions —
+// and the admin dashboard draws the newest ones with activityItem() the moment an admin signs in.
+// It used to paste target_id into onclick="undoActivityEntry('…')". esc() cannot help there: the
+// browser decodes &#39; back into ' BEFORE the JavaScript runs, so one quote turned a student's
+// text into code running in the admin's browser. Found 2026-09-25 (security audit, H1).
+//
+// The payload closes both the JavaScript string and the attribute, so either way out is caught.
+// target_label is kept plain on purpose: it goes through esc(), which leaves the words "alert(1)"
+// visible as harmless text, and that would make this check fail for the wrong reason.
+if (ran) {
+  const PAYLOAD = `1');alert(1);//"><img src=x onerror=alert(1)>`;
+  ctx.__logRow = { id: 7, action_type: 'approve_listing', target_type: 'listing', target_id: PAYLOAD,
+                   target_label: 'A listing', created_at: '2026-09-25T12:00:00Z', undone_at: null };
+  try {
+    const out = vm.runInContext('activityItem(__logRow)', ctx);
+    const leaks = [
+      out.includes('alert(1)')           && 'target_id reached the markup',
+      !out.includes('undoActivityEntry(7)') && 'the Undo button does not carry just the entry number',
+    ].filter(Boolean);
+    leaks.length ? fail(`activityItem: ${leaks.join('; ')}`)
+                 : pass('a hostile target_id in the activity log never reaches an onclick');
+  } catch (e) {
+    fail(`activityItem could not be exercised: ${e.message}`);
+  }
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);
