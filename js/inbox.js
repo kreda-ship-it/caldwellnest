@@ -27,9 +27,15 @@
 // NOT here, because nothing records it yet: saves on your listing (favorites are private to
 // whoever saved), saved searches, price drops. Each would need a table or a column first.
 //
-// READ STATE. Stored notifications use their own `read` column. Worked-out items have no row to
-// mark, so which ones you have seen is kept on this device (localStorage) — the same honest limit
-// as the event stories: it is a note about this screen, not a record anywhere else.
+// SEEN AND READ (2026-09-25) — two different things, the way Facebook and LinkedIn do it:
+//   SEEN  the item was on screen when you opened Activity. It stops counting on the Inbox badge,
+//         so opening the page clears the number without making you tap every row.
+//   READ  you opened it (or pressed "Mark all as read"). Until then it keeps its unread look —
+//         bold title and a dot, the convention unread email uses — so what you have not dealt
+//         with stays easy to find even after the badge has gone.
+// School notices keep their own `read` column in `notifications`. Everything else is remembered
+// in this browser and, once sql/2026-09-25_activity_state.sql has run, with your account
+// (activity_state), so reading something on your phone marks it read on your laptop too.
 //
 // Loaded as a plain script (not a module) so every function stays global; the HTML's
 // onclick handlers depend on that. boot.js must stay last.
@@ -37,12 +43,77 @@
 let _ibTab = 'messages';
 let _actItems = [];             // the feed, newest first
 let _actLoaded = false;
-const ACT_SEEN_KEY = 'cn_activity_seen';
 
-function actSeen() { try { return new Set(JSON.parse(localStorage.getItem(ACT_SEEN_KEY) || '[]')); } catch (e) { return new Set(); } }
-function actMarkSeen(keys) {
-  const s = actSeen(); keys.forEach(k => s.add(k));
-  try { localStorage.setItem(ACT_SEEN_KEY, JSON.stringify([...s].slice(-500))); } catch (e) { /* private mode */ }
+// ---------- Seen and read ----------
+const ACT_READ_KEY = 'cn_activity_seen';      // the old name: it has always held READ keys
+const ACT_VIEWED_KEY = 'cn_activity_viewed';
+let _actRead = null, _actSeenSet = null, _actStateFor = null;   // Sets, for one user
+let _actRemote = null;        // null: not tried yet; false: no table (this browser only); true: synced
+let _actSaveTimer = null;
+
+// This browser's copy, per user — two students sharing a laptop must not read each other's feed.
+// The old unscoped key is read once as a starting point, so nothing already read comes back.
+function actLocal(key, uid) {
+  try { return new Set(JSON.parse(localStorage.getItem(key + ':' + uid) || localStorage.getItem(key) || '[]')); }
+  catch (e) { return new Set(); }
+}
+function actState() {
+  const uid = getEffectiveUser()?.id || '';
+  if (!_actRead || _actStateFor !== uid) {
+    _actRead = actLocal(ACT_READ_KEY, uid); _actSeenSet = actLocal(ACT_VIEWED_KEY, uid);
+    _actStateFor = uid; _actRemote = null;
+  }
+  return { read: _actRead, seen: _actSeenSet };
+}
+// The account's copy, merged in (a key read anywhere counts as read everywhere).
+async function actLoadRemote() {
+  const eu = getEffectiveUser();
+  const st = actState();
+  if (!eu || _actRemote === false) return;
+  const { data, error } = await supabaseClient.from('activity_state')
+    .select('read_keys, seen_keys').eq('user_id', eu.id).maybeSingle();
+  if (error) { _actRemote = false; return; }   // the table is not there yet: this browser only
+  _actRemote = true;
+  (data?.read_keys || []).forEach(k => st.read.add(k));
+  (data?.seen_keys || []).forEach(k => st.seen.add(k));
+}
+// Saved here at once, and to the account a moment later (several taps in a row are one write).
+function actSave() {
+  const eu = getEffectiveUser();
+  if (!eu) return;
+  const st = actState();
+  const cap = set => [...set].slice(-500);
+  try {
+    localStorage.setItem(ACT_READ_KEY + ':' + eu.id, JSON.stringify(cap(st.read)));
+    localStorage.setItem(ACT_VIEWED_KEY + ':' + eu.id, JSON.stringify(cap(st.seen)));
+  } catch (e) { /* private mode */ }
+  if (!_actRemote) return;
+  clearTimeout(_actSaveTimer);
+  _actSaveTimer = setTimeout(async () => {
+    const { error } = await supabaseClient.from('activity_state').upsert(
+      { user_id: eu.id, read_keys: cap(st.read), seen_keys: cap(st.seen), updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' });
+    if (error) console.warn('[activity_state]', error.message);
+  }, 600);
+}
+function actMarkRead(keys) {
+  const st = actState();
+  keys.forEach(k => { st.read.add(k); st.seen.add(k); });
+  actSave();
+}
+// Everything on screen is now seen: the badge clears, the dots stay.
+function actSeeAll() {
+  const st = actState();
+  const fresh = _actItems.filter(x => !x.seen);
+  if (!fresh.length) return;
+  fresh.forEach(x => { x.seen = true; st.seen.add(x.key); });
+  actSave();
+  ibPaintCounts();
+}
+// Is Activity actually in front of the student right now?
+function actOnScreen() {
+  return _ibTab === 'activity' && document.getElementById('page-messages')?.classList.contains('active')
+    && document.visibilityState === 'visible';
 }
 
 function ibTab(t) {
@@ -64,11 +135,9 @@ function ibTab(t) {
 // nothing at load — boot.js is the only file that does).
 let _actFresh = null;
 function actKeepFresh() {
-  const onScreen = () => _ibTab === 'activity' && document.getElementById('page-messages')?.classList.contains('active')
-    && document.visibilityState === 'visible';
   if (_actFresh) return;
-  _actFresh = setInterval(() => { if (onScreen()) activityRefresh(false); }, 120e3);
-  document.addEventListener('visibilitychange', () => { if (onScreen()) activityRefresh(false); });
+  _actFresh = setInterval(() => { if (actOnScreen()) activityRefresh(false); }, 120e3);
+  document.addEventListener('visibilitychange', () => { if (actOnScreen()) activityRefresh(false); });
 }
 
 // The one way in (the Inbox button in the nav). With no tab named, it opens on the tab that needs
@@ -81,7 +150,8 @@ function openInbox(tab) {
   ibTab(t);
 }
 
-// The Inbox button's badge: everything waiting, in one number — unread chats plus unread activity.
+// The Inbox button's badge: everything waiting, in one number — unread chats plus NEW activity
+// (not yet seen; see actUnreadCount).
 function paintInboxBadge() {
   const el = document.getElementById('inboxBadge');
   if (!el) return;
@@ -91,7 +161,7 @@ function paintInboxBadge() {
   el.classList.toggle('show', n > 0);
 }
 
-// The two counts on the tabs: chats with something unread, and unread activity. The bell's badge
+// The two counts on the tabs: chats with something unread, and new activity. The bell's badge
 // is the activity count too (updateNotifBadge in auth.js reads actUnreadCount()).
 function ibPaintCounts() {
   const msgs = typeof sUnread === 'object' && sUnread ? Object.keys(sUnread).length : 0;
@@ -101,20 +171,19 @@ function ibPaintCounts() {
   set('ibCountAct', act);
   paintInboxBadge();
 }
+// The badge counts what is NEW — not yet seen — not everything unread. Before the feed has been
+// built, that is the unread school notices this browser has not seen.
 function actUnreadCount() {
-  if (!_actLoaded) return (typeof _notifCache !== 'undefined' ? _notifCache : []).filter(n => !n.read).length;
-  return _actItems.filter(x => x.unread).length;
+  if (!_actLoaded) {
+    const st = actState();
+    return (typeof _notifCache !== 'undefined' ? _notifCache : []).filter(n => !n.read && !st.seen.has('n' + n.id)).length;
+  }
+  return _actItems.filter(x => !x.seen).length;
 }
 
 // ✓ in the header: everything on the current tab becomes read.
 async function ibMarkAllRead() {
-  if (_ibTab === 'activity') {
-    actMarkSeen(_actItems.filter(x => !x.notif).map(x => x.key));
-    if (typeof markNotificationsRead === 'function') await markNotificationsRead();
-    _actItems.forEach(x => { x.unread = false; });
-    activityPaint();
-    return;
-  }
+  if (_ibTab === 'activity') { await actMarkAllRead(); return; }
   const eu = getEffectiveUser();
   if (!eu) return;
   const { error } = await supabaseClient.from('messages').update({ seen_at: new Date().toISOString() })
@@ -128,7 +197,7 @@ async function ibMarkAllRead() {
 // A stored notification, told apart by its type. The message is text an admin wrote with the
 // listing's title in it, so the title is pulled back out to make a two-line row.
 function actFromNotif(n) {
-  const base = { key: 'n' + n.id, notif: n, at: n.created_at, unread: !n.read };
+  const base = { key: 'n' + n.id, notif: n, at: n.created_at, read: !!n.read };
   const removed = n.type === 'listing_removed' && n.message.match(/^Your listing "([\s\S]*)" was removed by a moderator\. Reason: ([\s\S]*)$/);
   if (removed) {
     return { ...base, icon: 'flag', tone: 'red', title: `Your listing “${esc(removed[1])}” was removed`,
@@ -145,9 +214,10 @@ async function activityBuild() {
   if (!eu) return [];
   if (typeof loadNotifications === 'function') await loadNotifications(eu.id);
   const items = (_notifCache || []).map(actFromNotif);
-  const seen = actSeen();
+  await actLoadRemote();
+  const st = actState();
   const now = Date.now(), day = 864e5, week = now - 7 * day;
-  const add = x => items.push({ ...x, unread: !seen.has(x.key) });
+  const add = x => items.push({ ...x, read: st.read.has(x.key) });
   const within = (ts, ms) => ts && now - new Date(ts).getTime() < ms;
 
   // loadEvents fills _evFeed, _evPast, _evGoing and _evRecaps; the directory gives the follow set;
@@ -317,6 +387,8 @@ async function activityBuild() {
 
   // Newest first. A row without a time goes last rather than scrambling the sort (NaN compares
   // as neither bigger nor smaller, which leaves the order undefined).
+  // Seen: read, or on screen the last time Activity was open.
+  items.forEach(x => { x.seen = x.read || st.seen.has(x.key); });
   const t = x => { const v = new Date(x.at).getTime(); return Number.isFinite(v) ? v : 0; };
   return items.sort((a, b) => t(b) - t(a));
 }
@@ -331,6 +403,8 @@ async function activityRefresh(show) {
   _actLoaded = true;
   if (typeof updateNotifBadge === 'function') updateNotifBadge();
   if (show || _ibTab === 'activity') activityPaint(); else ibPaintCounts();
+  // Looking at it counts as having seen it — including rows that arrive while it is open.
+  if (actOnScreen()) actSeeAll();
 }
 
 function activityPaint() {
@@ -348,13 +422,17 @@ function activityPaint() {
   }
   // Today, This week, Earlier — the grouping Instagram and LinkedIn use, so the eye lands on what
   // is new and the rest reads as history.
+  // How many are unread, and the one-tap way out — in words, where the ✓ in the header is only an icon.
+  const unread = _actItems.filter(x => !x.read).length;
+  const bar = unread ? `<div class="act-bar"><span><b>${unread}</b> unread</span>
+    <button class="act-bar-btn" onclick="actMarkAllRead()">Mark all as read</button></div>` : '';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const wk = today.getTime() - 6 * 864e5;
   const t = x => new Date(x.at).getTime() || 0;
   const groups = [['Today', _actItems.filter(x => t(x) >= today.getTime())],
                   ['This week', _actItems.filter(x => t(x) < today.getTime() && t(x) >= wk)],
                   ['Earlier', _actItems.filter(x => t(x) < wk)]];
-  el.innerHTML = groups.filter(([, xs]) => xs.length).map(([label, xs]) =>
+  el.innerHTML = bar + groups.filter(([, xs]) => xs.length).map(([label, xs]) =>
     `<div class="act-day">${label}</div>${xs.map(actRowHTML).join('')}`).join('');
 }
 
@@ -371,14 +449,15 @@ function actRowHTML(x) {
   const t = x.thumb;
   const thumb = t ? `<span class="act-thumb ev-tone-${escAttr(t.tone || 'other')}"${t.cat ? ` data-cat="${escAttr(t.cat)}"` : ''}>${t.photo ? `<img src="${escAttr(t.photo)}" alt="" loading="lazy">` : ''}</span>` : '';
   return `
-    <button class="act-row${x.unread ? ' is-unread' : ''}" onclick="actOpen(${escAttr(JSON.stringify(x.key))})">
+    <button class="act-row${x.read ? '' : ' is-unread'}" onclick="actOpen(${escAttr(JSON.stringify(x.key))})">
       <span class="act-icon is-${escAttr(x.tone)}">${icon(x.icon, 19)}</span>
       <span class="act-text">
-        <span class="act-title">${x.title}</span>
+        <span class="act-title">${x.read ? '' : '<span class="sr-only">Unread: </span>'}${x.title}</span>
         ${x.sub ? `<span class="act-sub${x.subTone ? ' is-' + x.subTone : ''}">${x.sub}</span>` : ''}
         <span class="act-when">${esc(x.when || actWhen(x.at))}</span>
       </span>
       ${thumb}
+      ${x.read ? '' : '<span class="act-dot" aria-hidden="true"></span>'}
     </button>`;
 }
 
@@ -386,14 +465,26 @@ function actRowHTML(x) {
 async function actOpen(key) {
   const x = _actItems.find(i => i.key === key);
   if (!x) return;
-  if (x.unread) {
-    x.unread = false;
+  if (!x.read) {
+    x.read = true; x.seen = true;
     if (x.notif) {
       x.notif.read = true;
       const { error } = await supabaseClient.from('notifications').update({ read: true }).eq('id', x.notif.id);
       if (error) console.error('[actOpen]', error.message);
-    } else actMarkSeen([x.key]);
+    }
+    actMarkRead([x.key]);
     activityPaint();
   }
   if (x.go) x.go();
+}
+
+// Everything read: school notices in their table, the rest in the seen/read lists.
+async function actMarkAllRead() {
+  const keys = _actItems.filter(x => !x.read).map(x => x.key);
+  if (!keys.length) return;
+  if (typeof markNotificationsRead === 'function') await markNotificationsRead();
+  _actItems.forEach(x => { x.read = true; x.seen = true; });
+  actMarkRead(keys);
+  activityPaint();
+  toast('All caught up');
 }

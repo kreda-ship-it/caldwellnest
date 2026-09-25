@@ -4261,8 +4261,19 @@ select.ao-input { cursor: pointer; }
            color: var(--text-faint); }
 .act-row { display: flex; align-items: flex-start; gap: 14px; width: 100%; padding: 14px var(--page-gutter, 16px); border: 0;
            background: none; cursor: pointer; font-family: inherit; text-align: left; }
-.act-row.is-unread { background: #fffaf0; }
+/* Read and unread (2026-09-25). Unread: the row sits on the card colour, its title is bold, and a
+   dot marks it — the unread-email convention. Read: it sinks back into the page and the title
+   drops to normal weight. The difference holds in dark mode too (tokens, not a fixed cream). */
+.act-row.is-unread { background: var(--surface); }
+.act-row.is-unread .act-title { font-weight: 600; }
+.act-row:not(.is-unread) .act-icon { opacity: .8; }
 .act-row:hover { background: var(--bg-alt); }
+.act-dot { flex: none; align-self: center; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-warm); }
+.act-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px var(--page-gutter, 16px);
+  border-bottom: 1px solid var(--border); font-size: 13.5px; color: var(--text-muted); }
+.act-bar b { color: var(--text); }
+.act-bar-btn { padding: 4px 0; border: 0; background: none; font: 600 13.5px 'DM Sans', sans-serif; color: var(--brand); cursor: pointer; }
+.act-bar-btn:hover { text-decoration: underline; }
 .act-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; }
 .act-icon.is-green { background: var(--brand-pale); color: var(--brand); }
 .act-icon.is-amber { background: #fdf3df; color: #a87309; }
@@ -4847,3 +4858,7 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .op-hl-i:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); border-radius: 12px; }
 .op-hl-t { width: 100%; overflow: hidden; font-size: 11.5px; line-height: 1.3; color: var(--text); text-align: center;
   white-space: nowrap; text-overflow: ellipsis; }
+
+/* Read aloud by screen readers, never shown — for things the eye gets from a dot or a colour. */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0; }

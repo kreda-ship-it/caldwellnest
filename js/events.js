@@ -954,7 +954,11 @@ async function evCardRegister(id, btn) {
 // deep link arrives it opens this same modal on load, so there is one detail view and not a
 // second one that drifts.
 
+// Which open is the latest. Each await below can be overtaken by a quicker second tap; only the
+// newest open may paint, so one event's photos can never land on another.
+let _evOpenSeq = 0;
 async function evOpen(id) {
+  const seq = ++_evOpenSeq;
   // Re-read the row rather than trusting the feed's copy. A student can arrive here from a
   // deep link with no feed loaded at all, and an event opened from a stale feed could show a
   // seat that was taken two minutes ago.
@@ -964,6 +968,7 @@ async function evOpen(id) {
     .eq('id', id)
     .maybeSingle();
 
+  if (seq !== _evOpenSeq) return;
   if (error || !data) {
     toast(error ? 'Could not open that event' : 'That event is no longer available');
     if (error) console.error('[evOpen]', error);
@@ -989,9 +994,13 @@ async function evOpen(id) {
   supabaseClient.rpc('record_event_view', { p_event_id: id }).then(({ error: vErr }) => {
     if (vErr && vErr.code !== 'PGRST202') console.warn('[record_event_view]', vErr.message);
   });
-  _evDetail._media = media || [];
-  _evDetail._recap = recaps?.get(id) || null;
+  // Opened something else meanwhile (two quick taps)? Then this one is out of date: stop, rather than
+  // pour its photos and recap into the event that replaced it in _evDetail.
+  if (seq !== _evOpenSeq) return;
+  data._media = media || [];
+  data._recap = recaps?.get(id) || null;
   if (!_evOrgs.has(data.org_id)) await evLoadOrgs([data]);
+  if (seq !== _evOpenSeq) return;
 
   _ldIndex = 0;
   evPaintDetail();
