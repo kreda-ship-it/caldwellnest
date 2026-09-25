@@ -99,6 +99,19 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - The tell on 2026-09-04: a new admin tab appeared but rendered blank, *and* its heading showed the raw section name. Two unrelated edits in the same file both missing points at the file being stale, not at either edit.
 - Not to be confused with `Uncaught SyntaxError: Unexpected token '<'`. On a real `.js` file that means the server returned an HTML page (usually a 404) where JavaScript was expected. Prefixed `VM###` instead, it just means something was pasted into the console.
 
+## Security headers (`vercel.json`, added 2026-09-25)
+- `vercel.json` sets the site's security headers. JSON allows no comments, so the reasoning lives here.
+- The full **Content-Security-Policy** (the list of outside websites the page may load from or talk to) starts as
+  `Content-Security-Policy-Report-Only`: it blocks nothing, it only logs `[Report Only] …` in the browser console.
+  After a week of normal use with a clean console (log in, post with photos, chat, clubs, events, admin), enforce it:
+  rename that key to `Content-Security-Policy` and delete the small enforced one above it (its three rules are
+  already inside the full one).
+- **Once enforced, every new outside website the app uses must be added to the policy, or it is silently blocked.**
+  A new script CDN → `script-src`; a new API (e.g. the planned ISBN lookup) → `connect-src`; images from a new
+  host → `img-src`. A new feature that "does nothing" is a policy symptom first — look for `Refused to…` in the console.
+- `'unsafe-inline'` in `script-src` is there because of the inline `onclick="…"` handlers. Dropping it means moving
+  every handler into JavaScript — a long future cleanup, not a quick edit.
+
 ## Known limitations (do NOT "fix" these silently — they're known and planned)
 - Core data (accounts, profiles, listings, messages, books) persists in Supabase. The ADMIN side still has in-memory pieces that reset on refresh: the live site editor content (`DB.content`) and `DB.settings`. Persisting those is a future task.
 - **`admin_activity_log` is the activity log, and there is only one.** A Supabase table, written by `logEvent()` and read back by `fetchActivityLog()` with filtering, paging and undo. **Write all logging through `logEvent()`.** There used to be a second, in-memory `DB.log` that reset on refresh; it was read only by the data export until 2026-09-03, and its 21 dead writes were removed 2026-09-04. If you see `DB.log` referenced in a comment, that is history, not a thing that exists.
