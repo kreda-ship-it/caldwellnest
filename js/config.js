@@ -13,7 +13,7 @@
 // of '2026-09-01' means "this person accepted the documents as they read on that date".
 // Without it, a stored timestamp would only prove SOMEONE agreed to SOMETHING.
 // Old profiles keep the version they accepted — never rewrite them to match this.
-const TERMS_VERSION = '2026-09-25b';
+const TERMS_VERSION = '2026-09-25c';
 // The day consent recording went live. Accounts older than this have no consent record
 // because none was ever captured — which is different from an account that SHOULD have one
 // and doesn't. The admin student view uses this to tell those two apart instead of flagging

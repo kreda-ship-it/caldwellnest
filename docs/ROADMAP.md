@@ -3,7 +3,11 @@
 *A living document. Update it as the project grows. Work in TIER order — each tier
 mostly depends on the one above it. Check items off as they're done.*
 
-Last updated: 2026-09-04 — see **SESSION LOG 2026-09-04**, **SESSION LOG 2026-09-03**,
+Last updated: **2026-09-25** — see **BUILD LOG 2026-09-07 → 2026-09-25** at the very end of this
+file for everything built since the last update (events, clubs, the org console, recaps, the
+redesign, the Inbox, the landing page and the legal pages).
+
+Earlier: 2026-09-04 — see **SESSION LOG 2026-09-04**, **SESSION LOG 2026-09-03**,
 **SESSION LOG 2026-08-08**, **SESSION LOG 2026-08-07**, and **LAUNCH BLOCKERS** at the end of
 this file for the most recent work.
 
@@ -14,7 +18,9 @@ when; the plans describe *how* a feature is built, and are written before the wo
 |---|---|---|
 | `docs/nestrel-feature-expansion-plan.md` | The broad feature expansion — summarized in **APPENDED 2026-07-09** below | Partly shipped |
 | `docs/nestrel-listing-lifecycle-plan.md` | Listing status, expiry, favorites, admin lifecycle | Partly shipped |
-| `docs/nestrel-campus-engagement-plan.md` | Organizations, permissions, events, registration, check-in, analytics — **six workstreams, not started** | Planned (rev 3, audited against the live database 2026-09-02) |
+| `docs/nestrel-campus-engagement-plan.md` | Organizations, permissions, events, registration, check-in, analytics — **six workstreams, not started** | Planned (rev 3, audited against the live database 2026-09-02) — *2026-09-25: mostly shipped: organizations, the org console, events, the door, feedback, analytics and recaps. See BUILD LOG at the end.* |
+| `docs/nestrel-events-door-feedback-plan.md` | *(added 2026-09-25)* Events as their own section, the door (check-in), feedback and recaps — E0–E6 | Shipped 2026-09-07 → 09-25 |
+| `docs/nestrel-responsive-ui-plan.md` | *(added 2026-09-25)* Phone and desktop layouts for the student app | Shipped, then superseded by the 2026-09-10 → 09-24 redesign |
 
 ---
 
@@ -1606,8 +1612,13 @@ join.
       indemnification clauses both name `[OPERATOR NAME]` — precisely the clauses that
       need a real party to mean anything. Needs Kal's legal name (or the registered
       entity, once it exists) and a real effective date.
+      ✅ **FIXED 2026-09-25** (`6b45777`): operator "KR, doing business as Amahle Digital
+      Creatives" (Kal's choice — a lawyer may still ask for the full legal name in the liability
+      and indemnity clauses), effective date September 25, 2026.
 - 🔴 **The legal pages have never had a real legal review.** They were drafted as a
       starting version, which is what the TIER 2 line always said they'd be.
+      🟡 **2026-09-25:** a lawyer-style review against the actual app was done (every claim
+      checked against the code, untrue ones fixed — see BUILD LOG). Still needs a real lawyer.
 - ✅ ~~**The consent box never resets**~~ — **FIXED 2026-08-08**. `resetSignupModal()`
       (`js/profile.js`) clears every text field with `el.value = ''`, but a checkbox is not
       cleared by `.value` — it needs `.checked = false`, and `#sAgree` was not in the list.
@@ -1630,6 +1641,27 @@ join.
       page (`index.html:271`), below Log out.
 - ⬜ **Supabase Dashboard config for password reset is unverified** (site URL + Reset
       Password email template).
+      🟡 **2026-09-25:** Kal added the live site address (nestrel.org) to Supabase's allowed
+      sign-in addresses. The reset email template and custom email (SMTP) are still in progress.
+- ✅ *(added 2026-09-25)* **Hosting** — chosen and live: **Vercel**, at **nestrel.org** (Kal).
+- ⬜ *(added 2026-09-25)* **Custom email (SMTP)** — in progress (Kal). Supabase's built-in email
+      only reaches project-team addresses, so password resets depend on this. When a provider is
+      chosen, add it to the Privacy Policy's list of services *before* switching it on.
+- ⬜ *(added 2026-09-25)* **Account deletion** — the Privacy Policy promises deletion within 30
+      days of a request, but several foreign keys have no ON DELETE rule, so deleting a user
+      will probably fail. Needs a deletion procedure (delete vs. anonymize audit rows).
+- ⬜ *(added 2026-09-25)* **Register a DMCA agent** with the U.S. Copyright Office (online, about
+      $6, renew every 3 years). The Terms name one; without registration the copyright safe
+      harbor doesn't apply.
+- ⬜ *(added 2026-09-25)* **Google OAuth consent screen** — list the Privacy Policy URL
+      (nestrel.org/privacy.html, same domain as the app) in Google Cloud Console.
+- ⬜ *(added 2026-09-25)* **Listing emails are readable by every student** — `listings.poster_email`
+      is stored with each listing and readable by signed-in students. Disclosed in the Privacy
+      Policy, but it should be closed (stop exposing the column), then the policy updated.
+- ⬜ *(added 2026-09-25)* **Confirm the nightly event-view purge runs** (pg_cron job
+      `nestrel-purge-event-views`) — the Privacy Policy promises the link is erased after 30 days.
+- ⬜ *(added 2026-09-25)* **Run `sql/2026-09-25_activity_state.sql`** — until it runs, Activity
+      read state is remembered per device only (probed 2026-09-25: table not there yet).
 - ✅ ~~**RLS still unverified**~~ — **VERIFIED 2026-09-03**, and it was not clean.
       Every policy and GRANT was read back with `sql/2026-09-03_capture_rls_and_grants.sql`.
       **`admin_activity_log` had RLS switched OFF** while carrying three policies — which are
@@ -2457,17 +2489,107 @@ Each needs new database work (a column, a table or a trigger), not just styling.
 - [ ] "Clubs" chip — undefined against the data; decide what it means (events from clubs you
       follow? club-run vs. department-run?) before building.
 
-**Messages list** (not yet restyled)
+**Messages list** (not yet restyled) — *restyled 2026-09-24; the items below are still open*
 - [ ] Online dot and "typing…" — presence; already deferred in the responsive-UI plan.
 - [ ] Muted conversations, and **Archived · N** — need per-user conversation settings.
 - [ ] Conversations with a club (the Eco Club row) — organizations cannot message yet.
 - [ ] "Sent a photo" — photo messages do not exist.
 
-**Inbox → Activity** (not yet restyled)
+**Inbox → Activity** (not yet restyled) — *restyled 2026-09-24*
 - [ ] "2 people saved your listing" — `favorites` is own-rows-only by design; needs a
       counts-only function, the same privacy shape as the analytics decisions of 2026-09-14.
 - [ ] Price-drop alerts on saved listings — needs price history plus a trigger.
 - [ ] Saved searches ("4 new Housing listings … from your saved search") — no saved searches.
 - [ ] Event reminders ("starts in 2 hours") — needs a scheduler (pg_cron exists).
+      ✅ *2026-09-24: in-app, worked out when Activity loads — no scheduler needed for the app
+      itself (a push/email reminder would still need one).*
 - [ ] "Eco Club posted …" — followed-org activity as notifications.
+      ✅ *2026-09-24/25: new events, posts, polls, recaps and poll results from followed clubs.*
 - [ ] A thumbnail per notification — `notifications` has no link to a listing or event.
+      ✅ *2026-09-24: worked-out rows carry the poster, listing or recap photo. Stored admin
+      notices still have none.*
+
+---
+
+# BUILD LOG 2026-09-07 → 2026-09-25 — everything built since the last update
+
+*Added 2026-09-25. The roadmap's own session logs stop on 2026-09-06; this records what shipped
+after, by area, from the git history. The SQL files named here have all been run unless marked.*
+
+### Events — their own section, end to end (plan: `docs/nestrel-events-door-feedback-plan.md`)
+- ✅ **Schema, visibility and RPCs (E1–E2)** — `sql/2026-09-07_*` (schema, RPCs, visibility rule,
+  check-in window, going count, school triggers, event-media bucket, flag grants); verification
+  files green (18/18, then 20/20). Past-ness is a column of `visible_events`, not a client guess.
+- ✅ **Console events** — create, edit, duplicate, drafts, photos, video links, generated posters,
+  the QR sheet, cancel with a reason.
+- ✅ **Students** — the Events page, event detail, register / "I'm going", add to calendar, the
+  `#/event/:id` deep link, events search, "Going" on the profile.
+- ✅ **The door** — check-in, undo, walk-ins, and the student's "I'm here".
+- ✅ **Feedback** — ratings gated on attendance; officers choose whether to ask and until when
+  (`sql/2026-09-24_event_feedback_window.sql`); averages hidden below 5 responses; the rating
+  nudge minimizes once answered.
+- ✅ **Recaps** — photos + a note kept as a draft until "Share recap"; students see them on the
+  event, the club's page (highlights + Past), Events and Home ("Recaps from recent events")
+  (`sql/2026-09-25_club_cover_and_recaps.sql`).
+- ✅ **Events page redesign** — club stories, a date strip, a filter sheet, a discovery column on
+  desktop.
+
+### Clubs & organizations
+- ✅ Directory, one club's page (tabs: Upcoming / Posts / Past; officers; contact buttons; votable
+  polls), follow / unfollow, cover photos.
+- ✅ **Org console** — Overview ("needs you", next up, a checklist), Events, Posts (announcements and
+  polls with a live Home preview), Members (requests, officers, members), Club page editor with a
+  live student preview, Analytics; "View as student"; one layout for every section.
+- ✅ **Several organizations** — the list beside the console on desktop, "Your organizations" on
+  a phone, and the console opens on the last one used.
+- ✅ **Analytics** — `get_org_analytics()`, counts only; event views recorded once per student and
+  erased after 30 days (`sql/2026-09-15_org_analytics_and_event_views.sql`).
+- ✅ Admin › Organizations: one list by department; an officer can't remove themselves.
+
+### Home, Marketplace, Search, Saved
+- ✅ Home becomes a feed: "Today at Caldwell", Campus news (club posts, polls, school
+  announcements), the urgent banner, Featured, Up next, Happening this week, Recaps, Fresh on the
+  Market, clubs to follow.
+- ✅ Marketplace: category-first filters, a docked filter rail on desktop, masonry grid, endless
+  scroll; a new listing detail page; Post a listing and Post a book rebuilt as two-step pages.
+- ✅ Search is its own page (entry, suggestions, results by category).
+- ✅ Saved: one bookmark for listings, books and events, and a Saved tab.
+
+### Inbox (messages + notifications)
+- ✅ Messages and Activity as two tabs behind one Inbox button; a chat list that shows what each
+  chat is about; a redesigned conversation (listing strip, quick replies, "Seen").
+- ✅ Activity worked out from real data: events you're going to (starting soon, **changed**,
+  **cancelled**), rating requests, recaps, poll results, followed clubs' events and posts, listings
+  going live, and join requests for officers; refreshes on its own.
+- ✅ **Seen vs. read** — opening Activity clears the badge; rows stay unread (bold + dot) until
+  opened; read state kept with the account (`sql/2026-09-25_activity_state.sql` — ⬜ **not run
+  yet**; per-device until it is).
+
+### Profiles, design, accessibility
+- ✅ Profile redesign (yours and other students'), Message on a student's profile, a quiet account
+  footer.
+- ✅ The redesign: design tokens, no emoji, the warm ground, one page frame, a desktop sidebar, the
+  phone chrome, readable text and visible focus (Phase 8.1).
+
+### Sign-up, landing page, legal
+- ✅ Google-only sign-up for @caldwell.edu (`sql/2026-09-23_google_signup.sql`), 8+ character
+  passwords, full-page login and a two-step setup.
+- ✅ Landing page rebuilt: minimal, "Your year, give or take" scrapbook, one button.
+- ✅ Terms and Privacy Policy: open beta stated plainly, accountability, fair housing, copyright
+  takedowns, FERPA's standards (never "FERPA compliant"), Google Limited Use, Vercel and other
+  services listed; a required **red beta checkbox** at sign-up; a lawyer-style review on
+  2026-09-25 corrected untrue claims (in-app reporting is listings only; no listing view count is
+  kept; admins' access to messages is via export).
+- ✅ **NestBot removed** (2026-09-25) — the admin AI assistant, its UI, and its legal sections.
+
+### Security fixes
+- ✅ A listing title, a club website link and an event video link could each run code in another
+  student's browser — all three closed (2026-09-11).
+
+### Launch & hosting
+- ✅ Hosting: Vercel, at nestrel.org. Supabase's allowed sign-in addresses include it (Kal,
+  2026-09-25).
+- ⬜ Still open — see LAUNCH BLOCKERS above: custom email (SMTP), account deletion, a real lawyer,
+  the DMCA agent, the OAuth consent screen, listing emails, the view purge, and
+  `sql/2026-09-25_activity_state.sql`.
+

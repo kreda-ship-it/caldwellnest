@@ -133,7 +133,7 @@
 
   <h2 id="intro"><span class="num">01</span> Who this covers</h2>
   <p>
-    This Privacy Policy applies to Nestrel, a campus platform for verified Caldwell
+    This Privacy Policy applies to Nestrel (<a href="https://nestrel.org">nestrel.org</a>), a campus platform for verified Caldwell
     University students, operated by KR, doing
     business as Amahle Digital Creatives ("we," "us," "our"). Nestrel is independent: it is
     not owned, operated, or endorsed by Caldwell University.
@@ -191,10 +191,10 @@
     <tr><td>Clubs &amp; organizations</td><td>Clubs you follow or join, your role in a club (for example, officer), posts you publish for a club, and your votes in club polls.</td></tr>
     <tr><td>Club pages &amp; event photos</td><td>If you're an officer: the logo and cover photo you upload for your club, and photos you share from an event (a "recap") with an optional note. Recap photos can show the people who were there, so if you attended an event, you may appear in one.</td></tr>
     <tr><td>Events</td><td>Events you RSVP to, whether and when you checked in (and which officer checked you in), and any rating or comment you leave after an event. We also record the first time you open an event's page, so each person counts once in its view total. That record is erased 30 days after the event ends, leaving only the number.</td></tr>
-    <tr><td>Activity</td><td>Saved items, and actions on your listings (posting, marking sold, renewing). For each listing we also keep a running total of how many times it has been opened — a number, not a record of who opened it. We also remember which updates in your Activity feed you've seen and opened, so every device you use shows the same thing.</td></tr>
+    <tr><td>Activity</td><td>Saved items, and actions on your listings (posting, marking sold, renewing). We also remember which updates in your Activity feed you've seen and opened, so every device you use shows the same thing.</td></tr>
     <tr><td>Safety &amp; moderation</td><td>Reports you file or that are filed about you, appeals, and any suspension history.</td></tr>
     <tr><td>Technical</td><td>Basic technical data your browser sends (e.g., device/browser type) and data our infrastructure providers process to keep the service running and secure.</td></tr>
-    <tr><td>Stored on your device</td><td>Nestrel keeps a few things in your browser's local storage: your sign-in session, and small conveniences such as the page you were last on, the club console you used last, and which updates you've already read. We don't use advertising cookies or third-party trackers.</td></tr>
+    <tr><td>Stored on your device</td><td>Nestrel keeps a few things in your browser's storage (local storage and session storage): your sign-in session, and small conveniences such as the page you were last on, the club console you used last, and which updates you've already read. We don't use advertising cookies or third-party trackers.</td></tr>
     <tr><td>Information others give us about you</td><td>When a club officer checks in a walk-in at an event, they may enter that person's name and email, even if the person has no Nestrel account. People who join our waitlist for another school give us their email, school name, and role.</td></tr>
   </table>
   <h3>Data from your Google account</h3>
@@ -211,8 +211,8 @@
   <p>
     <strong>What we don't collect.</strong> We collect what we need to verify you and run
     Nestrel, and nothing more. We never ask for your student ID number, Social Security number,
-    date of birth, grades, class schedule, or financial account information — and Nestrel does
-    not handle payments. Please don't put any of these in listings or messages.
+    date of birth, grades, class schedule, precise (GPS) location, or financial account
+    information — and Nestrel does not handle payments. Please don't put any of these in listings or messages.
   </p>
 
   <h2 id="use"><span class="num">03</span> How we use it</h2>
@@ -289,7 +289,8 @@
       <strong>Nestrel administrators:</strong> the people who run Nestrel can access account
       information, listings, messages, reports, and activity records in order to verify
       students, review reports, investigate abuse, and keep the platform working.
-      Administrators can currently open any conversation, not only reported ones. Admin access
+      The admin screens show who messaged whom and when, not what was said; but an administrator
+      can export all messages, including what they say — not only reported ones. Admin access
       is limited to accounts we've given an admin role, and every data export is recorded in
       our activity log.
     </li>
@@ -328,8 +329,13 @@
     <tr><th>Provider</th><th>What it does</th><th>Data involved</th></tr>
     <tr>
       <td><strong>Supabase</strong></td>
-      <td>Hosts our authentication, database, and file storage (including listing photos).</td>
-      <td>Account data, listings, messages, club and event records, uploaded photos, activity records.</td>
+      <td>Hosts our authentication, database, and file storage (including listing and event photos), and sends account emails such as password resets.</td>
+      <td>Account data, listings, messages, club and event records, uploaded photos, activity records, and your email address for account emails.</td>
+    </tr>
+    <tr>
+      <td><strong>Vercel</strong></td>
+      <td>Hosts the Nestrel website at nestrel.org and delivers its pages to your browser.</td>
+      <td>Like any web host, it receives your IP address and basic browser details when you load a page, and may keep them briefly in its logs for security and reliability. It doesn't receive your account data or messages.</td>
     </tr>
     <tr>
       <td><strong>Google</strong></td>
