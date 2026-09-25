@@ -309,14 +309,20 @@ function clearOrgDirectory() { _dirOrgs = null; _dirFollows = new Set(); _dirQue
 
 let _opOrg = null;
 let _opEvents = [];
-let _opPosts = [];
+let _opPosts = [];      // shaped like Home's club posts (feed.js), so feedNewsCardHTML draws them
 let _opOfficers = [];
+let _opTab = null;      // 'upcoming' | 'posts' | 'past'
+let _opPreview = false; // opened from the console's "View as student"
 
-async function orgPageOpen(orgId) {
+// preview: opened by an officer from their console. The page is the same page — only a bar across
+// the top says so and leads back, instead of "All clubs".
+async function orgPageOpen(orgId, preview = false) {
   // Remembered so a refresh comes back HERE. showPage() stores 'org' as the last page, but
   // the page renders one specific organization and the markup is an empty shell without it —
   // the same shape as the console, which stores its org id for the same reason.
   saveUiState('orgPage', orgId);
+  if (!_opOrg || _opOrg.id !== orgId) _opTab = null;
+  _opPreview = !!preview;
   showPage('org');
   const body = document.getElementById('orgPageBody');
   body.innerHTML = '<div class="op-note">Loading…</div>';
@@ -332,7 +338,7 @@ async function orgPageOpen(orgId) {
     // gets them; one who is not never sees the row. Filtering here as well would only hide
     // rows from the people entitled to them.
     supabaseClient.from('org_posts')
-      .select('id, type, title, body, is_pinned, is_urgent, members_only, created_at')
+      .select('id, org_id, type, title, body, is_pinned, is_urgent, members_only, poll_closes_at, created_at')
       .eq('org_id', orgId).eq('status', 'published')
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false }).limit(10),
@@ -346,12 +352,38 @@ async function orgPageOpen(orgId) {
 
   _opOrg = dir.data;
   _opOfficers = off.data || [];
-  _opEvents = evs.data || [];
-  _opPosts = posts.data || [];
+  // Drafts never belong on the student page. RLS already hides them from students, but an officer
+  // previewing their own club can read their drafts — and "View as student" must show what a
+  // student sees, not what the officer is allowed to see.
+  _opEvents = (evs.data || []).filter(e => e.status !== 'draft');
+
+  // Polls, so they can be answered here exactly as on Home. The same two tables Home reads;
+  // RLS decides whose votes come back (your own, or everyone's once you have voted).
+  const rows = posts.data || [];
+  const pollIds = rows.filter(p => p.type === 'poll').map(p => p.id);
+  let options = [], votes = [];
+  if (pollIds.length) {
+    const [o, v] = await Promise.all([
+      supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
+      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+    ]);
+    options = o.data || []; votes = v.data || [];
+  }
+  _opPosts = rows.map(p => ({
+    key: 'op' + p.id, kind: 'club', id: p.id, org: _opOrg,
+    title: p.title, body: p.body, at: p.created_at, pinned: p.is_pinned, urgent: p.is_urgent,
+    membersOnly: p.members_only, isPoll: p.type === 'poll', closesAt: p.poll_closes_at,
+    options: options.filter(o => o.post_id === p.id),
+    votes: votes.filter(v => v.post_id === p.id),
+  }));
+  // feed.js decides "is this my vote" from _feedMe, which Home sets when it loads. Someone who
+  // came straight here after a refresh may not have been through Home yet.
+  if (typeof _feedMe !== 'undefined' && !_feedMe) _feedMe = getEffectiveUser()?.id || null;
 
   // The follow set is loaded by the directory. Someone arriving here from an event card may
-  // never have opened the directory, so it is fetched rather than assumed.
-  await orgPageLoadFollow(orgId);
+  // never have opened the directory, so it is fetched rather than assumed. The org context tells
+  // us whether this student runs the club (cached after the first load).
+  await Promise.all([orgPageLoadFollow(orgId), typeof loadOrgContext === 'function' ? loadOrgContext() : null]);
   orgPagePaint();
 }
 
@@ -363,101 +395,176 @@ async function orgPageLoadFollow(orgId) {
   if (data) _dirFollows.add(orgId); else _dirFollows.delete(orgId);
 }
 
-function orgPagePaint() {
-  const o = _opOrg;
-  const following = _dirFollows.has(o.id);
+// The top of a club's page: the cover in the club's tint, its logo, name and counts, Follow, what
+// it is about and how to reach it. ONE function for the page and for the console's previews
+// (Overview and the Club page editor), so what an officer sees while editing is what students get.
+//   opt.preview   draw Follow as a picture of the button, not a working one
+//   opt.upcoming  how many events are coming up (the page counts them; the console passes it in)
+//   opt.following / opt.manage   the student's own state on the real page
+function orgHeroHTML(o, opt = {}) {
+  const id = Number(o.id) || 0;
   const crumbs = [o.grandparent_name, o.parent_name].filter(Boolean);
-
-  // Contact rows are only drawn when they exist. An empty "Website —" line tells a student
-  // nothing except that the club did not fill in a form.
-  //
+  const followers = Number(o.follower_count) || 0;
   // The website goes through safeUrl(). escAttr() stops a value breaking OUT of href="…", but
   // javascript:… needs no breaking out — it is a well-formed href that runs when clicked. The
   // website is typed by club officers, who are students, into a link every visitor is invited
   // to click; the database takes direct writes, so the check has to live where the link is built.
   const site = safeUrl(o.website);
   const ig = o.instagram ? String(o.instagram).replace(/^@/, '').trim() : '';
-  const info = [
-    o.contact_email ? ['Email', `<a href="mailto:${escAttr(o.contact_email)}">${esc(o.contact_email)}</a>`] : null,
-    site ? ['Website', `<a href="${escAttr(site)}" target="_blank" rel="noopener noreferrer">${esc(new URL(site).host)}</a>`] : null,
-    ig ? ['Instagram', `<a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener noreferrer">@${esc(ig)}</a>`] : null,
-  ].filter(Boolean);
+  // Contact as a row of small buttons under the bio — the way Instagram and Linktree put links
+  // under a profile — rather than a table of labels. Only the ones that exist are drawn.
+  const links = [
+    o.contact_email ? `<a class="op-link" href="mailto:${escAttr(o.contact_email)}">${icon('send', 14)}<span>Email</span></a>` : '',
+    site ? `<a class="op-link" href="${escAttr(site)}" target="_blank" rel="noopener noreferrer">${icon('monitor', 14)}<span>${esc(new URL(site).host.replace(/^www\./, ''))}</span></a>` : '',
+    ig ? `<a class="op-link" href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener noreferrer">${icon('image', 14)}<span>@${esc(ig)}</span></a>` : '',
+  ].join('');
+  const counts = [
+    `<span data-count="${id}">${followers === 1 ? '1 follower' : `${followers} followers`}</span>`,
+    opt.upcoming ? `${opt.upcoming} upcoming` : '',
+  ].filter(Boolean).join(' · ');
+  const follow = opt.preview
+    ? `<span class="dir-follow op-follow is-preview" aria-hidden="true">Follow</span>`
+    : `<button class="dir-follow op-follow${opt.following ? ' is-following' : ''}" data-follow="${id}"
+         onclick="orgDirToggleFollow(${id})">${_dirFollowLabel(opt.following)}</button>`;
+  return `
+    <div class="op-hero" data-tint="${(id % 6) + 1}">
+      <div class="op-cover" aria-hidden="true"></div>
+      <header class="op-head">
+        ${_dirLogoHTML(o, 'op-logo')}
+        <div class="op-head-text">
+          ${crumbs.length ? `<div class="dir-crumb">${crumbs.map(esc).join(' <span class="dir-sep">›</span> ')}</div>` : ''}
+          <h1 class="op-name">${esc(o.name || 'Your club')}${
+            o.is_verified ? `<span class="dir-verified" title="Verified by the university">${icon('check', 11)}</span>` : ''}</h1>
+          <div class="op-meta"><span class="op-type">${esc(o.type || '')}</span>${o.type ? ' · ' : ''}${counts}</div>
+        </div>
+      </header>
+      <div class="op-acts">
+        ${follow}
+        ${opt.manage ? `<button class="org-btn op-manage" onclick="orgConsoleOpen(${id})">${icon('pencil', 14)} Manage club</button>` : ''}
+      </div>
+      ${(o.description || '').trim() ? `<p class="op-desc">${esc(o.description)}</p>`
+        : opt.preview ? '<p class="op-desc op-desc-empty">No description yet.</p>' : ''}
+      ${links ? `<div class="op-links">${links}</div>` : ''}
+    </div>`;
+}
 
+function orgPagePaint() {
+  const o = _opOrg;
+  const following = _dirFollows.has(o.id);
   const upcoming = _opEvents.filter(e => e.is_browsable)
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const past = _opEvents.filter(e => e.has_ended && e.status === 'published');
-  const followers = Number(o.follower_count) || 0;
+  // Officers of this club get a way into the console from their club's own page — the other half
+  // of "View as student". Not in preview, where the bar at the top already leads back.
+  const manage = !_opPreview && typeof orgMemberships === 'function'
+    && orgMemberships().some(m => m.role === 'officer' && m.org_id === o.id);
 
-  // Three counts, each of something this page actually shows. Announcements are deliberately
-  // not one of them: that query stops at 10, so its length is not the club's total. Followers
-  // carries data-count-n so a follow updates the number in place (see _dirPaintFollow).
+  // Three tabs, in the order a student asks: what's coming, what they said, what already happened.
+  // Opens on the first one with something in it, so a club with no events opens on its posts.
+  const tabs = [['upcoming', 'Upcoming', upcoming.length], ['posts', 'Posts', _opPosts.length], ['past', 'Past', past.length]];
+  if (!_opTab || !tabs.some(t => t[0] === _opTab)) _opTab = (tabs.find(t => t[2]) || tabs[0])[0];
+
+  const back = document.getElementById('opBack');
+  if (back) back.hidden = _opPreview;
+
   const body = document.getElementById('orgPageBody');
   // The club's own tint — the same one its tile has in the directory — inherited from here by
   // the cover band, the logo tile and every date block on the page.
   body.setAttribute('data-tint', String(((Number(o.id) || 0) % 6) + 1));
   body.innerHTML = `
-    <div class="op-cover" aria-hidden="true"></div>
-    <header class="op-head">
-      ${_dirLogoHTML(o, 'op-logo')}
-      <div class="op-head-text">
-        ${crumbs.length ? `<div class="dir-crumb">${crumbs.map(esc).join(' <span class="dir-sep">›</span> ')}</div>` : ''}
-        <h1 class="op-name">${esc(o.name)}${
-          o.is_verified ? `<span class="dir-verified" title="Verified by the university">${icon('check', 11)}</span>` : ''}</h1>
-        <div class="op-meta">${esc(o.type)}</div>
+    ${_opPreview ? `
+      <div class="op-preview-bar">
+        ${icon('eye', 16)}<span><b>Student view.</b> This is your club page exactly as students see it.</span>
+        <button class="op-preview-back" onclick="orgPageBackToConsole()">Back to console</button>
+      </div>` : ''}
+    <div class="op-layout">
+      <div class="op-side">${orgHeroHTML(o, { following, upcoming: upcoming.length, manage })}</div>
+      ${_opOfficers.length ? `<div class="op-side2">${orgOfficersHTML(_opOfficers.map(x =>
+        ({ name: `${x.first_name || ''} ${x.last_name || ''}`.trim(), title: x.title })))}</div>` : ''}
+      <div class="op-main">
+        <div class="op-tabs" role="tablist">${tabs.map(([k, label, n]) => `
+          <button class="op-tab${_opTab === k ? ' is-on' : ''}" role="tab" aria-selected="${_opTab === k}"
+                  onclick="orgPageTab('${k}')">${label}${n ? `<span class="op-tab-n">${n}</span>` : ''}</button>`).join('')}</div>
+        <div id="opTabBody">${orgPageTabHTML(upcoming, past)}</div>
       </div>
-    </header>
+    </div>`;
+}
 
-    <div class="op-stats">
-      <div class="op-stat"><span class="op-stat-n" data-count-n="${Number(o.id)}">${followers}</span><span class="op-stat-l">Followers</span></div>
-      <div class="op-stat"><span class="op-stat-n">${upcoming.length}</span><span class="op-stat-l">Upcoming</span></div>
-      <div class="op-stat"><span class="op-stat-n">${past.length}</span><span class="op-stat-l">Past events</span></div>
-    </div>
-    <div class="op-follow-row">
-      <button class="dir-follow${following ? ' is-following' : ''}" data-follow="${Number(o.id)}"
-              onclick="orgDirToggleFollow(${Number(o.id)})">${_dirFollowLabel(following)}</button>
-    </div>
+// Who runs it: [{ name, title }]. Shared with the console's Members section, which shows the
+// officer what students see of their roster.
+function orgOfficersHTML(list) {
+  return `
+    <section class="op-sec op-people">
+      <h2 class="op-sec-title">Who runs it</h2>
+      <div class="op-officers">${list.map(x => {
+        const ini = (x.name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+        return `
+        <div class="op-officer">
+          <span class="op-officer-av" aria-hidden="true">${esc(ini)}</span>
+          <span class="op-officer-text">
+            <span class="op-officer-name">${esc(x.name)}</span>
+            ${x.title ? `<span class="op-officer-role">${esc(x.title)}</span>` : ''}
+          </span>
+        </div>`; }).join('')}</div>
+    </section>`;
+}
 
-    ${o.description ? `<p class="op-desc">${esc(o.description)}</p>` : ''}
-    ${info.length ? `<div class="op-info">${info.map(([k, v]) =>
-      `<div class="op-info-row"><span class="op-info-k">${k}</span><span class="op-info-v">${v}</span></div>`).join('')}</div>` : ''}
+function orgPageTab(k) { _opTab = k; orgPagePaint(); }
 
-    ${_opOfficers.length ? `
-      <section class="op-sec">
-        <h2 class="op-sec-title">Who runs it</h2>
-        <div class="op-officers">${_opOfficers.map(x => `
-          <div class="op-officer">
-            <div class="op-officer-name">${esc(x.first_name || '')} ${esc(x.last_name || '')}</div>
-            ${x.title ? `<div class="op-officer-role">${esc(x.title)}</div>` : ''}
-          </div>`).join('')}</div>
-      </section>` : ''}
+function orgPageTabHTML(upcoming, past) {
+  if (_opTab === 'posts') {
+    // Home's own card (feed.js), with its vote buttons pointed at this page's handlers — so a
+    // post looks the same wherever a student meets it, and a poll can be answered here too.
+    // Only handler openings (onclick, a quote, feedVote / feedPollToggle / feedRevote) are
+    // rewritten: text is escaped before it gets here, so no title can contain a quote and match.
+    // (Written with ["] and a function so tests/load-order.js does not read them as handlers.)
+    const retarget = h => h.replace(/onclick=["]feed(Vote|PollToggle|Revote)\(/g, (m, fn) => `onclick=${'"'}orgPage${fn}(`);
+    return _opPosts.length
+      ? `<div class="hn-list op-posts">${_opPosts.map(x => retarget(feedNewsCardHTML(x))).join('')}</div>`
+      : '<div class="op-empty">No posts yet. Announcements and polls from this club show up here and on Home.</div>';
+  }
+  if (_opTab === 'past') {
+    return past.length ? `<div class="op-list op-past">${past.map(orgPageEventHTML).join('')}</div>`
+      : '<div class="op-empty">Nothing has happened yet — events move here once they are over.</div>';
+  }
+  return upcoming.length ? `<div class="op-list">${upcoming.map(orgPageEventHTML).join('')}</div>`
+    : `<div class="op-empty">Nothing scheduled right now.${_dirFollows.has(_opOrg.id) ? '' : ' Follow the club to see its next event on your Events page.'}</div>`;
+}
 
-    <section class="op-sec">
-      <h2 class="op-sec-title">Upcoming${upcoming.length ? ` · ${upcoming.length}` : ''}</h2>
-      ${upcoming.length ? upcoming.map(orgPageEventHTML).join('')
-                        : '<div class="op-note">Nothing scheduled right now.</div>'}
-    </section>
+function orgPageBackToConsole() {
+  const id = _opOrg?.id;
+  _opPreview = false;
+  if (id && typeof orgConsoleOpen === 'function') orgConsoleOpen(id); else goHome();
+}
 
-    ${_opPosts.length ? `
-      <section class="op-sec">
-        <h2 class="op-sec-title">Announcements</h2>
-        ${_opPosts.map(p => `
-          <div class="op-post${p.is_urgent ? ' is-urgent' : ''}">
-            <div class="op-post-head">
-              ${p.is_pinned ? '<span class="oc-chip oc-chip-pin">Pinned</span>' : ''}
-              ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
-              ${p.members_only ? '<span class="oc-chip">Members only</span>' : ''}
-              <span class="op-post-date">${esc(fmtDate(p.created_at))}</span>
-            </div>
-            <div class="op-post-title">${esc(p.title)}</div>
-            ${p.body ? `<div class="op-post-body">${esc(p.body)}</div>` : ''}
-          </div>`).join('')}
-      </section>` : ''}
-
-    ${past.length ? `
-      <section class="op-sec">
-        <h2 class="op-sec-title">Already happened</h2>
-        <div class="op-past">${past.map(orgPageEventHTML).join('')}</div>
-      </section>` : ''}`;
+// Voting from the club page — feedVote()'s twin, writing the same row. Home keeps its own copy of
+// the post in _feedNews, so both are refreshed: a vote here shows as voted there too.
+async function orgPageVote(postId, optionId) {
+  const x = _opPosts.find(p => p.id === postId);
+  const me = getEffectiveUser()?.id;
+  if (!x || !me) { toast('Sign in to vote'); return; }
+  if (feedPollClosed(x)) { toast('This poll has closed'); return; }
+  const { error } = await supabaseClient.from('poll_votes')
+    .upsert({ post_id: postId, option_id: optionId, user_id: me }, { onConflict: 'post_id,user_id' });
+  if (error) { toast('Could not record your vote'); console.error('[orgPageVote]', error); return; }
+  const { data } = await supabaseClient.from('poll_votes').select('post_id, option_id, user_id').eq('post_id', postId);
+  x.votes = data || [{ post_id: postId, option_id: optionId, user_id: me }];
+  const home = (typeof _feedNews !== 'undefined' ? _feedNews : []).find(n => n.kind === 'club' && n.id === postId);
+  if (home) home.votes = x.votes;
+  _feedRevote.delete(postId);
+  _feedPollOpen.delete(postId);
+  _feedPollJust.add(postId);
+  orgPagePaint();
+  setTimeout(() => { if (_feedPollJust.delete(postId) && _opOrg) orgPagePaint(); }, 4000);
+}
+function orgPagePollToggle(id, open) {
+  _feedPollJust.delete(id);
+  if (open) _feedPollOpen.add(id); else _feedPollOpen.delete(id);
+  orgPagePaint();
+}
+function orgPageRevote(id, open) {
+  if (open) _feedRevote.add(id); else _feedRevote.delete(id);
+  orgPagePaint();
 }
 
 // A compact row, not the big feed card. This page is a summary of an organization; a column of
@@ -465,6 +572,7 @@ function orgPagePaint() {
 function orgPageEventHTML(e) {
   const d = new Date(e.starts_at);
   const dow = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+  const mon = d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
   // Time, place and — when registration is open — the headcount, on one line. The date is in
   // the block beside it, so it is not written out a second time.
   const bits = [evTime(e.starts_at), e.location].filter(Boolean).map(esc);
@@ -472,14 +580,15 @@ function orgPageEventHTML(e) {
   // No RSVP button on the row, although the mockup drew one: registering shows the organizers
   // your name and email, and §4.1 wants that said under the button before the tap — which
   // the event's detail view does. The row opens it.
-  const mine = _evGoing.has(e.id) ? `<div class="op-event-when"><span class="op-going">You're going ${icon('check', 12)}</span></div>` : '';
+  const mine = _evGoing.has(e.id) ? `<span class="op-going">${icon('check', 12)} You're going</span>` : '';
   return `
     <button class="op-event" onclick="evOpen(${Number(e.id)})">
-      <div class="op-date"><span class="op-date-dow">${esc(dow)}</span><span class="op-date-day">${d.getDate()}</span></div>
+      <div class="op-date"><span class="op-date-dow">${esc(e.has_ended ? mon : dow)}</span><span class="op-date-day">${d.getDate()}</span></div>
       <div class="op-event-text">
         <div class="op-event-title">${esc(e.title)}</div>
         <div class="op-event-where">${bits.join(' · ')}</div>
         ${mine}
       </div>
+      ${icon('chevRight', 16)}
     </button>`;
 }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25n">
+<link rel="stylesheet" href="styles.css?v=2026-09-25o">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -67,9 +67,8 @@
     <div class="oc-bar">
       <div class="oc-identity" id="ocIdentity"></div>
     </div>
-    <!-- Hidden until its numbers arrive, and left hidden if they fail: a failed query is not
-         zero followers. Filled by ocPaintStats(). -->
-    <div class="oc-stats" id="ocStats" hidden></div>
+    <!-- The club's numbers used to sit here, above the tabs, on every section. They live in the
+         Overview now (ocPaintStats), which is the one page about them. -->
     <div class="oc-nav" id="ocNav"></div>
     <div class="oc-body" id="ocBody"></div>
   </div>
@@ -303,7 +302,7 @@
        were never tappable, so a student could see that a club existed and nothing else. -->
   <div id="page-org" class="page">
     <div class="page-wrap">
-      <button class="op-back" onclick="orgDirGo()">&#8249; All clubs</button>
+      <button class="op-back" id="opBack" onclick="orgDirGo()">&#8249; All clubs</button>
       <div id="orgPageBody"></div>
     </div>
   </div>
@@ -1974,10 +1973,10 @@
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-25c"></script>
 <script src="js/admin.js?v=2026-09-24a"></script>
-<script src="js/orgs.js?v=2026-09-24c"></script>
+<script src="js/orgs.js?v=2026-09-25a"></script>
 <script src="js/events.js?v=2026-09-25a"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
-<script src="js/orgdir.js?v=2026-09-11b"></script>
+<script src="js/orgdir.js?v=2026-09-25a"></script>
 <script src="js/feed.js?v=2026-09-25b"></script>
 <script src="js/inbox.js?v=2026-09-25c"></script>
   <script src="js/boot.js?v=2026-09-24a"></script>

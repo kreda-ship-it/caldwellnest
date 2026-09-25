@@ -2172,7 +2172,7 @@ select.ao-input { cursor: pointer; }
    BEHALF of an organization, and the plan (§3) is explicit that it must never be
    ambiguous which one — so it stays on screen while the body scrolls. */
 .oc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px;
-          padding: 12px 18px 4px; }
+          padding: 12px var(--page-gutter) 4px; }
 .oc-back { border: 0; background: none; padding: 6px 0; cursor: pointer; font-family: inherit;
            font-size: 13.5px; color: var(--text-muted); }
 .oc-back:hover { color: var(--text); }
@@ -2184,8 +2184,8 @@ select.ao-input { cursor: pointer; }
    desktop, and two green bars stacked read as one broken one. It keeps its stickiness. */
 .oc-bar {
   position: sticky; top: 0; z-index: 10;
-  padding: 10px 18px 12px;
-  background: var(--bg); border-bottom: 1px solid var(--border);
+  padding: 10px var(--page-gutter) 12px;
+  background: var(--bg);
 }
 .oc-identity { display: flex; align-items: center; gap: 13px; min-width: 0;
                 font-size: 15px; font-weight: 600; color: var(--text); }
@@ -2201,11 +2201,10 @@ select.ao-input { cursor: pointer; }
                 font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
                 padding: 3px 8px; border-radius: var(--radius-pill); }
 .oc-id-type { font-size: 12px; font-weight: 400; color: var(--text-muted); text-transform: capitalize; }
-.oc-stats { display: flex; padding: 14px 18px 4px; }
 
 /* One row that scrolls sideways on a phone rather than wrapping into two — five tabs at 390px
    wrapped into a ragged second line that looked like a second menu. */
-.oc-nav { display: flex; gap: 24px; padding: 0 18px; border-bottom: 1px solid var(--border);
+.oc-nav { display: flex; gap: 24px; padding: 0 var(--page-gutter); border-bottom: 1px solid var(--border);
           overflow-x: auto; scrollbar-width: none; }
 .oc-nav::-webkit-scrollbar { display: none; }
 .oc-tab {
@@ -2219,9 +2218,36 @@ select.ao-input { cursor: pointer; }
 /* Listed so the shape of the console is visible, disabled so nothing pretends to work. */
 .oc-tab-soon { opacity: .4; cursor: not-allowed; }
 
-/* Centred, not pinned left. At 620px hard-left on a 1900px screen the console read as a
-   column that had failed to load the rest of itself. */
-.oc-body { padding: 18px; max-width: var(--col-work); margin-inline: auto; }
+/* The console follows the app's page frame (2026-09-24): the same side margin and top gap as
+   Home, Events and You, and everything starts at the same left edge as the identity bar above it.
+   It used to be a 680px column centred under a left-aligned header, so the tabs and the content
+   did not line up. Each section then takes the width its content reads best at (data-sec, set by
+   renderOrgConsole): lists a comfortable column, the Overview and the Club page editor two. */
+.oc-body { padding: var(--page-top) var(--page-gutter) 48px; container: ocbody / inline-size; }
+.oc-body > * { max-width: 780px; }
+.oc-body[data-sec="overview"] > *, .oc-body[data-sec="profile"] > * { max-width: 1120px; }
+.oc-body[data-sec="analytics"] > * { max-width: 1000px; }
+/* Events and Posts use the room too: with space for two, their cards sit two across. A form stays
+   at a readable width. */
+.oc-body[data-sec="events"] > *, .oc-body[data-sec="posts"] > *, .oc-body[data-sec="members"] > * { max-width: 1120px; }
+.oc-body[data-sec="posts"] > #ocPostTop { max-width: 1120px; }
+.oc-body[data-sec="events"] > .oc-ev-form { max-width: 780px; }
+.oc-grid { display: grid; gap: 12px; }
+.oc-grid > .oc-ev-card, .oc-grid > .oc-post { margin-bottom: 0; }
+@container ocbody (min-width: 900px) {
+  .oc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+/* A list and, beside it, how students see it (Posts, Members). The list keeps a reading width. */
+.oc-stack { display: flex; flex-direction: column; gap: 12px; }
+.oc-stack > .oc-post { margin-bottom: 0; }
+.oc-split { display: grid; gap: 20px 28px; }
+@container ocbody (min-width: 900px) {
+  .oc-split { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .oc-split-rail { position: sticky; top: 96px; }
+}
+.oc-split-rail .oc-note { margin-top: 10px; }
+.oc-sv-feed .hn-card { box-shadow: var(--shadow-sm); }
+.oc-sv-page > .op-people { margin-top: 0; }
 .oc-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .oc-meta-type { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
 .oc-meta-slug { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; }
@@ -2242,15 +2268,6 @@ select.ao-input { cursor: pointer; }
 .oc-ev-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
 /* ---------- Events section ---------- */
-/* One full-width action above the list, as the mockup has it. */
-.oc-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-             height: 46px; margin-bottom: 14px; border: 0; border-radius: var(--radius-pill);
-             background: var(--brand); color: #fff; cursor: pointer; font-family: inherit;
-             font-size: 14px; font-weight: 600; }
-.oc-cta:hover { background: var(--brand-mid); }
-.oc-cta:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-/* The honest line under "+ New post" about what posting does and does not do. */
-.oc-post-note { margin: -4px 2px 16px; font-size: 12.5px; line-height: 1.55; color: var(--text-muted); }
 .oc-ev-filters { margin-bottom: 12px; }
 /* Each bucket carries its count, so an officer can see there are drafts waiting without
    opening them. */
@@ -2262,69 +2279,15 @@ select.ao-input { cursor: pointer; }
                color: var(--text-muted); border: 1px dashed var(--border);
                border-radius: 14px; line-height: 1.7; }
 
-/* The card is a two-column grid on anything wider than a phone: poster left at a fixed
-   width, everything else right. Fixed rather than proportional so a row of cards has one
-   text column that starts in the same place — a ragged left edge down a list is the thing
-   that makes it look unconsidered. */
-.oc-ev-card { display: grid; grid-template-columns: 132px 1fr; gap: 16px; padding: 14px;
-              margin-bottom: 12px; border: 1px solid var(--border);
-              border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); }
-.oc-ev-card.is-cancelled { border-color: var(--danger, #c0392b); opacity: .78; }
-@media (max-width: 560px) {
-  /* One column on a phone. The poster keeps its 4:5 shape but stops being a stripe down the
-     side, where at 132px it would crowd the text into a gutter. */
-  .oc-ev-card { grid-template-columns: 1fr; gap: 12px; }
-  .oc-ev-poster { max-width: 200px; }
-}
-
-/* Posters are portrait (~4:5), which is why they get their own bucket and their own box.
-   object-fit: cover crops rather than distorting, so a landscape photo dropped in by an
-   officer fills the frame instead of stretching a face sideways. */
-.oc-ev-poster { aspect-ratio: 4/5; border-radius: 10px; overflow: hidden;
-                background: var(--bg-alt); }
-.oc-ev-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-/* The generated poster. Three placed things and nothing else: the org at the top, the title
-   filling the middle, the date anchored to the bottom. Space-between does the placing, so a
-   one-word title and a five-word title both sit correctly without any measuring. */
-.oc-ev-made { display: flex; flex-direction: column; justify-content: space-between;
-              padding: 12px 12px 13px; color: #fff; }
-.oc-ev-p-org { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-               opacity: .85; line-height: 1.3;
-               /* Two lines at most. A long department name would otherwise push the title
-                  down and unbalance every card it appears on. */
-               display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-               overflow: hidden; }
-.oc-ev-p-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px;
-                 line-height: 1.15; margin: 8px 0;
-                 display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
-                 overflow: hidden; }
-.oc-ev-p-foot { font-size: 10px; letter-spacing: .02em; opacity: .95; }
-/* A short rule above the date. It gives the bottom block a baseline to sit on, so a poster
-   with a two-word title does not leave the date floating in the middle of nowhere. */
-.oc-ev-p-rule { display: block; width: 26px; height: 2px; background: currentColor;
-                opacity: .7; margin-bottom: 6px; }
 
 /* The text column: one idea per line, in the order an officer reads them — what it is called,
    when, where, then the numbers. Size and colour carry the ranking, not indentation. */
 .oc-ev-body { min-width: 0; display: flex; flex-direction: column; }
 .oc-ev-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .oc-ev-title { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.3; }
-.oc-ev-when  { margin-top: 4px; font-size: 13px; color: var(--text); }
-.oc-ev-where { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
-.oc-ev-facts { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+.oc-ev-when  { margin-top: 3px; font-size: 13px; line-height: 1.4; color: var(--text-muted); }
 .oc-ev-reason { margin-top: 8px; font-size: 12px; color: var(--danger, #c0392b); line-height: 1.6; }
-/* Pushed to the bottom of the card so the action row sits on one line across every card in
-   the list, whatever length the text above it happens to be. */
-.oc-ev-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 12px; }
-/* Seven tools in a row read as a toolbar when they are small pills rather than seven boxes.
-   Every one stays visible: "Who's coming" and QR are what an officer reaches for at the door,
-   and a Manage menu in front of them would slow down the moment that matters most.
-   Two classes, so these outrank the shared .org-btn wherever it sits — which means
-   .org-btn-go has to be restated here or Publish would lose its green. */
-.oc-ev-actions .org-btn, .oc-post-actions .org-btn, .oc-member .org-btn { height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
-                          background: var(--surface); font-size: 12px; }
-.oc-ev-actions .org-btn-go, .oc-post-actions .org-btn-go, .oc-member .org-btn-go { background: var(--brand); border-color: var(--brand); color: #fff; }
+.oc-ev-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
 
 /* The registration list, expanded under one event at a time. */
 .oc-ev-roster { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -2386,10 +2349,6 @@ select.ao-input { cursor: pointer; }
 .oc-ev-x { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border: 0;
            border-radius: 50%; background: rgba(0,0,0,.62); color: #fff; cursor: pointer;
            line-height: 1; font-size: 14px; }
-.oc-subhead {
-  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--text-muted); margin: 18px 0 8px;
-}
 
 .oc-member-list { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
                   overflow: hidden; margin-bottom: 6px; }
@@ -2399,11 +2358,9 @@ select.ao-input { cursor: pointer; }
 .oc-member:last-of-type { border-bottom: none; }
 .oc-member-av { flex: none; width: 34px; height: 34px; border-radius: 50%; }
 .oc-member-av.dir-logo-none { font-size: 12px; font-weight: 700; }
-.oc-member-who  { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text);
-                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.oc-member-role { flex: none; font-size: 10.5px; font-weight: 600; color: var(--text-muted);
-                  background: var(--bg-alt); padding: 2px 8px; border-radius: var(--radius-pill);
-                  text-transform: capitalize; }
+.oc-member-who  { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; font-weight: 600;
+                  color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-member-sub  { font-size: 12px; font-weight: 400; color: var(--text-muted); text-transform: capitalize; }
 
 .oc-pick { padding: 18px; max-width: 480px; }
 .oc-pick-row {
@@ -2438,10 +2395,9 @@ select.ao-input { cursor: pointer; }
    the composer is open so the two sit side by side, as in the design. */
 .oc-compose { display: grid; gap: 18px; margin-bottom: 22px; }
 .oc-compose .oc-composer { margin-bottom: 0; padding: 18px; }
-@media (min-width: 1100px) {
-  .oc-body:has(.oc-compose) { max-width: 1040px; }
+@container ocbody (min-width: 900px) {
   .oc-compose { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
-  .oc-preview { position: sticky; top: 16px; }
+  .oc-preview { position: sticky; top: 96px; }
 }
 .oc-lbl { display: block; margin: 12px 0 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
   text-transform: uppercase; color: var(--text-muted); }
@@ -2468,8 +2424,7 @@ select.ao-input { cursor: pointer; }
 /* The preview is the real Home card; tapping an option on it must not try to vote. */
 .oc-preview .hn-card { pointer-events: none; box-shadow: var(--shadow-sm); }
 .oc-preview .oc-note { margin-top: 10px; }
-.oc-list-title { margin: 8px 0 12px; font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; font-weight: 400; color: var(--text); }
-.oc-post-status { margin-left: auto; font-size: 11.5px; color: var(--text-muted); }
+.oc-post-status { font-size: 12px; color: var(--text-muted); }
 .oc-post-off { background: var(--bg); box-shadow: none; }
 
 /* Console · Analytics (2026-09-24) and the feedback pieces it shares with Recap. Numbers only. */
@@ -2478,12 +2433,12 @@ select.ao-input { cursor: pointer; }
 .oc-seg button { padding: 7px 12px; border: 0; border-radius: 9px; background: none; cursor: pointer;
                  font: 600 12.5px 'DM Sans', sans-serif; color: var(--text-muted); }
 .oc-seg button.is-on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(36,31,26,.12); }
-.oc-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.oc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .oc-kpi { padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 .oc-kpi-n { font-family: 'DM Serif Display', Georgia, serif; font-size: 28px; line-height: 1.05; color: var(--brand); }
 .oc-kpi-l { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--text); }
 .oc-kpi-s { margin-top: 2px; font-size: 11.5px; line-height: 1.4; color: var(--text-muted); }
-.oc-hl { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.oc-hl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .oc-hl-i { padding: 12px 14px; border-radius: 14px; background: var(--brand-pale); }
 .oc-hl-k { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-mid); }
 .oc-hl-t { margin-top: 3px; overflow: hidden; font-size: 14px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; color: var(--text); }
@@ -2604,8 +2559,9 @@ select.ao-input { cursor: pointer; }
 .oc-post-urgent { border-left: 3px solid #c0392b; }
 .oc-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
 .oc-post-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
-.oc-post-body { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
-.oc-post-actions { display: flex; gap: 6px; margin-top: 11px; }
+.oc-post-body { font-size: 13.5px; line-height: 1.6; color: var(--text-muted); white-space: pre-wrap;
+                 display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.oc-post-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
 .oc-chip {
   padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
   background: var(--bg); color: var(--text-muted); border: 1px solid var(--border);
@@ -2628,7 +2584,7 @@ select.ao-input { cursor: pointer; }
   border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
 }
 .oc-opt-result.mine { border-color: var(--brand, #3B5BA5); }
-.oc-opt-bar { position: absolute; inset: 0 auto 0 0; background: var(--brand-pale, #eef3ff); }
+.oc-opt-bar { position: absolute; inset: 0 auto 0 0; width: var(--pct, 0%); background: var(--brand-pale, #eef3ff); }
 .oc-opt-label { position: relative; flex: 1; color: var(--text); }
 .oc-opt-count { position: relative; font-weight: 600; color: var(--text-muted); }
 
@@ -3078,10 +3034,15 @@ select.ao-input { cursor: pointer; }
 .op-sec-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
                 color: var(--text-muted); margin: 0 0 12px; }
 
-.op-officers { display: flex; flex-wrap: wrap; gap: 10px; }
-.op-officer { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; }
-.op-officer-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.op-officer-role { font-size: 12px; color: var(--text-muted); }
+/* Who runs it: an initial on the club's tint, then name and title — people, not a table. */
+.op-officers { display: flex; flex-direction: column; gap: 10px; }
+.op-officer { display: flex; align-items: center; gap: 11px; }
+.op-officer-av { flex: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+                 justify-content: center; font-size: 12.5px; font-weight: 700;
+                 background: var(--tint-bg, var(--brand-pale)); color: var(--tint-fg, var(--brand-mid)); }
+.op-officer-text { min-width: 0; display: flex; flex-direction: column; }
+.op-officer-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.op-officer-role { font-size: 12.5px; color: var(--text-muted); }
 
 /* A compact row, not the feed's full-height poster. This page is a summary of an
    organization; a column of posters would bury the description under the events. */
@@ -3096,45 +3057,8 @@ select.ao-input { cursor: pointer; }
 .op-going { color: var(--brand); font-weight: 600; }
 .op-past .op-event { opacity: .68; }
 
-.op-post { padding: 14px; margin-bottom: 8px; border: 1px solid var(--border);
-           border-radius: 14px; background: var(--surface); }
-.op-post.is-urgent { border-color: #c0392b; }
-.op-post-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.op-post-date { margin-left: auto; font-size: 11px; color: var(--text-muted); }
-.op-post-title { font-size: 15px; font-weight: 600; color: var(--text); }
-.op-post-body { font-size: 14px; line-height: 1.7; color: var(--text-muted); margin-top: 4px;
-                white-space: pre-wrap; }
-
 .op-note { padding: 16px 0; font-size: 13px; color: var(--text-muted); }
 
-/* STATS — the profile's light-ruled columns, not a box. Each counts something on this page. */
-.op-stats { display: flex; margin-top: 16px; }
-.op-stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
-           border-right: 1px solid var(--border); }
-.op-stat:last-child { border-right: 0; }
-.op-stat-n { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; line-height: 1.15;
-             color: var(--text); font-variant-numeric: tabular-nums; }
-.op-stat-l { font-size: 11px; color: var(--text-muted); }
-/* Follow at full width — on this page it is THE action, not one button in a row of cards. */
-.op-follow-row { display: flex; margin-top: 16px; }
-.op-follow-row .dir-follow { flex: 1; height: 46px; font-size: 14.5px; }
-/* Contact, as rows in one card rather than links strung together with dots. Only the rows that
-   exist are drawn — an empty "Website —" says nothing but that a form was skipped. */
-.op-info { margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
-           border-radius: 14px; overflow: hidden; }
-.op-info-row { display: flex; align-items: center; gap: 12px; padding: 12px 15px;
-               border-bottom: 1px solid var(--border); }
-.op-info-row:last-child { border-bottom: 0; }
-.op-info-k { flex: none; font-size: 13.5px; color: var(--text); }
-.op-info-v { flex: 1; min-width: 0; text-align: right; font-size: 12.5px; color: var(--text-muted);
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.op-info-v a { color: var(--brand); text-decoration: none; }
-.op-info-v a:hover { text-decoration: underline; }
-
-@media (max-width: 560px) {
-  .op-head { flex-wrap: wrap; }
-  .op-head .dir-follow { order: 3; width: 100%; }
-}
 
 
 /* ---------- Going (profile) ---------- */
@@ -4511,3 +4435,256 @@ select.ao-input { cursor: pointer; }
 }
 body:has(#pubProfileModal.open) { overflow: hidden; }
 
+
+/* ============================================================
+   ORG CONSOLE, REORGANISED (2026-09-24) — and the club page students see.
+   Built on how organizer tools are laid out (Luma's calendar admin, Anthology Engage's
+   organization tools, Eventbrite's organizer home, LinkedIn's admin view with "View as member"):
+     * the console opens on an Overview — what needs you, what's next, the numbers;
+     * every section starts the same way: a title, one line on what it is for, its main action;
+     * each card has ONE main action and a "more" menu, not a row of equal buttons;
+     * the officer can always see the club as a student does — the Overview shows the top of the
+       club page, the Club page editor redraws it as they type, and "View as student" opens it.
+   ============================================================ */
+
+/* Buttons inside the console and on the club page: one pill size. :where() keeps this at a single
+   class's weight, so the hover and warning rules defined for .org-btn still win. */
+:where(#page-org-console, #page-org) .org-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--surface);
+  font: 600 13px 'DM Sans', sans-serif; color: var(--text); white-space: nowrap; }
+.oc-btn-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 16px;
+  border: 1px solid var(--brand); border-radius: var(--radius-pill); background: var(--brand); color: #fff;
+  font: 600 13px 'DM Sans', sans-serif; white-space: nowrap; cursor: pointer; }
+.oc-btn-go:hover { background: var(--brand-mid); border-color: var(--brand-mid); }
+.oc-btn-go:disabled { opacity: .45; cursor: default; }
+.oc-btn-go:focus-visible, .oc-view-as:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+/* The identity bar: the club on the left, "View as student" on the right. On a phone the button
+   keeps only its eye, so the club's name is never the thing that gets squeezed. */
+.oc-identity .oc-view-as { margin-left: auto; }
+.oc-view-as { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text);
+  font: 600 13px 'DM Sans', sans-serif; cursor: pointer; }
+.oc-view-as:hover { border-color: var(--brand-light); color: var(--brand); }
+@media (max-width: 560px) {
+  .oc-view-as { width: 38px; padding: 0; justify-content: center; }
+  .oc-view-as span { display: none; }
+}
+/* The header lines up with the widest section (Overview, Club page) instead of running to the
+   window's edge, so "View as student" sits above the content's right edge. */
+.oc-top { max-width: calc(1120px + 2 * var(--page-gutter)); }
+.oc-identity { max-width: 1120px; }
+/* People waiting to join, counted on the Members tab. */
+.oc-tab-n { display: inline-block; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px;
+  background: var(--accent-warm); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center;
+  vertical-align: 1px; }
+
+/* Every section's first line. */
+.oc-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 20px; }
+.oc-head-text { flex: 1 1 300px; min-width: 0; }
+.oc-title { margin: 0; font-family: 'DM Serif Display', serif; font-size: 26px; font-weight: 400; line-height: 1.1; color: var(--text); }
+.oc-lead { margin: 5px 0 0; font-size: 14.5px; line-height: 1.45; color: var(--text-muted); }
+.oc-head-act { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 769px) { .oc-title { font-size: 28px; } }
+
+.oc-sec { margin-bottom: 24px; }
+.oc-sec[hidden] { display: none; }
+.oc-sec-t { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 12px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
+.oc-sec-n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--bg-alt); color: var(--text-muted);
+  font-size: 11px; line-height: 20px; text-align: center; letter-spacing: 0; }
+.oc-sec-n.is-warm { background: var(--accent-warm); color: #fff; }
+.oc-foot-note { margin-top: 4px; font-size: 12.5px; line-height: 1.6; color: var(--text-muted); }
+
+/* ---------- Overview ---------- */
+.oc-ov { display: grid; gap: 8px 28px; }
+@container ocbody (min-width: 860px) {
+  .oc-ov { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .oc-ov-rail { position: sticky; top: 96px; }
+}
+.oc-todo { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.oc-todo-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; border: 0;
+  border-bottom: 1px solid var(--border); background: none; color: var(--text-faint); font-family: inherit; text-align: left; cursor: pointer; }
+.oc-todo-row:last-child { border-bottom: 0; }
+.oc-todo-row:hover { background: var(--bg); }
+.oc-todo-done { display: flex; align-items: center; gap: 12px; padding: 14px; }
+.oc-todo-ic { flex: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 11px;
+  background: var(--bg-alt); color: var(--text-muted); }
+.oc-todo-ic.is-warm { background: var(--accent-pale); color: var(--accent-warm); }
+.oc-todo-ic.is-go { background: var(--brand-pale); color: var(--brand); }
+.oc-todo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.oc-todo-text b { font-size: 14.5px; font-weight: 600; color: var(--text); }
+.oc-todo-text span { overflow: hidden; font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); }
+
+.oc-next { display: flex; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.oc-next-date { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 56px; height: 62px;
+  border-radius: 14px; background: var(--brand-pale); color: var(--brand-mid); }
+.oc-next-date span { font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.oc-next-date b { font-family: 'DM Serif Display', serif; font-size: 24px; font-weight: 400; line-height: 1.05; }
+.oc-next-body { flex: 1; min-width: 0; }
+.oc-next-title { font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--text); }
+.oc-next-when { margin-top: 3px; font-size: 13px; color: var(--text-muted); }
+.oc-next-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+/* How full an event is: a short bar, then the number an officer acts on. */
+.oc-cap { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.oc-cap-bar { display: block; flex: 0 1 140px; height: 6px; overflow: hidden; border-radius: 3px; background: var(--bg-alt); }
+.oc-cap-bar i { display: block; width: var(--pct, 0%); height: 100%; border-radius: 3px; background: var(--brand-light); }
+.oc-cap-t { font-size: 12.5px; color: var(--text-muted); }
+.oc-cap-t b { font-weight: 700; color: var(--text); }
+
+.oc-glance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.oc-glance[hidden] { display: none; }
+.oc-glance-i { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px; border: 1px solid var(--border);
+  border-radius: 14px; background: var(--surface); font-family: inherit; text-align: left; cursor: pointer; }
+.oc-glance-i:hover { border-color: var(--brand-light); }
+.oc-glance-n { font-family: 'DM Serif Display', serif; font-size: 26px; line-height: 1.05; color: var(--brand); }
+.oc-glance-l { font-size: 12.5px; color: var(--text-muted); }
+
+/* The club as a student sees it: the real page's top, drawn small and not clickable (a picture). */
+.oc-sv { padding: 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.oc-sv-k { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 12px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
+.oc-sv-page { padding: 12px; border-radius: 14px; background: var(--bg); pointer-events: none; }
+.oc-sv-page .op-cover { height: 64px; }
+.oc-sv-page .op-head { margin-top: -30px; }
+.oc-sv-page .op-logo { width: 56px; height: 56px; border-radius: 17px; }
+.oc-sv-page .op-logo.dir-logo-none { font-size: 22px; }
+.oc-sv-page .op-name { font-size: 21px; }
+.oc-sv-page .op-follow { height: 36px; }
+.oc-ov-rail .oc-sv-page .op-desc { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; }
+.oc-sv-open { width: 100%; margin-top: 12px; }
+
+.oc-check-card { margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.oc-check-h { display: flex; align-items: baseline; justify-content: space-between; font-size: 14px; color: var(--text); }
+.oc-check-h span { font-size: 12.5px; color: var(--text-muted); }
+.oc-check-card .oc-cap-bar { width: 100%; margin: 9px 0 6px; }
+.oc-check-i { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 2px; border: 0; background: none;
+  font: 500 13.5px 'DM Sans', sans-serif; color: var(--text); text-align: left; cursor: pointer; }
+.oc-check-i > span:nth-child(2) { flex: 1; }
+.oc-check-i > .ico:last-child { color: var(--text-faint); }
+button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
+.oc-check-i.is-done { color: var(--text-muted); cursor: default; }
+.oc-check-i.is-done .ico { color: var(--brand); }
+.oc-check-dot { flex: none; width: 14px; height: 14px; border: 1.5px solid var(--text-faint); border-radius: 50%; }
+
+/* ---------- Events and posts: cards with one main action and a "more" menu ---------- */
+.oc-ev-card { margin-bottom: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 16px;
+  background: var(--surface); box-shadow: var(--shadow-sm); }
+.oc-ev-card.is-cancelled { opacity: .75; }
+/* A draft is unfinished and unseen: dashed and flat, so it never passes for a live event. */
+.oc-ev-card.is-draft { border-style: dashed; background: var(--bg); box-shadow: none; }
+.oc-ev-top { display: flex; gap: 14px; }
+.oc-ev-body { flex: 1; }
+.oc-ev-pic { flex: none; width: 72px; height: 90px; overflow: hidden; border-radius: 12px; background: var(--bg-alt); }
+.oc-ev-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.oc-ev-pic.is-made { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ev-bg); color: #fff; }
+.oc-ev-pic.is-made span { font-size: 10px; font-weight: 700; letter-spacing: .1em; opacity: .9; }
+.oc-ev-pic.is-made b { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 400; line-height: 1; }
+.oc-chip { display: inline-flex; align-items: center; gap: 3px; }
+.oc-chip-today { border-color: transparent; background: var(--brand); color: #fff; }
+.oc-post-head { gap: 8px; }
+.oc-post-ic { flex: none; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px;
+  background: var(--bg-alt); color: var(--text-muted); }
+.oc-poll-foot { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+
+.oc-more { position: relative; display: inline-block; }
+.oc-more > summary { list-style: none; }
+.oc-more > summary::-webkit-details-marker { display: none; }
+.oc-more > summary.org-btn { width: 34px; padding: 0; color: var(--text-muted); }
+.oc-more[open] > summary.org-btn { border-color: var(--brand-light); color: var(--text); }
+.oc-more-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 200px; padding: 6px;
+  border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.oc-more-i { display: block; width: 100%; padding: 9px 12px; border: 0; border-radius: 9px; background: none;
+  font: 500 13.5px 'DM Sans', sans-serif; color: var(--text); text-align: left; cursor: pointer; }
+.oc-more-i:hover { background: var(--bg); }
+.oc-more-i.is-danger { color: var(--danger); }
+
+/* ---------- Members ---------- */
+.oc-mem-search { margin-bottom: 16px; }
+.oc-member { gap: 12px; }
+
+/* ---------- Club page editor ---------- */
+.oc-prof { display: grid; gap: 20px 28px; }
+@container ocbody (min-width: 860px) {
+  .oc-prof { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
+  .oc-prof-preview { position: sticky; top: 96px; }
+}
+.oc-card { margin-bottom: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.oc-card-t { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--text); }
+.oc-card-lead { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.oc-card .oc-logo-row { margin: 12px 0 16px; }
+.oc-card .oc-meta { margin: 2px 0 0; }
+.oc-card .oc-field:last-child { margin-bottom: 0; }
+.oc-logo-side { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.oc-logo-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.oc-hint { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.oc-logo-side .oc-hint { margin-top: 0; }
+.oc-input-at { position: relative; display: block; }
+.oc-input-at::before { content: '@'; position: absolute; top: 50%; left: 11px; transform: translateY(-50%);
+  font-size: 14px; color: var(--text-muted); pointer-events: none; }
+.oc-input-at .oc-input { padding-left: 26px; }
+/* Save stays in reach at the bottom of the form, grey until something has changed. */
+.oc-savebar { position: sticky; bottom: 12px; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); box-shadow: var(--shadow-md); }
+.oc-savebar-t { flex: 1; font-size: 13px; color: var(--text-muted); }
+.oc-savebar.is-dirty { border-color: var(--brand-light); }
+.oc-savebar.is-dirty .oc-savebar-t { font-weight: 600; color: var(--text); }
+@media (max-width: 768px) { .oc-savebar { bottom: calc(var(--m-tabbar-h) + env(safe-area-inset-bottom) + 10px); } }
+.oc-prof-preview .oc-sv-page { padding: 14px; border: 1px solid var(--border); border-radius: 18px; }
+
+/* ---------- The club page students see ---------- */
+/* In the shared page frame: the same margins as Home and You, and the same left edge. */
+#page-org { container: oppage / inline-size; }
+#page-org > .page-wrap { max-width: var(--page-frame); padding: var(--page-top) var(--page-gutter) 48px; }
+.op-layout { display: grid; gap: 28px; }
+/* On a phone: the club, then its events and posts, then who runs it — what's on comes before the
+   people. With room, the club and its officers on the left and events and posts on the right,
+   the layout You uses. */
+.op-side, .op-side2, .op-main { min-width: 0; }
+.op-side2 { order: 3; }
+.op-side2 > .op-people { margin-top: 0; }
+@container oppage (min-width: 900px) {
+  .op-layout { grid-template-columns: 340px minmax(0, 1fr); grid-template-areas: "side main" "side2 main";
+    grid-template-rows: auto 1fr; column-gap: 44px; align-items: start; }
+  .op-side { grid-area: side; }
+  .op-side2 { grid-area: side2; }
+  .op-main { grid-area: main; }
+}
+.op-cover { height: 120px; }
+.op-meta { text-transform: none; }
+.op-type { text-transform: capitalize; }
+.op-acts { display: flex; gap: 8px; margin-top: 14px; }
+.op-acts .op-follow { flex: 1; height: 42px; font-size: 14px; }
+/* Follow is THE action on this page, so it is filled until you follow; then it becomes the pale state. */
+.dir-follow.op-follow:not(.is-following) { border-color: var(--brand); background: var(--brand); color: #fff; }
+.dir-follow.op-follow:not(.is-following):hover { border-color: var(--brand-mid); background: var(--brand-mid); }
+.op-follow.is-preview { display: flex; align-items: center; justify-content: center; }
+.op-acts .op-manage { height: 42px; }
+.op-desc { margin-top: 14px; }
+.op-desc-empty { font-style: italic; color: var(--text-faint); }
+.op-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.op-link { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 32px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface);
+  font-size: 12.5px; font-weight: 600; color: var(--text); text-decoration: none; }
+.op-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.op-link:hover { border-color: var(--brand-light); color: var(--brand); }
+.op-people { margin-top: 26px; }
+.op-tabs { display: flex; gap: 22px; margin-bottom: 16px; overflow-x: auto; border-bottom: 1px solid var(--border); scrollbar-width: none; }
+.op-tabs::-webkit-scrollbar { display: none; }
+.op-tab { flex: none; margin-bottom: -1px; padding: 10px 0 11px; border: 0; border-bottom: 2.5px solid transparent; background: none;
+  font: 500 14.5px 'DM Sans', sans-serif; color: var(--text-muted); cursor: pointer; }
+.op-tab:hover { color: var(--text); }
+.op-tab.is-on { border-bottom-color: var(--brand); font-weight: 600; color: var(--brand); }
+.op-tab-n { margin-left: 6px; font-size: 12px; color: var(--text-faint); }
+.op-list { display: flex; flex-direction: column; gap: 8px; }
+.op-event > .ico:last-child { flex: none; color: var(--text-faint); }
+.op-going { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 12px; }
+.op-empty { padding: 26px 18px; border: 1px dashed var(--border); border-radius: 14px; text-align: center;
+  font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+/* "View as student": says so, and leads back. */
+.op-preview-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 10px 10px 10px 14px; border-radius: 14px;
+  background: var(--brand); color: #fff; font-size: 13.5px; line-height: 1.4; }
+.op-preview-bar > span { flex: 1; min-width: 0; }
+.op-preview-back { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: var(--radius-pill); background: #fff;
+  color: var(--brand); font: 600 13px 'DM Sans', sans-serif; cursor: pointer; }

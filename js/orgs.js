@@ -1153,7 +1153,7 @@ async function orgAddSelf(orgId) {
 // of an organization and that should never be ambiguous.
 
 let _ocOrgId   = null;      // organization currently being operated as
-let _ocSection = 'posts';
+let _ocSection = 'overview';
 
 // The entry point. Drawn into #orgConsoleEntry on the profile page, and drawn as nothing at
 // all for the overwhelming majority of students, who are officers of nothing.
@@ -1195,10 +1195,11 @@ async function orgConsoleOpen(orgId) {
   else if (mine.length === 1) _ocOrgId = mine[0].org_id;
   else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
 
-  // The remembered section, falling back to Events — the first tab. renderOrgConsole() corrects it anyway if
-  // this officer cannot reach it — a flag revoked since the last visit lands them on the
-  // first section they can actually open rather than on an empty page.
-  _ocSection = loadUiState('ocSection:' + _ocOrgId, 'events');
+  // The remembered section, falling back to Overview — the first tab, and the one that answers
+  // "what needs me?" before anything else. renderOrgConsole() corrects it anyway if this officer
+  // cannot reach it — a flag revoked since the last visit lands them on the first section they
+  // can actually open rather than on an empty page.
+  _ocSection = loadUiState('ocSection:' + _ocOrgId, 'overview');
   // Remembered so a refresh returns here rather than to the feed. showPage() already stores
   // 'org-console' as the last page; on its own that is not enough, because the console markup
   // is an empty shell until an organization has been chosen.
@@ -1224,7 +1225,7 @@ function orgConsolePick(mine) {
   showPage('org-console');
   document.getElementById('ocIdentity').textContent = 'Choose an organization';
   document.getElementById('ocNav').innerHTML = '';
-  const st = document.getElementById('ocStats'); if (st) st.hidden = true;   // no org chosen yet
+  document.getElementById('ocBody').dataset.sec = 'pick';
   document.getElementById('ocBody').innerHTML =
     '<div class="oc-pick">' + mine.map(m => `
       <button class="oc-pick-row" onclick="orgConsoleOpen(${m.org_id})">
@@ -1242,15 +1243,19 @@ function orgConsoleSwitch() {
 // Which sections exist depends on what this officer can actually do here, so the nav is built
 // from orgCanAct() rather than from the org's type. A department officer and a club officer
 // see different consoles because they hold different flags, not because of what the row says.
+//
+// The order, rebuilt 2026-09-24 after looking at how organizer tools are laid out (Luma's calendar
+// admin, Anthology Engage's organization tools, Eventbrite's organizer home):
+//   Overview first — every one of them opens on "what needs you" rather than on a list;
+//   then the work (Events, Posts), then the people, then the page students see, then the numbers.
+// "Profile" is now "Club page": it edits the page students open, and saying so tells an officer
+// what the fields are FOR.
 function orgConsoleSections() {
-  // In the mockup's order: the work first (Events, Posts), then the people, then the club's own
-  // details. Built from orgCanAct(), not from the org's type — a department officer and a club
-  // officer see different consoles because they hold different flags.
-  const s = [];
+  const s = [{ id: 'overview', label: 'Overview' }];
   if (orgCanAct('manage_events', _ocOrgId))  s.push({ id: 'events',  label: 'Events' });
   if (orgCanAct('post', _ocOrgId))           s.push({ id: 'posts',   label: 'Posts' });
   if (orgCanAct('manage_members', _ocOrgId)) s.push({ id: 'members', label: 'Members' });
-  s.push({ id: 'profile', label: 'Profile' });
+  s.push({ id: 'profile', label: 'Club page' });
   // Gated on can_view_analytics, as Kal decided on 2026-09-14 — a treasurer may see how the club
   // is doing without being able to edit its events.
   if (orgCanAct('view_analytics', _ocOrgId)) s.push({ id: 'analytics', label: 'Analytics' });
@@ -1263,15 +1268,18 @@ function renderOrgConsole() {
 
   const me = _orgCtx.grants.get(_ocOrgId);
   // The club's own tile — _dirLogoHTML() from orgdir.js, so a club wears the same tint in the
-  // console as in the directory and on its page — then its name and the officer's role.
+  // console as in the directory and on its page — then its name and the officer's role. On the
+  // right, the one button every section shares: see the club the way a student does (LinkedIn's
+  // "View as member" beside its admin view — the officer never has to guess what their edits did).
   document.getElementById('ocIdentity').innerHTML = `
     ${_dirLogoHTML(org, 'oc-id-logo')}
     <div class="oc-id-text">
       <div class="oc-id-name">${esc(org.name)}</div>
       <div class="oc-id-meta"><span class="oc-role-pill">${esc(me?.title || me?.role || 'Administrator')}</span>${
         org.type ? `<span class="oc-id-type">${esc(org.type)}</span>` : ''}</div>
-    </div>`;
-  ocPaintStats();
+    </div>
+    <button class="oc-view-as" onclick="ocViewAsStudent()" title="See your club page the way students see it">
+      ${icon('eye', 16)}<span>View as student</span></button>`;
 
   // Nothing to switch to is not a button. It used to render always and toast "you are only an
   // officer of one organization", which is the common case — a control whose usual answer is
@@ -1280,48 +1288,71 @@ function renderOrgConsole() {
   if (swBtn) swBtn.hidden = orgMemberships().filter(m => m.role === 'officer').length < 2;
 
   // A section this officer cannot reach must not stay selected. Falls back to the first one
-  // they can — 'profile' is pushed unconditionally, so there is always one.
+  // they can — 'overview' is pushed unconditionally, so there is always one.
   const sections = orgConsoleSections();
-  if (!sections.some(s => s.id === _ocSection && !s.soon)) {
-    _ocSection = (sections.find(s => !s.soon) || { id: 'profile' }).id;
-  }
-
-  document.getElementById('ocNav').innerHTML = sections.map(s =>
-    s.soon
-      ? `<button class="oc-tab oc-tab-soon" disabled title="Arrives with ${s.soon}">${s.label}</button>`
-      : `<button class="oc-tab${_ocSection === s.id ? ' active' : ''}" onclick="orgConsoleGo('${s.id}')">${s.label}</button>`
-  ).join('');
+  if (!sections.some(s => s.id === _ocSection)) _ocSection = sections[0].id;
+  ocPaintNav();
+  // Each section's width comes from CSS by name (.oc-body[data-sec=…]).
+  document.getElementById('ocBody').dataset.sec = _ocSection;
 
   // Dispatch by name, not by a chain ending in `else renderOcPosts()`. The old chain sent
-  // every unrecognised section to Posts, which was invisible while Events was a disabled
-  // stub and would have become a bug the moment it was clickable: the Events tab would have
-  // rendered the Posts page, which is worse than an error because it looks like it worked.
-  //
-  // It was already wrong in one live case. orgConsoleOpen() sets _ocSection = 'posts'
-  // unconditionally, so an officer holding manage_events but NOT post — exactly the split
-  // the flag set exists to allow — opened the console on a Posts page they cannot use,
-  // backed by a query RLS returns nothing for.
+  // every unrecognised section to Posts, which looks like it worked and is worse than an error.
   const OC_RENDER = {
-    posts:   renderOcPosts,
-    profile: renderOcProfile,
-    members: renderOcMembers,
-    events:  renderOcEvents,
+    overview:  renderOcOverview,
+    posts:     renderOcPosts,
+    profile:   renderOcProfile,
+    members:   renderOcMembers,
+    events:    renderOcEvents,
     analytics: renderOcAnalytics,
   };
-  (OC_RENDER[_ocSection] || renderOcProfile)();
+  (OC_RENDER[_ocSection] || renderOcOverview)();
 }
 
-// Followers, upcoming events and their RSVPs. The org context carries none of them, so they are
-// fetched once per open. Painted only if BOTH queries succeed — a failed query is not zero — and
-// only if the officer is still looking at the same organization when the answer comes back: a
-// quick Switch must not paint one club's numbers under another club's name.
+// The tabs, with a count on Members while people are waiting to be let in — the one queue in the
+// console that is somebody else waiting on the officer. Painted on its own so the count can
+// arrive after the tabs do.
+function ocPaintNav() {
+  const nav = document.getElementById('ocNav');
+  if (!nav) return;
+  const waiting = _ocStats && _ocStats.orgId === _ocOrgId ? _ocStats.pending : 0;
+  nav.innerHTML = orgConsoleSections().map(s => `
+    <button class="oc-tab${_ocSection === s.id ? ' active' : ''}" onclick="orgConsoleGo('${s.id}')"${
+      _ocSection === s.id ? ' aria-current="page"' : ''}>${s.label}${
+      s.id === 'members' && waiting ? `<span class="oc-tab-n" aria-label="${waiting} waiting">${waiting}</span>` : ''}</button>`).join('');
+}
+
+// Every section opens the same way: its name, one line saying what it is for, and its one main
+// action on the right — the page-title pattern the rest of Nestrel uses (.mk-title / .page-lead),
+// so the console reads as part of the app rather than as a separate tool.
+function ocHeadHTML(title, lead, action = '') {
+  return `
+    <div class="oc-head">
+      <div class="oc-head-text">
+        <h2 class="oc-title">${title}</h2>
+        ${lead ? `<p class="oc-lead">${lead}</p>` : ''}
+      </div>
+      ${action ? `<div class="oc-head-act">${action}</div>` : ''}
+    </div>`;
+}
+
+// "View as student": the real club page, opened in preview mode — a bar across the top says so
+// and leads back here. The same page, not a copy of it, so it cannot disagree with what students see.
+function ocViewAsStudent() { orgPageOpen(_ocOrgId, true); }
+
+// Followers, upcoming events and their RSVPs — and, for officers who can let people in, how many
+// are waiting. The org context carries none of them, so they are fetched once per open. Used
+// only if the queries succeed — a failed query is not zero — and only if the officer is still
+// looking at the same organization when the answer comes back: a quick Switch must not paint one
+// club's numbers under another club's name.
 let _ocStats = null;
 async function ocLoadStats(orgId) {
-  const el = document.getElementById('ocStats');
-  if (el) el.hidden = true;
-  const [dir, evs] = await Promise.all([
+  const canPeople = orgCanAct('manage_members', orgId);
+  const [dir, evs, pend] = await Promise.all([
     supabaseClient.from('org_directory').select('follower_count').eq('id', orgId).maybeSingle(),
     supabaseClient.from('visible_events').select('going_count, is_browsable').eq('org_id', orgId),
+    canPeople
+      ? supabaseClient.from('org_memberships').select('id').eq('org_id', orgId).eq('status', 'pending')
+      : Promise.resolve({ data: [] }),
   ]);
   if (orgId !== _ocOrgId) return;
   if (dir.error || evs.error || !dir.data) {
@@ -1334,17 +1365,29 @@ async function ocLoadStats(orgId) {
     followers: Number(dir.data.follower_count) || 0,
     upcoming:  upcoming.length,
     rsvps:     upcoming.reduce((n, e) => n + (Number(e.going_count) || 0), 0),
+    pending:   pend.error ? 0 : (pend.data || []).length,
   };
   ocPaintStats();
+  ocPaintNav();
 }
 
-// The club page's light-ruled stat columns (.op-stat), reused so both surfaces read alike.
+// The three numbers, drawn into the Overview when it is on screen. They used to sit in a strip
+// above the tabs on every section, where they pushed each page's content down to repeat figures
+// that only the Overview is about.
 function ocPaintStats() {
-  const el = document.getElementById('ocStats');
+  const el = document.getElementById('ocGlance');
   if (!el) return;
-  if (!_ocStats || _ocStats.orgId !== _ocOrgId) { el.hidden = true; return; }
-  const stat = (n, label) => `<div class="op-stat"><span class="op-stat-n">${n}</span><span class="op-stat-l">${label}</span></div>`;
-  el.innerHTML = stat(_ocStats.followers, 'Followers') + stat(_ocStats.upcoming, 'Upcoming') + stat(_ocStats.rsvps, 'RSVPs');
+  // The whole "At a glance" section waits for its numbers, and stays away if they fail.
+  const sec = el.closest('.oc-sec');
+  if (!_ocStats || _ocStats.orgId !== _ocOrgId) { el.hidden = true; if (sec) sec.hidden = true; return; }
+  if (sec) sec.hidden = false;
+  const stat = (n, label, go) => `
+    <button class="oc-glance-i" onclick="${go}"><span class="oc-glance-n">${n}</span><span class="oc-glance-l">${label}</span></button>`;
+  const evGo = orgCanAct('manage_events', _ocOrgId) ? "orgConsoleGo('events')" : 'ocViewAsStudent()';
+  el.innerHTML = stat(_ocStats.followers, _ocStats.followers === 1 ? 'Follower' : 'Followers',
+                      orgCanAct('view_analytics', _ocOrgId) ? "orgConsoleGo('analytics')" : 'ocViewAsStudent()')
+    + stat(_ocStats.upcoming, 'Upcoming events', evGo)
+    + stat(_ocStats.rsvps, "RSVP'd to them", evGo);
   el.hidden = false;
 }
 
@@ -1355,7 +1398,197 @@ function orgConsoleGo(section) {
   // than the default.
   saveUiState('ocSection:' + _ocOrgId, section);
   renderOrgConsole();
+  document.getElementById('page-org-console')?.scrollIntoView({ block: 'start' });
 }
+
+// ---------- Overview (2026-09-24) ----------
+// The console's front page. Organizer tools open on "what needs you", not on a list: Eventbrite's
+// organizer home and Shopify's admin lead with a short to-do list, Luma's calendar with what is
+// coming up, Anthology Engage with an action center. So this page answers, in order:
+//   1. Needs you   — only things THIS officer can act on (the rows are gated on the same flags as
+//                    the tabs), each one tap from being done. Nothing waiting says so plainly.
+//   2. Next up     — the next event, with its headcount and the door one tap away.
+//   3. At a glance — followers, upcoming events, RSVPs (the strip that used to sit above every tab).
+//   4. Beside it: the club as students see it, and what is still missing from its page.
+let _ocOv = null;   // { orgId, dir, events, posts, pending, activeCount, recapIds:Set }
+
+async function renderOcOverview() {
+  const body = document.getElementById('ocBody');
+  const orgId = _ocOrgId;
+  body.innerHTML = ocHeadHTML('Overview', 'Loading…');
+  const canEv = orgCanAct('manage_events', orgId), canPost = orgCanAct('post', orgId),
+        canPeople = orgCanAct('manage_members', orgId);
+  const none = Promise.resolve({ data: [] });
+  const [dir, evs, posts, mem] = await Promise.all([
+    supabaseClient.from('org_directory').select('*').eq('id', orgId).maybeSingle(),
+    supabaseClient.from('visible_events')
+      .select('id, title, starts_at, ends_at, location, status, poster_url, registration_open, capacity, ' +
+              'has_ended, is_browsable, going_count')
+      .eq('org_id', orgId).order('starts_at', { ascending: true }),
+    canPost ? supabaseClient.from('org_posts').select('id, type, title, status, poll_closes_at, created_at').eq('org_id', orgId) : none,
+    canPeople ? supabaseClient.from('org_memberships').select('id, status').eq('org_id', orgId) : none,
+  ]);
+  if (orgId !== _ocOrgId || _ocSection !== 'overview') return;   // moved on while loading
+  if (dir.error || evs.error) {
+    body.innerHTML = ocHeadHTML('Overview', '') + '<div class="oc-empty-card"><b>Could not load your club</b><p>Reload to try again.</p></div>';
+    console.error('[renderOcOverview]', dir.error || evs.error);
+    return;
+  }
+  const events = evs.data || [];
+  // Recap photos, only for events that ended in the last two weeks — the window in which asking
+  // "share photos from it" still makes sense.
+  const recent = canEv ? events.filter(e => e.has_ended && e.status === 'published'
+    && Date.now() - new Date(e.ends_at || e.starts_at).getTime() < 14 * 864e5) : [];
+  let recapIds = new Set();
+  if (recent.length) {
+    const { data: m } = await supabaseClient.from('event_media').select('event_id, phase')
+      .in('event_id', recent.map(e => e.id));
+    recapIds = new Set((m || []).filter(x => x.phase === 'recap').map(x => x.event_id));
+    if (orgId !== _ocOrgId || _ocSection !== 'overview') return;
+  }
+  _ocOv = {
+    orgId, dir: dir.data || _orgCtx.orgs.get(orgId), events, recent, recapIds,
+    posts: posts.error ? [] : (posts.data || []),
+    pending: (mem.data || []).filter(m => m.status === 'pending').length,
+    activeCount: (mem.data || []).filter(m => m.status === 'active').length,
+  };
+  ocOverviewPaint();
+}
+
+function ocOverviewPaint() {
+  const o = _ocOv;
+  if (!o || o.orgId !== _ocOrgId) return;
+  const body = document.getElementById('ocBody');
+  const canEv = orgCanAct('manage_events', _ocOrgId), canPost = orgCanAct('post', _ocOrgId),
+        canPeople = orgCanAct('manage_members', _ocOrgId);
+  const now = Date.now();
+  const sameDay = iso => new Date(iso).toDateString() === new Date().toDateString();
+  const live = o.events.filter(e => e.status === 'published' && !e.has_ended);
+  const today = live.find(e => sameDay(e.starts_at) || new Date(e.starts_at).getTime() <= now);
+  const next = today || live[0];
+  const evDrafts = o.events.filter(e => e.status === 'draft');
+  const postDrafts = o.posts.filter(p => p.status === 'draft');
+  const closing = o.posts.filter(p => p.type === 'poll' && p.status === 'published' && p.poll_closes_at
+    && new Date(p.poll_closes_at).getTime() > now && new Date(p.poll_closes_at).getTime() - now < 48 * 36e5);
+  // What the club page is missing lives in the checklist beside this (ocChecklistHTML), not here:
+  // it is setup, not something waiting on the officer today.
+  const d = o.dir || {};
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+
+  // [icon, tone, headline, detail, onclick]
+  const todo = [];
+  if (canPeople && o.pending) todo.push(['user', 'warm', `${n(o.pending, 'person wants', 'people want')} to join`,
+    'Approve or decline their requests', "orgConsoleGo('members')"]);
+  if (canEv && evDrafts.length) todo.push(['pencil', '', `${n(evDrafts.length, 'event draft', 'event drafts')} not published yet`,
+    esc(evDrafts.map(e => e.title).slice(0, 2).join(' · ')), "ocGoEvents('drafts')"]);
+  if (canPost && postDrafts.length) todo.push(['note', '', `${n(postDrafts.length, 'post draft', 'post drafts')} not published yet`,
+    esc(postDrafts.map(p => p.title).slice(0, 2).join(' · ')), "ocGoPosts('drafts')"]);
+  closing.forEach(p => todo.push(['clock', '', `Poll ${feedClosesLabel(p.poll_closes_at)}`,
+    esc(p.title), "ocGoPosts('live')"]));
+  if (canEv) o.recent.filter(e => !o.recapIds.has(e.id)).slice(0, 2).forEach(e => todo.push(['image', '',
+    `${esc(e.title)} is over — share how it went`, 'Add a few photos and see what people thought', `ocGoEvent(${e.id}, 'recap')`]));
+  if (canEv && !live.length) todo.push(['calendar', '', 'Nothing coming up', 'Plan the next event — followers see it on their Events page', 'ocGoNewEvent()']);
+
+  const todoHTML = todo.length
+    ? `<div class="oc-todo">${todo.map(([ic, tone, h, sub, go]) => `
+        <button class="oc-todo-row" onclick="${go}">
+          <span class="oc-todo-ic${tone ? ' is-' + tone : ''}">${icon(ic, 17)}</span>
+          <span class="oc-todo-text"><b>${h}</b>${sub ? `<span>${sub}</span>` : ''}</span>
+          ${icon('chevRight', 16)}
+        </button>`).join('')}</div>`
+    : `<div class="oc-todo oc-todo-done"><span class="oc-todo-ic is-go">${icon('check', 17)}</span>
+        <span class="oc-todo-text"><b>You're all caught up</b><span>Nothing is waiting on you right now.</span></span></div>`;
+
+  // An event today goes ABOVE the to-do list: it is the most time-bound thing on the page.
+  const nextSec = next ? `<section class="oc-sec"><h3 class="oc-sec-t">${today
+    ? (new Date(today.starts_at).getTime() <= now ? 'Happening now' : 'Today') : 'Next up'}</h3>${ocNextUpHTML(next, canEv)}</section>` : '';
+
+  const actions = [
+    canPost ? `<button class="org-btn" onclick="ocGoNewPost()">${icon('note', 15)} New post</button>` : '',
+    canEv ? `<button class="oc-btn-go" onclick="ocGoNewEvent()">+ New event</button>` : '',
+  ].join('');
+
+  body.innerHTML = `
+    ${ocHeadHTML('Overview', `What needs you at ${esc(d.name || 'your club')}, and how it looks to students.`, actions)}
+    <div class="oc-ov">
+      <div class="oc-ov-main">
+        ${today ? nextSec : ''}
+        <section class="oc-sec"><h3 class="oc-sec-t">Needs you</h3>${todoHTML}</section>
+        ${today ? '' : nextSec}
+        <section class="oc-sec" hidden><h3 class="oc-sec-t">At a glance</h3><div class="oc-glance" id="ocGlance" hidden></div></section>
+      </div>
+      <aside class="oc-ov-rail">
+        ${ocStudentViewCardHTML(d, live.length)}
+        ${ocChecklistHTML(d, o)}
+      </aside>
+    </div>`;
+  ocPaintStats();
+}
+
+// The next event as one card: when, where, how full, and the two things an officer does with it.
+function ocNextUpHTML(e, canEv) {
+  const going = Number(e.going_count) || 0;
+  const cap = e.capacity ? Number(e.capacity) : null;
+  const pct = cap ? Math.min(100, Math.round(going / cap * 100)) : null;
+  const d = new Date(e.starts_at);
+  return `
+    <div class="oc-next">
+      <div class="oc-next-date"><span>${esc(d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase())}</span><b>${d.getDate()}</b></div>
+      <div class="oc-next-body">
+        <div class="oc-next-title">${esc(e.title)}</div>
+        <div class="oc-next-when">${esc(evDayLabel(e.starts_at))} · ${esc(evTime(e.starts_at))}${e.location ? ' · ' + esc(e.location) : ''}</div>
+        ${e.registration_open ? `
+          <div class="oc-cap">${pct != null ? `<span class="oc-cap-bar"><i style="--pct:${pct}%"></i></span>` : ''}
+            <span class="oc-cap-t"><b>${going}</b> going${cap ? ` · ${Math.max(0, cap - going)} of ${cap} spots left` : ''}</span></div>`
+          : '<div class="oc-next-when">Registration is off — anyone can just come</div>'}
+        <div class="oc-next-acts">
+          ${canEv ? `<button class="oc-btn-go" onclick="ocGoEvent(${e.id}, 'roster')">Who's coming</button>
+                     <button class="org-btn" onclick="ocGoEvent(${e.id}, 'edit')">Edit</button>` : ''}
+          <button class="org-btn" onclick="evOpen(${e.id})">${icon('eye', 14)} See it as a student</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// The club as a student meets it — the top of its real page, drawn by the same function the page
+// uses (orgHeroHTML in orgdir.js), so this cannot drift from what students actually see.
+function ocStudentViewCardHTML(d, upcoming) {
+  return `
+    <div class="oc-sv">
+      <div class="oc-sv-k">${icon('eye', 14)} How students see you</div>
+      <div class="oc-sv-page">${orgHeroHTML(d, { preview: true, upcoming })}</div>
+      <button class="org-btn oc-sv-open" onclick="ocViewAsStudent()">Open your club page</button>
+    </div>`;
+}
+
+// What a complete club page has — Shopify's and Luma's "setup guide". Gone once everything is done.
+function ocChecklistHTML(d, o) {
+  const items = [
+    ['Add a logo', !!d.logo_url, "orgConsoleGo('profile')"],
+    ['Say what the club is about', !!(d.description || '').trim(), "orgConsoleGo('profile')"],
+    ['Add a way to reach you', !!(d.contact_email || d.instagram || d.website), "orgConsoleGo('profile')"],
+    ['Publish your first event', o.events.some(e => e.status === 'published'), 'ocGoNewEvent()'],
+    ['Post your first announcement', o.posts.some(p => p.status === 'published') || !orgCanAct('post', _ocOrgId), 'ocGoNewPost()'],
+  ];
+  const done = items.filter(i => i[1]).length;
+  if (done === items.length) return '';
+  return `
+    <div class="oc-check-card">
+      <div class="oc-check-h"><b>Finish your club page</b><span>${done} of ${items.length}</span></div>
+      <span class="oc-cap-bar"><i style="--pct:${Math.round(done / items.length * 100)}%"></i></span>
+      ${items.map(([label, ok, go]) => ok
+        ? `<div class="oc-check-i is-done">${icon('check', 14)}<span>${label}</span></div>`
+        : `<button class="oc-check-i" onclick="${go}"><span class="oc-check-dot"></span><span>${label}</span>${icon('chevRight', 14)}</button>`).join('')}
+    </div>`;
+}
+
+// Jumps from the Overview into a section with the right thing already open.
+let _ocAfterEvents = null;   // { id, what: 'roster' | 'recap' | 'edit' }, run once the list is drawn
+function ocGoEvent(id, what) { _ocAfterEvents = { id, what }; orgConsoleGo('events'); }
+function ocGoEvents(filter) { _ocEvFilter = filter; orgConsoleGo('events'); }
+function ocGoNewEvent() { _ocEvFormOpen = true; orgConsoleGo('events'); }
+function ocGoPosts(filter) { _ocPostFilter = filter; orgConsoleGo('posts'); }
+function ocGoNewPost() { orgConsoleGo('posts'); ocPostOpenForm(); }
 
 // ---------- Org profile ----------
 const OC_FIELDS = [
@@ -1374,11 +1607,25 @@ const OC_FIELDS = [
 // form is drawn from this and saving is diffed against it.
 let _ocProfileRow = null;
 
+// The editor, grouped the way a student reads the page (2026-09-24): who you are, how to reach you,
+// and — separately, so nobody wonders why it never shows — what is kept on file only. Beside it,
+// the top of the club page as students see it, redrawn as the officer types (Linktree's and
+// Instagram's edit-with-preview), by the same orgHeroHTML() the real page uses.
+const OC_PROFILE_GROUPS = [
+  ['How students reach you', 'Shown on your club page as buttons under the description.',
+    [['contact_email', 'Contact email', 'email', 'club@caldwell.edu'], ['instagram', 'Instagram', 'text', 'handle, without the @'],
+     ['website', 'Website', 'url', 'https://…']]],
+  ['Kept on file', 'Not shown to students. Nestrel staff may use these to reach the club.',
+    [['office_location', 'Office', 'text', 'Building and room'], ['phone', 'Phone', 'tel', ''],
+     ['handshake_url', 'Handshake link', 'url', 'https://…']]],
+];
+let _ocProfDir = null;   // the org_directory row: follower count and parents, for the preview
+
 async function renderOcProfile() {
   const orgId = _ocOrgId;
   const canEdit = orgCanAct('manage_members', orgId);
   const body = document.getElementById('ocBody');
-  body.innerHTML = '<div class="oc-note" id="ocProfileLoading">Loading profile…</div>';
+  body.innerHTML = ocHeadHTML('Club page', 'Loading…') + '<div class="oc-note" id="ocProfileLoading"></div>';
 
   // The whole row, fetched here. The form used to fill itself from the org context, which is
   // loaded for permissions and carries only id, name, slug, type, logo and flags — so seven of
@@ -1387,44 +1634,128 @@ async function renderOcProfile() {
   // Instagram the club page shows students. It had been that way since the console shipped
   // (2f2ad8a): the context's select (80b265e) was written first and never had these columns.
   const cols = [...new Set(['id', 'name', 'slug', 'type', 'is_verified', 'logo_url', ...OC_FIELDS.map(([k]) => k)])];
-  const { data: row, error } = await supabaseClient.from('organizations')
-    .select(cols.join(', ')).eq('id', orgId).maybeSingle();
+  const [{ data: row, error }, dir] = await Promise.all([
+    supabaseClient.from('organizations').select(cols.join(', ')).eq('id', orgId).maybeSingle(),
+    supabaseClient.from('org_directory').select('id, parent_name, grandparent_name, follower_count').eq('id', orgId).maybeSingle(),
+  ]);
   // Painted only if the officer is still here — same organization, and this section's loading
   // note still on screen. Otherwise a slow reply would draw over whatever they moved on to.
   if (_ocOrgId !== orgId || !document.getElementById('ocProfileLoading')) return;
   if (error || !row) {
     _ocProfileRow = null;
     // No form at all rather than an empty one: an empty form is an invitation to overwrite.
-    body.innerHTML = '<div class="oc-note">Could not load this organization’s profile. Reload to try again — nothing has been changed.</div>';
+    body.innerHTML = ocHeadHTML('Club page', '') + '<div class="oc-empty-card"><b>Could not load your club page</b><p>Reload to try again — nothing has been changed.</p></div>';
     if (error) console.error('[renderOcProfile]', error);
     return;
   }
   _ocProfileRow = row;
+  _ocProfDir = dir.data || null;
+
+  const dis = canEdit ? '' : ' disabled';
+  const input = ([k, label, type, ph]) => `
+    <label class="oc-field">
+      <span class="oc-label">${label}</span>
+      ${k === 'instagram' ? '<span class="oc-input-at">' : ''}
+      <input class="oc-input" id="oc-${k}" type="${type}" value="${escAttr(row[k] || '')}" placeholder="${escAttr(ph || '')}"
+             autocomplete="off" oninput="ocProfChanged()"${dis}>
+      ${k === 'instagram' ? '</span>' : ''}
+    </label>`;
 
   body.innerHTML = `
-    <div class="oc-logo-row">
-      ${_dirLogoHTML(row, 'oc-logo')}
-      ${canEdit ? `<label class="org-btn oc-logo-btn">Change logo
-        <input type="file" accept="image/*" hidden onchange="ocPickLogo(this)">
-      </label>` : ''}
-    </div>
-    <div class="oc-meta">
-      <span class="org-badge ${row.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${row.is_verified ? 'verified' : 'unverified'}</span>
-      <span class="oc-meta-type">${esc(row.type)}</span>
-      <span class="oc-meta-slug">/${esc(row.slug)}</span>
-    </div>
-    ${OC_FIELDS.map(([k, label, type]) => `
-      <label class="oc-field">
-        <span class="oc-label">${label}</span>
-        ${type === 'textarea'
-          ? `<textarea class="oc-input" id="oc-${k}" rows="3" ${canEdit ? '' : 'disabled'}>${esc(row[k] || '')}</textarea>`
-          : `<input class="oc-input" id="oc-${k}" type="${type}" value="${escAttr(row[k] || '')}" autocomplete="off" ${canEdit ? '' : 'disabled'}>`}
-      </label>`).join('')}
-    ${canEdit
-      ? '<button class="btn-full oc-save" onclick="saveOcProfile()">Save changes</button>'
-      : '<div class="oc-note">You can see this organization but not edit it. Editing needs the “manage members” permission.</div>'}
-    <div class="oc-note">Office, phone and Handshake link are kept on file but are not shown on your club page yet.</div>
-    <div class="oc-note">The name is what students see. The slug is fixed once created — it is half of the organization’s address and changing it would break every link to it.</div>`;
+    ${ocHeadHTML('Club page', 'What students see when they open your club. The preview updates as you type.')}
+    <div class="oc-prof">
+      <div class="oc-prof-form">
+        <section class="oc-card">
+          <h3 class="oc-card-t">The basics</h3>
+          <div class="oc-logo-row">
+            ${_dirLogoHTML(row, 'oc-logo')}
+            <div class="oc-logo-side">
+              ${canEdit ? `<div class="oc-logo-btns">
+                <label class="org-btn oc-logo-btn">${row.logo_url ? 'Change logo' : 'Upload a logo'}
+                  <input type="file" accept="image/*" hidden onchange="ocPickLogo(this)">
+                </label>
+                ${row.logo_url ? '<button class="org-btn" onclick="ocRemoveLogo()">Remove</button>' : ''}
+              </div>` : ''}
+              <span class="oc-hint">A square image works best. It shows on your page, in the directory and on every post.</span>
+            </div>
+          </div>
+          <label class="oc-field">
+            <span class="oc-label">Name</span>
+            <input class="oc-input" id="oc-name" value="${escAttr(row.name || '')}" autocomplete="off" oninput="ocProfChanged()"${dis}>
+          </label>
+          <label class="oc-field">
+            <span class="oc-label">About the club</span>
+            <textarea class="oc-input" id="oc-description" rows="4" oninput="ocProfChanged()"
+              placeholder="What you do, who it's for, and how to get involved"${dis}>${esc(row.description || '')}</textarea>
+            <span class="oc-hint">Students read this before they follow. Say who it's for and what a first meeting is like.</span>
+          </label>
+          <div class="oc-meta">
+            <span class="org-badge ${row.is_verified ? 'org-badge-ok' : 'org-badge-off'}">${row.is_verified ? 'Verified' : 'Not verified'}</span>
+            <span class="oc-meta-type">${esc(row.type)}</span>
+            <span class="oc-meta-slug" title="Part of the club's address — fixed once created, so links to it never break">/${esc(row.slug)}</span>
+          </div>
+        </section>
+        ${OC_PROFILE_GROUPS.map(([title, lead, fields]) => `
+          <section class="oc-card">
+            <h3 class="oc-card-t">${title}</h3>
+            <p class="oc-card-lead">${lead}</p>
+            ${fields.map(input).join('')}
+          </section>`).join('')}
+        ${canEdit ? `
+          <div class="oc-savebar" id="ocSaveBar">
+            <span class="oc-savebar-t" id="ocSaveState">No changes</span>
+            <button class="org-btn" id="ocDiscardBtn" onclick="renderOcProfile()" hidden>Discard</button>
+            <button class="oc-btn-go" id="ocSaveBtn" onclick="saveOcProfile()" disabled>Save changes</button>
+          </div>`
+        : '<div class="oc-note">You can see this page but not edit it. Editing needs the “manage members” permission.</div>'}
+      </div>
+      <aside class="oc-prof-preview">
+        <div class="oc-sv-k">${icon('eye', 14)} How students see it</div>
+        <div class="oc-sv-page" id="ocProfPreview"></div>
+      </aside>
+    </div>`;
+  ocProfPaintPreview();
+}
+
+// The form's current values over the saved row: what the page WOULD look like if saved now.
+function ocProfDraft() {
+  const row = _ocProfileRow || {};
+  const d = { ...row, ...(_ocProfDir || {}), id: row.id };
+  OC_FIELDS.forEach(([k]) => { const el = document.getElementById('oc-' + k); if (el) d[k] = el.value.trim() || null; });
+  return d;
+}
+function ocProfPaintPreview() {
+  const host = document.getElementById('ocProfPreview');
+  if (!host) return;
+  const up = _ocStats && _ocStats.orgId === _ocOrgId ? _ocStats.upcoming : 0;
+  host.innerHTML = orgHeroHTML(ocProfDraft(), { preview: true, upcoming: up });
+}
+// Redraws the preview and says whether there is anything to save — the save button stays grey
+// until there is, so "Saved" never has to be taken on trust.
+function ocProfChanged() {
+  ocProfPaintPreview();
+  const row = _ocProfileRow;
+  if (!row) return;
+  const changed = OC_FIELDS.filter(([k]) => {
+    const el = document.getElementById('oc-' + k);
+    return el && (el.value.trim() || null) !== (row[k] ?? null);
+  }).length;
+  const btn = document.getElementById('ocSaveBtn');
+  if (btn) btn.disabled = !changed;
+  const dsc = document.getElementById('ocDiscardBtn');
+  if (dsc) dsc.hidden = !changed;
+  const st = document.getElementById('ocSaveState');
+  if (st) st.textContent = changed ? `${changed} unsaved change${changed === 1 ? '' : 's'}` : 'No changes';
+  document.getElementById('ocSaveBar')?.classList.toggle('is-dirty', !!changed);
+}
+
+async function ocRemoveLogo() {
+  if (!confirm('Remove the logo? Your club will show its initial instead.')) return;
+  const { error } = await supabaseClient.from('organizations').update({ logo_url: null }).eq('id', _ocOrgId);
+  if (error) { toast('Could not remove the logo: ' + error.message); console.error('[ocRemoveLogo]', error); return; }
+  toast('Logo removed');
+  await loadOrgContext(true);
+  renderOrgConsole();
 }
 
 async function saveOcProfile() {
@@ -1477,13 +1808,13 @@ async function saveOcProfile() {
 // The roster an officer can reach without the admin dashboard, which they have no access to.
 async function renderOcMembers() {
   const body = document.getElementById('ocBody');
-  body.innerHTML = '<div class="oc-note">Loading roster…</div>';
+  body.innerHTML = ocHeadHTML('Members', 'Loading…');
 
   const { data, error } = await supabaseClient
     .from('org_memberships')
     .select('id, user_id, pending_email, role, title, status')
     .eq('org_id', _ocOrgId);
-  if (error) { body.innerHTML = '<div class="oc-note">Could not load the roster.</div>'; console.error('[renderOcMembers]', error); return; }
+  if (error) { body.innerHTML = ocHeadHTML('Members', '') + '<div class="oc-empty-card"><b>Could not load the roster</b><p>Reload to try again.</p></div>'; console.error('[renderOcMembers]', error); return; }
 
   const ids = (data || []).map(m => m.user_id).filter(Boolean);
   const names = {};
@@ -1496,41 +1827,90 @@ async function renderOcMembers() {
     (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim());
   }
 
+  _ocMembers = { orgId: _ocOrgId, rows: data || [], names };
+  _ocMemQuery = '';
+  ocMembersPaint();
+}
+
+// The roster, kept so a search can redraw the lists without asking the database again.
+let _ocMembers = null;
+let _ocMemQuery = '';
+function ocMemSearch(v) { _ocMemQuery = v || ''; ocMembersPaint(true); }
+
+// Laid out the way Anthology Engage's roster is: people waiting first (someone is waiting on the
+// officer), then officers with their titles, then everyone else. A search box once the list is
+// long enough to need one.
+function ocMembersPaint(listOnly) {
+  const body = document.getElementById('ocBody');
+  const M = _ocMembers;
+  if (!M || M.orgId !== _ocOrgId || _ocSection !== 'members') return;
+  const { rows, names } = M;
   // Explicitly 'active', not "not pending". Removal became a status change on 2026-09-05,
   // so a not-pending filter would list everyone who has ever left as a current member.
-  const pending = (data || []).filter(m => m.status === 'pending');
-  const active  = (data || []).filter(m => m.status === 'active');
-  // Same rule as the admin panel: your own row carries no Remove control, because
-  // guard_org_self_removal() refuses it and a button that can only produce an error is not
-  // a feature. See sql/2026-09-06_guard_self_removal.sql.
+  const pending = rows.filter(m => m.status === 'pending');
+  const active  = rows.filter(m => m.status === 'active');
+  const nameOf = m => m.user_id ? (names[m.user_id] || 'Unknown student') : `${m.pending_email} (invited)`;
   // An initial on a tinted circle, like the directory's tiles: the tint is picked from the id, so a
   // person keeps one colour, and a roster reads as people rather than as a column of text.
   const initials = s => (s || '?').split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
   const tintOf = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) % 997; return (h % 6) + 1; };
+  // Same rule as the admin panel: your own row carries no Remove control, because
+  // guard_org_self_removal() refuses it and a button that can only produce an error is not
+  // a feature. See sql/2026-09-06_guard_self_removal.sql.
   const row = m => {
     const mine = m.user_id && m.user_id === _orgCtx?.userId;
-    const name = m.user_id ? (names[m.user_id] || 'Unknown student') : (m.pending_email + ' (invited)');
+    const name = nameOf(m);
+    const role = m.title || (m.role === 'officer' ? 'Officer' : '');
     return `
     <div class="oc-member">
       <span class="oc-member-av dir-logo-none" data-tint="${tintOf(m.user_id || m.pending_email)}" aria-hidden="true">${esc(initials(name))}</span>
-      <span class="oc-member-who">${esc(name)}</span>
-      <span class="oc-member-role">${esc(m.title || m.role)}</span>
+      <span class="oc-member-who">${esc(name)}${role ? `<span class="oc-member-sub">${esc(role)}</span>` : ''}</span>
       ${m.status === 'pending'
-        ? `<button class="org-btn org-btn-go" onclick="ocApprove(${m.id})">Approve</button>`
-        : ''}
-      ${mine
-        ? '<span class="org-roster-self">You</span>'
-        : `<button class="org-btn org-btn-warn" onclick="ocRemove(${m.id})">Remove</button>`}
+        ? `<button class="oc-btn-go" onclick="ocApprove(${m.id})">Approve</button>
+           <button class="org-btn" onclick="ocRemove(${m.id}, true)">Decline</button>`
+        : mine ? '<span class="org-roster-self">You</span>'
+        : ocMoreHTML([['Remove from club…', `ocRemove(${m.id})`, true]])}
     </div>`; };
 
-  // Requests sit in a warm card above the members, so someone waiting to be let in is the first
-  // thing an officer sees rather than a line they might scroll past.
-  body.innerHTML =
-    (pending.length ? `<div class="oc-subhead">Requests to join (${pending.length})</div>
-       <div class="oc-member-list is-pending">${pending.map(row).join('')}</div>` : '') +
-    `<div class="oc-subhead">Members (${active.length})</div>` +
-    (active.length ? `<div class="oc-member-list">${active.map(row).join('')}</div>` : '<div class="oc-note">No members yet.</div>') +
-    `<div class="oc-note">Adding officers and changing permissions needs the \u201Cmanage admins\u201D permission, and is done from the admin page for now. Removing someone keeps a record that they served \u2014 they can be restored from the admin page. You cannot remove your own officer role; another officer, or someone in the organization above this one, has to do it.</div>`;
+  const q = _ocMemQuery.trim().toLowerCase();
+  const match = m => !q || nameOf(m).toLowerCase().includes(q) || (m.title || '').toLowerCase().includes(q);
+  const officers = active.filter(m => m.role === 'officer').filter(match);
+  const members  = active.filter(m => m.role !== 'officer').filter(match);
+  const group = (title, list, empty) => `
+    <section class="oc-sec"><h3 class="oc-sec-t">${title}<span class="oc-sec-n">${list.length}</span></h3>
+      ${list.length ? `<div class="oc-member-list">${list.map(row).join('')}</div>` : `<div class="oc-ev-empty">${empty}</div>`}</section>`;
+  const lists = group('Officers', officers, q ? 'No officer matches.' : 'No officers.')
+    + group('Members', members, q ? 'No member matches.' : 'No members yet. Students who ask to join appear above for you to approve.');
+
+  if (listOnly) { const host = document.getElementById('ocMemLists'); if (host) { host.innerHTML = lists; return; } }
+
+  // What students see of all this: the officers, by name and title, on the club page (the
+  // org_public_officers view). Drawn by the page's own orgOfficersHTML().
+  const pub = active.filter(m => m.role === 'officer' && m.user_id)
+    .map(m => ({ name: names[m.user_id] || '', title: m.title })).filter(x => x.name);
+  const rail = `
+    <div class="oc-sv">
+      <div class="oc-sv-k">${icon('eye', 14)} On your club page</div>
+      <div class="oc-sv-page" data-tint="${((Number(_ocOrgId) || 0) % 6) + 1}">${pub.length ? orgOfficersHTML(pub)
+        : '<p class="oc-note">No officers are listed yet.</p>'}</div>
+      <p class="oc-note">Students see officers' names and titles, so they know who to talk to. Members are never listed.</p>
+    </div>`;
+
+  const nOff = active.filter(m => m.role === 'officer').length;
+  body.innerHTML = `
+    ${ocHeadHTML('Members', `${active.length} ${active.length === 1 ? 'person' : 'people'} in the club, ${nOff} of them officer${nOff === 1 ? '' : 's'}.`)}
+    <div class="oc-split">
+      <div class="oc-split-main">
+        ${pending.length ? `
+          <section class="oc-sec"><h3 class="oc-sec-t">Waiting to join<span class="oc-sec-n is-warm">${pending.length}</span></h3>
+            <div class="oc-member-list is-pending">${pending.map(row).join('')}</div></section>` : ''}
+        ${active.length > 8 ? `<input class="oc-input oc-mem-search" type="search" placeholder="Search by name or title" autocomplete="off"
+            value="${escAttr(_ocMemQuery)}" oninput="ocMemSearch(this.value)" aria-label="Search members">` : ''}
+        <div id="ocMemLists">${lists}</div>
+        <p class="oc-foot-note">Adding officers and changing what they can do is done by a Nestrel admin for now. Removing someone keeps a record that they were in the club, and an admin can restore them. You can't remove your own officer role — another officer has to.</p>
+      </div>
+      <aside class="oc-split-rail">${rail}</aside>
+    </div>`;
 }
 
 async function ocApprove(membershipId) {
@@ -1540,23 +1920,29 @@ async function ocApprove(membershipId) {
   logEvent('org_member_approved', { targetType: 'membership', targetId: membershipId });
   toast('Approved');
   renderOcMembers();
+  ocLoadStats(_ocOrgId);   // the waiting count on the Members tab
 }
 
 // Soft, matching orgRemoveMember() on the admin page. Changed 2026-09-05 in the same pass,
 // deliberately crossing the one-area-per-change rule: leaving this one deleting would give
 // the same table two opposite removal semantics, and THIS is the path a club president
 // actually uses — so the history the admin page preserves would be destroyed here instead.
-async function ocRemove(membershipId) {
-  if (!confirm('Remove this person from the organization?\n\nThey lose every permission immediately. The record that they served is kept.')) return;
+// pending: declining a request to join. The same status change as removing a member — the row
+// is kept, and an admin can undo it — with words that fit a request rather than a member.
+async function ocRemove(membershipId, pending = false) {
+  if (!confirm(pending
+    ? 'Decline this request to join?'
+    : 'Remove this person from the organization?\n\nThey lose every permission immediately. The record that they served is kept.')) return;
   const { error } = await supabaseClient.from('org_memberships')
     .update({ status: 'removed' }).eq('id', membershipId);
-  if (error) { toast('Could not remove: ' + error.message); console.error('[ocRemove]', error); return; }
+  if (error) { toast('Could not ' + (pending ? 'decline: ' : 'remove: ') + error.message); console.error('[ocRemove]', error); return; }
   logEvent('org_member_removed', { targetType: 'membership', targetId: membershipId,
-                                   before: { status: 'active' }, after: { status: 'removed' } });
-  toast('Removed');
+                                   before: { status: pending ? 'pending' : 'active' }, after: { status: 'removed' } });
+  toast(pending ? 'Declined' : 'Removed');
   clearOrgContext();
   await loadOrgContext();
   renderOcMembers();
+  ocLoadStats(_ocOrgId);
 }
 
 
@@ -1574,7 +1960,10 @@ async function renderOcPosts() {
   // typed for one club must never sit in the composer when the officer is acting as another.
   if (!document.getElementById('ocPostList') || _ocPostShellOrg !== _ocOrgId) {
     _ocPostShellOrg = _ocOrgId; _ocPostFormOpen = false; _ocType = 'announcement';
-    body.innerHTML = '<div id="ocPostTop"></div><div id="ocPostList"><div class="oc-note">Loading posts…</div></div>';
+    body.innerHTML = `
+      ${ocHeadHTML('Posts', "Announcements and polls. They show on your followers' Home and on your club page — nobody is emailed or notified yet.",
+        '<button class="oc-btn-go" id="ocPostNewBtn" onclick="ocPostOpenForm()">+ New post</button>')}
+      <div id="ocPostTop"></div><div id="ocPostList"><div class="oc-note">Loading posts…</div></div>`;
     ocPostPaintTop();
   }
 
@@ -1768,14 +2157,29 @@ async function renderOcEvents() {
   // fold. Editing and duplicating force it open, because they have nowhere else to put values.
   const formOpen = _ocEvFormOpen || _ocEvEditId || _ocEvDraft;
   body.innerHTML = `
-    ${formOpen ? ocEventFormHTML() : '<button class="oc-cta" onclick="ocEvOpenForm()">+ New event</button>'}
+    ${ocHeadHTML('Events', 'Plan, publish and run your events. Published ones show on the Events page and your club page.',
+      formOpen ? '' : '<button class="oc-btn-go" onclick="ocEvOpenForm()">+ New event</button>')}
+    ${formOpen ? ocEventFormHTML() : ''}
     <div id="ocEvList"></div>`;
+
+  // Arriving from the Overview with something to open: move the list to that event's bucket
+  // first, so the card is there to open inside.
+  const after = _ocAfterEvents; _ocAfterEvents = null;
+  const target = after && _ocEvents.find(e => e.id === after.id);
+  if (target) _ocEvFilter = target.status === 'draft' ? 'drafts' : target._past ? 'past' : 'upcoming';
   ocEvPaintList();
 
   // The strip is filled after innerHTML rather than inside the template, because the previews
   // are object URLs held in memory and the existing media comes from the loaded rows — two
   // sources that only the painter knows how to merge.
   ocEvPaintPhotos();
+
+  if (target) {
+    if (after.what === 'edit') { ocEvEdit(target.id); return; }
+    if (after.what === 'roster') await ocToggleRoster(target.id);
+    if (after.what === 'recap') await ocToggleRecap(target.id);
+    document.getElementById('ocEv-' + target.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 // Which bucket the list shows. Not persisted: it describes this visit, and a console that
@@ -1820,7 +2224,7 @@ function ocEvPaintList() {
   const list = b[_ocEvFilter];
   host.innerHTML = `
     <div class="oc-ev-filters">${chip('upcoming', 'Upcoming')}${chip('drafts', 'Drafts')}${chip('past', 'Past')}</div>
-    ${list.length ? list.map(ocEventCardHTML).join('') : `<div class="oc-ev-empty">${EMPTY[_ocEvFilter]}</div>`}`;
+    ${list.length ? `<div class="oc-grid">${list.map(ocEventCardHTML).join('')}</div>` : `<div class="oc-ev-empty">${EMPTY[_ocEvFilter]}</div>`}`;
 }
 
 // Publishing a draft from its card. This button existed on every draft and called a function
@@ -1912,8 +2316,8 @@ function ocEventFormHTML() {
     <div class="oc-composer oc-ev-form" id="ocEvForm">
       <div class="ff-head">
         <h3 class="ff-head-title">${editing ? 'Edit event' : (src ? 'Duplicate' : 'New event')}</h3>
-        ${src ? `<button type="button" class="ff-head-x" onclick="ocEvClearForm()">${
-          editing ? 'Stop editing' : 'Discard'}</button>` : ''}
+        <button type="button" class="ff-head-x" onclick="ocEvClearForm()">${
+          editing ? 'Stop editing' : src ? 'Discard' : 'Cancel'}</button>
       </div>
       ${editing ? `<p class="ff-warn">Editing a published event changes it for everyone already
         registered, and nobody is notified — there is no notification layer yet. For a change of
@@ -2704,86 +3108,111 @@ async function ocCancelEvent(id) {
   renderOcEvents();
 }
 
+// One event, redesigned 2026-09-24. It used to end in seven equal buttons, so the one an officer
+// needed — the door on the night, Publish on a draft — looked like Duplicate. Organizer tools
+// (Luma, Eventbrite) give each event ONE main action that follows where it stands, a couple of
+// everyday ones beside it, and the rest in a "more" menu:
+//   draft      Publish            · Edit                · more: Duplicate
+//   coming up  Who's coming (door) · Edit · QR code     · more: Duplicate, See it as a student, Cancel
+//   over       Recap              · Who came            · more: Duplicate, See it as a student
+//   cancelled  Who registered                           · more: Duplicate
 function ocEventCardHTML(e) {
   const when = new Date(e.starts_at);
   // toLocaleString, not a hand-built string: the officer sees their own device's format, and
   // an event stored in UTC renders in local time without any conversion of ours to get wrong.
-  const whenTxt = when.toLocaleString(undefined,
-    { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-
+  const whenTxt = `${evDayLabel(e.starts_at)} · ${evTime(e.starts_at)}`;
   const shots = (e._media || []).filter(m => m.kind === 'image').length;
-  const org = _orgCtx?.orgs.get(_ocOrgId);
+  const cancelled = e.status === 'cancelled', draft = e.status === 'draft';
+  const live = !cancelled && !e._past;
+  const today = live && !draft && when.toDateString() === new Date().toDateString();
 
-  // Two posters, one slot.
-  //
-  // With a photo, the photo IS the poster and nothing is drawn over it. An officer who chose
-  // an image chose a composition; typing across it would wreck theirs.
-  //
-  // Without one, the generated poster is composed rather than blank, and it carries exactly
-  // three things: who is running it, what it is called, and when. Location is deliberately
-  // NOT here — it sits in the card text below, and repeating it on the poster would be
-  // filling space rather than placing something. The rule above the date is there to give the
-  // block a base line to sit on, so short titles do not leave the date floating.
-  const poster = e.poster_url
-    ? `<div class="oc-ev-poster"><img src="${escAttr(e.poster_url)}" alt=""></div>`
-    : `<div class="oc-ev-poster oc-ev-made" style="background:${eventGradient(e.id)}">
-         <div class="oc-ev-p-org">${esc(org?.name || '')}</div>
-         <div class="oc-ev-p-title">${esc(e.title)}</div>
-         <div class="oc-ev-p-foot">
-           <span class="oc-ev-p-rule"></span>
-           ${esc(whenTxt)}
-         </div>
-       </div>`;
+  // The thumbnail: the officer's own poster when there is one, otherwise the date on the event's
+  // generated colour — at this size a drawn title would be unreadable, and the date is what a
+  // list of events is sorted and scanned by.
+  const thumb = e.poster_url
+    ? `<div class="oc-ev-pic"><img src="${escAttr(e.poster_url)}" alt=""></div>`
+    : `<div class="oc-ev-pic is-made" style="--ev-bg:${eventGradient(e.id)}">
+         <span>${esc(when.toLocaleDateString(undefined, { month: 'short' }).toUpperCase())}</span><b>${when.getDate()}</b></div>`;
 
   const chips = [
-    e.status === 'cancelled' ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
-    e.status === 'draft'     ? '<span class="oc-chip">Draft</span>' : '',
-    e.members_only           ? '<span class="oc-chip">Members only</span>' : '',
-    e._past                  ? '<span class="oc-chip">Past</span>' : '',
+    today ? '<span class="oc-chip oc-chip-today">Today</span>' : '',
+    cancelled ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
+    draft ? '<span class="oc-chip">Draft · only officers see it</span>' : '',
+    e.members_only ? '<span class="oc-chip">Members only</span>' : '',
   ].join('');
 
-  // Registration state reads as one line rather than several counters. "18 spots left" is the
-  // number an officer acts on; "42 of 60" makes them do the subtraction.
-  const left = e.capacity == null ? null : Math.max(0, e.capacity - e._going);
-  const reg = !e.registration_open
-    ? 'Registration closed'
-    : `${e._going} going${left == null ? '' : ` · ${left} spot${left === 1 ? '' : 's'} left`}`;
+  // Registration as one line and, with a capacity, a bar. "18 spots left" is the number an
+  // officer acts on; "42 of 60" makes them do the subtraction.
+  const cap = e.capacity == null ? null : Number(e.capacity);
+  const left = cap == null ? null : Math.max(0, cap - e._going);
+  let status;
+  if (e._past && !cancelled) {
+    status = `<span class="oc-cap-t">${e._checked ? `<b>${e._checked}</b> came${e._going ? ` of ${e._going} who RSVP'd` : ''}` : 'Nobody was checked in'}${
+      shots ? ` · ${shots} photo${shots === 1 ? '' : 's'}` : ''}</span>`;
+  } else if (!e.registration_open) {
+    status = '<span class="oc-cap-t">Registration off — anyone can come</span>';
+  } else {
+    const pct = cap ? Math.min(100, Math.round(e._going / cap * 100)) : null;
+    status = `${pct != null ? `<span class="oc-cap-bar"><i style="--pct:${pct}%"></i></span>` : ''}
+      <span class="oc-cap-t"><b>${e._going}</b> going${left == null ? '' : ` · ${left} spot${left === 1 ? '' : 's'} left`}</span>`;
+  }
 
-  // One facts line, built from whatever is true, rather than three lines two of which are
-  // usually empty. Empty slots that sometimes fill are what make a list look ragged.
-  const facts = [
-    reg,
-    e._past && e._checked ? `${e._checked} checked in` : '',
-    shots ? `${shots} photo${shots === 1 ? '' : 's'}` : '',
-  ].filter(Boolean).join(' · ');
-
-  const live = e.status !== 'cancelled' && !e._past;
+  const b = (label, fn, cls = 'org-btn') => `<button class="${cls}" onclick="${fn}">${label}</button>`;
+  const go = 'oc-btn-go';
+  const count = e._going ? (e._checked ? ` · ${e._checked}/${e._going}` : ` · ${e._going}`) : '';
+  let main = [], more = [];
+  if (draft) {
+    main = [b('Publish', `ocEvPublish(${e.id})`, go), b('Edit', `ocEvEdit(${e.id})`)];
+    more = [['Duplicate', `ocEvDuplicate(${e.id})`]];
+  } else if (cancelled) {
+    main = [b('Who registered' + count, `ocToggleRoster(${e.id})`)];
+    more = [['Duplicate', `ocEvDuplicate(${e.id})`]];
+  } else if (e._past) {
+    main = [b('Recap', `ocToggleRecap(${e.id})`, go), b('Who came' + count, `ocToggleRoster(${e.id})`)];
+    more = [['Duplicate', `ocEvDuplicate(${e.id})`], ['See it as a student', `evOpen(${e.id})`]];
+  } else {
+    main = [b((today ? 'Check in' : "Who's coming") + count, `ocToggleRoster(${e.id})`, go),
+            b('Edit', `ocEvEdit(${e.id})`), b('QR code', `ocEvDownloadQR(${e.id})`)];
+    more = [['Duplicate', `ocEvDuplicate(${e.id})`], ['See it as a student', `evOpen(${e.id})`],
+            ['Cancel event…', `ocCancelEvent(${e.id})`, true]];
+  }
 
   return `
-    <div class="oc-ev-card${e.status === 'cancelled' ? ' is-cancelled' : ''}">
-      ${poster}
-      <div class="oc-ev-body">
-        ${chips ? `<div class="oc-ev-chips">${chips}</div>` : ''}
-        <div class="oc-ev-title">${esc(e.title)}</div>
-        <div class="oc-ev-when">${esc(whenTxt)}</div>
-        <div class="oc-ev-where">${esc(e.location)}</div>
-        <div class="oc-ev-facts">${esc(facts)}</div>
-        ${e.status === 'cancelled' && e.cancelled_reason
-          ? `<div class="oc-ev-reason">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
-        <div class="oc-ev-actions">
-          ${e.status === 'draft' ? `<button class="org-btn org-btn-go" onclick="ocEvPublish(${e.id})">Publish</button>` : ''}
-          ${live ? `<button class="org-btn" onclick="ocEvEdit(${e.id})">Edit</button>` : ''}
-          <button class="org-btn" onclick="ocToggleRoster(${e.id})">Who's coming${
-          e._going ? ` · ${e._checked ? `${e._checked}/${e._going}` : e._going}` : ''}</button>
-        ${e._past ? `<button class="org-btn" onclick="ocToggleRecap(${e.id})">Recap</button>` : ''}
-        <button class="org-btn" onclick="ocEvDuplicate(${e.id})">Duplicate</button>
-          <button class="org-btn" onclick="ocEvDownloadQR(${e.id})">QR</button>
-          ${live ? `<button class="org-btn org-btn-warn" onclick="ocCancelEvent(${e.id})">Cancel</button>` : ''}
+    <div class="oc-ev-card${cancelled ? ' is-cancelled' : ''}${draft ? ' is-draft' : ''}" id="ocEv-${e.id}">
+      <div class="oc-ev-top">
+        ${thumb}
+        <div class="oc-ev-body">
+          ${chips ? `<div class="oc-ev-chips">${chips}</div>` : ''}
+          <div class="oc-ev-title">${esc(e.title)}</div>
+          <div class="oc-ev-when">${esc(whenTxt)}${e.location ? ` · ${esc(e.location)}` : ''}</div>
+          <div class="oc-cap">${status}</div>
+          ${cancelled && e.cancelled_reason ? `<div class="oc-ev-reason">Reason given: ${esc(e.cancelled_reason)}</div>` : ''}
         </div>
-        <div class="oc-ev-roster" id="ocRoster-${e.id}" hidden></div>
-        <div class="oc-ev-recap oc-ev-roster" id="ocRecap-${e.id}" hidden></div>
       </div>
+      <div class="oc-ev-actions">
+        ${main.join('')}
+        ${ocMoreHTML(more)}
+      </div>
+      <div class="oc-ev-roster" id="ocRoster-${e.id}" hidden></div>
+      <div class="oc-ev-recap oc-ev-roster" id="ocRecap-${e.id}" hidden></div>
     </div>`;
+}
+
+// The "more" menu: a native <details>, so it opens and closes with no script and works with a
+// keyboard. Opening one closes any other (ocMoreOnly), and choosing an item closes it.
+// items: [label, onclick, danger?]
+function ocMoreHTML(items) {
+  if (!items.length) return '';
+  return `
+    <details class="oc-more" ontoggle="ocMoreOnly(this)">
+      <summary class="org-btn oc-more-btn" aria-label="More actions">${icon('more', 16)}</summary>
+      <div class="oc-more-menu">${items.map(([label, fn, danger]) =>
+        `<button class="oc-more-i${danger ? ' is-danger' : ''}" onclick="this.closest('details').open=false;${fn}">${label}</button>`).join('')}</div>
+    </details>`;
+}
+function ocMoreOnly(el) {
+  if (!el.open) return;
+  document.querySelectorAll('details.oc-more[open]').forEach(d => { if (d !== el) d.open = false; });
 }
 
 // The composer, rebuilt 2026-09-24 from the approved design: a live preview beside it shows the
@@ -2922,22 +3351,77 @@ let _ocType = 'announcement';
 let _ocPostFormOpen = false;
 let _ocPostShellOrg = null;
 
-// The button, or the composer.
+// The composer, when it is open. The New post button lives in the section header and hides while
+// the composer shows — the composer IS the new post.
 function ocPostPaintTop() {
   const top = document.getElementById('ocPostTop');
   if (!top) return;
-  top.innerHTML = _ocPostFormOpen ? ocComposerHTML() : `
-    <button class="oc-cta" onclick="ocPostOpenForm()">+ New post</button>
-    <p class="oc-post-note">Posts appear on your club's page and on your followers' Home. They don't email or notify anyone yet.</p>`;
+  top.innerHTML = _ocPostFormOpen ? ocComposerHTML() : '';
+  const btn = document.getElementById('ocPostNewBtn');
+  if (btn) btn.hidden = _ocPostFormOpen;
   if (_ocPostFormOpen) ocPreview();
 }
+
+// Posts in three piles, like Events: what students can see now, what is unfinished, what was put
+// away. Pinned first within Live.
+let _ocPostFilter = 'live';
+function ocPostBuckets() {
+  return {
+    live:     _ocPosts.filter(x => x.post.status === 'published'),
+    drafts:   _ocPosts.filter(x => x.post.status === 'draft'),
+    archived: _ocPosts.filter(x => x.post.status === 'archived'),
+  };
+}
+function ocPostSetFilter(f) { _ocPostFilter = f; ocPostPaintList(); }
 
 function ocPostPaintList() {
   const host = document.getElementById('ocPostList');
   if (!host) return;
-  host.innerHTML = _ocPosts.length
-    ? '<h3 class="oc-list-title">Your posts</h3>' + _ocPosts.map(ocPostCardHTML).join('')
-    : '<div class="oc-note">Nothing posted yet. An announcement is the quickest way to start.</div>';
+  if (!_ocPosts.length) {
+    host.innerHTML = '<div class="oc-ev-empty">Nothing posted yet.<br><span class="note-xs">An announcement is the quickest way to start — followers see it on their Home.</span></div>';
+    return;
+  }
+  const b = ocPostBuckets();
+  if (!b[_ocPostFilter]) _ocPostFilter = 'live';
+  const chip = (key, label) => {
+    const on = _ocPostFilter === key;
+    return `<button class="oc-ev-filter${on ? ' is-on' : ''}" aria-pressed="${on}"
+              onclick="ocPostSetFilter('${key}')">${label}<span class="oc-ev-count">${b[key].length}</span></button>`;
+  };
+  const EMPTY = { live: 'Nothing live. Publish a draft, or write a new post.',
+                  drafts: 'No drafts. Save a post as a draft to finish it later.',
+                  archived: 'Nothing archived. Archiving takes a post off Home and your page without deleting it.' };
+  const list = b[_ocPostFilter];
+  host.innerHTML = `
+    <div class="oc-ev-filters">${chip('live', 'Live')}${chip('drafts', 'Drafts')}${chip('archived', 'Archived')}</div>
+    <div class="oc-split">
+      <div class="oc-split-main">${list.length ? `<div class="oc-stack">${list.map(ocPostCardHTML).join('')}</div>`
+        : `<div class="oc-ev-empty">${EMPTY[_ocPostFilter]}</div>`}</div>
+      <aside class="oc-split-rail">${ocPostRailHTML()}</aside>
+    </div>`;
+}
+
+// Beside the list: the club's newest live post (pinned first) drawn by Home's own card, so the
+// officer sees what a follower sees without leaving the console.
+function ocPostRailHTML() {
+  const x = _ocPosts.find(p => p.post.status === 'published');
+  const followers = _ocStats && _ocStats.orgId === _ocOrgId ? _ocStats.followers : null;
+  const reach = `<p class="oc-note">Live posts reach ${followers != null ? `your <b>${followers} follower${followers === 1 ? '' : 's'}</b>` : 'your followers'}
+    on their Home, and anyone who opens your club page. Members-only posts reach members.</p>`;
+  if (!x || typeof feedNewsCardHTML !== 'function') return `<div class="oc-sv"><div class="oc-sv-k">${icon('eye', 14)} How students see it</div>${reach}</div>`;
+  const p = x.post;
+  const card = feedNewsCardHTML({
+    key: 'ocr' + p.id, kind: 'club', id: p.id, org: _orgCtx.orgs.get(_ocOrgId) || { id: _ocOrgId, name: 'Your club' },
+    title: p.title, body: p.body, at: p.created_at, pinned: p.is_pinned, urgent: p.is_urgent,
+    membersOnly: p.members_only, isPoll: p.type === 'poll', closesAt: p.poll_closes_at,
+    options: x.options, votes: x.votes,
+  });
+  return `
+    <div class="oc-sv">
+      <div class="oc-sv-k">${icon('eye', 14)} ${p.is_pinned ? 'Your pinned post' : 'Your latest post'}, on Home</div>
+      <div class="oc-sv-page oc-sv-feed">${card}</div>
+      ${reach}
+    </div>`;
 }
 
 // A new post starts as an empty announcement, whatever the last one was.
@@ -2990,43 +3474,46 @@ function ocPostCardHTML(x) {
         const pct = total ? Math.round(n / total * 100) : 0;
         const mine = x.myVote && x.myVote.option_id === o.id;
         return canSeeResults || !open
-          ? `<div class="oc-opt-result${mine ? ' mine' : ''}">
-               <div class="oc-opt-bar" style="width:${pct}%"></div>
-               <span class="oc-opt-label">${esc(o.label)}</span>
-               <span class="oc-opt-count">${canSeeResults ? n : ''}</span>
+          ? `<div class="oc-opt-result${mine ? ' mine' : ''}" style="--pct:${pct}%">
+               <span class="oc-opt-bar"></span>
+               <span class="oc-opt-label">${esc(o.label)}${mine ? ' ✓' : ''}</span>
+               <span class="oc-opt-count">${canSeeResults ? `${pct}% · ${n}` : ''}</span>
              </div>`
           : `<button class="oc-opt-vote" onclick="ocVote(${p.id}, ${o.id})">${esc(o.label)}</button>`;
       }).join('')}
-      <div class="oc-note">${canSeeResults
+      <div class="oc-poll-foot">${canSeeResults
         ? `${total} vote${total === 1 ? '' : 's'}${x.myVote ? ' · you voted' : ''}`
         : 'Vote to see the results.'}</div>
     </div>`;
 
-  // What an officer can do depends on where the post stands.
-  const btn = (label, fn, cls = '') => `<button class="org-btn${cls}" onclick="${fn}">${label}</button>`;
-  let actions = [];
+  // What an officer can do depends on where the post stands: one main action, the rest in "more".
+  const b = (label, fn, cls = 'org-btn') => `<button class="${cls}" onclick="${fn}">${label}</button>`;
+  let main = [], more = [];
   if (p.status === 'draft') {
-    actions = [btn('Publish', `ocSetPostStatus(${p.id}, 'published')`, ' org-btn-go'), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn')];
+    main = [b('Publish', `ocSetPostStatus(${p.id}, 'published')`, 'oc-btn-go')];
+    more = [['Delete…', `ocDeletePost(${p.id})`, true]];
   } else if (p.status === 'published') {
-    actions = [btn(p.is_pinned ? 'Unpin' : 'Pin', `ocTogglePin(${p.id}, ${!p.is_pinned})`)];
-    if (open) actions.push(btn('Close now', `ocClosePoll(${p.id})`));
-    actions.push(btn('Archive', `ocSetPostStatus(${p.id}, 'archived')`), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn'));
+    main = [b(p.is_pinned ? 'Unpin' : `${icon('pin', 14)} Pin to top`, `ocTogglePin(${p.id}, ${!p.is_pinned})`)];
+    if (open) main.push(b('Close voting', `ocClosePoll(${p.id})`));
+    more = [['Archive', `ocSetPostStatus(${p.id}, 'archived')`], ['Delete…', `ocDeletePost(${p.id})`, true]];
   } else {
-    actions = [btn('Restore', `ocSetPostStatus(${p.id}, 'published')`), btn('Delete', `ocDeletePost(${p.id})`, ' org-btn-warn')];
+    main = [b('Restore', `ocSetPostStatus(${p.id}, 'published')`)];
+    more = [['Delete…', `ocDeletePost(${p.id})`, true]];
   }
 
   return `
     <div class="oc-post${p.is_urgent ? ' oc-post-urgent' : ''}${p.status !== 'published' ? ' oc-post-off' : ''}">
       <div class="oc-post-head">
-        ${p.is_pinned ? '<span class="oc-chip oc-chip-pin">Pinned</span>' : ''}
-        ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
-        ${p.members_only ? '<span class="oc-chip">Members only</span>' : ''}
+        <span class="oc-post-ic" aria-hidden="true">${icon(p.type === 'poll' ? 'list' : 'note', 15)}</span>
         <span class="oc-post-status">${esc(ocPostStatusLine(p))}</span>
+        ${p.is_pinned ? `<span class="oc-chip oc-chip-pin">${icon('pin', 11)} Pinned</span>` : ''}
+        ${p.is_urgent ? '<span class="oc-chip oc-chip-urgent">Urgent</span>' : ''}
+        ${p.members_only ? `<span class="oc-chip">${icon('lock', 11)} Members only</span>` : ''}
       </div>
       <div class="oc-post-title">${esc(p.title)}</div>
       ${p.body ? `<div class="oc-post-body">${esc(p.body)}</div>` : ''}
       ${poll}
-      ${canManage ? `<div class="oc-post-actions">${actions.join('')}</div>` : ''}
+      ${canManage ? `<div class="oc-post-actions">${main.join('')}${ocMoreHTML(more)}</div>` : ''}
     </div>`;
 }
 
@@ -3089,6 +3576,7 @@ async function ocCreatePost(status) {
   logEvent(status === 'draft' ? 'org_post_drafted' : 'org_post_created', { targetType: 'organization', targetId: _ocOrgId, targetLabel: title,
                                  school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { type: _ocType, status } });
   _ocType = 'announcement'; _ocPostFormOpen = false;
+  _ocPostFilter = status === 'draft' ? 'drafts' : 'live';   // follow it to where it now lives
   ocPostPaintTop();
   toast(status === 'draft' ? 'Draft saved' : 'Posted');
   renderOcPosts();
@@ -3227,12 +3715,12 @@ function ocAnaSince() {
 async function renderOcAnalytics() {
   const body = document.getElementById('ocBody');
   const orgId = _ocOrgId;
-  body.innerHTML = '<div class="oc-note">Loading analytics…</div>';
+  body.innerHTML = ocHeadHTML('Analytics', 'Loading…');
   const { data, error } = await supabaseClient.rpc('get_org_analytics', { p_org_id: orgId, p_since: ocAnaSince() });
   if (orgId !== _ocOrgId || _ocSection !== 'analytics') return;    // switched away while loading
   if (error) {
     const missing = error.code === 'PGRST202' || /Could not find the function/i.test(error.message || '');
-    body.innerHTML = `<div class="oc-empty-card"><b>${missing ? 'Analytics is not switched on yet' : 'Analytics could not load'}</b>
+    body.innerHTML = ocHeadHTML('Analytics', '') + `<div class="oc-empty-card"><b>${missing ? 'Analytics is not switched on yet' : 'Analytics could not load'}</b>
       <p>${missing ? 'The database update that powers this tab has not been run. Ask a Nestrel admin to run sql/2026-09-15_org_analytics_and_event_views.sql.'
         : /Not authorized/i.test(error.message || '') ? 'Your role in this club does not include analytics. Ask whoever manages your club to grant it.'
         : esc(error.message || 'Please try again.')}</p></div>`;
@@ -3288,10 +3776,11 @@ function ocAnaPaint() {
   ].filter(Boolean);
 
   body.innerHTML = `
+    ${ocHeadHTML('Analytics', 'How the club is doing. Counts only — never who.',
+      evs.length ? `<button class="org-btn" onclick="ocAnaCsv()">${icon('down', 15)} Download CSV</button>` : '')}
     <div class="oc-ana-top">
       <div class="oc-seg" role="group" aria-label="Period">${ranges.map(([v, l]) =>
         `<button class="${_ocAnaRange === v ? 'is-on' : ''}" onclick="ocAnaSetRange('${v}')">${l}</button>`).join('')}</div>
-      ${evs.length ? `<button class="org-btn" onclick="ocAnaCsv()">Download CSV</button>` : ''}
     </div>
 
     <div class="oc-kpis">
