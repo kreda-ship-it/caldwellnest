@@ -1,6 +1,6 @@
 // ============================================================
 // ADMIN
-// The whole admin dashboard: moderation queues, students, reports, appeals, broadcasts, analytics, site editor, NestBot, exports.
+// The whole admin dashboard: moderation queues, students, reports, appeals, broadcasts, analytics, site editor, exports.
 // Split out of index.html on 2026-07-11. Loaded as a plain script (not a
 // module) so every function stays global — the HTML's onclick="..." handlers
 // depend on that. Load order is set in index.html; boot.js must stay last.
@@ -81,7 +81,6 @@ async function initAdmin() {
   renderBcastHistory();
   renderBcastTemplates();
   buildAnalytics();
-  initAI();
   startAdminRealtimeListeners();
   if (localStorage.getItem('cn_admin_sidebar') === 'collapsed') {
     const sidebar = document.querySelector('.a-sidebar');
@@ -3203,87 +3202,6 @@ async function togClick(el, key) {
   }
   logAdminAction('setting_change', { targetType: 'system', meta: { setting: key, enabled: !on } });
   toast('Setting saved');
-}
-
-// ============================================================
-// AI CHATBOT
-// ============================================================
-async function buildAISys() {
-  const [{ count: stuN }, { count: suspN }, { count: repN }] = await Promise.all([
-    supabaseClient.from('profiles').select('id', { count: 'exact', head: true }),
-    supabaseClient.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'suspended'),
-    supabaseClient.from('reports').select('id',  { count: 'exact', head: true }).eq('status', 'open'),
-  ]);
-  const pendingDetails = DB.pending.length
-    ? DB.pending.map(p => `"${p.title}" by ${p.poster?.name || '?'} $${p.rent}/mo`).join('; ')
-    : 'none';
-  return `You are NestBot, the AI admin assistant for Nestrel — a student-only housing platform at Caldwell University, NJ. Current live data:
-- ${DB.pending.length} listing${DB.pending.length !== 1 ? 's' : ''} awaiting approval
-- ${DB.listings.filter(l=>l.status==='approved').length} approved listings (${DB.listings.filter(l=>l.pinned).length} pinned)
-- ${stuN ?? '?'} registered students (${suspN ?? '?'} suspended)
-- ${repN ?? '?'} open reports
-Pending listings: ${pendingDetails}
-Be concise, practical, and helpful. Suggest specific actions when relevant.`;
-}
-
-const QUICK_AI = ['Summarize platform status','Show pending listings','Any open reports?','Who is suspended?','Best listings to pin?','Approve all pending'];
-
-function initAI() {
-  document.getElementById('aiMsgs').innerHTML = '';
-  aiHistory = [];
-  addBot("Hi! I'm NestBot 👋 I'm watching the live platform data. Ask me about listings, students, reports, or any admin tasks.");
-  document.getElementById('aiQuick').innerHTML = QUICK_AI.map(q => `<button class="ai-qbtn" onclick="qAsk('${q}')">${q}</button>`).join('');
-}
-function toggleAI() { aiOpen = !aiOpen; document.getElementById('aiChat').classList.toggle('open', aiOpen); }
-function qAsk(q) { document.getElementById('aiInput').value = q; sendAI(); }
-function addBot(txt, thinking = false) {
-  const m = document.getElementById('aiMsgs');
-  const d = document.createElement('div'); d.className = 'ai-msg-b bot' + (thinking ? ' thinking' : '');
-  if (thinking) d.id = 'aiThink'; d.textContent = txt; m.appendChild(d); m.scrollTop = m.scrollHeight;
-}
-function addUserMsg(txt) {
-  const m = document.getElementById('aiMsgs'); const d = document.createElement('div');
-  d.className = 'ai-msg-b user'; d.textContent = txt; m.appendChild(d); m.scrollTop = m.scrollHeight;
-}
-async function getFallbackAIReply(msg) {
-  const text = msg.toLowerCase();
-  const pendingCount = Array.isArray(DB.pending) ? DB.pending.length : 0;
-  const approvedCount = Array.isArray(DB.listings) ? DB.listings.filter(l => l.status === 'approved').length : 0;
-
-  if (text.includes('pending') || text.includes('approval')) {
-    return `There are ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'} waiting for review.`;
-  }
-  if (text.includes('report')) {
-    // Ask the database. This used to count DB.reports — a legacy in-memory array that is never
-    // populated, so NestBot confidently answered "0 open reports" even when reports were waiting.
-    const { count, error } = await supabaseClient
-      .from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
-    if (error) { console.warn('[NestBot reports]', error.message); return "I couldn't read the reports table just now — try the Reports section."; }
-    const n = count || 0;
-    return `There ${n === 1 ? 'is' : 'are'} ${n} open report${n === 1 ? '' : 's'} right now.`;
-  }
-  if (text.includes('student') || text.includes('listing')) {
-    return `The current view shows ${approvedCount} approved listing${approvedCount === 1 ? '' : 's'} and ${pendingCount} pending listing${pendingCount === 1 ? '' : 's'}.`;
-  }
-  return 'NestBot is running in local preview mode right now. It can summarize the visible platform state, but it cannot reach the Claude API from this browser session. Ask about pending listings, reports, or current listings and I will help from the data already on this page.';
-}
-
-async function sendAI() {
-  const inp = document.getElementById('aiInput'); const msg = inp.value.trim(); if (!msg) return;
-  inp.value = ''; addUserMsg(msg);
-  document.getElementById('aiQuick').style.display = 'none';
-  addBot('Thinking...', true);
-  aiHistory.push({ role: 'user', content: msg });
-  try {
-    const reply = await getFallbackAIReply(msg); // async now — it queries the reports count
-    const t = document.getElementById('aiThink'); if (t) t.remove();
-    addBot(reply); aiHistory.push({ role: 'assistant', content: reply });
-    if (aiHistory.length > 20) aiHistory = aiHistory.slice(-18);
-  } catch (e) {
-    const t = document.getElementById('aiThink'); if (t) t.remove();
-    addBot('⚠️ NestBot is unavailable right now. Please try again in a moment.');
-  }
-  document.getElementById('aiMsgs').scrollTop = 9999;
 }
 
 // ============================================================

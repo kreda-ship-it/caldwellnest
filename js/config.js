@@ -13,7 +13,7 @@
 // of '2026-09-01' means "this person accepted the documents as they read on that date".
 // Without it, a stored timestamp would only prove SOMEONE agreed to SOMETHING.
 // Old profiles keep the version they accepted — never rewrite them to match this.
-const TERMS_VERSION = '2026-09-25';
+const TERMS_VERSION = '2026-09-25b';
 // The day consent recording went live. Accounts older than this have no consent record
 // because none was ever captured — which is different from an account that SHOULD have one
 // and doesn't. The admin student view uses this to tell those two apart instead of flagging
@@ -138,8 +138,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const AC=['#2d6148','#3B5BA5','#C0392B','#7D3C98','#D68910','#117A65','#A04000'];
 
 // students / convos / reports were removed 2026-07-13. They were empty leftovers from before this
-// data moved to Supabase, and nothing ever wrote to them — which is exactly how NestBot ended up
-// counting DB.reports and confidently answering "0 open reports" while reports sat waiting.
+// data moved to Supabase, and nothing ever wrote to them — which is how the old admin assistant
+// (removed 2026-09-25) ended up counting DB.reports and answering "0 open reports" while reports sat waiting.
 // Every surface now queries Supabase directly. Don't reintroduce a cache without a writer.
 const DB = {
   pending:[],  // populated from Supabase listings (status=pending) via loadListings()
@@ -196,7 +196,6 @@ let aBookRejectId = null;
 let _dashLogFilter = 'all';
 let _actPage = 0, _actFilter = 'all';
 let _adminRealtimeChannels = [];
-let aiOpen = false, aiHistory = [];
 let bType        = 'announcement';
 let _bDisplayType = 'both';
 let _bEditId      = null;

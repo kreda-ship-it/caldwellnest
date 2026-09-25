@@ -98,7 +98,6 @@ if (!adminPreviewMode && !_recoveryMode) {
     }
     document.getElementById('studentApp').style.display = 'none';
     document.getElementById('adminApp').style.display = 'block';
-    document.getElementById('aiFab').style.display = 'flex';
     currentRole = 'admin';
     adminUUID = session.user.id;
     initAdmin();

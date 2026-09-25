@@ -3,7 +3,7 @@
 ## About this project
 CaldwellNest is a student-only housing and campus-life platform for Caldwell University students.
 It has two interfaces sharing one data store (`DB`, defined in `js/config.js`):
-- Student interface: sign-up gate (.edu email), listings feed + filters, post a room, in-app messaging, NestBot AI helper.
+- Student interface: sign-up gate (.edu email), listings feed + filters, post a room, in-app messaging, clubs and events.
 - Admin dashboard: approve/reject/pin listings, student + verification queues, live site editor, broadcasts, analytics, data export, health monitor.
 
 ## File layout (split out of the old single file on 2026-07-11)
@@ -102,4 +102,4 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 ## Known limitations (do NOT "fix" these silently — they're known and planned)
 - Core data (accounts, profiles, listings, messages, books) persists in Supabase. The ADMIN side still has in-memory pieces that reset on refresh: the live site editor content (`DB.content`) and `DB.settings`. Persisting those is a future task.
 - **`admin_activity_log` is the activity log, and there is only one.** A Supabase table, written by `logEvent()` and read back by `fetchActivityLog()` with filtering, paging and undo. **Write all logging through `logEvent()`.** There used to be a second, in-memory `DB.log` that reset on refresh; it was read only by the data export until 2026-09-03, and its 21 dead writes were removed 2026-09-04. If you see `DB.log` referenced in a comment, that is history, not a thing that exists.
-- NestBot calls the Anthropic API from the browser, so it only works inside Claude's preview, not a plain browser. A real backend will fix this later.
+- There is no AI assistant. NestBot (the admin chat helper) was removed on 2026-09-25 at Kal's request, with its mentions in the Terms and Privacy Policy. Don't reintroduce one without updating both pages first. `nestbot` stays in `RESERVED_USERNAMES` so nobody can pose as it.

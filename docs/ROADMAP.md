@@ -436,6 +436,8 @@ not a modal. Navigated to by clicking any student name anywhere in admin.
 - ⬜ **Move NestBot AI server-side** — so the AI bot works on the live site
       without exposing an API key in the browser. Needs a Supabase Edge Function.
       Low urgency while still in dev.
+      *❌ Dropped 2026-09-25: NestBot was removed entirely (Kal: "we won't use it"), along with
+      its sections in the Terms and Privacy Policy. Nothing left to move server-side.*
 
 ---
 
@@ -577,7 +579,7 @@ NOTIFY pgrst, 'reload schema';
 - ⬜ Remove the demo login button from the login screen
 - ⬜ Remove `demoLogin()` function and its call sites
 - ⬜ Remove all demo-account conditional fallbacks (e.g. NestBot's "Demo User"
-      fallback text, any `isDemoUser` checks)
+      fallback text, any `isDemoUser` checks) *(2026-09-25: the NestBot part is moot — NestBot removed)*
 - *Note: this was useful during development. It's a security and data-quality
   risk in beta — any real student can click it and access the app unverified.*
 
@@ -1019,7 +1021,7 @@ profile and editing flow is partially built.
 ---
 
 ## Known limitations to remember
-- NestBot AI only works inside Claude's preview until moved server-side
+- NestBot AI only works inside Claude's preview until moved server-side *(no longer applies: NestBot removed 2026-09-25)*
 - Email confirmation is OFF for development — turn it back ON before real launch
 - No automatic backups on Supabase free tier — don't store anything irreplaceable
 - Free Supabase projects pause after ~1 week of inactivity (just un-pause them)

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25v">
+<link rel="stylesheet" href="styles.css?v=2026-09-25w">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -607,7 +607,6 @@
         <div class="a-topbar-right">
           <span class="note-xs a-top-note">Live data</span>
           <button class="btn-sm-a btn-a-neutral" id="adminRefreshBtn" onclick="refreshAdmin()">&#8635; Refresh</button>
-          <button class="btn-sm-a btn-a-brand" onclick="toggleAI()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><path d="M12 8V4M9 4h6"/></svg> NestBot</button>
           <button class="btn-sm-a btn-a-neutral a-top-student" onclick="enterStudentPreview()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Student view</button>
         </div>
       </div>
@@ -1926,45 +1925,29 @@
   </div>
 </div>
 
-<!-- AI CHATBOT -->
-<button class="ai-fab" id="aiFab" style="display:none;" onclick="toggleAI()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><path d="M12 8V4M9 4h6"/></svg><div class="ai-fab-badge">AI</div></button>
-<div class="ai-chat" id="aiChat">
-  <div class="ai-chat-head">
-    <div class="ai-chat-av"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><circle cx="9" cy="14" r="1.3"/><circle cx="15" cy="14" r="1.3"/><path d="M12 8V4M9 4h6"/></svg></div>
-    <div><div class="ai-chat-name">NestBot</div><div class="ai-chat-status">Local preview mode · Admin AI</div></div>
-    <button class="ai-close-btn" onclick="toggleAI()">&#215;</button>
-  </div>
-  <div class="ai-msgs" id="aiMsgs"></div>
-  <div class="ai-qbtns" id="aiQuick"></div>
-  <div class="ai-input-row">
-    <input class="ai-input" id="aiInput" placeholder="Ask about the platform..." onkeydown="if(event.key==='Enter')sendAI()">
-    <button class="ai-send" onclick="sendAI()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="3" x2="10.5" y2="13.5"/><polygon points="21 3 14.5 21 10.5 13.5 3 9.5 21 3"/></svg></button>
-  </div>
-</div>
-
 <div class="toast" id="toastEl"></div>
 
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-25c"></script>
+<script src="js/config.js?v=2026-09-25d"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-25c"></script>
+<script src="js/auth.js?v=2026-09-25d"></script>
 <script src="js/profile.js?v=2026-09-25c"></script>
 <script src="js/listings.js?v=2026-09-25a"></script>
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-25c"></script>
-<script src="js/admin.js?v=2026-09-24a"></script>
+<script src="js/admin.js?v=2026-09-25a"></script>
 <script src="js/orgs.js?v=2026-09-25c"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
 <script src="js/orgdir.js?v=2026-09-25c"></script>
 <script src="js/feed.js?v=2026-09-25d"></script>
 <script src="js/inbox.js?v=2026-09-25e"></script>
-  <script src="js/boot.js?v=2026-09-24a"></script>
+  <script src="js/boot.js?v=2026-09-25a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

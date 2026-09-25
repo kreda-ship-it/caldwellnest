@@ -45,7 +45,6 @@ async function doAdminLogin() {
   closeModal('adminLoginModal');
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
-  document.getElementById('aiFab').style.display = 'flex';
   currentRole = 'admin';
   initAdmin();
 }
@@ -60,7 +59,6 @@ async function aLogout() {
   clearOrgDirectory();
   clearFavorites();
   document.getElementById('adminApp').style.display = 'none';
-  document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
   currentRole = 'student';
 }
@@ -70,7 +68,6 @@ async function enterStudentPreview() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   adminUUID = user?.id || null;
   document.getElementById('adminApp').style.display = 'none';
-  document.getElementById('aiFab').style.display = 'none';
   document.getElementById('studentApp').style.display = 'block';
   updateSNav();
   showPage('feed');
@@ -83,7 +80,6 @@ function switchBackToAdmin() {
   sUser = null;
   document.getElementById('studentApp').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
-  document.getElementById('aiFab').style.display = 'flex';
 }
 
 async function sLogout() {
