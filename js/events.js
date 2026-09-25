@@ -220,6 +220,11 @@ function evPaint() {
     days[days.length - 1].items.push(e);
   }
 
+  // Recaps from recent events, after the first day (see evRecapsMainHTML). A one-item section, so
+  // the stream draws it in its turn like any other.
+  const recapRow = evRecapsMainHTML();
+  if (recapRow && days.length) days.splice(1, 0, { items: [0], cardHTML: () => recapRow, headHTML: '' });
+
   // With a club picked, its past events are the interesting part of the tail too.
   const past = _evFeedOrg ? _evPast.filter(e => e.org_id === _evFeedOrg) : _evPast;
   const filtered = _evFeedOrg || _evFeedType || _evFeedWhen || _evFeedDay || _evFeedFollowing;
@@ -247,10 +252,9 @@ function evPaint() {
       <button class="ev-note-btn" onclick="evStory(null)">See every club</button></div>`;
     else if (!rows.length && filtered) html += `<div class="ev-note">Nothing matches that.
       <button class="ev-note-btn" onclick="evFeedClear()">Show everything</button></div>`;
-    // Recaps are out in the open (on a phone; a desktop has them in the side column), then the
-    // rest of the past behind a chip. The photo count is the reason anyone taps it — a past
-    // event with recap photos is worth looking at, and one without is not.
-    html += evRecapsMainHTML();
+    // The rest of the past behind a chip (recaps are already in the feed, after the first day).
+    // The photo count is the reason anyone taps it — a past event with recap photos is worth
+    // looking at, and one without is not.
     if (past.length) {
       html += `
         <button class="ev-past-chip" onclick="evTogglePast(this)">
@@ -571,24 +575,6 @@ async function evLoadRecaps(ids) {
   return out;
 }
 
-// Recaps shared lately, newest first, for Home ("from clubs you follow") — each with its event's
-// title and club. orgIds narrows it; without them it is the student's whole school.
-async function evRecentRecaps({ orgIds = null, days = 14, limit = 8 } = {}) {
-  const eu = getEffectiveUser();
-  if (!eu || (orgIds && !orgIds.length)) return [];
-  let q = supabaseClient.from('events').select('id, org_id, title, starts_at, recap_shared_at')
-    .not('recap_shared_at', 'is', null)
-    .gte('recap_shared_at', new Date(Date.now() - days * 864e5).toISOString())
-    .eq('school', eu.school || 'caldwell')
-    .order('recap_shared_at', { ascending: false }).limit(limit);
-  if (orgIds) q = q.in('org_id', orgIds);
-  const { data, error } = await q;
-  if (error || !data || !data.length) return [];
-  const recaps = await evLoadRecaps(data.map(e => e.id));
-  return data.filter(e => recaps.get(e.id)?.photos.length)
-    .map(e => ({ ...e, ...recaps.get(e.id) }));
-}
-
 // Up to four photos as a mosaic; "+N" on the last when there are more.
 function evRecapMosaicHTML(photos, max = 4) {
   const shown = photos.slice(0, max);
@@ -629,29 +615,36 @@ function evRecapGo(i) {
   document.querySelector('#evDetailModal .modal')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// This page's recaps: past events with a shared recap and photos, newest share first, from the
-// last three weeks (a recap is news for a while, then it is history — the Past list keeps it).
-function evRecapRows() {
-  const since = Date.now() - 21 * 864e5;
+// "Recaps from recent events" — one list, used by Home, the Events page and (per club) nothing else:
+// past events with a shared recap and at least one photo, from the last three weeks, newest share
+// first. A recap is news for a while; after that it lives on the event and on the club's Past tab.
+// Built from what loadEvents() already fetched (_evPast, _evRecaps) — no query of its own.
+function evRecentRecapList({ orgId = null, days = 21, limit = 8 } = {}) {
+  const since = Date.now() - days * 864e5;
   return _evPast
-    .filter(e => (!_evFeedOrg || e.org_id === _evFeedOrg))
+    .filter(e => !orgId || e.org_id === orgId)
     .map(e => [e, _evRecaps.get(e.id)])
     .filter(([, r]) => r && r.photos.length && new Date(r.sharedAt).getTime() > since)
     .sort((a, b) => new Date(b[1].sharedAt) - new Date(a[1].sharedAt))
-    .slice(0, 6);
+    .slice(0, limit);
 }
-// On a phone: a sideways row after the upcoming events (CSS hides it where the side column shows).
+const EV_RECAPS_TITLE = 'Recaps from recent events';
+
+// On a phone: a sideways row of photo tiles, dropped into the feed after the first day of events —
+// the way Instagram slips a "suggested" row in after a few posts — so it is seen without pushing
+// the first event off the first screen. CSS hides it where the side column shows (evRecapsSideHTML).
 function evRecapsMainHTML() {
-  const rows = evRecapRows();
+  const rows = evRecentRecapList({ orgId: _evFeedOrg });
   if (!rows.length) return '';
-  return `<section class="ev-recaps-main"><h2 class="ev-section-h">Recaps</h2>
-    <div class="ev-recaps-row">${rows.map(([e, r]) => evRecapCardHTML(e, r)).join('')}</div></section>`;
+  return `<section class="ev-recaps-main"><h2 class="ev-section-h">${EV_RECAPS_TITLE}</h2>
+    <div class="ev-recaps-row">${rows.map(([e]) => evPastTileHTML(e)).join('')}</div></section>`;
 }
+// On a desktop: in the side column, four tiles in a square.
 function evRecapsSideHTML() {
-  const rows = evRecapRows();
+  const rows = evRecentRecapList({ orgId: _evFeedOrg, limit: 4 });
   if (!rows.length) return '';
-  return `<section class="ev-side-card"><h2 class="ev-side-h">Recaps</h2>
-    <div class="ev-recaps-col">${rows.slice(0, 3).map(([e, r]) => evRecapCardHTML(e, r)).join('')}</div></section>`;
+  return `<section class="ev-side-card"><h2 class="ev-side-h">${EV_RECAPS_TITLE}</h2>
+    <div class="ev-recaps-grid">${rows.map(([e]) => evPastTileHTML(e)).join('')}</div></section>`;
 }
 
 // A past event as a small tile: its poster and when it was. Past events are for looking back

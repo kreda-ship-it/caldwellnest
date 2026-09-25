@@ -4781,12 +4781,12 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .ev-recap-text b { font-size: 15px; font-weight: 600; line-height: 1.3; }
 .ev-recap-note { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
   font-size: 13px; line-height: 1.45; color: var(--text-muted); }
-.ev-recaps-col { display: flex; flex-direction: column; gap: 12px; }
 /* On a phone, a sideways row after the upcoming events; where the side column shows, it has them. */
-.ev-recaps-main { margin-top: 26px; }
 .ev-recaps-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .ev-recaps-row::-webkit-scrollbar { display: none; }
-.ev-recaps-row .ev-recap { flex: 0 0 min(80%, 300px); scroll-snap-align: start; }
+.ev-recaps-row .ev-past-tile { flex: 0 0 140px; scroll-snap-align: start; }
+.ev-recaps-main { margin: 6px 0 22px; }
+.ev-recaps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
 @container evfeed (min-width: 660px) { .ev-recaps-main { display: none; } }
 /* A past event's tile carries its photo count once a recap is shared. */
 .ev-past-img { position: relative; }
@@ -4798,7 +4798,6 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 @container oppage (min-width: 900px) {
   .op-past .ev-recap { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: center; gap: 16px; }
 }
-.hn-recap .ev-mosaic { aspect-ratio: 2 / 1; }
 
 /* On the event itself: the recap leads, above the description. */
 .evd-recap { margin: 4px 0 18px; padding: 14px; border-radius: 16px; background: var(--brand-pale); }
@@ -4809,9 +4808,6 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .evd-recap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; margin-top: 12px; }
 .evd-recap-ph { aspect-ratio: 1; overflow: hidden; padding: 0; border: 0; border-radius: 10px; background: var(--bg-alt); cursor: pointer; }
 .evd-recap-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
-
-/* On Home, in Campus news. */
-.hn-recap { display: block; width: 100%; margin-top: 10px; padding: 0; border: 0; background: none; cursor: pointer; }
 
 /* In the console: the recap for students first, then what people thought. */
 .oc-recap { padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); }
@@ -4830,3 +4826,24 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 /* Said plainly when a feature is waiting on the database, rather than the feature just not being there. */
 .oc-needs-db { display: block; padding: 9px 12px; border-radius: 10px; background: var(--accent-pale); color: var(--accent-ink); line-height: 1.5; }
 .oc-needs-db b { font-weight: 600; word-break: break-all; }
+
+/* Recaps from recent events on Home: the Market row's size and rhythm. */
+#homeRecaps { order: 6; }
+.home-recaps .ev-past-tile { flex: 0 0 150px; scroll-snap-align: start; }
+
+/* A club's recaps as highlights: circles with the recap's first photo, ringed like the Events
+   stories, the event's name under each. */
+.op-hl { margin-bottom: 18px; }
+.op-hl .op-sec-title { margin-bottom: 10px; }
+.op-hl-row { display: flex; gap: 14px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; }
+.op-hl-row::-webkit-scrollbar { display: none; }
+.op-hl-i { flex: 0 0 76px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0;
+  background: none; font-family: inherit; cursor: pointer; }
+.op-hl-ring { display: block; width: 68px; height: 68px; padding: 3px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-light), var(--accent-warm)); }
+.op-hl-ring img { display: block; width: 100%; height: 100%; border: 2px solid var(--bg); border-radius: 50%; object-fit: cover; }
+.op-hl-i:hover .op-hl-ring { transform: scale(1.04); }
+.op-hl-ring { transition: transform var(--dur) var(--ease); }
+.op-hl-i:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); border-radius: 12px; }
+.op-hl-t { width: 100%; overflow: hidden; font-size: 11.5px; line-height: 1.3; color: var(--text); text-align: center;
+  white-space: nowrap; text-overflow: ellipsis; }

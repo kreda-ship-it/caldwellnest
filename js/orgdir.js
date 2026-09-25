@@ -490,6 +490,7 @@ function orgPagePaint() {
       ${_opOfficers.length ? `<div class="op-side2">${orgOfficersHTML(_opOfficers.map(x =>
         ({ name: `${x.first_name || ''} ${x.last_name || ''}`.trim(), title: x.title })))}</div>` : ''}
       <div class="op-main">
+        ${orgRecapHighlightsHTML()}
         <div class="op-tabs" role="tablist">${tabs.map(([k, label, n]) => `
           <button class="op-tab${_opTab === k ? ' is-on' : ''}" role="tab" aria-selected="${_opTab === k}"
                   onclick="orgPageTab('${k}')">${label}${n ? `<span class="op-tab-n">${n}</span>` : ''}</button>`).join('')}</div>
@@ -518,6 +519,27 @@ function orgOfficersHTML(list) {
 }
 
 function orgPageTab(k) { _opTab = k; orgPagePaint(); }
+
+// The club's recaps as a row of circles above its tabs — where Instagram puts Highlights, under
+// the bio and above the posts, because that is what a visitor sees before deciding to follow: what
+// this club's events actually look like. Newest first; each opens its event, recap first. All of
+// the club's shared recaps, not only recent ones — on its own page they are its history.
+function orgRecapHighlightsHTML() {
+  const items = _opEvents.filter(e => e.has_ended)
+    .map(e => [e, _opRecaps.get(e.id)])
+    .filter(([, r]) => r && r.photos.length)
+    .sort((a, b) => new Date(b[1].sharedAt) - new Date(a[1].sharedAt));
+  if (!items.length) return '';
+  return `
+    <section class="op-hl" aria-label="Recaps">
+      <h2 class="op-sec-title">Recaps</h2>
+      <div class="op-hl-row">${items.map(([e, r]) => `
+        <button class="op-hl-i" onclick="evOpen(${Number(e.id)})" title="${escAttr(e.title)} · ${r.photos.length} photo${r.photos.length === 1 ? '' : 's'}">
+          <span class="op-hl-ring"><img src="${escAttr(r.photos[0])}" alt="" loading="lazy"></span>
+          <span class="op-hl-t">${esc(e.title)}</span>
+        </button>`).join('')}</div>
+    </section>`;
+}
 
 function orgPageTabHTML(upcoming, past) {
   if (_opTab === 'posts') {
