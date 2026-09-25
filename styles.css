@@ -4826,3 +4826,7 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .oc-recap-fb > .oc-recap-t { margin-bottom: 8px; }
 .oc-fb-more { margin-top: 12px; }
 .oc-fb-more > summary { font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+
+/* Said plainly when a feature is waiting on the database, rather than the feature just not being there. */
+.oc-needs-db { display: block; padding: 9px 12px; border-radius: 10px; background: var(--accent-pale); color: var(--accent-ink); line-height: 1.5; }
+.oc-needs-db b { font-weight: 600; word-break: break-all; }

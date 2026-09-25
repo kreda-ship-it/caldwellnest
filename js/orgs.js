@@ -1800,7 +1800,11 @@ async function renderOcProfile() {
           <h3 class="oc-card-t">The basics</h3>
           ${_ocCoverReady ? `<div id="ocCoverBox">${ocCoverHTML(canEdit)}</div>
             <span class="oc-hint oc-cover-hint">The wide photo across the top of your page — a group shot or your best event works well. About 3 : 1; the middle is what shows on a phone.</span>`
-            : ''}
+            // Said, not silently left out: a missing box looked like a missing feature (2026-09-25).
+            : `<div class="oc-cover" data-tint="${((Number(row.id) || 0) % 6) + 1}">
+                <span class="oc-cover-empty">${icon('image', 22)}<span>Cover photo</span></span></div>
+              <span class="oc-hint oc-cover-hint oc-needs-db">Cover photos need a one-time database update first:
+                <b>sql/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Once it has run, the upload button appears here.</span>`}
           <div class="oc-logo-row">
             ${_dirLogoHTML(row, 'oc-logo')}
             <div class="oc-logo-side">
@@ -4200,7 +4204,9 @@ function ocPaintRecap(msg) {
         ${_ocRecapReady ? (shared ? `<span class="oc-chip oc-chip-live">${icon('check', 11)} Shared ${esc(sharedOn)}</span>`
                                    : '<span class="oc-chip">Draft · only officers see it</span>') : ''}
       </div>
-      <p class="oc-recap-lead">${!_ocRecapReady ? 'Photos show to students as soon as they are added.'
+      <p class="oc-recap-lead">${!_ocRecapReady ? `<span class="oc-needs-db">Sharing a recap as a draft first needs a one-time
+          database update: <b>sql/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Until then there is no
+          Share recap button, and photos show to students as soon as they are added.</span>`
         : shared ? "Students see it on the event, on your club page, in Recaps on the Events page, and on your followers' Home for a week."
         : 'Add your best photos and a line about how it went. Nothing is shown to students until you share it.'}</p>
       ${recapShots.length ? `<div class="oc-ev-strip">${recapShots.map(m => `
