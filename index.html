@@ -6,13 +6,28 @@
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=2026-09-25x">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
+     This script holds every visitor's login, so it must not change without us knowing. `@2` meant
+     "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
+     next page load. Now the browser checks the file against the sha384 fingerprint and refuses
+     to run anything else.
+     Full file path on purpose: jsDelivr adds a comment banner to bare package URLs, which it
+     warns makes them unsafe for integrity checks.
+     TO UPGRADE: change the version AND the integrity value together. Fingerprint:
+       curl -s <new url> | openssl dgst -sha384 -binary | openssl base64 -A
+     A version changed without its fingerprint is refused by the browser, and the app will not start. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"
+        integrity="sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz"
+        crossorigin="anonymous"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
      Deliberately a LIBRARY and not an image API — an API would send every event URL to a
      third party, and the QR is the one part of the door that must not depend on anybody
-     else's server being up. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+     else's server being up.
+     The integrity value is the fingerprint cdnjs itself publishes for this file (2026-09-25). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+        crossorigin="anonymous"></script>
 </head>
 <body>
 
