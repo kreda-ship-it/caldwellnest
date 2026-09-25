@@ -147,7 +147,7 @@ const DB = {
   pendingBooks:[], // admin-only: book_listings (status=pending) via loadAdminBooks()
   adminBooks:[],   // admin-only: book_listings (status!=pending) via loadAdminBooks()
   settings:{requireApproval:true,eduOnly:true,emailAlerts:true,maintenance:false},
-  content:{siteName:'Nestrel',tagWord:'Nest',h1:'One trusted hub',h2:'campus life.',sub:'Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.',cta:'Get started free',listTitle:'Marketplace',listSub:'Find what you need, right on campus.',banner:'',bannerOn:false}
+  content:{siteName:'Nestrel',tagWord:'Nest',h1:'One trusted hub',h2:'campus life.',sub:"The plans, the people, the stuff — everything happening at your school, in one place. And everyone on it actually goes there.",cta:'Join with your school email',listTitle:'Marketplace',listSub:'Find what you need, right on campus.',banner:'',bannerOn:false}
 };
 
 // ============================================================

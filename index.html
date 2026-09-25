@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25s">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2026-09-25u">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -86,157 +86,125 @@
   <!-- HOME -->
   <div id="page-home" class="page active">
 
-    <!-- HERO
-         The id sits on the SPAN inside the button, not on the button. applyDBContent() does
-         heroCta.textContent = c.cta, which replaces every child — an icon inside the element
-         holding that id would be wiped on load, the same trap toast() sets. -->
-    <div class="hero">
+    <!-- THE LANDING PAGE (2026-09-25), rebuilt to be minimal: one promise, one picture of a
+         semester, why it is safe, one button. It used to pitch feature by feature over ten
+         sections (the problem, how it works, six features, who it is for…); a student deciding
+         whether to join needs to picture their college life with it, not read a spec.
+
+         The ids heroH1 / heroEm / heroSub / heroCta stay: the admin site editor writes into them
+         (applyDBContent in js/data.js), and its default text lives in js/config.js. heroCta sits
+         on the SPAN inside the button, not on the button — applyDBContent replaces its text, which
+         would wipe an icon inside the element holding that id. -->
+    <div class="hero lp-hero">
       <div class="hero-text">
-        <div class="hero-badge"><span class="live-dot"></span>Now live at Caldwell University</div>
+        <div class="hero-badge"><span class="live-dot"></span>Now at Caldwell University</div>
         <h1 id="heroH1">One trusted hub<br>for <em id="heroEm">campus life.</em></h1>
-        <p id="heroSub">Housing, marketplace, free stuff, events, and a verified student community &mdash; all in one place, just for your school.</p>
+        <p id="heroSub">The plans, the people, the stuff — everything happening at your school, in one place. And everyone on it actually goes there.</p>
         <div class="hero-cta">
           <button class="btn-primary" onclick="openModal('signupModal')">
-            <span id="heroCta">Get started free</span>
+            <span id="heroCta">Join with your school email</span>
             <svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </button>
-          <button class="btn-outline" onclick="document.getElementById('for-schools').scrollIntoView({behavior:'smooth'})">Bring Nestrel to your school</button>
         </div>
         <p class="hero-trust">
           <svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-          Every member is .edu verified. Students only.
+          Students only &mdash; every account is verified with a school email.
         </p>
-        <p class="hero-byline">By Amahle Digital Creatives</p>
       </div>
 
-      <!-- A picture of the product, drawn in CSS rather than shipped as a screenshot: it stays
-           sharp on every display, weighs nothing, and cannot go stale the way an exported PNG
-           of last month's UI does. Decorative, so hidden from screen readers, and hidden
-           outright on a phone — a picture of a phone, inside a phone, is a joke at the
-           reader's expense and costs a screenful of height. -->
-      <div class="hero-mock" aria-hidden="true">
+      <!-- An evening on Nestrel, drawn in CSS: tonight's event, recap photos, a club asking
+           something, a classmate passing something on. Decorative (aria-hidden), and not drawn on
+           a phone — a picture of a phone inside a phone costs a screenful and says nothing. -->
+      <div class="lp-mockwrap" aria-hidden="true">
+        <!-- Little notes stuck around the phone, the way a campus actually talks to you. Frank the
+             fridge turns up again further down the page, for anyone paying attention. -->
+        <span class="lp-sticker s1">🍕 Free pizza · 6 PM</span>
+        <span class="lp-sticker s2">✓ You're going</span>
+        <span class="lp-sticker s3">Free: mini fridge named Frank</span>
+      <div class="hero-mock">
         <div class="hm-screen">
           <div class="hm-top"><span class="hm-wordmark">Nest<span>rel</span></span><span class="hm-avatar"></span></div>
           <div class="hm-body">
-            <div class="hm-greet">Good morning, Kal</div>
-            <div class="hm-chips"><span class="hm-chip c1"></span><span class="hm-chip c2"></span><span class="hm-chip c3"></span><span class="hm-chip c4"></span></div>
-            <div class="hm-card">
-              <div class="hm-card-img"></div>
-              <div class="hm-card-body">
-                <span class="hm-card-tag">Housing</span>
-                <span class="hm-card-title">Single room, 8 min walk</span>
-                <span class="hm-card-price">$780</span>
-              </div>
+            <div class="hm-greet">Good evening, Maya</div>
+            <div class="lpm-next">
+              <span class="lpm-date"><b>8</b>PM</span>
+              <span class="lpm-next-t"><span class="lpm-k">Tonight</span><b>Open mic night</b><span>Student Center &middot; 24 going</span></span>
             </div>
-            <div class="hm-club"><span class="hm-club-title">Join a club</span><span class="hm-club-btn">Explore</span></div>
+            <div class="lpm-h">Recaps from recent events</div>
+            <div class="lpm-recaps"><span class="t1"></span><span class="t2"></span><span class="t3"></span></div>
+            <div class="lpm-post">
+              <span class="lpm-post-h"><span class="lpm-logo">F</span><b>Film Society</b> asked</span>
+              <span class="lpm-post-q">Movie night: Friday or Saturday?</span>
+              <span class="lpm-bar is-lead"><i></i><span>Friday</span></span>
+              <span class="lpm-bar"><i></i><span>Saturday</span></span>
+            </div>
+            <div class="lpm-item"><span class="lpm-thumb"></span><span class="lpm-item-t"><b>Desk lamp</b><span>$10 &middot; two dorms over</span></span></div>
           </div>
           <div class="hm-tabs"><span class="hm-tab on"></span><span class="hm-tab"></span><span class="hm-plus"></span><span class="hm-tab"></span><span class="hm-tab"></span></div>
         </div>
       </div>
+      </div>
     </div>
 
-    <!-- THE PROBLEM -->
-    <div class="home-section bg-alt">
-      <div class="home-section-inner">
-        <h2 class="home-h2">The problem we lived</h2>
-        <p class="home-lead">Looking for housing or campus resources meant scrolling Facebook Marketplace, sending cold DMs to strangers, or hoping someone posted in an overflowing group chat. No way to verify anyone was a student. No moderation. No safety. Just chaos.</p>
-        <div class="hiw-grid">
-          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M3 21 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M3 3l5 5"/></svg></div><div class="hiw-card-title">Scattered across apps</div><div class="hiw-card-text">GroupMe, Facebook, Snapchat — no one place to find housing, deals, or campus resources.</div></div>
-          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z"/><line x1="9.7" y1="9.7" x2="14.3" y2="14.3"/><line x1="14.3" y1="9.7" x2="9.7" y2="14.3"/></svg></div><div class="hiw-card-title">No verification</div><div class="hiw-card-text">No way to know if someone was actually a student. Scams and strangers everywhere.</div></div>
-          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg></div><div class="hiw-card-title">Built for everyone else</div><div class="hiw-card-text">Existing platforms weren't designed for students. Verified campus community was an afterthought.</div></div>
+    <!-- YOUR YEAR, as a scrapbook (2026-09-25). Notes in the reader's own voice — specific, a bit
+         funny, the details nobody bothers to invent — pinned up with tape and a handwritten month.
+         They are the reader's imagined year, NOT quotes from real students: presenting made-up
+         testimonials as real would be misleading, so the heading says whose year this is.
+         The range is still the point: a club, a night out, a textbook, the photos, selling, giving,
+         and — last, as one moment among many — next year's room. -->
+    <section class="lp-sec lp-year">
+      <div class="lp-inner">
+        <h2 class="lp-h2">Your year, give or take.</h2>
+        <ol class="lp-notes">
+          <li class="lp-note" data-tint="1"><span class="lp-when">August</span>
+            <p>Went to one club meeting for the free pizza. Somehow I'm the treasurer now.</p></li>
+          <li class="lp-note" data-tint="3"><span class="lp-when">a random Tuesday</span>
+            <p>Saw there was an open mic at 7. Went. Didn't sing. Clapped very supportively.</p></li>
+          <li class="lp-note" data-tint="5"><span class="lp-when">October</span>
+            <p>Got my orgo textbook for $20 from a senior. &ldquo;Barely highlighted,&rdquo; she said. It was very highlighted.</p></li>
+          <li class="lp-note" data-tint="2"><span class="lp-when">the morning after</span>
+            <p>Someone posted the photos from the cleanup. I'm in eleven of them. I look good in two.</p></li>
+          <li class="lp-note" data-tint="4"><span class="lp-when">finals week</span>
+            <p>Sold my desk lamp to a guy two floors down. Didn't even put shoes on.</p></li>
+          <li class="lp-note" data-tint="1"><span class="lp-when">May</span>
+            <p>Gave my mini fridge to a first-year instead of leaving it on the curb. She named it Frank.</p></li>
+          <li class="lp-note" data-tint="6"><span class="lp-when">next fall</span>
+            <p>Found my room for next year from a senior who's graduating. No sketchy links. No &ldquo;is this still available?&rdquo; into the void.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- WHY IT IS SAFE — three short lines, said the way a person would say them. -->
+    <section class="lp-sec lp-sec-alt">
+      <div class="lp-inner lp-trust">
+        <div class="lp-t">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <b>Only students.</b><span>You sign in with your school email. So does everyone else.</span>
+        </div>
+        <div class="lp-t">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          <b>Your number stays yours.</b><span>Talk in the app until you've actually met.</span>
+        </div>
+        <div class="lp-t">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          <b>Something off? Say so.</b><span>Report it, and a real person reads it.</span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- HOW IT WORKS -->
-    <div class="home-section">
-      <div class="home-section-inner">
-        <h2 class="home-h2">How it works</h2>
-        <p class="home-lead">Three steps to your verified campus hub</p>
-        <div class="hiw-grid">
-          <div class="hiw-card hiw-card-link" role="button" tabindex="0" onclick="openModal('signupModal')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('signupModal')}"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg></div><div class="hiw-card-title">1. Sign up with your .edu</div><div class="hiw-card-text">We verify your email and match you to your school's hub. Students only — no outsiders.</div><span class="hiw-card-cta">Create your account &#8594;</span></div>
-          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="hiw-card-title">2. Your campus hub opens</div><div class="hiw-card-text">Housing, marketplace, free stuff, events — all verified, all in one place, all your school.</div></div>
-          <div class="hiw-card"><div class="hiw-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><div class="hiw-card-title">3. Connect safely</div><div class="hiw-card-text">Browse, post, and message through built-in chat. No strangers, no sharing your number until you're ready.</div></div>
-        </div>
+    <!-- ONE MORE TIME, the one action — and, quietly, the two other doors: students at other
+         schools (the waitlist) and schools themselves. -->
+    <section class="lp-sec lp-end">
+      <div class="lp-inner">
+        <h2 class="lp-h2">Come find your people.</h2>
+        <p class="lp-kicker">Takes about a minute. Bring your school email.</p>
+        <button class="btn-primary" onclick="openModal('signupModal')">Join with your school email
+          <svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+        </button>
+        <p class="lp-small">Not at Caldwell? <button class="lp-link" onclick="openModal('signupModal');showWaitlistPanel()">Join the waitlist</button>
+          &nbsp;&middot;&nbsp; Run a school? <a class="lp-link" href="mailto:amahledigitalcreatives@gmail.com?subject=Nestrel%20for%20our%20school">Bring Nestrel to it</a></p>
       </div>
-    </div>
-
-    <!-- FEATURES -->
-    <div class="home-section bg-alt">
-      <div class="home-section-inner">
-        <h2 class="home-h2">Everything campus life needs</h2>
-        <p class="home-lead">Nestrel isn't just a housing board — it's a full campus life hub.</p>
-        <div class="feat-grid">
-          <div class="feat-card"><div class="feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="feat-name">Housing</div><div class="feat-desc">Find a room, post a sublet, scout roommates — within your verified campus community.</div></div>
-          <div class="feat-card"><div class="feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg></div><div class="feat-name">Marketplace</div><div class="feat-desc">Buy and sell textbooks, furniture, and gear to fellow students you can actually trust.</div></div>
-          <div class="feat-card"><div class="feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M2 9h20v4H2zM12 9v12"/><path d="M12 9S9.8 4.5 7.9 4.5a2.3 2.3 0 0 0 0 4.5"/><path d="M12 9s2.2-4.5 4.1-4.5a2.3 2.3 0 0 1 0 4.5"/></svg></div><div class="feat-name">Free Stuff</div><div class="feat-desc">Moving out? Give away items to classmates instead of tossing them. Sustainable and student-first.</div></div>
-          <div class="feat-card"><div class="feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></div><div class="feat-name">Org &amp; Events</div><div class="feat-desc">Student orgs can post events and announcements directly to the campus feed.</div></div>
-          <div class="feat-card"><div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div><div class="feat-name">Safe Messaging</div><div class="feat-desc">Built-in chat so you never need to share personal contact info until you're ready.</div></div>
-          <div class="feat-card"><div class="feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v6c0 4.5-3.2 7.9-7.5 9-4.3-1.1-7.5-4.5-7.5-9V6z"/><polyline points="9 12 11 14 15 10"/></svg></div><div class="feat-name">Verified Community</div><div class="feat-desc">Every member is .edu verified. No landlords, no scammers, no strangers — students only.</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- WHO IT'S FOR -->
-    <div class="home-section">
-      <div class="home-section-inner">
-        <h2 class="home-h2">Who Nestrel is for</h2>
-        <p class="home-lead">Designed for the whole campus community.</p>
-        <div class="who-grid">
-          <div class="who-card"><div class="who-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 9l10 5 10-5z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg></div><div class="who-name">Students</div><p class="who-desc">Find housing, sell your old textbooks, pick up free furniture, discover events, and connect with classmates — all in one safe, verified space.</p></div>
-          <div class="who-card"><div class="who-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5z"/><path d="M5 17.5h14"/></svg></div><div class="who-name">Faculty &amp; Staff</div><p class="who-desc">Post campus resources, share announcements, and reach students directly through a channel they actually check.</p></div>
-          <div class="who-card"><div class="who-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg></div><div class="who-name">Student Orgs</div><p class="who-desc">Promote events, recruit members, and stay visible on campus without fighting social media algorithms.</p></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- FLAGSHIP CAMPUS -->
-    <div class="home-section band-dark">
-      <div class="home-section-inner band-center">
-        <div class="band-badge">Live now</div>
-        <h2 class="band-h2">Nestrel at Caldwell — our flagship</h2>
-        <p class="band-lead">Caldwell University is Nestrel's first partner school. Nestrel is live for current Caldwell students — housing, marketplace, messaging, and more, all .edu verified.</p>
-        <button class="btn-primary" onclick="openModal('signupModal')">Join Nestrel &#8594;</button>
-      </div>
-    </div>
-
-    <!-- FOR SCHOOLS -->
-    <div id="for-schools" class="home-section bg-alt">
-      <div class="home-section-inner">
-        <div class="home-narrow">
-          <h2 class="home-h2 home-h2-left">Bring Nestrel to your school</h2>
-          <p class="home-prose">Nestrel deploys a fully branded, moderated campus hub at your school — no IT work, no code, no overhead. Students get a verified community on day one.</p>
-          <ul class="school-list">
-            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Branded per school — your name, your identity</span></li>
-            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>.edu email verification built in</span></li>
-            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Full moderation and admin dashboard</span></li>
-            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Housing, marketplace, free stuff, events, and more</span></li>
-            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Deployed in days, not months</span></li>
-          </ul>
-          <a class="btn-primary home-cta" href="mailto:amahledigitalcreatives@gmail.com">Email us to get started &#8594;</a>
-          <p class="home-note">amahledigitalcreatives@gmail.com &nbsp;&#183;&nbsp; We reply within 1–2 business days</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ABOUT -->
-    <div class="home-section">
-      <div class="home-section-inner home-inner-narrow">
-        <h2 class="home-h2 home-h2-left">Built by a student, for students</h2>
-        <p class="home-prose">I'm Kal, the founder of Nestrel. I built this because I lived the problem — trying to find housing and campus resources as a Caldwell University student using a mess of group chats, Facebook posts, and blind trust.</p>
-        <p class="home-prose">Nestrel is built and run by <strong class="home-strong">Amahle Digital Creatives</strong> — an independent studio focused on tools that actually serve student communities. Nestrel is our first deployment, and we're just getting started.</p>
-      </div>
-    </div>
-
-    <!-- CONTACT -->
-    <div class="home-section bg-alt home-center">
-      <div class="home-section-inner">
-        <h2 class="home-h2">Get in touch</h2>
-        <p class="home-lead home-lead-gap">Questions, partnerships, feedback — we'd love to hear from you.</p>
-        <a class="btn-primary home-cta-email" href="mailto:amahledigitalcreatives@gmail.com">amahledigitalcreatives@gmail.com</a>
-        <p class="home-note">We reply within 1–2 business days</p>
-      </div>
-    </div>
+    </section>
 
     <!-- FOOTER -->
     <footer class="site-footer">
@@ -247,7 +215,7 @@
           <a href="privacy.html" target="_blank">Privacy Policy</a>
           <a href="mailto:amahledigitalcreatives@gmail.com">Contact</a>
         </div>
-        <p class="footer-copy">&#169; 2026 Amahle Digital Creatives. All rights reserved.</p>
+        <p class="footer-copy">Built at Caldwell by a student, with Amahle Digital Creatives. &#169; 2026 All rights reserved.</p>
       </div>
     </footer>
 
@@ -1970,7 +1938,7 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-24a"></script>
+<script src="js/config.js?v=2026-09-25b"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
