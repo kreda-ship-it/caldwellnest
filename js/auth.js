@@ -431,6 +431,7 @@ function hideGoogleFinishScreen() {
   ['gfPass', 'gfUsername', 'gfDisplayName', 'gfBio', 'gfPronouns', 'gfMajor', 'gfYear']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('gfAgree').checked = false;
+  document.getElementById('gfBeta').checked = false;
   ['gfErr', 'gfProfileErr'].forEach(id => { document.getElementById(id).style.display = 'none'; });
   _gfPhotoFile = null;
   gfShowStep(2);
@@ -456,6 +457,11 @@ async function submitGoogleFinish() {
   if (!pass || pass.length < MIN_PASSWORD_LENGTH) { showErr(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return; }
   if (!document.getElementById('gfAgree').checked) {
     showErr('Please confirm you are 18+ and agree to the Terms and Privacy Policy.');
+    return;
+  }
+  // The beta acknowledgement: this is live, and the student answers for what they do on it.
+  if (!document.getElementById('gfBeta').checked) {
+    showErr('Please tick the red box to confirm you understand Nestrel is a live beta and that you are responsible for what you post and do.');
     return;
   }
   if (!_gfUser) { showErr('Your Google sign-in has expired. Please cancel and try again.'); return; }

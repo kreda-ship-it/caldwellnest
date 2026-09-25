@@ -4,121 +4,132 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terms &amp; Conditions — Nestrel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <style>
+  /* Nestrel's own colours and type (the same values as styles.css), so the legal pages read as
+     part of the app rather than as a document from somewhere else. Kept in this file on purpose:
+     the page must stand on its own, and styles.css is the app's. terms.html and privacy.html
+     carry the same block. */
   :root{
-    --gold:#f0a500;
-    --ink:#1c1a17;
-    --muted:#6b655c;
-    --line:#e7e2d8;
-    --paper:#fdfcf9;
-    --band:#faf6ec;
+    --brand:#1a3a2a;--brand-mid:#2d6148;--brand-pale:#e4ede5;
+    --accent:#f0a500;--accent-warm:#c2603c;--accent-pale:#fdf3df;
+    --text:#241f1a;--muted:#6e655c;--line:#eae3d8;--bg:#faf7f0;--band:#f3ede2;--surface:#fff;
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
-  body{
-    margin:0;
-    background:var(--paper);
-    color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.65;
-    font-size:16px;
-  }
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7;font-size:16px;}
   .wrap{max-width:760px;margin:0 auto;padding:0 24px;}
-  header.masthead{
-    border-bottom:1px solid var(--line);
-    background:var(--band);
-  }
-  .masthead .wrap{padding-top:40px;padding-bottom:32px;}
-  .brand{
-    display:flex;align-items:center;gap:8px;
-    font-weight:700;letter-spacing:-.01em;font-size:1.05rem;
-  }
-  .brand .spark{color:var(--gold);}
-  .tagline{color:var(--muted);font-size:.9rem;margin:2px 0 26px;}
-  h1{
-    font-size:2rem;line-height:1.15;margin:0 0 6px;
-    letter-spacing:-.02em;font-weight:700;
-  }
-  .updated{color:var(--muted);font-size:.85rem;margin:0;}
-  .notice{
-    margin:22px 0 0;padding:14px 16px;
-    background:#fff;border:1px solid var(--line);
-    border-left:3px solid var(--gold);border-radius:6px;
-    font-size:.9rem;color:#4a453d;
-  }
-  main .wrap{padding-top:36px;padding-bottom:64px;}
-  h2{
-    font-size:1.18rem;margin:38px 0 10px;letter-spacing:-.01em;
-    display:flex;gap:10px;align-items:baseline;
-  }
-  h2 .num{
-    color:var(--gold);font-variant-numeric:tabular-nums;
-    font-size:.85rem;font-weight:700;min-width:24px;
-  }
-  h3{font-size:1rem;margin:22px 0 6px;}
+  .topbar{background:var(--brand);}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:56px;}
+  .wordmark{font-family:'DM Serif Display',Georgia,serif;font-size:22px;color:#fff;text-decoration:none;}
+  .wordmark span{color:var(--accent);}
+  .back{color:rgba(255,255,255,.8);font-size:14px;text-decoration:none;}
+  .back:hover{color:#fff;}
+  header.masthead{border-bottom:1px solid var(--line);}
+  .masthead .wrap{padding-top:44px;padding-bottom:30px;}
+  .kicker{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-warm);}
+  h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:44px;line-height:1.08;margin:0 0 10px;color:var(--text);}
+  .updated{color:var(--muted);font-size:14px;margin:0;}
+  .short{margin:26px 0 0;padding:20px 22px;border-radius:18px;background:var(--brand-pale);}
+  .short-title{margin:0 0 10px;font-family:'DM Serif Display',Georgia,serif;font-size:21px;color:var(--brand);}
+  .short ul{margin:0;padding:0;list-style:none;}
+  .short li{position:relative;margin:0 0 8px;padding-left:26px;}
+  .short li::before{content:'';position:absolute;left:2px;top:.55em;width:12px;height:7px;border-left:2px solid var(--brand-mid);
+    border-bottom:2px solid var(--brand-mid);transform:rotate(-45deg);}
+  .short-foot{margin:12px 0 0;font-size:14px;color:var(--muted);}
+  .toc{margin:28px auto 0;padding:18px 22px;background:var(--surface);border:1px solid var(--line);border-radius:16px;font-size:15px;}
+  .toc-title{text-transform:uppercase;letter-spacing:.08em;font-size:12px;color:var(--muted);font-weight:700;margin:0 0 10px;}
+  .toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px;}
+  .toc a{text-decoration:none;color:var(--text);}
+  .toc a:hover{color:var(--accent-warm);}
+  main .wrap{padding-top:10px;padding-bottom:64px;}
+  h2{font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:26px;line-height:1.2;margin:44px 0 12px;
+    display:flex;gap:12px;align-items:baseline;scroll-margin-top:16px;}
+  h2 .num{font-family:'DM Sans',sans-serif;color:var(--accent-warm);font-variant-numeric:tabular-nums;font-size:14px;font-weight:700;min-width:24px;}
+  h3{font-size:17px;margin:24px 0 6px;}
   p{margin:0 0 12px;}
   ul{margin:0 0 12px;padding-left:22px;}
   li{margin:0 0 6px;}
-  a{color:#b57a00;}
-  strong{font-weight:650;}
-  .toc{
-    margin:28px 0 0;padding:18px 20px;
-    background:var(--band);border-radius:8px;font-size:.9rem;
-  }
-  .toc-title{
-    text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;
-    color:var(--muted);font-weight:700;margin:0 0 10px;
-  }
-  .toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px;}
-  .toc a{text-decoration:none;color:var(--ink);}
-  .toc a:hover{color:#b57a00;}
-  .placeholder{
-    background:#fff3d6;padding:1px 5px;border-radius:3px;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:.85em;color:#8a6400;
-  }
+  a{color:var(--brand-mid);}
+  strong{font-weight:600;}
+  code{font-size:.92em;background:var(--band);padding:1px 5px;border-radius:5px;}
   footer{border-top:1px solid var(--line);background:var(--band);}
-  footer .wrap{padding:28px 24px;font-size:.85rem;color:var(--muted);}
-  @media(max-width:560px){
-    .toc ol{columns:1;}
-    h1{font-size:1.65rem;}
-  }
+  footer .wrap{padding:28px 24px;font-size:14px;color:var(--muted);}
+  .beta{margin:22px 0 0;padding:16px 18px;border-radius:14px;background:#fdf0ec;border:1px solid #f1cfc4;border-left:4px solid #b3372a;color:#5a2019;font-size:15px;}
+  .beta b{color:#8f2a1f;}
+  .callout{margin:14px 0;padding:14px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);}
+  @media(max-width:560px){.toc ol{columns:1;}h1{font-size:34px;}h2{font-size:23px;}}
 </style>
 </head>
 <body>
+<div class="topbar">
+  <div class="wrap">
+    <a class="wordmark" href="/">Nest<span>rel</span></a>
+    <a class="back" href="/">&#8249; Back to Nestrel</a>
+  </div>
+</div>
+
 <header class="masthead">
   <div class="wrap">
-    <div class="brand"><span class="spark">✨</span> Nestrel</div>
-    <p class="tagline">Your campus, all in one place</p>
+    <p class="kicker">Legal</p>
     <h1>Terms &amp; Conditions</h1>
-    <p class="updated">Last updated: <span class="placeholder">[DATE]</span> · Beta version</p>
-    <div class="notice">
-      Nestrel is currently in beta. These Terms may change as the platform develops.
-      By using Nestrel you agree to the current version. We'll note the date of the
-      most recent update at the top of this page.
+    <p class="updated">Last updated September 25, 2026 · Open beta</p>
+
+    <div class="beta" role="note">
+      <b>Nestrel is in open beta — and it's real.</b> The students, listings, messages, events and
+      meet-ups on Nestrel are real, and so is anything you agree to with another student. Treat
+      everything you post and do here the way you would anywhere else: you are responsible for it.
+      See <a href="#beta">section 02</a>.
+    </div>
+
+    <!-- The short version: what a student needs to know, in plain words. It summarises; the full
+         Terms below are what apply. -->
+    <div class="short">
+      <p class="short-title">The short version</p>
+      <ul>
+        <li>This is a live beta: real students, real listings, real consequences. Things may change, break, or be lost while we build.</li>
+        <li>You need to be 18 or older, a current Caldwell student, and sign up with your <code>@caldwell.edu</code> Google account.</li>
+        <li>You're accountable for what you post and do. Breaking the law or Caldwell's rules can get your account removed and may be reported to the police or Campus Safety.</li>
+        <li>Deals, rentals and meet-ups are between you and the other student. We don't handle money or guarantee anything — meet somewhere public.</li>
+        <li>Housing posts must follow fair-housing law. No excluding people for who they are.</li>
+        <li>You own what you post. You let us show it on Nestrel so the app can work.</li>
+        <li>If you run a club, use what you can see about other students only for your club — and take down a photo if someone in it asks.</li>
+      </ul>
+      <p class="short-foot">This is a summary. The full Terms below are what count.</p>
     </div>
   </div>
 </header>
 
-<nav class="wrap toc" aria-label="Contents">
-  <p class="toc-title">Contents</p>
-  <ol>
-    <li><a href="#who">Who we are</a></li>
-    <li><a href="#eligibility">Eligibility &amp; accounts</a></li>
-    <li><a href="#verification">Student verification</a></li>
-    <li><a href="#conduct">Acceptable use</a></li>
-    <li><a href="#marketplace">The marketplace</a></li>
-    <li><a href="#content">Your content</a></li>
-    <li><a href="#nestbot">NestBot (AI)</a></li>
-    <li><a href="#moderation">Moderation &amp; suspension</a></li>
-    <li><a href="#disclaimers">Disclaimers</a></li>
-    <li><a href="#liability">Limitation of liability</a></li>
-    <li><a href="#indemnity">Indemnification</a></li>
-    <li><a href="#termination">Termination</a></li>
-    <li><a href="#changes">Changes to these Terms</a></li>
-    <li><a href="#law">Governing law</a></li>
-    <li><a href="#contact">Contact</a></li>
-  </ol>
+<nav class="wrap" aria-label="Contents">
+  <div class="toc">
+    <p class="toc-title">Contents</p>
+    <ol>
+      <li><a href="#who">Who we are</a></li>
+      <li><a href="#beta">The beta</a></li>
+      <li><a href="#eligibility">Eligibility &amp; accounts</a></li>
+      <li><a href="#verification">Student verification</a></li>
+      <li><a href="#accountable">You're accountable</a></li>
+      <li><a href="#conduct">Acceptable use</a></li>
+      <li><a href="#housing">Housing listings</a></li>
+      <li><a href="#marketplace">The marketplace</a></li>
+      <li><a href="#events">Clubs &amp; events</a></li>
+      <li><a href="#content">Your content &amp; feedback</a></li>
+      <li><a href="#copyright">Copyright &amp; takedowns</a></li>
+      <li><a href="#nestbot">NestBot (AI)</a></li>
+      <li><a href="#moderation">Reports, moderation &amp; appeals</a></li>
+      <li><a href="#safety">Your safety</a></li>
+      <li><a href="#disclaimers">Disclaimers</a></li>
+      <li><a href="#liability">Limitation of liability</a></li>
+      <li><a href="#indemnity">Indemnification</a></li>
+      <li><a href="#termination">Termination</a></li>
+      <li><a href="#changes">Changes to these Terms</a></li>
+      <li><a href="#law">Governing law</a></li>
+      <li><a href="#general">General</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </div>
 </nav>
 
 <main>
@@ -127,44 +138,76 @@
   <h2 id="who"><span class="num">01</span> Who we are</h2>
   <p>
     Nestrel ("Nestrel," "we," "us," or "our") is a campus life platform for
-    verified Caldwell University students, providing housing listings, a student
-    marketplace, textbook and free-item exchange, clubs and organizations, events, and
+    verified Caldwell University students, providing clubs and organizations, events and event
+    recaps, a student marketplace, textbook and free-item exchange, housing listings, and
     messaging.
   </p>
   <p>
-    Nestrel is operated by <span class="placeholder">[OPERATOR NAME]</span>, doing
-    business as Amahle Digital Creatives, an unincorporated business currently operating as a
-    sole proprietorship. References to "we" mean this operator. If and when the business is
-    formally registered as a legal entity, these Terms will be updated to name that entity as
-    the operator.
+    Nestrel is operated by KR, doing business as Amahle Digital Creatives, an unincorporated
+    business currently operating as a sole proprietorship. References to "we" mean this
+    operator. If and when the business is formally registered as a legal entity, these Terms
+    will be updated to name that entity as the operator.
   </p>
   <p>
     Nestrel is a student-run project. It is independent and is <strong>not owned, operated,
-    or endorsed by Caldwell University</strong>.
+    or endorsed by Caldwell University</strong>. We use the university's name only to say who
+    Nestrel is for. Nothing on Nestrel is an official university communication unless it is
+    clearly marked as coming from the university.
   </p>
   <p>
-    How we collect, use, share, and protect your information is explained in our
-    <a href="/privacy.html">Privacy Policy</a>, which also applies when you use Nestrel. We've
-    built our data handling to FERPA's standards voluntarily — see
-    <a href="/privacy.html#intro">Privacy Policy, section 01</a> for what that means.
+    These Terms are a binding agreement between you and us. You accept them by ticking the boxes
+    when you create your account, and by using Nestrel. How we collect, use, share, and protect
+    your information is explained in our <a href="/privacy.html">Privacy Policy</a>, which is
+    part of these Terms.
   </p>
 
-  <h2 id="eligibility"><span class="num">02</span> Eligibility &amp; accounts</h2>
+  <h2 id="beta"><span class="num">02</span> The beta</h2>
+  <p>
+    Nestrel is in <strong>open beta</strong>: it is live and in real use while we are still
+    building it. That means two things at once.
+  </p>
+  <h3>Everything on it is real</h3>
+  <ul>
+    <li>The students you meet are real, verified Caldwell students. The listings are real items and real places, the prices are real money, and the messages go to real people.</li>
+    <li>Any deal, rental, sale, gift or meet-up you arrange through Nestrel is a real arrangement between you and another student, with real consequences.</li>
+    <li>Every rule in these Terms applies in full during the beta. "It's only a beta" is not an excuse for anything you post or do.</li>
+  </ul>
+  <h3>The product is still being built</h3>
+  <ul>
+    <li>Features may be added, changed, or removed at any time, sometimes without notice.</li>
+    <li>There will be bugs. Parts of Nestrel may be slow, unavailable, or not work as described.</li>
+    <li>Information may be lost or fail to save. We work to prevent it, but during the beta we <strong>cannot guarantee backups</strong>. Keep your own copy of anything important — for example, photos you upload, or details you agreed with another student.</li>
+    <li>We may pause, reset parts of, or end the beta. If we ever shut Nestrel down, we'll tell you in the app at least 30 days before, so you can ask for a copy of your information.</li>
+    <li>Nestrel is <strong>free</strong>. If that ever changes, we'll tell you first, and you will never be charged for something you haven't agreed to.</li>
+  </ul>
+  <h3>A product test, not a research study</h3>
+  <p>
+    The beta is how we test and improve Nestrel. It is <strong>not an academic research
+    study</strong>: we don't run experiments on you, and we don't publish findings about
+    individual students. We look at totals and counts (for example, how many listings were
+    posted) to decide what to fix and build. If we ever want to run a study — a survey for a
+    class, or anything meant for publication — we'll ask you separately, with its own consent,
+    and taking part will be optional.
+  </p>
+
+  <h2 id="eligibility"><span class="num">03</span> Eligibility &amp; accounts</h2>
   <ul>
     <li>You must be <strong>at least 18 years old</strong> to create an account or use Nestrel.</li>
     <li>You must be a current Caldwell University student with a valid <code>@caldwell.edu</code> email address.</li>
-    <li>You are responsible for keeping your login credentials secure and for all activity under your account.</li>
+    <li><strong>You sign up with your <code>@caldwell.edu</code> Google account</strong> ("Continue with Google"). Google confirms the address is yours; we never see your Google password. Caldwell's IT department manages those Google accounts, and Google's own terms apply to them. You also set a Nestrel password, so you can log in with your email.</li>
+    <li>You are responsible for keeping your login credentials secure and for all activity under your account. Tell us right away if you think someone else has used it.</li>
     <li>One person, one account. Accounts are personal and may not be shared, sold, or transferred.</li>
-    <li>You agree to provide accurate information and to keep it current.</li>
+    <li>You agree to provide accurate information — your real name — and to keep it current.</li>
   </ul>
 
-  <h2 id="verification"><span class="num">03</span> Student verification</h2>
+  <h2 id="verification"><span class="num">04</span> Student verification</h2>
   <p>
     Access to Nestrel requires verification of your Caldwell student status through
     confirmation of a valid <code>@caldwell.edu</code> email address. Only verified students
-    may post listings, save items, send messages, follow or join clubs, or RSVP to events. We may revoke access if we can no longer
-    verify your eligibility (for example, if you graduate or leave the university), though we
-    are not obligated to monitor this continuously during beta.
+    may post listings, save items, send messages, follow or join clubs, vote in polls, or RSVP to
+    events. We may revoke access if we can no longer verify your eligibility (for example, if
+    you graduate or leave the university), though we are not obligated to monitor this
+    continuously during beta.
   </p>
   <p>
     We use your <code>@caldwell.edu</code> email only to confirm you're eligible, run your
@@ -172,14 +215,30 @@
     <a href="/privacy.html#use">Privacy Policy, section 03</a>.
   </p>
 
-  <h2 id="conduct"><span class="num">04</span> Acceptable use</h2>
+  <h2 id="accountable"><span class="num">05</span> You're accountable for what you post and do</h2>
+  <p>
+    Nestrel hosts what students post; <strong>the student who posts something is responsible for
+    it</strong>, legally and otherwise. That includes your listings, photos, messages, reviews,
+    club posts, and how you behave when you meet someone you found here.
+  </p>
+  <ul>
+    <li><strong>The law applies.</strong> If something you post or do breaks the law — fraud, theft, threats, harassment, discrimination, selling prohibited goods — you are personally liable for it, not Nestrel.</li>
+    <li><strong>Caldwell's rules still apply.</strong> Using Nestrel doesn't change your obligations under Caldwell University's Student Code of Conduct or other university policies. Nestrel doesn't enforce those policies, but we won't shield anyone from them.</li>
+    <li><strong>We act on what we learn.</strong> We can remove content and suspend or permanently ban accounts (section 13). We keep records of our moderation decisions.</li>
+    <li><strong>We report serious harm.</strong> If we believe someone is in danger, or a crime involving threats, violence, fraud or exploitation has happened, we may share the relevant information with law enforcement or Caldwell's Campus Safety (see <a href="/privacy.html#share">Privacy Policy, section 05</a>). We respond to valid legal requests, such as subpoenas and court orders.</li>
+    <li><strong>Zero tolerance for child sexual abuse material.</strong> Any content that sexualises minors is removed, the account is banned, and we report it to the National Center for Missing &amp; Exploited Children (NCMEC), as U.S. law requires.</li>
+  </ul>
+
+  <h2 id="conduct"><span class="num">06</span> Acceptable use</h2>
   <p>You agree not to use Nestrel to:</p>
   <ul>
-    <li>Post false, misleading, fraudulent, or scam listings.</li>
-    <li>Sell or offer anything illegal, stolen, counterfeit, or prohibited by Caldwell University policy — including but not limited to weapons, drugs, alcohol to minors, prescription medication, or academic dishonesty services (e.g., completing coursework for others).</li>
-    <li>Harass, threaten, stalk, impersonate, or abuse other users.</li>
-    <li>Post content that is hateful, defamatory, obscene, or that invades another person's privacy.</li>
-    <li>Spam, advertise unrelated commercial products, or scrape or harvest data from the platform.</li>
+    <li>Post false, misleading, fraudulent, or scam listings, or ask for payment for something you don't have.</li>
+    <li>Sell or offer anything illegal, stolen, counterfeit, recalled, or prohibited by Caldwell University policy — including but not limited to weapons, drugs, alcohol, tobacco and vaping products, prescription medication, or academic dishonesty services (e.g., completing coursework or exams for others, or selling exam answers).</li>
+    <li>Harass, threaten, stalk, bully, impersonate, or abuse other users — including impersonating a club, a university office, or Nestrel.</li>
+    <li>Post content that is hateful, defamatory, sexually explicit, violent, or that invades another person's privacy — including sharing someone's personal information, address, schedule, or photos without their permission.</li>
+    <li>Discriminate against anyone because of race, color, religion, national origin, ancestry, sex, sexual orientation, gender identity or expression, disability, age, or any other characteristic protected by law.</li>
+    <li>Spam, advertise unrelated commercial products, run pyramid schemes, or scrape or harvest data from the platform.</li>
+    <li>Use another student's account, or create an account for anyone else.</li>
     <li>Attempt to break, probe, or circumvent the platform's security, verification, or access controls.</li>
     <li>Upload malware or interfere with the platform's normal operation.</li>
   </ul>
@@ -197,11 +256,30 @@
     <li>Not try to work out who left anonymous event feedback.</li>
     <li>Stop using it once you're no longer an officer.</li>
   </ul>
+  <p>Officers can also publish for their club — posts, polls, a logo and cover photo, and photos from events (recaps). When you do, you agree to:</p>
+  <ul>
+    <li>Only post photos and other material you have the right to share.</li>
+    <li>Not post photos that embarrass, sexualise, or single out a person, or that show anyone somewhere they'd reasonably expect privacy.</li>
+    <li>Take a photo down promptly if someone in it asks you to. If they ask us instead, we'll remove it.</li>
+  </ul>
   <p>
-    Breaking these rules can lead to losing officer access or your account (section 08).
+    Breaking these rules can lead to losing officer access or your account (section 13).
   </p>
 
-  <h2 id="marketplace"><span class="num">05</span> The marketplace — we are not a party to your transactions</h2>
+  <h2 id="housing"><span class="num">07</span> Housing listings</h2>
+  <p>If you post a room, sublet, or roommate listing, you agree that:</p>
+  <ul>
+    <li><strong>You follow fair-housing law.</strong> The federal Fair Housing Act and New Jersey's Law Against Discrimination make it illegal to publish a housing ad that limits who can apply because of race, color, religion, national origin, sex, disability, familial status, marital or civil-union status, sexual orientation, gender identity or expression, source of lawful income, or other protected characteristics. The person who posts a listing is responsible for what it says. Describe the place, not the person you'd prefer.</li>
+    <li><strong>You're allowed to offer it.</strong> If you're subletting or taking over a lease, you confirm your lease and your landlord allow it.</li>
+    <li><strong>It's accurate.</strong> The price, the place, the dates and the photos are real and current.</li>
+  </ul>
+  <p>
+    Nestrel is not a landlord, broker, or real-estate agent, and doesn't inspect or approve any
+    housing. <strong>See a place in person before paying anything, and never send a deposit to
+    someone you haven't met.</strong>
+  </p>
+
+  <h2 id="marketplace"><span class="num">08</span> The marketplace — we are not a party to your transactions</h2>
   <p>
     Nestrel is a <strong>venue that connects students</strong>. When you buy, sell, give
     away, or trade an item, arrange housing, or agree to any exchange, that agreement is
@@ -221,14 +299,23 @@
     You accept all risk associated with meeting and transacting with other users.
   </p>
 
-  <h2 id="content"><span class="num">06</span> Your content</h2>
+  <h2 id="events"><span class="num">09</span> Clubs &amp; events</h2>
+  <ul>
+    <li>Events on Nestrel are organised by clubs and university offices, <strong>not by Nestrel</strong>. The organiser is responsible for the event, including following Caldwell's rules for student organizations and events.</li>
+    <li>You attend any event, and meet anyone, at your own risk.</li>
+    <li>Some events link to outside services — for example, a payment app for a ticket or dues. Those services are not ours, have their own terms, and any payment is between you and the organiser.</li>
+    <li>An RSVP is not a ticket or a guarantee of entry. Events can change or be cancelled; we'll try to tell you in the app when that happens, but the organiser is responsible for it.</li>
+  </ul>
+
+  <h2 id="content"><span class="num">10</span> Your content &amp; feedback</h2>
   <p>
     You keep ownership of the listings, photos, messages, and other content you post ("Your
-    Content"). By posting, you grant us a non-exclusive, royalty-free license to host,
-    store, display, and distribute Your Content <em>within Nestrel</em> for the purpose
-    of operating the platform. This license ends when you delete the content or your account,
-    except for copies that remain in backups until they're replaced, and moderation records we
-    keep for a limited time, as described in
+    Content"). Content you publish for a club as an officer — posts, polls, event details and
+    photos — counts as Your Content too. By posting, you grant us a non-exclusive, royalty-free
+    license to host, store, display, and distribute Your Content <em>within Nestrel</em> for
+    the purpose of operating the platform. This license ends when you delete the content or
+    your account, except for copies that remain in backups until they're replaced, and
+    moderation records we keep for a limited time, as described in
     <a href="/privacy.html#retention">Privacy Policy, section 08</a>.
   </p>
   <p>
@@ -236,8 +323,37 @@
     remove content that violates these Terms, but we are not obligated to review or monitor
     content and are not responsible for content posted by users.
   </p>
+  <p>
+    <strong>Feedback.</strong> Ideas, suggestions and bug reports you send us about Nestrel are
+    welcome. You agree we can use them to improve Nestrel without owing you anything for them.
+    We won't publish your name with your feedback without asking.
+  </p>
 
-  <h2 id="nestbot"><span class="num">07</span> NestBot (AI assistant)</h2>
+  <h2 id="copyright"><span class="num">11</span> Copyright &amp; takedowns</h2>
+  <p>
+    Only post photos, text and other material you created or have permission to use. If you
+    believe something on Nestrel infringes your copyright, send a notice to our copyright agent
+    with:
+  </p>
+  <ul>
+    <li>your name, contact details, and your physical or electronic signature;</li>
+    <li>the work you believe is infringed, and where on Nestrel the infringing material is (a link or clear description);</li>
+    <li>a statement that you believe in good faith the use isn't authorised by the owner, its agent, or the law; and</li>
+    <li>a statement, under penalty of perjury, that your notice is accurate and that you are the owner or authorised to act for the owner.</li>
+  </ul>
+  <div class="callout">
+    <strong>Copyright agent:</strong> KR, Amahle Digital Creatives —
+    <a href="mailto:amahledigitalcreatives@gmail.com?subject=Copyright%20notice">amahledigitalcreatives@gmail.com</a>
+    (subject line: "Copyright notice").
+  </div>
+  <p>
+    If your content was removed and you believe that was a mistake, you can send a
+    counter-notice to the same address. We remove material that is the subject of a valid
+    notice, and we <strong>terminate the accounts of users who repeatedly infringe</strong>
+    others' copyrights.
+  </p>
+
+  <h2 id="nestbot"><span class="num">12</span> NestBot (AI assistant)</h2>
   <p>
     Nestrel may offer NestBot, an AI-powered assistant built using a third-party AI
     provider (Anthropic). Please understand:
@@ -248,27 +364,42 @@
     <li>NestBot is provided "as is" and is an experimental beta feature that may change or be removed.</li>
   </ul>
 
-  <h2 id="moderation"><span class="num">08</span> Moderation &amp; suspension</h2>
+  <h2 id="moderation"><span class="num">13</span> Reports, moderation &amp; appeals</h2>
   <p>
-    We may, at our discretion, remove listings or content, and warn, suspend, or remove
-    accounts that violate these Terms or that we reasonably believe pose a risk to other
-    users. Where we remove a listing as an administrator, we aim to record a reason. Suspension
-    hides your listings from other users; if a suspension is lifted, your listings are restored
-    to their prior state.
+    You can report a listing, message, or person from inside the app, or by emailing us. We
+    review reports as quickly as we can, but Nestrel is <strong>not monitored around the
+    clock</strong>.
+  </p>
+  <p>
+    We may, at our discretion, remove listings or content, and warn, suspend, or permanently
+    remove accounts that violate these Terms or that we reasonably believe pose a risk to other
+    users. Where we remove a listing as an administrator, we aim to record a reason, and you can
+    appeal from the app. Suspension hides your listings from other users; if a suspension is
+    lifted, your listings are restored to their prior state. Creating a new account to get
+    around a suspension or ban is itself a violation of these Terms.
   </p>
 
-  <h2 id="disclaimers"><span class="num">09</span> Disclaimers</h2>
+  <h2 id="safety"><span class="num">14</span> Your safety</h2>
+  <ul>
+    <li><strong>In an emergency, call 911</strong> or Caldwell's Campus Safety. Don't rely on Nestrel to get help.</li>
+    <li>If another student has sexually harassed or assaulted you, you can report it to Caldwell's Title IX office as well as to us.</li>
+    <li>Keep conversations in Nestrel until you've met someone and feel comfortable sharing more. You never have to share your phone number.</li>
+  </ul>
+
+  <h2 id="disclaimers"><span class="num">15</span> Disclaimers</h2>
   <p>
     Nestrel is provided <strong>"as is" and "as available," without warranties of any
     kind</strong>, express or implied, including any implied warranties of merchantability,
     fitness for a particular purpose, or non-infringement. As a beta product, Nestrel may
     contain bugs, may be interrupted or unavailable, and may lose or fail to save data. We do
-    not warrant that the platform will be secure, error-free, or continuously available.
+    not warrant that the platform will be secure, error-free, or continuously available. We do
+    not vet users beyond confirming their school email, and we are not responsible for what
+    users say or do, on Nestrel or off it.
   </p>
 
-  <h2 id="liability"><span class="num">10</span> Limitation of liability</h2>
+  <h2 id="liability"><span class="num">16</span> Limitation of liability</h2>
   <p>
-    To the fullest extent permitted by law, <span class="placeholder">[OPERATOR NAME]</span>
+    To the fullest extent permitted by law, KR (doing business as Amahle Digital Creatives)
     and Nestrel will not be liable for any indirect, incidental, special, consequential,
     or punitive damages, or for any loss of data, profits, or goodwill, arising out of or
     related to your use of the platform — including, without limitation, any dispute,
@@ -280,23 +411,23 @@
     certain limitations, so some of the above may not apply to you.
   </p>
 
-  <h2 id="indemnity"><span class="num">11</span> Indemnification</h2>
+  <h2 id="indemnity"><span class="num">17</span> Indemnification</h2>
   <p>
-    You agree to indemnify and hold harmless <span class="placeholder">[OPERATOR NAME]</span>
+    You agree to indemnify and hold harmless KR (doing business as Amahle Digital Creatives)
     and Nestrel from any claims, damages, losses, or expenses (including reasonable legal
     fees) arising out of your use of the platform, Your Content, your transactions or
-    interactions with other users, or your violation of these Terms.
+    interactions with other users, or your violation of these Terms or of the law.
   </p>
 
-  <h2 id="termination"><span class="num">12</span> Termination</h2>
+  <h2 id="termination"><span class="num">18</span> Termination</h2>
   <p>
     You may stop using Nestrel and delete your account at any time. We may suspend or
     terminate your access at any time if you violate these Terms or if we discontinue the
-    platform. Sections that by their nature should survive termination (including disclaimers,
-    limitation of liability, and indemnification) will survive.
+    platform. Sections that by their nature should survive termination (including your
+    accountability, disclaimers, limitation of liability, and indemnification) will survive.
   </p>
 
-  <h2 id="changes"><span class="num">13</span> Changes to these Terms</h2>
+  <h2 id="changes"><span class="num">19</span> Changes to these Terms</h2>
   <p>
     We may update these Terms as Nestrel develops. When we do, we'll update the "Last
     updated" date above. Material changes may also be communicated in the app — and if a change
@@ -305,16 +436,26 @@
     take effect means you accept the updated Terms.
   </p>
 
-  <h2 id="law"><span class="num">14</span> Governing law</h2>
+  <h2 id="law"><span class="num">20</span> Governing law</h2>
   <p>
     These Terms are governed by the laws of the State of New Jersey, USA, without regard to
     its conflict-of-laws rules. Any dispute will be brought in the state or federal courts
     located in New Jersey, and you consent to their jurisdiction.
   </p>
 
-  <h2 id="contact"><span class="num">15</span> Contact</h2>
+  <h2 id="general"><span class="num">21</span> General</h2>
+  <ul>
+    <li><strong>Whole agreement.</strong> These Terms and the Privacy Policy are the whole agreement between you and us about Nestrel.</li>
+    <li><strong>If part doesn't hold.</strong> If a court finds any part of these Terms unenforceable, the rest still applies.</li>
+    <li><strong>No waiver.</strong> If we don't enforce a rule once, we can still enforce it later.</li>
+    <li><strong>Transfer.</strong> You can't transfer your account or these Terms. We may transfer them if Nestrel is transferred — for example, once the business is formally registered.</li>
+    <li><strong>Messages from us.</strong> You agree we can contact you electronically — in the app or by email — about your account, these Terms, and the service.</li>
+    <li><strong>No partnership.</strong> Using Nestrel doesn't make you our employee, agent, or partner.</li>
+  </ul>
+
+  <h2 id="contact"><span class="num">22</span> Contact</h2>
   <p>
-    Questions about these Terms? Reach us at
+    Questions about these Terms, a report, or a legal notice? Reach us at
     <a href="mailto:amahledigitalcreatives@gmail.com">amahledigitalcreatives@gmail.com</a>.
   </p>
 
@@ -323,7 +464,7 @@
 
 <footer>
   <div class="wrap">
-    Nestrel · Operated by <span class="placeholder">[OPERATOR NAME]</span> dba Amahle Digital Creatives ·
+    Nestrel · Operated by KR, doing business as Amahle Digital Creatives ·
     <a href="/privacy.html">Privacy Policy</a> ·
     <a href="mailto:amahledigitalcreatives@gmail.com">Contact</a>
   </div>

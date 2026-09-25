@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25u">
+<link rel="stylesheet" href="styles.css?v=2026-09-25v">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -1448,6 +1448,15 @@
           <input type="checkbox" id="gfAgree">
           <span>I'm 18+, I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, and I'm a current Caldwell student.</span>
         </label>
+        <!-- The beta acknowledgement (2026-09-25), in red on purpose: its own unticked box the
+             student has to tick — the clearest form of agreement (a "clickwrap") — for the one
+             thing a beta tester can most easily miss: this is live, and they answer for what they
+             do on it. Both boxes are required; the Terms version recorded at signup
+             (TERMS_VERSION) covers both, since neither can be skipped. -->
+        <label class="ap-check ap-check-warn">
+          <input type="checkbox" id="gfBeta">
+          <span>I understand Nestrel is a live beta: the people, listings and messages are real, and I'm personally responsible for everything I post and do here. Breaking the law or Caldwell's rules can get me banned and reported (<a href="terms.html#accountable" target="_blank" rel="noopener">Terms, section 05</a>).</span>
+        </label>
         <div class="login-error" id="gfErr"></div>
         <button class="ap-pill" type="submit" id="gfSubmitBtn"><span>Create my account</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg></button>
         <div class="ap-footnote">Wrong Google account? <a onclick="cancelGoogleFinish()">Cancel and sign out</a></div>
@@ -1938,11 +1947,11 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-25b"></script>
+<script src="js/config.js?v=2026-09-25c"></script>
 <script src="js/utils.js?v=2026-09-11a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-09-12a"></script>
-<script src="js/auth.js?v=2026-09-25b"></script>
+<script src="js/auth.js?v=2026-09-25c"></script>
 <script src="js/profile.js?v=2026-09-25c"></script>
 <script src="js/listings.js?v=2026-09-25a"></script>
 <script src="js/books.js?v=2026-09-24b"></script>
