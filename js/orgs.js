@@ -4084,12 +4084,11 @@ function ocAnaPollsHTML(polls) {
 // The event table as a CSV, for a club's end-of-semester report. Counts only, like everything here.
 function ocAnaCsv() {
   const evs = (_ocAna?.events || []);
-  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const rows = [['Event', 'Date', 'Status', 'Views', 'Saves', 'RSVPs', 'Came', 'Walk-ins', 'Cancelled', 'Ratings', 'Average rating']]
     .concat(evs.map(e => [e.title, new Date(e.starts_at).toISOString().slice(0, 10), e.has_ended ? 'held' : e.status,
       e.views, e.saves, e.rsvps, e.came, e.walk_ins, e.cancelled, e.rating_count, e.rating_avg ?? '']));
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' }));
+  a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv' }));
   const org = _orgCtx?.orgs.get(_ocOrgId)?.name || 'club';
   a.download = `${org.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-analytics-${_ocAnaRange}.csv`;
   a.click();

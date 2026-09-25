@@ -288,5 +288,36 @@ if (ran) {
   }
 }
 
+// ------------------------------------------------ 10. a CSV cell cannot become a spreadsheet formula
+// Excel and Google Sheets treat a cell starting with = + - @ (or a tab / carriage return) as a
+// FORMULA. Our exports carry text students and officers typed — a listing titled
+// =HYPERLINK("https://…") became a live link in the admin's spreadsheet. csvCell() (js/utils.js)
+// prefixes those cells with ' so they stay text. Found 2026-09-25 (security audit, L8).
+// Two halves: csvCell behaves, and no export hand-rolls its own quoting again, which is how three
+// copies of the unsafe version existed in the first place.
+if (ran) {
+  try {
+    const cases = [
+      ['=HYPERLINK("https://evil.example","x")', `"'=HYPERLINK(""https://evil.example"",""x"")"`],
+      ['+1+1', `"'+1+1"`], ['-2+3', `"'-2+3"`], ['@SUM(A1)', `"'@SUM(A1)"`], ['\tx', `"'\tx"`],
+      ['Couch, blue — 2 seats', '"Couch, blue — 2 seats"'], ['say "hi"', '"say ""hi"""'],
+      [42, '"42"'], [-5, '"-5"'], [null, '""'],
+    ];
+    const bad = [];
+    for (const [input, want] of cases) {
+      const out = vm.runInContext(`csvCell(${JSON.stringify(input)})`, ctx);
+      if (out !== want) bad.push(`${JSON.stringify(input)} -> ${out}`);
+    }
+    bad.length ? fail(`csvCell: ${bad.join('; ')}`)
+               : pass('csvCell keeps formulas as text and quotes commas and quotes');
+  } catch (e) {
+    fail(`csvCell could not be exercised: ${e.message}`);
+  }
+  const handRolled = files.filter(f => f !== 'js/utils.js')
+    .filter(f => /replace\(\/"\/g, ?'""'\)/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+  handRolled.length ? fail(`hand-rolled CSV quoting (use csvCell) in: ${handRolled.join(', ')}`)
+                    : pass('every CSV export quotes through csvCell');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

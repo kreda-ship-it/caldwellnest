@@ -37,6 +37,19 @@ function safeUrl(u) {
   } catch { return ''; }
 }
 
+// One cell of a CSV file — the only way any export should write one. Quotes the value, so commas,
+// quotes and line breaks stay inside the cell, AND neutralises spreadsheet formulas: Excel and Google
+// Sheets treat a cell starting with = + - @ (or a tab / carriage return) as a FORMULA, so a listing
+// titled =HYPERLINK("https://…") would become a live link in an admin's spreadsheet. A leading '
+// makes the spreadsheet show it as plain text (the ' itself is hidden). Only strings get the ':
+// a real number cannot carry a formula, and -5 should stay a number. Guarded by check 10 in
+// tests/load-order.js.
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 // prepLoginModal (auth.js) applies the "welcome back, <name>" treatment when this device
 // remembers a prior student. Hooking it here means all eight routes into the login modal
 // behave the same. Both callees live in later files, which is fine: they are only *called*

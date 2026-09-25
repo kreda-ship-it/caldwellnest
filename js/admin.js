@@ -2403,7 +2403,7 @@ async function exportActivityLog() {
     e.reason || '',
     new Date(e.created_at).toLocaleString('en-US'),
   ]);
-  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv = [headers, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   a.download = `nestrel-activity-${new Date().toISOString().slice(0,10)}.csv`;
@@ -3257,7 +3257,7 @@ function _downloadData(data, filename, fmt) {
       return out;
     });
     const keys = Object.keys(flat[0] || {});
-    const csv = [keys.join(','), ...flat.map(r => keys.map(k => `"${String(r[k] || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const csv = [keys.join(','), ...flat.map(r => keys.map(k => csvCell(r[k] || '')).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename + '.csv'; a.click();
   }
