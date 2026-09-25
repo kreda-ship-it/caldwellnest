@@ -2362,16 +2362,6 @@ select.ao-input { cursor: pointer; }
                   color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .oc-member-sub  { font-size: 12px; font-weight: 400; color: var(--text-muted); text-transform: capitalize; }
 
-.oc-pick { padding: 18px; max-width: 480px; }
-.oc-pick-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; margin-bottom: 8px; padding: 14px;
-  border: 1px solid var(--border); border-radius: 9px;
-  background: var(--surface); cursor: pointer; text-align: left;
-}
-.oc-pick-row:hover { border-color: var(--brand, #3B5BA5); background: var(--brand-pale, #eef3ff); }
-.oc-pick-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.oc-pick-role { font-size: 11px; color: var(--text-faint); }
 
 .oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }
 
@@ -4456,6 +4446,9 @@ body:has(#pubProfileModal.open) { overflow: hidden; }
   border: 1px solid var(--brand); border-radius: var(--radius-pill); background: var(--brand); color: #fff;
   font: 600 13px 'DM Sans', sans-serif; white-space: nowrap; cursor: pointer; }
 .oc-btn-go:hover { background: var(--brand-mid); border-color: var(--brand-mid); }
+/* Both set a display, which beats the browser's own [hidden] rule — so a hidden button (Discard with
+   nothing to discard, New post while the composer is open) has to be hidden here, explicitly. */
+.org-btn[hidden], .oc-btn-go[hidden] { display: none; }
 .oc-btn-go:disabled { opacity: .45; cursor: default; }
 .oc-btn-go:focus-visible, .oc-view-as:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
@@ -4651,7 +4644,10 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
   .op-side2 { grid-area: side2; }
   .op-main { grid-area: main; }
 }
-.op-cover { height: 120px; }
+.op-cover { height: 140px; }
+/* A club's own cover photo, when it has one (organizations.cover_url), fills the band. */
+.op-cover.has-img { overflow: hidden; background: var(--bg-alt); }
+.op-cover.has-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .op-meta { text-transform: none; }
 .op-type { text-transform: capitalize; }
 .op-acts { display: flex; gap: 8px; margin-top: 14px; }
@@ -4688,3 +4684,145 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .op-preview-bar > span { flex: 1; min-width: 0; }
 .op-preview-back { flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: var(--radius-pill); background: #fff;
   color: var(--brand); font: 600 13px 'DM Sans', sans-serif; cursor: pointer; }
+
+/* ============================================================
+   SEVERAL ORGANIZATIONS (2026-09-25). An officer of more than one organization gets, with room,
+   their organizations listed beside the console (Slack's and Discord's workspace list): one click
+   between clubs, each showing what is waiting there. On a phone, Switch opens "Your
+   organizations", a card per organization. The console opens straight into the last one used.
+   ============================================================ */
+#page-org-console { container: ocpage / inline-size; }
+.oc-rail { display: none; }
+@container ocpage (min-width: 1000px) {
+  .oc-shell.has-rail { display: grid; grid-template-columns: 252px minmax(0, 1fr); }
+  .oc-shell.has-rail > .oc-rail:not([hidden]) { display: flex; }
+  .oc-shell.has-rail .oc-switch { display: none; }
+}
+.oc-main { min-width: 0; }
+.oc-rail { position: sticky; top: 0; align-self: start; flex-direction: column; gap: 2px; height: 100vh; overflow-y: auto;
+  padding: 24px 12px; border-right: 1px solid var(--border); }
+.oc-rail-h { padding: 0 10px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
+.oc-rail-i { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 12px;
+  background: none; font-family: inherit; text-align: left; cursor: pointer; }
+.oc-rail-i:hover { background: var(--bg-alt); }
+.oc-rail-i.is-on { background: var(--brand-pale); }
+.oc-rail-i:focus-visible, .oc-rail-all:focus-visible, .oc-club:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.oc-rail-logo { flex: none; width: 36px; height: 36px; border-radius: 11px; object-fit: cover; }
+.oc-rail-logo.dir-logo-none { font-size: 15px; }
+.oc-rail-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.oc-rail-t b, .oc-rail-t span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.oc-rail-t b { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.oc-rail-t span { font-size: 11.5px; color: var(--text-muted); }
+.oc-rail-i.is-on .oc-rail-t b { color: var(--brand); }
+.oc-rail-n { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent-warm); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; }
+.oc-rail-all { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 9px 10px; border: 0; border-radius: 12px;
+  background: none; font: 600 13px 'DM Sans', sans-serif; color: var(--text-muted); cursor: pointer; }
+.oc-rail-all:hover { background: var(--bg-alt); color: var(--text); }
+
+/* "Your organizations" */
+.oc-shell.is-clubs .oc-bar, .oc-shell.is-clubs .oc-nav { display: none; }
+.oc-body[data-sec="clubs"] > * { max-width: 1120px; }
+.oc-clubs { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.oc-club { display: flex; flex-direction: column; overflow: hidden; padding: 0; border: 1px solid var(--border); border-radius: 20px;
+  background: var(--surface); font-family: inherit; text-align: left; cursor: pointer;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.oc-club:hover { border-color: var(--brand-light); box-shadow: var(--shadow-md); }
+.oc-club-cover { display: block; height: 100px;
+  background: linear-gradient(150deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 65%), var(--tint-bg, var(--brand-pale)); }
+.oc-club-cover.has-img { background: var(--bg-alt); }
+.oc-club-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.oc-club-body { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0 16px 16px; }
+.oc-club-logo { width: 58px; height: 58px; margin: -29px 0 6px; border-radius: 17px; object-fit: cover;
+  background: var(--surface); box-shadow: 0 0 0 3px var(--surface); }
+.oc-club-logo.dir-logo-none { font-size: 22px; }
+.oc-club-last { position: absolute; top: 10px; right: 16px; font-size: 11.5px; font-weight: 600; color: var(--brand); }
+.oc-club-name { font-family: 'DM Serif Display', serif; font-size: 21px; line-height: 1.15; color: var(--text); }
+.oc-club-meta { display: flex; align-items: center; gap: 8px; }
+.oc-club-stats { margin-top: 6px; font-size: 13px; color: var(--text-muted); }
+.oc-club-needs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.oc-need { padding: 3px 10px; border-radius: var(--radius-pill); background: var(--accent-pale); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+.oc-club-ok { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--brand); }
+
+/* The cover in the Club page editor: the photo itself, with its buttons on it. */
+.oc-cover { position: relative; height: 150px; margin: 12px 0 6px; overflow: hidden; border-radius: 16px;
+  background: linear-gradient(150deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 65%), var(--tint-bg, var(--brand-pale)); }
+.oc-cover.has-img { background: var(--bg-alt); }
+.oc-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.oc-cover-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12.5px; font-weight: 600; color: var(--tint-fg, var(--text-muted)); }
+.oc-cover-btns { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.oc-cover-btns .org-btn { box-shadow: var(--shadow-sm); cursor: pointer; }
+.oc-cover-hint { margin-bottom: 4px; }
+
+/* ============================================================
+   RECAPS (2026-09-25). After an event its officers add photos and a line about how it went, then
+   share it (console → Events → Recap). Students meet it on the event (it leads the page), on the
+   club's Past tab, in Recaps on the Events page, and on followers' Home for a week.
+   ============================================================ */
+/* Up to four photos: one wide; two side by side; one large and two stacked; a square of four. */
+.ev-mosaic { display: grid; gap: 3px; overflow: hidden; aspect-ratio: 16 / 10; border-radius: 14px; background: var(--bg-alt); }
+.ev-mosaic.n-2 { grid-template-columns: 1fr 1fr; }
+.ev-mosaic.n-3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.ev-mosaic.n-3 .ev-mosaic-i:first-child { grid-row: span 2; }
+.ev-mosaic.n-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.ev-mosaic-i { position: relative; min-height: 0; overflow: hidden; }
+.ev-mosaic-i img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ev-mosaic-more { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.45); color: #fff; font: 600 18px 'DM Sans', sans-serif; }
+
+.ev-recap { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 18px;
+  background: var(--surface); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; }
+.ev-recap:hover { border-color: var(--brand-light); }
+.ev-recap:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+.ev-recap-text { display: flex; flex-direction: column; gap: 2px; padding: 0 4px 2px; }
+.ev-recap-k { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--brand-mid); }
+.ev-recap-text b { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.ev-recap-note { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+  font-size: 13px; line-height: 1.45; color: var(--text-muted); }
+.ev-recaps-col { display: flex; flex-direction: column; gap: 12px; }
+/* On a phone, a sideways row after the upcoming events; where the side column shows, it has them. */
+.ev-recaps-main { margin-top: 26px; }
+.ev-recaps-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; scroll-snap-type: x proximity; }
+.ev-recaps-row::-webkit-scrollbar { display: none; }
+.ev-recaps-row .ev-recap { flex: 0 0 min(80%, 300px); scroll-snap-align: start; }
+@container evfeed (min-width: 660px) { .ev-recaps-main { display: none; } }
+/* A past event's tile carries its photo count once a recap is shared. */
+.ev-past-img { position: relative; }
+.ev-past-badge { position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+  border-radius: var(--radius-pill); background: rgba(0,0,0,.6); color: #fff; font-size: 11px; font-weight: 600; }
+.op-past .ev-recap { margin: 0; }
+/* With room, a recap on the club page sits photos-left, words-right, rather than as a poster the
+   width of the column. */
+@container oppage (min-width: 900px) {
+  .op-past .ev-recap { display: grid; grid-template-columns: 280px minmax(0, 1fr); align-items: center; gap: 16px; }
+}
+.hn-recap .ev-mosaic { aspect-ratio: 2 / 1; }
+
+/* On the event itself: the recap leads, above the description. */
+.evd-recap { margin: 4px 0 18px; padding: 14px; border-radius: 16px; background: var(--brand-pale); }
+.evd-recap-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.evd-recap-h b { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--brand-mid); }
+.evd-recap-h span { font-size: 12.5px; color: var(--text-muted); }
+.evd-recap-note { margin: 8px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--text); }
+.evd-recap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; margin-top: 12px; }
+.evd-recap-ph { aspect-ratio: 1; overflow: hidden; padding: 0; border: 0; border-radius: 10px; background: var(--bg-alt); cursor: pointer; }
+.evd-recap-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* On Home, in Campus news. */
+.hn-recap { display: block; width: 100%; margin-top: 10px; padding: 0; border: 0; background: none; cursor: pointer; }
+
+/* In the console: the recap for students first, then what people thought. */
+.oc-recap { padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); }
+.oc-recap-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oc-recap-t { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.oc-recap-lead { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.oc-recap .oc-ev-drop { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.oc-recap-note { margin: 12px 0 0; }
+.oc-recap-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.oc-chip-live { border-color: transparent; background: var(--brand-pale); color: var(--brand); }
+.oc-recap-fb { margin-top: 18px; }
+.oc-recap-fb > .oc-recap-t { margin-bottom: 8px; }
+.oc-fb-more { margin-top: 12px; }
+.oc-fb-more > summary { font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; }

@@ -1191,9 +1191,15 @@ async function orgConsoleOpen(orgId) {
   const mine = orgMemberships().filter(m => m.role === 'officer');
   if (!mine.length) { toast('You are not an officer of any organization'); return; }
 
+  // Where the console opens (2026-09-25), the way Slack and Discord open: straight into the
+  // organization you used last. Only with nothing to go on — several organizations and no last
+  // one — does it open on the "Your organizations" page to choose.
   if (orgId) _ocOrgId = orgId;
   else if (mine.length === 1) _ocOrgId = mine[0].org_id;
-  else if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsolePick(mine); return; }
+  else _ocOrgId = ocLastOrg() || null;
+  if (!_ocOrgId || !mine.some(m => m.org_id === _ocOrgId)) { orgConsoleClubs(); return; }
+  ocLastOrg(_ocOrgId);
+  document.getElementById('ocShell')?.classList.remove('is-clubs');
 
   // The remembered section, falling back to Overview — the first tab, and the one that answers
   // "what needs me?" before anything else. renderOrgConsole() corrects it anyway if this officer
@@ -1221,24 +1227,135 @@ async function orgConsoleRestore() {
   showPage('feed');
 }
 
-function orgConsolePick(mine) {
-  showPage('org-console');
-  document.getElementById('ocIdentity').textContent = 'Choose an organization';
-  document.getElementById('ocNav').innerHTML = '';
-  document.getElementById('ocBody').dataset.sec = 'pick';
-  document.getElementById('ocBody').innerHTML =
-    '<div class="oc-pick">' + mine.map(m => `
-      <button class="oc-pick-row" onclick="orgConsoleOpen(${m.org_id})">
-        <span class="oc-pick-name">${esc(m.org.name)}</span>
-        <span class="oc-pick-role">${esc(m.title || m.role)}</span>
-      </button>`).join('') + '</div>';
+// The organization this officer opened last — in localStorage, not the session, so it survives
+// closing the browser, and keyed by user so two officers sharing a laptop do not swap clubs.
+// With an id: remember it. Without: read it.
+function ocLastOrg(id) {
+  const key = 'cn_oc_last:' + (_orgCtx?.userId || '');
+  try {
+    if (id) { localStorage.setItem(key, String(id)); return id; }
+    return parseInt(localStorage.getItem(key), 10) || null;
+  } catch (e) { return null; }   // private mode: the console simply asks
 }
 
-function orgConsoleSwitch() {
-  const mine = orgMemberships().filter(m => m.role === 'officer');
-  if (mine.length < 2) { toast('You are only an officer of one organization'); return; }
-  orgConsolePick(mine);
+// ---------- Your organizations ----------
+// One summary per organization this officer runs: its cover, followers, what is coming up, and
+// what is waiting on them there. Feeds the "Your organizations" page and the list beside the
+// console. Counts only what this officer could act on — requests only where they manage members,
+// drafts only where they post or run events — so a number is always a job, never just a fact.
+let _ocClubs = null;   // { at, map: Map(orgId -> summary) }
+async function ocLoadClubs(force = false) {
+  const ids = orgMemberships().filter(m => m.role === 'officer').map(m => m.org_id);
+  if (!ids.length) return new Map();
+  if (!force && _ocClubs && Date.now() - _ocClubs.at < 60e3 && ids.every(i => _ocClubs.map.has(i))) return _ocClubs.map;
+  const peopleIds = ids.filter(i => orgCanAct('manage_members', i));
+  const postIds = ids.filter(i => orgCanAct('post', i));
+  const none = Promise.resolve({ data: [] });
+  const [dir, cov, evs, mem, posts] = await Promise.all([
+    supabaseClient.from('org_directory').select('id, follower_count').in('id', ids),
+    supabaseClient.from('organizations').select('id, cover_url').in('id', ids),   // fails until the 09-25 SQL runs
+    supabaseClient.from('visible_events').select('org_id, status, starts_at, has_ended').in('org_id', ids),
+    peopleIds.length ? supabaseClient.from('org_memberships').select('org_id').in('org_id', peopleIds).eq('status', 'pending') : none,
+    postIds.length ? supabaseClient.from('org_posts').select('org_id').in('org_id', postIds).eq('status', 'draft') : none,
+  ]);
+  const today = new Date().toDateString();
+  const map = new Map(ids.map(id => {
+    const ev = (evs.data || []).filter(e => e.org_id === id);
+    const canEv = orgCanAct('manage_events', id);
+    const live = ev.filter(e => e.status === 'published' && !e.has_ended);
+    return [id, {
+      followers: Number((dir.data || []).find(x => x.id === id)?.follower_count) || 0,
+      cover: cov.error ? null : ((cov.data || []).find(x => x.id === id)?.cover_url || null),
+      upcoming: live.length,
+      today: canEv && live.some(e => new Date(e.starts_at).toDateString() === today),
+      pending: (mem.data || []).filter(m => m.org_id === id).length,
+      drafts: (canEv ? ev.filter(e => e.status === 'draft').length : 0) + (posts.data || []).filter(p => p.org_id === id).length,
+    }];
+  }));
+  _ocClubs = { at: Date.now(), map };
+  return map;
 }
+
+// What is waiting at one organization, as short phrases: "3 requests", "1 draft", "Event today".
+function ocNeeds(sm) {
+  if (!sm) return [];
+  return [sm.today && 'Event today', sm.pending && `${sm.pending} request${sm.pending === 1 ? '' : 's'}`,
+          sm.drafts && `${sm.drafts} draft${sm.drafts === 1 ? '' : 's'}`].filter(Boolean);
+}
+
+// The "Your organizations" page: where the console opens when it cannot guess, and where Switch
+// leads on a phone. A card per organization — its cover and logo, your role, and what needs you
+// there — so choosing is also a glance at all of them.
+async function orgConsoleClubs() {
+  const mine = orgMemberships().filter(m => m.role === 'officer');
+  if (!mine.length) { toast('You are not an officer of any organization'); return; }
+  showPage('org-console');
+  document.getElementById('ocShell')?.classList.add('is-clubs');
+  document.getElementById('ocShell')?.classList.remove('has-rail');   // the cards ARE the list here
+  document.getElementById('ocIdentity').innerHTML = '';
+  document.getElementById('ocNav').innerHTML = '';
+  const sw = document.getElementById('ocSwitchBtn'); if (sw) sw.hidden = true;
+  const rail = document.getElementById('ocRail'); if (rail) rail.hidden = true;
+  const body = document.getElementById('ocBody');
+  body.dataset.sec = 'clubs';
+  const paint = map => {
+    if (body.dataset.sec !== 'clubs') return;
+    const last = ocLastOrg();
+    body.innerHTML = `
+      ${ocHeadHTML('Your organizations', `You help run ${mine.length === 1 ? 'one' : mine.length}. Pick one to manage — next time the console opens straight into the last one you used.`)}
+      <div class="oc-clubs">${mine.map(m => {
+        const sm = map?.get(m.org_id);
+        const needs = ocNeeds(sm);
+        return `
+        <button class="oc-club" onclick="orgConsoleOpen(${m.org_id})">
+          <span class="oc-club-cover${sm?.cover ? ' has-img' : ''}" data-tint="${(m.org_id % 6) + 1}">${sm?.cover ? `<img src="${escAttr(sm.cover)}" alt="" loading="lazy">` : ''}</span>
+          <span class="oc-club-body">
+            ${_dirLogoHTML(m.org, 'oc-club-logo')}
+            ${m.org_id === last ? '<span class="oc-club-last">Last opened</span>' : ''}
+            <span class="oc-club-name">${esc(m.org.name)}</span>
+            <span class="oc-club-meta"><span class="oc-role-pill">${esc(m.title || m.role)}</span>${m.org.type ? `<span class="oc-id-type">${esc(m.org.type)}</span>` : ''}</span>
+            ${sm ? `<span class="oc-club-stats">${sm.followers} follower${sm.followers === 1 ? '' : 's'} · ${sm.upcoming} upcoming</span>
+            <span class="oc-club-needs">${needs.length ? needs.map(n => `<span class="oc-need">${esc(n)}</span>`).join('') : `<span class="oc-club-ok">${icon('check', 13)} All caught up</span>`}</span>` : ''}
+          </span>
+        </button>`; }).join('')}</div>`;
+  };
+  paint(_ocClubs?.map);
+  paint(await ocLoadClubs(true));
+}
+
+function orgConsoleSwitch() { orgConsoleClubs(); }
+
+// The list beside the console, for an officer of more than one organization. Shown only with room
+// for it (CSS, .oc-shell.has-rail); on a phone the Switch button leads to the page above instead.
+// Drawn at once from what is cached, then again when fresh counts arrive.
+function ocPaintRail() {
+  const rail = document.getElementById('ocRail');
+  const shell = document.getElementById('ocShell');
+  if (!rail || !shell) return;
+  const mine = orgMemberships().filter(m => m.role === 'officer');
+  const on = mine.length > 1;
+  rail.hidden = !on;
+  shell.classList.toggle('has-rail', on);
+  if (!on) return;
+  const map = _ocClubs?.map;
+  rail.innerHTML = `
+    <div class="oc-rail-h">Your organizations</div>
+    ${mine.map(m => {
+      const needs = ocNeeds(map?.get(m.org_id));
+      const n = (map?.get(m.org_id)?.pending || 0) + (map?.get(m.org_id)?.drafts || 0) + (map?.get(m.org_id)?.today ? 1 : 0);
+      const here = m.org_id === _ocOrgId;
+      return `
+      <button class="oc-rail-i${here ? ' is-on' : ''}" onclick="orgConsoleOpen(${m.org_id})"${here ? ' aria-current="page"' : ''}
+              title="${escAttr(m.org.name + (needs.length ? ' — ' + needs.join(', ') : ''))}">
+        ${_dirLogoHTML(m.org, 'oc-rail-logo')}
+        <span class="oc-rail-t"><b>${esc(m.org.name)}</b><span>${esc(needs.length ? needs.join(' · ') : (m.title || m.role))}</span></span>
+        ${n && !here ? `<span class="oc-rail-n">${n}</span>` : ''}
+      </button>`; }).join('')}
+    <button class="oc-rail-all" onclick="orgConsoleClubs()">${icon('grid', 15)} All organizations</button>`;
+  if (!map) ocLoadClubs().then(() => { if (document.getElementById('ocRail') === rail) ocPaintRailCounts(); });
+}
+// A second paint once the counts arrive, without looping back into another load.
+function ocPaintRailCounts() { if (_ocClubs) ocPaintRail(); }
 
 // Which sections exist depends on what this officer can actually do here, so the nav is built
 // from orgCanAct() rather than from the org's type. A department officer and a club officer
@@ -1286,6 +1403,7 @@ function renderOrgConsole() {
   // "no" should not be on screen.
   const swBtn = document.getElementById('ocSwitchBtn');
   if (swBtn) swBtn.hidden = orgMemberships().filter(m => m.role === 'officer').length < 2;
+  ocPaintRail();
 
   // A section this officer cannot reach must not stay selected. Falls back to the first one
   // they can — 'overview' is pushed unconditionally, so there is always one.
@@ -1419,7 +1537,7 @@ async function renderOcOverview() {
   const canEv = orgCanAct('manage_events', orgId), canPost = orgCanAct('post', orgId),
         canPeople = orgCanAct('manage_members', orgId);
   const none = Promise.resolve({ data: [] });
-  const [dir, evs, posts, mem] = await Promise.all([
+  const [dir, evs, posts, mem, cover] = await Promise.all([
     supabaseClient.from('org_directory').select('*').eq('id', orgId).maybeSingle(),
     supabaseClient.from('visible_events')
       .select('id, title, starts_at, ends_at, location, status, poster_url, registration_open, capacity, ' +
@@ -1427,6 +1545,7 @@ async function renderOcOverview() {
       .eq('org_id', orgId).order('starts_at', { ascending: true }),
     canPost ? supabaseClient.from('org_posts').select('id, type, title, status, poll_closes_at, created_at').eq('org_id', orgId) : none,
     canPeople ? supabaseClient.from('org_memberships').select('id, status').eq('org_id', orgId) : none,
+    supabaseClient.from('organizations').select('cover_url').eq('id', orgId).maybeSingle(),
   ]);
   if (orgId !== _ocOrgId || _ocSection !== 'overview') return;   // moved on while loading
   if (dir.error || evs.error) {
@@ -1439,15 +1558,20 @@ async function renderOcOverview() {
   // "share photos from it" still makes sense.
   const recent = canEv ? events.filter(e => e.has_ended && e.status === 'published'
     && Date.now() - new Date(e.ends_at || e.starts_at).getTime() < 14 * 864e5) : [];
-  let recapIds = new Set();
+  let recapIds = new Set(), sharedIds = new Set();
   if (recent.length) {
-    const { data: m } = await supabaseClient.from('event_media').select('event_id, phase')
-      .in('event_id', recent.map(e => e.id));
+    const [{ data: m }, rs] = await Promise.all([
+      supabaseClient.from('event_media').select('event_id, phase').in('event_id', recent.map(e => e.id)),
+      supabaseClient.from('events').select('id, recap_shared_at').in('id', recent.map(e => e.id)),
+    ]);
     recapIds = new Set((m || []).filter(x => x.phase === 'recap').map(x => x.event_id));
+    // Before the 09-25 SQL there is no "shared": any recap photo was already public.
+    sharedIds = rs.error ? recapIds : new Set((rs.data || []).filter(x => x.recap_shared_at).map(x => x.id));
     if (orgId !== _ocOrgId || _ocSection !== 'overview') return;
   }
   _ocOv = {
-    orgId, dir: dir.data || _orgCtx.orgs.get(orgId), events, recent, recapIds,
+    orgId, dir: { ...(dir.data || _orgCtx.orgs.get(orgId)), cover_url: cover.error ? null : (cover.data?.cover_url || null) },
+    coverReady: !cover.error, events, recent, recapIds, sharedIds,
     posts: posts.error ? [] : (posts.data || []),
     pending: (mem.data || []).filter(m => m.status === 'pending').length,
     activeCount: (mem.data || []).filter(m => m.status === 'active').length,
@@ -1485,8 +1609,9 @@ function ocOverviewPaint() {
     esc(postDrafts.map(p => p.title).slice(0, 2).join(' · ')), "ocGoPosts('drafts')"]);
   closing.forEach(p => todo.push(['clock', '', `Poll ${feedClosesLabel(p.poll_closes_at)}`,
     esc(p.title), "ocGoPosts('live')"]));
-  if (canEv) o.recent.filter(e => !o.recapIds.has(e.id)).slice(0, 2).forEach(e => todo.push(['image', '',
-    `${esc(e.title)} is over — share how it went`, 'Add a few photos and see what people thought', `ocGoEvent(${e.id}, 'recap')`]));
+  if (canEv) o.recent.filter(e => !o.sharedIds.has(e.id)).slice(0, 2).forEach(e => todo.push(o.recapIds.has(e.id)
+    ? ['image', 'warm', `Your recap of ${esc(e.title)} is still a draft`, "Photos are ready — students can't see them until you share it", `ocGoEvent(${e.id}, 'recap')`]
+    : ['image', '', `${esc(e.title)} is over — share a recap`, 'Add a few photos and a line about how it went', `ocGoEvent(${e.id}, 'recap')`]));
   if (canEv && !live.length) todo.push(['calendar', '', 'Nothing coming up', 'Plan the next event — followers see it on their Events page', 'ocGoNewEvent()']);
 
   const todoHTML = todo.length
@@ -1565,6 +1690,7 @@ function ocStudentViewCardHTML(d, upcoming) {
 function ocChecklistHTML(d, o) {
   const items = [
     ['Add a logo', !!d.logo_url, "orgConsoleGo('profile')"],
+    ...(o.coverReady ? [['Add a cover photo', !!d.cover_url, "orgConsoleGo('profile')"]] : []),
     ['Say what the club is about', !!(d.description || '').trim(), "orgConsoleGo('profile')"],
     ['Add a way to reach you', !!(d.contact_email || d.instagram || d.website), "orgConsoleGo('profile')"],
     ['Publish your first event', o.events.some(e => e.status === 'published'), 'ocGoNewEvent()'],
@@ -1634,9 +1760,12 @@ async function renderOcProfile() {
   // Instagram the club page shows students. It had been that way since the console shipped
   // (2f2ad8a): the context's select (80b265e) was written first and never had these columns.
   const cols = [...new Set(['id', 'name', 'slug', 'type', 'is_verified', 'logo_url', ...OC_FIELDS.map(([k]) => k)])];
-  const [{ data: row, error }, dir] = await Promise.all([
+  const [{ data: row, error }, dir, cover] = await Promise.all([
     supabaseClient.from('organizations').select(cols.join(', ')).eq('id', orgId).maybeSingle(),
     supabaseClient.from('org_directory').select('id, parent_name, grandparent_name, follower_count').eq('id', orgId).maybeSingle(),
+    // Asked for on its own: until sql/2026-09-25_club_cover_and_recaps.sql has been run the
+    // column does not exist, and asking for it in the query above would fail the whole form.
+    supabaseClient.from('organizations').select('cover_url').eq('id', orgId).maybeSingle(),
   ]);
   // Painted only if the officer is still here — same organization, and this section's loading
   // note still on screen. Otherwise a slow reply would draw over whatever they moved on to.
@@ -1650,6 +1779,8 @@ async function renderOcProfile() {
   }
   _ocProfileRow = row;
   _ocProfDir = dir.data || null;
+  _ocCoverReady = !cover.error;
+  _ocProfCover = cover.data?.cover_url || null;
 
   const dis = canEdit ? '' : ' disabled';
   const input = ([k, label, type, ph]) => `
@@ -1667,6 +1798,9 @@ async function renderOcProfile() {
       <div class="oc-prof-form">
         <section class="oc-card">
           <h3 class="oc-card-t">The basics</h3>
+          ${_ocCoverReady ? `<div id="ocCoverBox">${ocCoverHTML(canEdit)}</div>
+            <span class="oc-hint oc-cover-hint">The wide photo across the top of your page — a group shot or your best event works well. About 3 : 1; the middle is what shows on a phone.</span>`
+            : ''}
           <div class="oc-logo-row">
             ${_dirLogoHTML(row, 'oc-logo')}
             <div class="oc-logo-side">
@@ -1720,7 +1854,7 @@ async function renderOcProfile() {
 // The form's current values over the saved row: what the page WOULD look like if saved now.
 function ocProfDraft() {
   const row = _ocProfileRow || {};
-  const d = { ...row, ...(_ocProfDir || {}), id: row.id };
+  const d = { ...row, ...(_ocProfDir || {}), id: row.id, cover_url: _ocProfCover };
   OC_FIELDS.forEach(([k]) => { const el = document.getElementById('oc-' + k); if (el) d[k] = el.value.trim() || null; });
   return d;
 }
@@ -1747,6 +1881,64 @@ function ocProfChanged() {
   const st = document.getElementById('ocSaveState');
   if (st) st.textContent = changed ? `${changed} unsaved change${changed === 1 ? '' : 's'}` : 'No changes';
   document.getElementById('ocSaveBar')?.classList.toggle('is-dirty', !!changed);
+}
+
+// The cover: uploaded and saved at once, like the logo — a picture is chosen, not typed, so there
+// is nothing to "save" afterwards. Same bucket and path rule as the logo (ocPickLogo).
+let _ocCoverReady = false;   // the column exists (the 2026-09-25 SQL file has been run)
+let _ocProfCover = null;
+function ocCoverHTML(canEdit) {
+  return `
+    <div class="oc-cover${_ocProfCover ? ' has-img' : ''}" data-tint="${((Number(_ocOrgId) || 0) % 6) + 1}">
+      ${_ocProfCover ? `<img src="${escAttr(_ocProfCover)}" alt="">` : `<span class="oc-cover-empty">${icon('image', 22)}<span>Cover photo</span></span>`}
+      ${canEdit ? `<div class="oc-cover-btns">
+        <label class="org-btn">${_ocProfCover ? 'Change cover' : 'Upload a cover'}
+          <input type="file" accept="image/*" hidden onchange="ocPickCover(this)">
+        </label>
+        ${_ocProfCover ? '<button class="org-btn" onclick="ocRemoveCover()">Remove</button>' : ''}
+      </div>` : ''}
+    </div>`;
+}
+// Redraws the cover and the preview only, so a half-edited description survives a new cover.
+function ocCoverRepaint() {
+  const box = document.getElementById('ocCoverBox');
+  if (box) box.innerHTML = ocCoverHTML(orgCanAct('manage_members', _ocOrgId));
+  ocProfPaintPreview();
+}
+async function ocPickCover(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file'); return; }
+  if (file.size > 15 * 1024 * 1024) { toast('That image is over 15 MB'); return; }
+  toast('Uploading…');
+  try {
+    const blob = await resizeImage(file);
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const url = await uploadListingPhoto(blob, user.id);
+    const old = _ocProfCover;
+    const { error } = await supabaseClient.from('organizations').update({ cover_url: url }).eq('id', _ocOrgId);
+    if (error) { await deleteListingPhotos([url]); throw error; }
+    if (old) deleteListingPhotos([old]).catch(() => {});   // the replaced file is not referenced anywhere else
+    logEvent('org_profile_updated', { targetType: 'organization', targetId: _ocOrgId,
+      targetLabel: _orgCtx.orgs.get(_ocOrgId)?.name, school: _orgCtx.orgs.get(_ocOrgId)?.school, after: { cover_url: url } });
+    _ocProfCover = url;
+    toast('Cover updated');
+    ocCoverRepaint();
+  } catch (e) {
+    toast('Could not upload: ' + (e.message || e));
+    console.error('[ocPickCover]', e);
+  }
+}
+async function ocRemoveCover() {
+  if (!confirm("Remove the cover photo? Your page shows the club's colour instead.")) return;
+  const old = _ocProfCover;
+  const { error } = await supabaseClient.from('organizations').update({ cover_url: null }).eq('id', _ocOrgId);
+  if (error) { toast('Could not remove the cover: ' + error.message); console.error('[ocRemoveCover]', error); return; }
+  if (old) deleteListingPhotos([old]).catch(() => {});
+  _ocProfCover = null;
+  toast('Cover removed');
+  ocCoverRepaint();
 }
 
 async function ocRemoveLogo() {
@@ -1921,6 +2113,7 @@ async function ocApprove(membershipId) {
   toast('Approved');
   renderOcMembers();
   ocLoadStats(_ocOrgId);   // the waiting count on the Members tab
+  ocLoadClubs(true).then(ocPaintRail);   // and beside the console
 }
 
 // Soft, matching orgRemoveMember() on the admin page. Changed 2026-09-05 in the same pass,
@@ -1943,6 +2136,7 @@ async function ocRemove(membershipId, pending = false) {
   await loadOrgContext();
   renderOcMembers();
   ocLoadStats(_ocOrgId);
+  ocLoadClubs(true).then(ocPaintRail);
 }
 
 
@@ -2121,7 +2315,7 @@ async function renderOcEvents() {
   const ids = (events || []).map(e => e.id);
   let regs = [], media = [];
   if (ids.length) {
-    const [r, m, fb] = await Promise.all([
+    const [r, m, fb, rc] = await Promise.all([
       supabaseClient.from('event_registrations').select('event_id, status').in('event_id', ids),
       supabaseClient.from('event_media').select('id, event_id, kind, url, phase, sort_order')
         .in('event_id', ids).order('sort_order'),
@@ -2129,8 +2323,12 @@ async function renderOcEvents() {
       // columns added later. An error here means sql/2026-09-24_event_feedback_window.sql has
       // not been run yet — the Feedback settings then stay hidden rather than half-work.
       supabaseClient.from('events').select('id, feedback_enabled, feedback_closes_at').in('id', ids),
+      // Same reason, for the recap's note and whether it is shared (sql/2026-09-25_club_cover_and_recaps.sql).
+      supabaseClient.from('events').select('id, recap_note, recap_shared_at').in('id', ids),
     ]);
     regs = r.data || []; media = m.data || [];
+    _ocRecapReady = !rc.error;
+    _ocRecapInfo = new Map((rc.data || []).map(x => [x.id, x]));
     _ocFbReady = !fb.error;
     _ocFb = new Map((fb.data || []).map(x => [x.id, x]));
   } else {
@@ -3134,8 +3332,12 @@ function ocEventCardHTML(e) {
     : `<div class="oc-ev-pic is-made" style="--ev-bg:${eventGradient(e.id)}">
          <span>${esc(when.toLocaleDateString(undefined, { month: 'short' }).toUpperCase())}</span><b>${when.getDate()}</b></div>`;
 
+  const recapN = (e._media || []).filter(m => m.phase === 'recap' && m.kind === 'image').length;
+  const recapShared = !!_ocRecapInfo.get(e.id)?.recap_shared_at;
   const chips = [
     today ? '<span class="oc-chip oc-chip-today">Today</span>' : '',
+    e._past && !cancelled && _ocRecapReady && recapShared ? `<span class="oc-chip oc-chip-live">${icon('check', 11)} Recap shared</span>` : '',
+    e._past && !cancelled && _ocRecapReady && !recapShared && recapN ? `<span class="oc-chip">Recap draft · ${recapN} photo${recapN === 1 ? '' : 's'}</span>` : '',
     cancelled ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
     draft ? '<span class="oc-chip">Draft · only officers see it</span>' : '',
     e.members_only ? '<span class="oc-chip">Members only</span>' : '',
@@ -3902,6 +4104,8 @@ function ocAnaCsv() {
 
 let _ocRecapOpen = null;
 let _ocRecapFb   = null;
+let _ocRecapReady = false;          // the recap columns exist (the 2026-09-25 SQL has been run)
+let _ocRecapInfo = new Map();       // event id -> { recap_note, recap_shared_at }
 
 async function ocToggleRecap(id) {
   if (_ocRecapOpen === id) { _ocRecapOpen = null; _ocRecapFb = null; ocPaintRecap(); return; }
@@ -3983,20 +4187,95 @@ function ocPaintRecap(msg) {
       <button class="org-btn org-btn-go" onclick="ocSaveFb(${ev.id})">Save feedback settings</button>
     </div>` : '';
 
+  // THE RECAP FOR STUDENTS (2026-09-25): photos and a line about how it went, built in private
+  // and then shared on purpose. Before, each photo went public the moment it was uploaded.
+  const info = (ev && _ocRecapInfo.get(ev.id)) || {};
+  const shared = !!info.recap_shared_at;
+  const canEv = orgCanAct('manage_events', _ocOrgId);
+  const sharedOn = shared ? new Date(info.recap_shared_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const recap = `
+    <section class="oc-recap">
+      <div class="oc-recap-top">
+        <h4 class="oc-recap-t">Recap for students</h4>
+        ${_ocRecapReady ? (shared ? `<span class="oc-chip oc-chip-live">${icon('check', 11)} Shared ${esc(sharedOn)}</span>`
+                                   : '<span class="oc-chip">Draft · only officers see it</span>') : ''}
+      </div>
+      <p class="oc-recap-lead">${!_ocRecapReady ? 'Photos show to students as soon as they are added.'
+        : shared ? "Students see it on the event, on your club page, in Recaps on the Events page, and on your followers' Home for a week."
+        : 'Add your best photos and a line about how it went. Nothing is shown to students until you share it.'}</p>
+      ${recapShots.length ? `<div class="oc-ev-strip">${recapShots.map(m => `
+        <div class="oc-ev-thumb"><img src="${escAttr(m.url)}" alt="">
+          ${canEv ? `<button class="oc-ev-x" onclick="ocDeleteRecap(${m.id}, '${escAttr(m.url)}')" title="Remove">&times;</button>` : ''}
+        </div>`).join('')}</div>` : ''}
+      ${canEv ? `
+        <label for="ocRecapInput" class="oc-ev-drop">${icon('image', 16)} ${recapShots.length ? 'Add more photos' : 'Add photos from the event'}</label>
+        <input type="file" id="ocRecapInput" accept="image/jpeg,image/png,image/webp,image/*"
+               multiple hidden onchange="ocUploadRecap(${_ocRecapOpen}, this)">` : ''}
+      ${_ocRecapReady && canEv && ev ? `
+        <label class="oc-field oc-recap-note">
+          <span class="oc-label">A line about how it went <span class="oc-lbl-opt">optional</span></span>
+          <textarea class="oc-input" id="ocRecapNote" rows="2" maxlength="500"
+            placeholder="40 of you came and we filled 12 bags. Thank you!">${esc(info.recap_note || '')}</textarea>
+        </label>
+        <div class="oc-recap-acts">
+          ${shared
+            ? `<button class="oc-btn-go" onclick="ocSaveRecap(${ev.id}, false)">Save changes</button>
+               <button class="org-btn" onclick="evOpen(${ev.id})">${icon('eye', 14)} See it as a student</button>
+               ${ocMoreHTML([['Stop sharing', `ocUnshareRecap(${ev.id})`, true]])}`
+            : `<button class="oc-btn-go" onclick="ocSaveRecap(${ev.id}, true)"${recapShots.length ? '' : ' disabled title="Add at least one photo first"'}>Share recap</button>
+               <button class="org-btn" onclick="ocSaveRecap(${ev.id}, false)">Save draft</button>`}
+        </div>` : ''}
+    </section>`;
+
+  // Then how it went, from the people who came — the officers' half, never shown to students.
   el.innerHTML = `
-    ${summary}
-    ${comments}
-    ${fbSettings}
-    <div class="oc-reg-head">Recap photos${recapShots.length ? ` · ${recapShots.length}` : ''}</div>
-    <div class="oc-ev-strip">${recapShots.map(m => `
-      <div class="oc-ev-thumb"><img src="${escAttr(m.url)}" alt="">
-        <button class="oc-ev-x" onclick="ocDeleteRecap(${m.id}, '${escAttr(m.url)}')" title="Remove">&times;</button>
-      </div>`).join('')}</div>
-    <label for="ocRecapInput" class="oc-ev-drop">Add photos from the event</label>
-    <input type="file" id="ocRecapInput" accept="image/jpeg,image/png,image/webp,image/*"
-           multiple style="display:none" onchange="ocUploadRecap(${_ocRecapOpen}, this)">
-    <div class="oc-note">Recap photos are what makes a past event worth opening, and what makes
-      the organization look alive to somebody deciding whether to join.</div>`;
+    ${recap}
+    <section class="oc-recap-fb">
+      <h4 class="oc-recap-t">What people thought</h4>
+      ${summary}
+      ${comments}
+      ${fbSettings ? `<details class="oc-fb-more"><summary>Feedback settings</summary>${fbSettings}</details>` : ''}
+    </section>`;
+}
+
+// share: true marks it shared now (it must have a photo); false saves the note only — the draft,
+// or the text of a recap already shared. The note is sent either way, so nothing typed is lost.
+async function ocSaveRecap(id, share) {
+  const ev = _ocEvents.find(x => x.id === id);
+  if (!ev) return;
+  const shots = (ev._media || []).filter(m => m.phase === 'recap' && m.kind === 'image').length;
+  const info = _ocRecapInfo.get(id) || {};
+  const patch = { recap_note: document.getElementById('ocRecapNote')?.value.trim() || null };
+  if (share && !info.recap_shared_at) {
+    if (!shots) { toast('Add at least one photo first'); return; }
+    patch.recap_shared_at = new Date().toISOString();
+  }
+  const { data, error } = await supabaseClient.from('events').update(patch).eq('id', id)
+    .select('id, recap_note, recap_shared_at').maybeSingle();
+  if (error || !data) {
+    toast('Could not save the recap' + (error ? ': ' + error.message : ''));
+    console.error('[ocSaveRecap]', error); return;
+  }
+  _ocRecapInfo.set(id, data);
+  logEvent(patch.recap_shared_at ? 'event_recap_shared' : 'event_recap_edited', {
+    targetType: 'event', targetId: id, targetLabel: ev.title, school: _orgCtx.orgs.get(_ocOrgId)?.school,
+    before: { recap_shared_at: info.recap_shared_at || null }, after: { recap_shared_at: data.recap_shared_at, photos: shots } });
+  toast(patch.recap_shared_at ? 'Recap shared — students can see it now' : 'Saved');
+  ocEvPaintList();
+  ocPaintRecap();
+}
+
+async function ocUnshareRecap(id) {
+  if (!confirm('Stop sharing this recap?\n\nStudents stop seeing the photos and the note. Nothing is deleted — you can share it again.')) return;
+  const { data, error } = await supabaseClient.from('events').update({ recap_shared_at: null }).eq('id', id)
+    .select('id, recap_note, recap_shared_at').maybeSingle();
+  if (error || !data) { toast('Could not stop sharing' + (error ? ': ' + error.message : '')); console.error('[ocUnshareRecap]', error); return; }
+  _ocRecapInfo.set(id, data);
+  const ev = _ocEvents.find(x => x.id === id);
+  logEvent('event_recap_unshared', { targetType: 'event', targetId: id, targetLabel: ev?.title, school: _orgCtx.orgs.get(_ocOrgId)?.school });
+  toast('Recap is a draft again');
+  ocEvPaintList();
+  ocPaintRecap();
 }
 
 async function ocUploadRecap(eventId, input) {
@@ -4029,9 +4308,12 @@ async function ocUploadRecap(eventId, input) {
     await deleteListingPhotos(urls, 'event-media');
     toast('Could not attach: ' + error.message); console.error('[ocUploadRecap insert]', error); return;
   }
-  toast('Added');
+  toast(_ocRecapReady && !_ocRecapInfo.get(eventId)?.recap_shared_at ? 'Added to the draft' : 'Added');
+  const note = document.getElementById('ocRecapNote')?.value;
   await renderOcEvents();
   ocPaintRecap();
+  const box = document.getElementById('ocRecapNote');
+  if (box && note != null) box.value = note;   // an unsaved note survives adding photos
 }
 
 async function ocDeleteRecap(mediaId, url) {
@@ -4039,6 +4321,9 @@ async function ocDeleteRecap(mediaId, url) {
   const { error } = await supabaseClient.from('event_media').delete().eq('id', mediaId);
   if (error) { toast('Could not remove: ' + error.message); console.error('[ocDeleteRecap]', error); return; }
   await deleteListingPhotos([url], 'event-media');
+  const note = document.getElementById('ocRecapNote')?.value;
   await renderOcEvents();
   ocPaintRecap();
+  const box = document.getElementById('ocRecapNote');
+  if (box && note != null) box.value = note;
 }

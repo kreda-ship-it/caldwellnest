@@ -313,6 +313,7 @@ let _opPosts = [];      // shaped like Home's club posts (feed.js), so feedNewsC
 let _opOfficers = [];
 let _opTab = null;      // 'upcoming' | 'posts' | 'past'
 let _opPreview = false; // opened from the console's "View as student"
+let _opRecaps = new Map();   // past event id -> its shared recap (evLoadRecaps in events.js)
 
 // preview: opened by an officer from their console. The page is the same page — only a bar across
 // the top says so and leads back, instead of "All clubs".
@@ -327,7 +328,7 @@ async function orgPageOpen(orgId, preview = false) {
   const body = document.getElementById('orgPageBody');
   body.innerHTML = '<div class="op-note">Loading…</div>';
 
-  const [dir, off, evs, posts] = await Promise.all([
+  const [dir, off, evs, posts, cover] = await Promise.all([
     supabaseClient.from('org_directory').select('*').eq('id', orgId).maybeSingle(),
     supabaseClient.from('org_public_officers').select('*').eq('org_id', orgId),
     supabaseClient.from('visible_events')
@@ -342,6 +343,9 @@ async function orgPageOpen(orgId, preview = false) {
       .eq('org_id', orgId).eq('status', 'published')
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false }).limit(10),
+    // The cover lives on organizations, not in the org_directory view (a view fixes its columns
+    // when it is created). Its own query, so a database without the column yet still opens the page.
+    supabaseClient.from('organizations').select('cover_url').eq('id', orgId).maybeSingle(),
   ]);
 
   if (dir.error || !dir.data) {
@@ -350,7 +354,7 @@ async function orgPageOpen(orgId, preview = false) {
     return;
   }
 
-  _opOrg = dir.data;
+  _opOrg = { ...dir.data, cover_url: cover.error ? null : (cover.data?.cover_url || null) };
   _opOfficers = off.data || [];
   // Drafts never belong on the student page. RLS already hides them from students, but an officer
   // previewing their own club can read their drafts — and "View as student" must show what a
@@ -383,7 +387,10 @@ async function orgPageOpen(orgId, preview = false) {
   // The follow set is loaded by the directory. Someone arriving here from an event card may
   // never have opened the directory, so it is fetched rather than assumed. The org context tells
   // us whether this student runs the club (cached after the first load).
-  await Promise.all([orgPageLoadFollow(orgId), typeof loadOrgContext === 'function' ? loadOrgContext() : null]);
+  _opRecaps = new Map();
+  await Promise.all([orgPageLoadFollow(orgId), typeof loadOrgContext === 'function' ? loadOrgContext() : null,
+    typeof evLoadRecaps === 'function'
+      ? evLoadRecaps(_opEvents.filter(e => e.has_ended).map(e => e.id)).then(m => { _opRecaps = m; }) : null]);
   orgPagePaint();
 }
 
@@ -428,7 +435,8 @@ function orgHeroHTML(o, opt = {}) {
          onclick="orgDirToggleFollow(${id})">${_dirFollowLabel(opt.following)}</button>`;
   return `
     <div class="op-hero" data-tint="${(id % 6) + 1}">
-      <div class="op-cover" aria-hidden="true"></div>
+      <div class="op-cover${o.cover_url ? ' has-img' : ''}" aria-hidden="true">${
+        o.cover_url ? `<img src="${escAttr(o.cover_url)}" alt="" loading="lazy">` : ''}</div>
       <header class="op-head">
         ${_dirLogoHTML(o, 'op-logo')}
         <div class="op-head-text">
@@ -524,7 +532,11 @@ function orgPageTabHTML(upcoming, past) {
       : '<div class="op-empty">No posts yet. Announcements and polls from this club show up here and on Home.</div>';
   }
   if (_opTab === 'past') {
-    return past.length ? `<div class="op-list op-past">${past.map(orgPageEventHTML).join('')}</div>`
+    // An event with a shared recap is shown by its photos; one without, as a row.
+    return past.length ? `<div class="op-list op-past">${past.map(e => {
+        const r = _opRecaps.get(e.id);
+        return r && r.photos.length ? evRecapCardHTML(e, r) : orgPageEventHTML(e);
+      }).join('')}</div>`
       : '<div class="op-empty">Nothing has happened yet — events move here once they are over.</div>';
   }
   return upcoming.length ? `<div class="op-list">${upcoming.map(orgPageEventHTML).join('')}</div>`

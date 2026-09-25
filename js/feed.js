@@ -268,6 +268,7 @@ function feedClubsHTML(followsNone) {
 
 const FEED_URGENT_DAYS = 3;       // an urgent post with no end date leaves the banner after this
 const FEED_NEWS_DAYS = 30;        // club posts older than this are the club page's business
+const FEED_RECAP_DAYS = 7;        // shared recaps stay in Campus news this long
 const FEED_OFFICIAL_DAYS = 14;    // an official card with no end date leaves Home after this
 const FEED_CLOSED_POLL_DAYS = 3;  // a closed poll leaves Home this long after it closes
 const FEED_NEWS_SHOWN = 3;        // cards before "See all"
@@ -318,7 +319,7 @@ async function feedLoadNews() {
   const nowIso = now.toISOString();
   const follows = [..._dirFollows];
 
-  const [postsRes, bcastRes] = await Promise.all([
+  const [postsRes, bcastRes, recaps] = await Promise.all([
     follows.length
       ? supabaseClient.from('org_posts')
           .select('id, org_id, type, title, body, is_pinned, is_urgent, members_only, poll_closes_at, created_at')
@@ -334,6 +335,10 @@ async function feedLoadNews() {
       .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`)
       .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
       .order('created_at', { ascending: false }).limit(20),
+    // Recaps the clubs you follow have shared lately (events.js). A week: a recap is news the few
+    // days after an event, then it belongs to the event and the club's page.
+    follows.length && typeof evRecentRecaps === 'function'
+      ? evRecentRecaps({ orgIds: follows, days: FEED_RECAP_DAYS, limit: 6 }) : Promise.resolve([]),
   ]);
   if (postsRes.error) console.error('[feedLoadNews posts]', postsRes.error);
   if (bcastRes.error) console.error('[feedLoadNews broadcasts]', bcastRes.error);
@@ -384,8 +389,12 @@ async function feedLoadNews() {
 
   // Pinned club posts first, then everything newest first. The banner's item is not repeated
   // below it; once dismissed it joins the list.
+  const recapItems = (recaps || []).map(e => ({
+    key: 'r' + e.id, kind: 'recap', id: e.id, org: orgs.get(e.org_id) || { id: e.org_id, name: 'A club' },
+    title: e.title, body: e.note, at: e.recap_shared_at, photos: e.photos,
+  }));
   const byDate = (a, b) => new Date(b.at) - new Date(a.at);
-  const all = [...clubItems, ...officialItems].filter(x => x !== _feedUrgent);
+  const all = [...clubItems, ...officialItems, ...recapItems].filter(x => x !== _feedUrgent);
   _feedNews = [...all.filter(x => x.pinned).sort(byDate), ...all.filter(x => !x.pinned).sort(byDate)];
 }
 
@@ -509,6 +518,20 @@ function feedPollToggle(id, open) {
 }
 
 function feedNewsCardHTML(x) {
+  // A shared recap: the club, "Recap", the event's name and the officers' note, then its photos.
+  // The whole thing opens the event, where the recap leads (evRecapSectionHTML in events.js).
+  if (x.kind === 'recap') {
+    const n = x.photos.length;
+    return `
+      <article class="hn-card hn-card-recap" id="hn-${escAttr(x.key)}">
+        <div class="hn-head"><span class="hn-org" onclick="orgPageOpen(${Number(x.org.id)})">${_dirLogoHTML(x.org, 'hn-logo')}</span>
+          <span class="hn-who"><b class="hn-org" onclick="orgPageOpen(${Number(x.org.id)})">${esc(x.org.name)}</b> <span class="hn-meta">· Recap · ${esc(feedAgo(x.at))}</span></span></div>
+        <div class="hn-title">${esc(x.title)}</div>
+        ${x.body ? `<div class="hn-body" onclick="this.classList.toggle('is-open')">${esc(x.body)}</div>` : ''}
+        <button class="hn-recap" onclick="evOpen(${Number(x.id)})" aria-label="See the photos">${evRecapMosaicHTML(x.photos, 4)}</button>
+        <div class="hn-foot"><button class="hn-link" onclick="evOpen(${Number(x.id)})">See all ${n} photo${n === 1 ? '' : 's'}</button></div>
+      </article>`;
+  }
   let head;
   if (x.kind === 'official') {
     head = `<span class="hn-logo hn-logo-official">${icon('school', 16)}</span>

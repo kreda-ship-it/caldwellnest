@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-25o">
+<link rel="stylesheet" href="styles.css?v=2026-09-25p">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- QR generation, client side. Pinned to an exact version rather than a range: a library
      that silently changes under a printed flyer is worse than one that is out of date.
@@ -55,22 +55,30 @@
   </nav>
   <!-- ORG CONSOLE — a separate surface, not a separate login. Rendered by js/orgs.js. -->
   <div id="page-org-console" class="page">
-    <!-- The way out sits above the organization, like the mockup's "Back to Nestrel". It goes
-         HOME: it used to call showPage('listings'), which since Home got its own feed means an
-         officer leaving their club's console landed in the marketplace. -->
-    <div class="oc-top">
-      <button class="oc-back" onclick="goHome()">&#8249; Back to Nestrel</button>
-      <button class="oc-switch" id="ocSwitchBtn" hidden onclick="orgConsoleSwitch()">Switch org</button>
+    <!-- Two columns for an officer of more than one organization, on a wide screen: their
+         organizations listed on the left (ocRail), the chosen one's console on the right — the
+         way Slack and Discord keep workspaces one click apart. One column otherwise. -->
+    <div class="oc-shell" id="ocShell">
+      <aside class="oc-rail" id="ocRail" hidden aria-label="Your organizations"></aside>
+      <div class="oc-main">
+        <!-- The way out sits above the organization, like the mockup's "Back to Nestrel". It goes
+             HOME: it used to call showPage('listings'), which since Home got its own feed means an
+             officer leaving their club's console landed in the marketplace. -->
+        <div class="oc-top">
+          <button class="oc-back" onclick="goHome()">&#8249; Back to Nestrel</button>
+          <button class="oc-switch" id="ocSwitchBtn" hidden onclick="orgConsoleSwitch()">Switch</button>
+        </div>
+        <!-- Sticky, and it must stay that way: every action in here is taken ON BEHALF of an
+             organization, and §3 is explicit that which one may never be ambiguous. -->
+        <div class="oc-bar">
+          <div class="oc-identity" id="ocIdentity"></div>
+        </div>
+        <!-- The club's numbers used to sit here, above the tabs, on every section. They live in the
+             Overview now (ocPaintStats), which is the one page about them. -->
+        <div class="oc-nav" id="ocNav"></div>
+        <div class="oc-body" id="ocBody"></div>
+      </div>
     </div>
-    <!-- Sticky, and it must stay that way: every action in here is taken ON BEHALF of an
-         organization, and §3 is explicit that which one may never be ambiguous. -->
-    <div class="oc-bar">
-      <div class="oc-identity" id="ocIdentity"></div>
-    </div>
-    <!-- The club's numbers used to sit here, above the tabs, on every section. They live in the
-         Overview now (ocPaintStats), which is the one page about them. -->
-    <div class="oc-nav" id="ocNav"></div>
-    <div class="oc-body" id="ocBody"></div>
   </div>
 
   <div id="sBanner"></div>
@@ -1973,11 +1981,11 @@
 <script src="js/media.js?v=2026-09-07a"></script>
 <script src="js/messages.js?v=2026-09-25c"></script>
 <script src="js/admin.js?v=2026-09-24a"></script>
-<script src="js/orgs.js?v=2026-09-25a"></script>
-<script src="js/events.js?v=2026-09-25a"></script>
+<script src="js/orgs.js?v=2026-09-25b"></script>
+<script src="js/events.js?v=2026-09-25b"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
-<script src="js/orgdir.js?v=2026-09-25a"></script>
-<script src="js/feed.js?v=2026-09-25b"></script>
+<script src="js/orgdir.js?v=2026-09-25b"></script>
+<script src="js/feed.js?v=2026-09-25c"></script>
 <script src="js/inbox.js?v=2026-09-25c"></script>
   <script src="js/boot.js?v=2026-09-24a"></script>
 

@@ -17,6 +17,8 @@ let _evGoing  = new Map(); // event id -> this student's own registration row
 let _evDetail = null;      // the event currently open in the detail modal
 let _evRated  = new Map(); // event id -> this student's own feedback row
 let _evShowPast = false;
+let _evRecaps = new Map();   // past event id -> its SHARED recap { note, sharedAt, photos }
+let _evRecapsReady = null;   // false once we know the recap columns are missing (the 09-25 SQL not run)
 // The feed's own filters (stories, date strip, filter sheet). NOT the search's state: search resets on open and
 // replaces the whole feed, these narrow the feed in place. Not persisted either — a filter
 // describes this visit, and a feed silently narrowed on the next launch would look as if
@@ -54,7 +56,8 @@ async function loadEvents() {
   _evPast = rows.filter(e => e.has_ended && e.status === 'published')
                 .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
 
-  await Promise.all([evLoadOrgs(rows), loadFavorites(true), evLoadGoing(), evLoadRated()]);
+  await Promise.all([evLoadOrgs(rows), loadFavorites(true), evLoadGoing(), evLoadRated(),
+    evLoadRecaps(_evPast.map(e => e.id)).then(m => { _evRecaps = m; })]);
   return { ok: true };
 }
 
@@ -194,6 +197,7 @@ function evPaint() {
           <div id="evAskSide"></div>
           <div id="evPlans">${evPlansHTML()}</div>
           ${evPopularHTML()}
+          ${evRecapsSideHTML()}
         </div>
         <div class="ev-side-col">
           ${evGlanceHTML()}
@@ -233,6 +237,7 @@ function evPaint() {
             <p>Clubs post their events here first. Follow a few and theirs show up in your stories the moment they're up.</p></div>
           <button class="ev-club-follow" onclick="orgDirGo()">Find clubs</button>
         </div>`;
+      html += evRecapsMainHTML();
       if (past.length) html += `<h2 class="ev-section-h">Recently on campus</h2>
         <div class="ev-past-grid">${past.map(evPastTileHTML).join('')}</div>`;
       return html;
@@ -242,8 +247,10 @@ function evPaint() {
       <button class="ev-note-btn" onclick="evStory(null)">See every club</button></div>`;
     else if (!rows.length && filtered) html += `<div class="ev-note">Nothing matches that.
       <button class="ev-note-btn" onclick="evFeedClear()">Show everything</button></div>`;
-    // Past events are behind a chip, not in the list. The photo count is the reason anyone
-    // taps it — a past event with recap photos is worth looking at, and one without is not.
+    // Recaps are out in the open (on a phone; a desktop has them in the side column), then the
+    // rest of the past behind a chip. The photo count is the reason anyone taps it — a past
+    // event with recap photos is worth looking at, and one without is not.
+    html += evRecapsMainHTML();
     if (past.length) {
       html += `
         <button class="ev-past-chip" onclick="evTogglePast(this)">
@@ -539,6 +546,114 @@ function evPaintSuggest() {
   if (el) el.innerHTML = evSuggestHTML();
 }
 
+// ---------- Recaps (2026-09-25) ----------
+// After an event, its officers add photos and a line about how it went, then press "Share recap"
+// in the console (ocShareRecap). Until then the photos are private: the event_media policy hides
+// recap rows from students (sql/2026-09-25_club_cover_and_recaps.sql). Students then meet the
+// recap in four places — the event itself, the club's page (Past), this page, and followers' Home.
+
+// SHARED recaps for these events: Map(event id -> { note, sharedAt, photos: [url] }). The filter on
+// recap_shared_at is applied here as well as in the database, because an officer's own browser may
+// read draft recap photos (they manage the event) and "See it as a student" must not show them.
+// Empty, not an error, until the 09-25 SQL has been run.
+async function evLoadRecaps(ids) {
+  const out = new Map();
+  ids = [...new Set((ids || []).map(Number).filter(Boolean))];
+  if (!ids.length) return out;
+  const { data: evs, error } = await supabaseClient.from('events')
+    .select('id, recap_note, recap_shared_at').in('id', ids).not('recap_shared_at', 'is', null);
+  _evRecapsReady = !error;
+  if (error || !evs || !evs.length) return out;
+  const { data: media } = await supabaseClient.from('event_media').select('event_id, url, sort_order')
+    .eq('phase', 'recap').eq('kind', 'image').in('event_id', evs.map(e => e.id)).order('sort_order');
+  evs.forEach(e => out.set(e.id, { note: e.recap_note || '', sharedAt: e.recap_shared_at,
+    photos: (media || []).filter(m => m.event_id === e.id).map(m => m.url) }));
+  return out;
+}
+
+// Recaps shared lately, newest first, for Home ("from clubs you follow") — each with its event's
+// title and club. orgIds narrows it; without them it is the student's whole school.
+async function evRecentRecaps({ orgIds = null, days = 14, limit = 8 } = {}) {
+  const eu = getEffectiveUser();
+  if (!eu || (orgIds && !orgIds.length)) return [];
+  let q = supabaseClient.from('events').select('id, org_id, title, starts_at, recap_shared_at')
+    .not('recap_shared_at', 'is', null)
+    .gte('recap_shared_at', new Date(Date.now() - days * 864e5).toISOString())
+    .eq('school', eu.school || 'caldwell')
+    .order('recap_shared_at', { ascending: false }).limit(limit);
+  if (orgIds) q = q.in('org_id', orgIds);
+  const { data, error } = await q;
+  if (error || !data || !data.length) return [];
+  const recaps = await evLoadRecaps(data.map(e => e.id));
+  return data.filter(e => recaps.get(e.id)?.photos.length)
+    .map(e => ({ ...e, ...recaps.get(e.id) }));
+}
+
+// Up to four photos as a mosaic; "+N" on the last when there are more.
+function evRecapMosaicHTML(photos, max = 4) {
+  const shown = photos.slice(0, max);
+  const more = photos.length - shown.length;
+  return `<span class="ev-mosaic n-${shown.length}">${shown.map((u, i) => `
+    <span class="ev-mosaic-i"><img src="${escAttr(u)}" alt="" loading="lazy">${
+      more > 0 && i === shown.length - 1 ? `<span class="ev-mosaic-more">+${more}</span>` : ''}</span>`).join('')}</span>`;
+}
+
+// A recap as a card: the photos, then whose and what. Opens the event, where the recap leads.
+function evRecapCardHTML(e, r) {
+  const org = _evOrgs.get(e.org_id);
+  return `
+    <button class="ev-recap" onclick="evOpen(${Number(e.id)})">
+      ${evRecapMosaicHTML(r.photos, 3)}
+      <span class="ev-recap-text">
+        <span class="ev-recap-k">${icon('image', 12)} Recap${org?.name ? ' · ' + esc(org.name) : ''}</span>
+        <b>${esc(e.title)}</b>
+        ${r.note ? `<span class="ev-recap-note">${esc(r.note)}</span>` : `<span class="ev-recap-note">${r.photos.length} photo${r.photos.length === 1 ? '' : 's'}</span>`}
+      </span>
+    </button>`;
+}
+
+// The recap on the event's own page: who shared it and when, their note, and the photos as a grid
+// that moves the gallery above to the one tapped (the recap photos lead it, so index = position).
+function evRecapSectionHTML(e, rc, org) {
+  const when = new Date(rc.sharedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `
+    <section class="evd-recap">
+      <div class="evd-recap-h"><b>${icon('image', 15)} Recap</b><span>${esc(org?.name || 'The organizers')} · ${esc(when)}</span></div>
+      ${rc.note ? `<p class="evd-recap-note">${esc(rc.note)}</p>` : ''}
+      <div class="evd-recap-grid">${rc.photos.map((u, i) => `
+        <button class="evd-recap-ph" onclick="evRecapGo(${i})" aria-label="Photo ${i + 1} of ${rc.photos.length}"><img src="${escAttr(u)}" alt="" loading="lazy"></button>`).join('')}</div>
+    </section>`;
+}
+function evRecapGo(i) {
+  ldGo(i);
+  document.querySelector('#evDetailModal .modal')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// This page's recaps: past events with a shared recap and photos, newest share first, from the
+// last three weeks (a recap is news for a while, then it is history — the Past list keeps it).
+function evRecapRows() {
+  const since = Date.now() - 21 * 864e5;
+  return _evPast
+    .filter(e => (!_evFeedOrg || e.org_id === _evFeedOrg))
+    .map(e => [e, _evRecaps.get(e.id)])
+    .filter(([, r]) => r && r.photos.length && new Date(r.sharedAt).getTime() > since)
+    .sort((a, b) => new Date(b[1].sharedAt) - new Date(a[1].sharedAt))
+    .slice(0, 6);
+}
+// On a phone: a sideways row after the upcoming events (CSS hides it where the side column shows).
+function evRecapsMainHTML() {
+  const rows = evRecapRows();
+  if (!rows.length) return '';
+  return `<section class="ev-recaps-main"><h2 class="ev-section-h">Recaps</h2>
+    <div class="ev-recaps-row">${rows.map(([e, r]) => evRecapCardHTML(e, r)).join('')}</div></section>`;
+}
+function evRecapsSideHTML() {
+  const rows = evRecapRows();
+  if (!rows.length) return '';
+  return `<section class="ev-side-card"><h2 class="ev-side-h">Recaps</h2>
+    <div class="ev-recaps-col">${rows.slice(0, 3).map(([e, r]) => evRecapCardHTML(e, r)).join('')}</div></section>`;
+}
+
 // A past event as a small tile: its poster and when it was. Past events are for looking back
 // (and at recap photos), so they do not need the full post a coming event gets.
 function evPastTileHTML(e) {
@@ -546,10 +661,14 @@ function evPastTileHTML(e) {
   const days = Math.max(0, Math.round((Date.now() - new Date(e.starts_at).getTime()) / 864e5));
   const when = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago`
     : new Date(e.starts_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  // With a shared recap, its first photo is the tile — the event as it happened, not its flyer.
+  const r = _evRecaps.get(e.id);
+  const pic = r?.photos[0] || e.poster_url;
   return `
     <button class="ev-past-tile ev-tone-${escAttr(e.event_type || 'other')}" onclick="evOpen(${e.id})">
-      <span class="ev-past-img">${e.poster_url ? `<img src="${escAttr(e.poster_url)}" alt="" loading="lazy">`
-        : `<span class="ev-past-made">${esc(e.title)}</span>`}</span>
+      <span class="ev-past-img">${pic ? `<img src="${escAttr(pic)}" alt="" loading="lazy">`
+        : `<span class="ev-past-made">${esc(e.title)}</span>`}${r?.photos.length
+        ? `<span class="ev-past-badge">${icon('image', 11)} ${r.photos.length}</span>` : ''}</span>
       <span class="ev-past-t">${esc(e.title)}</span>
       <span class="ev-past-d">${esc(when)}${org?.name ? ' · ' + esc(org.name) : ''}</span>
     </button>`;
@@ -860,7 +979,7 @@ async function evOpen(id) {
   _evDetail = data;
   const e = data;
 
-  const [{ data: media }] = await Promise.all([
+  const [{ data: media }, , , , recaps] = await Promise.all([
     supabaseClient.from('event_media')
       .select('kind, url, caption, phase, sort_order').eq('event_id', id).order('sort_order'),
     evLoadGoing(),
@@ -868,6 +987,7 @@ async function evOpen(id) {
     // has already rated it.
     data.has_ended ? evLoadFbWindows([id]) : null,
     data.has_ended ? evLoadRated() : null,
+    data.has_ended ? evLoadRecaps([id]) : null,
   ]);
   // A view, under the privacy rules Kal set on 2026-09-14 (sql/2026-09-15_org_analytics_and_event_views.sql):
   // counted once per student, never the club's own officers, and the link to the student erased
@@ -877,6 +997,7 @@ async function evOpen(id) {
     if (vErr && vErr.code !== 'PGRST202') console.warn('[record_event_view]', vErr.message);
   });
   _evDetail._media = media || [];
+  _evDetail._recap = recaps?.get(id) || null;
   if (!_evOrgs.has(data.org_id)) await evLoadOrgs([data]);
 
   _ldIndex = 0;
@@ -938,15 +1059,20 @@ document.addEventListener('keydown', ev => {
 function evPaintDetail() {
   const e = _evDetail;
   const org = _evOrgs.get(e.org_id);
-  const images = e._media.filter(m => m.kind === 'image');
+  // Recap photos are only ever shown as the recap, and only once it is shared (e._recap). Until
+  // the 2026-09-25 SQL runs there is no "shared" to ask about — _evRecapsReady is false — and they
+  // stay in the strip with the others, exactly as before.
+  const rc = e._recap && e._recap.photos.length ? e._recap : null;
+  const images = e._media.filter(m => m.kind === 'image' && (m.phase !== 'recap' || _evRecapsReady === false));
   // Every video href goes through safeUrl(). The console only accepts Instagram, YouTube and
   // TikTok links, which keeps javascript: out of the form — but event_media.url has no check, so a
   // direct write would put a script URL behind "Watch on …" for every visitor. A link that
   // fails the check is dropped rather than drawn broken.
   const videos = e._media.filter(m => m.kind === 'video_link');
 
-  // The poster first, then the event's other photos, in one swipeable strip.
-  const photos = [e.poster_url, ...images.map(m => m.url)].filter(Boolean)
+  // The poster first, then the event's other photos, in one swipeable strip — or, once a recap is
+  // shared, the recap photos first: after the event, what it looked like matters more than the flyer.
+  const photos = [...(rc ? rc.photos : []), e.poster_url, ...images.map(m => m.url)].filter(Boolean)
     .filter((u, i, a) => a.indexOf(u) === i);
   const media = photos.length ? '' : `
     <div class="ld-media ld-media-made" style="background:${eventGradient(e.id)}">
@@ -1002,7 +1128,8 @@ function evPaintDetail() {
       ${e.status === 'cancelled' ? `<div class="evd-cancelled"><strong>This event was cancelled.</strong>${e.cancelled_reason ? `<div>${esc(e.cancelled_reason)}</div>` : ''}</div>` : ''}
       ${parts.note}
       ${facts.length ? `<dl class="detail-specs">${facts.map(([k, v]) => `<div class="detail-spec"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}`,
-    body: (e.description ? `<p class="ld-desc">${esc(e.description)}</p>` : '')
+    body: (rc ? evRecapSectionHTML(e, rc, org) : '')
+      + (e.description ? `<p class="ld-desc">${esc(e.description)}</p>` : '')
       + videos.map(v => safeUrl(v.url)).filter(Boolean).map(href => `
         <a class="evd-video" href="${escAttr(href)}" target="_blank" rel="noopener noreferrer">
           <span class="evd-video-play">${icon('play', 13, true)}</span>
