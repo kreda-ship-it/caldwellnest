@@ -590,6 +590,20 @@ function feedFeaturedHTML() {
     </div>`);
 }
 
+// The open beta, said where every student lands (2026-09-25): one quiet line under the greeting,
+// with the two things a tester needs — where to report a problem, and what "beta" means for them
+// (the Terms' beta section). Always there rather than dismissible: a beta notice you can close is
+// one a student can say they never saw.
+function feedBetaHTML() {
+  return `
+    <p class="home-beta">
+      <span class="home-beta-tag">Open beta</span>
+      <span class="home-beta-text">Everything here is real — the people, listings and plans. Something broken?
+        <a href="mailto:amahledigitalcreatives@gmail.com?subject=Nestrel%20beta%20feedback">Tell us</a>
+        · <a href="terms.html#beta" target="_blank" rel="noopener">What this means</a></span>
+    </p>`;
+}
+
 async function renderFeed() {
   const body = document.getElementById('feedBody');
   if (!body) return;
@@ -617,6 +631,7 @@ async function renderFeed() {
         <p class="home-date">${esc([today, schoolName].filter(Boolean).join(' · '))}</p>
         <h1 class="home-greet">${feedGreeting()}${first ? ', ' + esc(first) : ''}</h1>
         <div class="home-chips" id="homeChips">${feedChipsHTML()}</div>
+        ${feedBetaHTML()}
       </div>
       ${feedCampusSVG()}
     </section>`;
