@@ -50,6 +50,29 @@ function csvCell(v) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+// A profile colour as it may reach the page: a real #rgb or #rrggbb code, else the fallback.
+// profiles.color (and listings.poster_color) are plain text a student can set to anything, and
+// inside style="background:…" escAttr() stops a value leaving the attribute but not adding CSS of
+// its own — "#888;background-image:url(https://…)" would log the IP of everyone who looks.
+// Use it wherever a stored colour goes into a style="…" TEMPLATE. Setting el.style.backgroundColor
+// directly is already safe: the browser rejects anything that isn't one valid colour.
+// Guarded by check 12 in tests/load-order.js.
+function safeColor(c, fallback = '#888') {
+  const s = String(c ?? '').trim();
+  return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(s) ? s : fallback;
+}
+
+// A profile photo address as it may reach the page: only one in our own storage, where
+// uploadAvatar() (js/media.js) puts every avatar — plus the blob: previews this page makes itself
+// while a photo is being chosen. profiles.avatar_url is plain text a student could point at any
+// website, which would then learn the IP address of everyone who views that profile. Returns ''
+// for anything else, so callers draw the initials instead. Guarded by check 12.
+function safeAvatarUrl(u) {
+  const s = String(u ?? '');
+  if (s.startsWith('blob:')) return s;
+  return s.startsWith(SUPABASE_URL + '/storage/v1/object/public/listing-photos/') ? s : '';
+}
+
 // prepLoginModal (auth.js) applies the "welcome back, <name>" treatment when this device
 // remembers a prior student. Hooking it here means all eight routes into the login modal
 // behave the same. Both callees live in later files, which is fine: they are only *called*

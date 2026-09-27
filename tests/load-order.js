@@ -355,5 +355,36 @@ if (ran) {
                  : pass('js/messages.js groups and loads chats by sender and receiver, never by the label');
 }
 
+// ------------------------------------------------ 12. a profile's colour and photo stay harmless
+// profiles.color and profiles.avatar_url are plain text a student can set to anything. Inside
+// style="background:…", escAttr() stops a colour leaving the attribute but not adding CSS of its
+// own — "#888;background-image:url(https://…)" logs the IP of everyone who views that profile,
+// and position:fixed can cover the screen. An avatar_url on another website does the same. So
+// safeColor() lets through only a real #rgb / #rrggbb code, and safeAvatarUrl() only our own
+// storage (plus the page's own blob: previews). Added 2026-09-27 (security audit, M5).
+if (ran) {
+  try {
+    const store = vm.runInContext('SUPABASE_URL', ctx) + '/storage/v1/object/public/listing-photos/u1/avatar-1.jpg';
+    const bad = [];
+    const expect = (expr, want) => { const got = vm.runInContext(expr, ctx); if (got !== want) bad.push(`${expr} -> ${JSON.stringify(got)}`); };
+    expect(`safeColor('#2d6148')`, '#2d6148');
+    expect(`safeColor('#ABC')`, '#ABC');
+    expect(`safeColor('#888;background-image:url(https://evil.example/x)')`, '#888');
+    expect(`safeColor('red;position:fixed', '#3B5BA5')`, '#3B5BA5');
+    expect(`safeColor(null)`, '#888');
+    expect(`safeAvatarUrl(${JSON.stringify(store)})`, store);
+    expect(`safeAvatarUrl('https://evil.example/listing-photos/x.jpg')`, '');
+    expect(`safeAvatarUrl('javascript:alert(1)')`, '');
+    expect(`safeAvatarUrl('blob:http://localhost/abc')`, 'blob:http://localhost/abc');
+    ctx.__hostileProfile = { name: 'X', initials: 'X', color: '#888;position:fixed;inset:0', avatar_url: 'https://evil.example/track.jpg' };
+    const html = vm.runInContext('avatarHTML(__hostileProfile, 40)', ctx);
+    if (/evil\.example|position:fixed/.test(html)) bad.push(`avatarHTML let it through: ${html.slice(0, 120)}`);
+    bad.length ? fail(`profile colour / photo: ${bad.join('; ')}`)
+               : pass("a profile's colour and photo can only be a real colour and our own storage");
+  } catch (e) {
+    fail(`safeColor / safeAvatarUrl / avatarHTML could not be exercised: ${e.message}`);
+  }
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

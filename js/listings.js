@@ -1061,9 +1061,10 @@ function schoolBadgeHTML(l) {
 // A small avatar (live profile picture, else initials-on-color). Never a generic "missing user" icon.
 function avatarHTML(p, size) {
   const fs = Math.round(size * 0.4);
-  return p.avatar_url
-    ? `<img src="${escAttr(p.avatar_url)}" alt="${escAttr(p.name)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${escAttr(p.color || '#888')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${esc(p.initials || '?')}</div>`;
+  const photo = safeAvatarUrl(p.avatar_url);   // our own storage only — see safeAvatarUrl (js/utils.js)
+  return photo
+    ? `<img src="${escAttr(photo)}" alt="${escAttr(p.name)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${safeColor(p.color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:600;flex-shrink:0">${esc(p.initials || '?')}</div>`;
 }
 
 // The small trust marker shown after a poster's name (Official only — every student is verified, so no tick on listings).

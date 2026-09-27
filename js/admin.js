@@ -699,7 +699,7 @@ function renderAApprovals() {
       <div class="acard-tags">${l.tags.map(t => `<span class="atag">${esc(t)}</span>`).join('')}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="mav" style="background:${escAttr(l.poster.color)}">${esc(l.poster.initials)}</div>
+          <div class="mav" style="background:${safeColor(l.poster.color)}">${esc(l.poster.initials)}</div>
           <div>
             <div style="font-size:13px;font-weight:500">${esc(l.poster.fullName || l.poster.name)}</div>
             <div style="font-size:11px;color:var(--text-faint)">${esc(l.poster.email)}</div>
@@ -776,7 +776,7 @@ function renderABookApprovals() {
         <div class="acard-desc">${esc(b.desc)}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <div class="mav" style="background:${escAttr(b.poster.color)}">${esc(b.poster.initials)}</div>
+            <div class="mav" style="background:${safeColor(b.poster.color)}">${esc(b.poster.initials)}</div>
             <div>
               <div style="font-size:13px;font-weight:500">${esc(b.poster.fullName || b.poster.name)}</div>
               <div style="font-size:11px;color:var(--text-faint)">${esc(b.poster.email)}</div>
@@ -1480,7 +1480,7 @@ async function aViewStu(id) {
     : `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend('${s.id}')">Suspend</button>`;
   document.getElementById('aStuBody').innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:${escAttr(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${esc(initials)}</div>
+      <div style="width:48px;height:48px;border-radius:50%;background:${safeColor(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${esc(initials)}</div>
       <div><div style="font-size:17px;font-weight:600">${esc(s.first_name)} ${esc(s.last_name)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(s.email || '—')}</div><span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}" style="margin-top:4px;display:inline-flex">${esc(s.status || 'active')}</span></div>
     </div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${esc(s.major || '—')}</span></div>
@@ -1662,7 +1662,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
     <div class="tcard" style="margin-bottom:16px">
       <div style="padding:20px 24px;display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:54px;height:54px;border-radius:50%;background:${escAttr(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;flex-shrink:0">${esc(initials)}</div>
+          <div style="width:54px;height:54px;border-radius:50%;background:${safeColor(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;flex-shrink:0">${esc(initials)}</div>
           <div>
             <div style="font-size:20px;font-weight:600;line-height:1.2">${esc(profile.display_name || (profile.first_name + ' ' + profile.last_name))}</div>
             <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${esc(profile.email || '—')}</div>
@@ -1890,7 +1890,7 @@ async function openListingDrawer(listingId) {
     <div style="border-top:1px solid var(--border);padding-top:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Posted by</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:38px;height:38px;border-radius:50%;background:${escAttr(l.poster_color || '#3B5BA5')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${esc(l.poster_initials || '?')}</div>
+        <div style="width:38px;height:38px;border-radius:50%;background:${safeColor(l.poster_color, '#3B5BA5')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${esc(l.poster_initials || '?')}</div>
         <div>
           ${l.poster_id ? `<div class="stu-link-a" style="font-size:14px;font-weight:500" onclick="closeHDrawer();aOpenStudentHistory('${l.poster_id}')">${esc(l.poster_name || 'Unknown')} <span style="font-size:11px;color:var(--text-faint)">→ view profile</span></div>` : `<div style="font-size:14px;font-weight:500">${esc(l.poster_name || 'Unknown')}</div>`}
           <div style="font-size:12px;color:var(--text-faint)">${esc(l.poster_email || '—')}</div>

@@ -96,6 +96,7 @@ function photoGalleryHtml(urls, opts = {}) {
 // the whole thing. The cover/center rules now live in styles.css.
 function paintAvatarEl(el, url, initials, color) {
   if (!el) return;
+  url = safeAvatarUrl(url);   // our own storage or this page's blob: preview only — see js/utils.js
   if (url) {
     el.textContent = '';
     el.style.backgroundImage = `url('${String(url).replace(/['"()]/g, '')}')`; // quotes/parens would break out of the CSS url()
