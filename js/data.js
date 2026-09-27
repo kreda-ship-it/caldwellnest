@@ -9,11 +9,20 @@
 // Marker email that identifies a listing posted via the official Nestrel identity.
 const OFFICIAL_POSTER_EMAIL = 'official@caldwellnest.com';
 
+// A listing is official only if it carries the marker email AND was posted by the admin account
+// that makes official posts (an admin in student preview posts under their own id). The marker
+// alone proves nothing: the posting browser writes poster_email, so a student could set it and get
+// the Official badge, the official name, and no Report or Message buttons. poster_id cannot be
+// faked — the database lets you post only as yourself. If another admin ever posts officially, add
+// their id here; until then their posts show without the badge, which is the safe way to be wrong.
+// Guarded by check 13 in tests/load-order.js.
+const isOfficialRow = row => row.poster_email === OFFICIAL_POSTER_EMAIL && row.poster_id === SUPER_ADMIN_ID;
+
 // Builds the canonical in-memory poster object for a listing.
 // - `prof` is the live profile row (or undefined for official posts / deleted profiles).
 // - Public `name` defaults to first-name only (privacy); `fullName`/`email` are kept for admin surfaces only.
 function posterFromRow(row, prof) {
-  const isOfficial = row.poster_email === OFFICIAL_POSTER_EMAIL;
+  const isOfficial = isOfficialRow(row);
   if (prof && !isOfficial) {
     return {
       name: prof.display_name || prof.first_name || 'Student',
@@ -107,11 +116,12 @@ async function loadListings() {
   const rows = data || [];
 
   // Live-join poster profiles so avatar + name + trust info are a single source of truth
-  // (update your picture → next load every card reflects it). Official Nestrel posts
-  // are detected by their marker email and SKIP the join, so the real admin behind the
-  // official identity is never exposed.
+  // (update your picture → next load every card reflects it). Genuine official Nestrel posts
+  // (isOfficialRow) SKIP the join, so the real admin behind the official identity is never
+  // exposed. A student's listing that merely carries the marker email is joined like any other,
+  // so it shows under the student's real name.
   const realPosterIds = [...new Set(rows
-    .filter(r => r.poster_id && r.poster_email !== OFFICIAL_POSTER_EMAIL)
+    .filter(r => r.poster_id && !isOfficialRow(r))
     .map(r => r.poster_id))];
   const profMap = {};
   if (realPosterIds.length) {

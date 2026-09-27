@@ -386,5 +386,33 @@ if (ran) {
   }
 }
 
+// ------------------------------------------------ 13. "Official" cannot be claimed by typing an email
+// Official posts carry a marker poster_email — but the posting browser writes that field, so a
+// student could set it on their own listing and get the Official badge, the official name, and no
+// Report or Message buttons. poster_id cannot be faked (the database lets you post only as
+// yourself), so a listing is official only when both match. Added 2026-09-27 (security audit, H2).
+if (ran) {
+  try {
+    const admin = vm.runInContext('SUPER_ADMIN_ID', ctx), marker = vm.runInContext('OFFICIAL_POSTER_EMAIL', ctx);
+    const student = 'dddddddd-0000-4000-8000-000000000004';
+    ctx.__forged  = { poster_id: student, poster_email: marker, poster_name: 'Nestrel Housing Office', poster_initials: 'NH', poster_color: '#7c3aed' };
+    ctx.__genuine = { poster_id: admin,   poster_email: marker, poster_name: 'Nestrel', poster_initials: 'CN', poster_color: '#7c3aed' };
+    ctx.__prof    = { display_name: 'Sam', first_name: 'Sam', last_name: 'Doe', initials: 'SD', color: '#2d6148' };
+    const forgedWithProfile = vm.runInContext('posterFromRow(__forged, __prof)', ctx);
+    const forgedNoProfile   = vm.runInContext('posterFromRow(__forged, undefined)', ctx);
+    const genuine           = vm.runInContext('posterFromRow(__genuine, undefined)', ctx);
+    const problems = [
+      forgedWithProfile.official && 'a student listing carrying the marker email is shown as Official',
+      forgedWithProfile.name !== 'Sam' && `a forged "official" listing shows "${forgedWithProfile.name}" instead of the poster's real name`,
+      forgedNoProfile.official && 'a forged row is Official even without its profile',
+      !genuine.official && "the admin's own official post lost its badge",
+    ].filter(Boolean);
+    problems.length ? fail(`official badge: ${problems.join('; ')}`)
+                    : pass('the Official badge needs the admin account, not just the marker email');
+  } catch (e) {
+    fail(`posterFromRow could not be exercised: ${e.message}`);
+  }
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);
