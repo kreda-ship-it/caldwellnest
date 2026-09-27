@@ -1,0 +1,13 @@
+# Vercel publishes ONLY what the site needs. Everything else in this repo — docs/, sql/, tests/,
+# CLAUDE.md, the business plan — stays on GitHub and is never served on nestrel.org.
+#
+# This is an ALLOWLIST: "/*" ignores everything at the top level, and each "!" line lets one thing
+# back in. A new top-level file or folder the site needs (an images/ folder, robots.txt, a favicon)
+# must be added here, or the live site returns 404 for it. Added 2026-09-27 (security audit, L12).
+/*
+!index.html
+!styles.css
+!js
+!terms.html
+!privacy.html
+!vercel.json

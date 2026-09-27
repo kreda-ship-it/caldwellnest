@@ -111,6 +111,9 @@ Skip the refining and make the change directly (I've decided it's clear enough).
   host → `img-src`. A new feature that "does nothing" is a policy symptom first — look for `Refused to…` in the console.
 - `'unsafe-inline'` in `script-src` is there because of the inline `onclick="…"` handlers. Dropping it means moving
   every handler into JavaScript — a long future cleanup, not a quick edit.
+- **`.vercelignore` is an allowlist** (added 2026-09-27): only `index.html`, `styles.css`, `js/`, `terms.html`,
+  `privacy.html` and `vercel.json` are published. **A new top-level file or folder the site needs** (images,
+  a favicon, `robots.txt`) **must be added there, or it 404s on the live site** while working fine locally.
 
 ## Known limitations (do NOT "fix" these silently — they're known and planned)
 - Core data (accounts, profiles, listings, messages, books) persists in Supabase. The ADMIN side still has in-memory pieces that reset on refresh: the live site editor content (`DB.content`) and `DB.settings`. Persisting those is a future task.
