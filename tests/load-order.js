@@ -319,5 +319,41 @@ if (ran) {
                     : pass('every CSV export quotes through csvCell');
 }
 
+// ------------------------------------------------ 11. a chat is who sent it, not what it is labelled
+// messages.conversation_key is a label; sender_id is the fact (the database only lets you send as
+// yourself). A thread grouped or loaded by the label would put a message from student C, labelled
+// with the key of A's chat with B, on B's side of that chat — "It's B, send the deposit here".
+// So the chat list groups by sender/receiver, and messages.js never groups, loads or matches a
+// thread by the label. (Its realtime subscription may still FILTER by it; the handler then checks
+// the sender.) Added 2026-09-27 (security audit, H3).
+if (ran) {
+  const A = 'aaaaaaaa-0000-4000-8000-000000000001', B = 'bbbbbbbb-0000-4000-8000-000000000002',
+        C = 'cccccccc-0000-4000-8000-000000000003', LABEL_AB = [A, B].sort().join(':');
+  ctx.__msgs = [   // newest first, as renderConvos() fetches them
+    { id: 'm3', sender_id: C, receiver_id: A, conversation_key: LABEL_AB, content: "It's B — send it here", created_at: '2026-09-27T12:02:00Z', seen_at: null, listing_id: null, book_id: null },
+    { id: 'm2', sender_id: B, receiver_id: A, conversation_key: LABEL_AB, content: 'Is it still free?',    created_at: '2026-09-27T12:01:00Z', seen_at: null, listing_id: null, book_id: null },
+    { id: 'm1', sender_id: A, receiver_id: B, conversation_key: LABEL_AB, content: 'Hi!',                  created_at: '2026-09-27T12:00:00Z', seen_at: null, listing_id: null, book_id: null },
+  ];
+  try {
+    const out = vm.runInContext(`convoSummaries(__msgs, ${JSON.stringify(A)})`, ctx);
+    const withB = out.find(c => c.otherId === B), withC = out.find(c => c.otherId === C);
+    const problems = [
+      out.length !== 2                          && `expected 2 chats, got ${out.length}`,
+      !withC                                    && "C's message did not get a chat of its own",
+      withB && withB.last.sender_id !== B       && "the chat with B shows C's message as its latest",
+      withB && withB.unread !== 1               && `the chat with B counts ${withB?.unread} unread, expected 1`,
+    ].filter(Boolean);
+    problems.length ? fail(`convoSummaries: ${problems.join('; ')}`)
+                    : pass("a message labelled with another chat's key stays with its real sender");
+  } catch (e) {
+    fail(`convoSummaries could not be exercised: ${e.message}`);
+  }
+  const src = fs.readFileSync(path.join(ROOT, 'js/messages.js'), 'utf8');
+  const byLabel = [/\.eq\(\s*'conversation_key'/, /\b(m|msg|c)\.conversation_key\b/, /\.select\(\s*'conversation_key'/]
+    .filter(re => re.test(src)).map(String);
+  byLabel.length ? fail(`js/messages.js still trusts the conversation_key label: ${byLabel.join(', ')}`)
+                 : pass('js/messages.js groups and loads chats by sender and receiver, never by the label');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

@@ -85,7 +85,7 @@ function markActiveConvoSeen() {
   const convKey = [eu.id, sConvoActive.userId].sort().join(':');
   supabaseClient.from('messages')
     .update({ seen_at: new Date().toISOString() })
-    .eq('conversation_key', convKey).eq('receiver_id', eu.id).is('seen_at', null)
+    .eq('sender_id', sConvoActive.userId).eq('receiver_id', eu.id).is('seen_at', null)   // by sender, not label — see convoPairKey
     .select('id') // a GRANT/RLS block "succeeds" with zero rows — count them so it can't hide
     .then(({ data, error }) => {
       if (error) { console.warn('mark seen:', error.message); return; }
@@ -227,12 +227,13 @@ async function refreshUnread() {
   if (!eu) return;
   const { data, error } = await supabaseClient
     .from('messages')
-    .select('conversation_key')
+    .select('sender_id')
     .eq('receiver_id', eu.id)
     .is('seen_at', null);
   if (error) { console.warn('refreshUnread:', error.message); return; } // seen_at column not migrated yet — badges stay off
   sUnread = {};
-  (data || []).forEach(m => { sUnread[m.conversation_key] = (sUnread[m.conversation_key] || 0) + 1; });
+  // Counted per real sender, not per label (see convoPairKey).
+  (data || []).forEach(m => { const k = convoPairKey(eu.id, m.sender_id); sUnread[k] = (sUnread[k] || 0) + 1; });
   sUnreadCount = (data || []).length;
   updateMsgBadges();
 }
@@ -299,15 +300,24 @@ function convoRef(kind, id, meId) {
            mine: l.poster_id === meId, sold: l.lifecycle_status === 'sold', cat: l.category };
 }
 
+// A chat is the two people in it. messages.conversation_key is only a LABEL — if a message could
+// carry any label, one from student C labelled with the key of my chat with B would sit on B's side
+// of that chat: "It's B, send the deposit here". sender_id is a FACT (the database lets you send
+// only as yourself), so every chat is grouped, loaded and matched by sender/receiver, never by the
+// label. The realtime subscription may still filter by it; its handler checks the sender.
+// Guarded by check 11 in tests/load-order.js.
+function convoPairKey(meId, otherId) { return [meId, otherId].sort().join(':'); }
+
 // One summary per conversation from ALL my messages (newest first).
 function convoSummaries(msgs, meId) {
   const byKey = new Map();
   for (const m of msgs) {
-    let c = byKey.get(m.conversation_key);
+    const otherId = m.sender_id === meId ? m.receiver_id : m.sender_id;
+    const key = convoPairKey(meId, otherId);
+    let c = byKey.get(key);
     if (!c) {
-      c = { key: m.conversation_key, otherId: m.sender_id === meId ? m.receiver_id : m.sender_id,
-            last: m, unread: 0, refs: [], refKeys: new Set() };
-      byKey.set(m.conversation_key, c);
+      c = { key, otherId, last: m, unread: 0, refs: [], refKeys: new Set() };
+      byKey.set(key, c);
     }
     if (m.receiver_id === meId && !m.seen_at) c.unread++;
     const add = (kind, id) => {
@@ -568,9 +578,11 @@ async function openConvo(otherUserId, otherInfo, listingId) {
   // are placeholders while the messages come down.
   document.getElementById('chatArea').innerHTML = chatShellHTML(otherUserId, info, threadSkeletonHTML());
 
+  // The thread is the messages between these two people, by sender and receiver — not by label
+  // (see convoPairKey).
   const { data: msgs } = await supabaseClient
     .from('messages').select('*')
-    .eq('conversation_key', convKey)
+    .or(`and(sender_id.eq.${eu.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${eu.id})`)
     .order('created_at', { ascending: true });
 
   // Bail if the user switched to a DIFFERENT conversation while this was in flight.
@@ -821,6 +833,9 @@ async function handleRealtimeMessage(payload) {
   const eu = getEffectiveUser();
   if (!msg || !eu) return;
   if (msg.sender_id === eu.id) return; // already rendered locally on send
+  // This channel is filtered by the label, so it only belongs in this thread if it really came from
+  // the person the thread is with. Anything else, handleGlobalMessage() shows under its real sender.
+  if (!sConvoActive || msg.sender_id !== sConvoActive.userId) return;
   if (isViewingActiveConvo()) {
     // The thread is genuinely on screen — this message is seen the moment it lands.
     const { data, error } = await supabaseClient.from('messages').update({ seen_at: new Date().toISOString() }).eq('id', msg.id).select('id');
@@ -937,11 +952,9 @@ function handleGlobalMessage(payload) {
   const eu = getEffectiveUser();
   if (!msg || !eu) return;
   if (msg.sender_id === eu.id) return;
-  // Skip if this is the active conversation — sRealtimeChannel already handles it
-  if (sConvoActive) {
-    const activeKey = [eu.id, sConvoActive.userId].sort().join(':');
-    if (msg.conversation_key === activeKey) return;
-  }
+  // Skip if it is from the person in the open conversation — sRealtimeChannel already handles it.
+  // Matched by sender, not label (see convoPairKey).
+  if (sConvoActive && msg.sender_id === sConvoActive.userId) return;
   msgToastFor(msg); // no-op if the Messages page is on screen (list row + badge suffice)
   renderConvos();   // repaints list + DB-derived badges
 }
