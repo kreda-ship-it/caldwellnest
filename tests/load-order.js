@@ -436,5 +436,41 @@ if (ran) {
                   : pass("new listings don't store the poster's email; admins get it from the profile");
 }
 
+// ------------------------------------------------ 15. polls show totals, never who voted
+// The Privacy Policy says students see poll results as totals. The browser used to download every
+// vote row — user_id included — and count them itself. Now counts come from poll_totals() and the
+// only vote row read is your own; pollVoteRows() rebuilds the rows the poll cards already read (one
+// per vote, yours marked as yours) so no other voter's id reaches the page.
+// Two halves: pollVoteRows behaves, and no code reads poll_votes except for the signed-in user's
+// own row. Added 2026-09-28 (security audit, L3).
+if (ran) {
+  const problems = [];
+  try {
+    const ME = 'ffffffff-0000-4000-8000-000000000006';
+    ctx.__totals = [ { post_id: 1, option_id: 10, votes: 2 }, { post_id: 1, option_id: 11, votes: 1 },
+                     { post_id: 2, option_id: 20, votes: 0 } ];
+    ctx.__mine = [ { post_id: 1, option_id: 10 } ];
+    const rows = vm.runInContext(`pollVoteRows(__totals, __mine, ${JSON.stringify(ME)})`, ctx);
+    const p1 = rows.filter(r => r.post_id === 1);
+    if (p1.length !== 3) problems.push(`poll 1 should total 3 votes, got ${p1.length}`);
+    if (p1.filter(r => r.option_id === 10).length !== 2) problems.push('option 10 should have 2 votes');
+    if (p1.filter(r => r.user_id === ME).length !== 1 || p1.find(r => r.user_id === ME)?.option_id !== 10)
+      problems.push('exactly one row should be mine, on option 10');
+    if (rows.some(r => r.user_id !== ME && r.user_id !== null)) problems.push("another voter's id reached the rows");
+    if (rows.some(r => r.post_id === 2)) problems.push('an option with 0 votes produced rows');
+  } catch (e) {
+    problems.push(`pollVoteRows could not be exercised: ${e.message}`);
+  }
+  // Every read of poll_votes must be the signed-in user's own row: .eq('user_id', …) in its chain.
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    for (const m of src.matchAll(/from\('poll_votes'\)\s*\.select\([^)]*\)((?:\s*\.\w+\([^)]*\))*)/g)) {
+      if (!/\.eq\(\s*'user_id'/.test(m[1])) problems.push(`${f}:${src.slice(0, m.index).split('\n').length} reads other people's votes`);
+    }
+  }
+  problems.length ? fail(`polls: ${problems.join('; ')}`)
+                  : pass('polls reach the page as totals plus your own vote, never who voted');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

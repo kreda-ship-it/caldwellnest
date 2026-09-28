@@ -262,8 +262,9 @@ function feedClubsHTML(followsNone) {
 // This replaces the thin broadcast bar that used to run across the top of every page.
 //
 // Who sees what is decided by the database, not here: members-only posts reach members only
-// (org_posts RLS), and poll results arrive only after you have voted (poll_votes RLS). So a
-// student who has not voted cannot know the tally — the card says "results show after you
+// (org_posts RLS), and poll results arrive only after you have voted — as totals, from
+// poll_totals(), never as who voted (see loadPollVotes). So a student who has not voted cannot
+// know the tally — the card says "results show after you
 // vote" instead of a vote count, because the count is not ours to show them yet.
 
 const FEED_URGENT_DAYS = 3;       // an urgent post with no end date leaves the banner after this
@@ -308,6 +309,45 @@ function feedPollClosed(item) {
   return !!(item.closesAt && new Date(item.closesAt).getTime() <= Date.now());
 }
 
+// ---- Poll results: totals, never who voted ----
+// The Privacy Policy says students see poll results as totals. So the page never reads anyone
+// else's vote: counts come from poll_totals() (sql/2026-09-28_poll_totals.sql), which returns
+// nothing for a poll you have not voted in or cannot see, and the only vote row read is your own.
+// Used by Home, the club page, the club console and the inbox. Guarded by check 15 in
+// tests/load-order.js.
+async function loadPollVotes(pollIds, meId) {
+  if (!pollIds.length) return [];
+  const [totals, mine] = await Promise.all([
+    supabaseClient.rpc('poll_totals', { p_post_ids: pollIds }),
+    meId ? supabaseClient.from('poll_votes').select('post_id, option_id').in('post_id', pollIds).eq('user_id', meId)
+         : Promise.resolve({ data: [] }),
+  ]);
+  if (totals.error) console.error('[poll_totals]', totals.error.message);
+  if (mine.error) console.error('[my poll votes]', mine.error.message);
+  return pollVoteRows(totals.data || [], mine.data || [], meId);
+}
+
+// Rebuilds the vote rows every poll card already reads — one row per vote, yours marked with your
+// id, everyone else's with null — from totals and your own votes. The cards count rows and look
+// for yours, so they work unchanged, and no other voter's id is ever in the browser.
+function pollVoteRows(totals, myVotes, meId) {
+  const mineByPost = new Map(myVotes.map(v => [v.post_id, v.option_id]));
+  const rows = [];
+  for (const t of totals) {
+    let n = Number(t.votes) || 0;
+    if (n > 0 && mineByPost.get(t.post_id) === t.option_id) {
+      rows.push({ post_id: t.post_id, option_id: t.option_id, user_id: meId });
+      n--;
+    }
+    for (let i = 0; i < n; i++) rows.push({ post_id: t.post_id, option_id: t.option_id, user_id: null });
+  }
+  // Your vote still counts as yours even where the totals are not open to you.
+  for (const [postId, optionId] of mineByPost) {
+    if (!rows.some(r => r.post_id === postId && r.user_id === meId)) rows.push({ post_id: postId, option_id: optionId, user_id: meId });
+  }
+  return rows;
+}
+
 // Loads all three sources. Needs the club directory already loaded (the follow set, and each
 // club's name and logo), which is why renderFeed calls it after loadOrgDirectory.
 async function feedLoadNews() {
@@ -344,9 +384,9 @@ async function feedLoadNews() {
   if (pollIds.length) {
     const [o, v] = await Promise.all([
       supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
-      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+      loadPollVotes(pollIds, _feedMe),
     ]);
-    options = o.data || []; votes = v.data || [];
+    options = o.data || []; votes = v;
   }
 
   const orgs = new Map((_dirOrgs || []).map(o => [o.id, o]));
@@ -560,8 +600,8 @@ function feedRevote(postId, open) {
 }
 
 // One vote per person per poll: an upsert on (post_id, user_id), so voting again changes your
-// answer. Then this poll's votes are fetched again — now that you have voted, RLS lets you see
-// everyone's, which is the moment the results appear.
+// answer. Then this poll's totals are fetched again — now that you have voted, poll_totals()
+// returns them, which is the moment the results appear.
 async function feedVote(postId, optionId) {
   const x = _feedNews.find(n => n.kind === 'club' && n.id === postId);
   if (!x || !_feedMe) { requireAuth?.(); return; }
@@ -569,8 +609,8 @@ async function feedVote(postId, optionId) {
   const { error } = await supabaseClient.from('poll_votes')
     .upsert({ post_id: postId, option_id: optionId, user_id: _feedMe }, { onConflict: 'post_id,user_id' });
   if (error) { toast('Could not record your vote'); console.error('[feedVote]', error); return; }
-  const { data } = await supabaseClient.from('poll_votes').select('post_id, option_id, user_id').eq('post_id', postId);
-  x.votes = data || [{ post_id: postId, option_id: optionId, user_id: _feedMe }];
+  const fresh = await loadPollVotes([postId], _feedMe);
+  x.votes = fresh.length ? fresh : [{ post_id: postId, option_id: optionId, user_id: _feedMe }];
   _feedRevote.delete(postId);
   _feedPollOpen.delete(postId);
   // The results grow in for a few seconds, then the card settles into its one-line summary.

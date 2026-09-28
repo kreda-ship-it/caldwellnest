@@ -2173,20 +2173,20 @@ async function renderOcPosts() {
     .order('created_at', { ascending: false });
   if (error) { document.getElementById('ocPostList').innerHTML = '<div class="oc-note">Could not load posts.</div>'; console.error('[renderOcPosts]', error); return; }
 
+  const { data: { user } } = await supabaseClient.auth.getUser();
   const pollIds = (posts || []).filter(p => p.type === 'poll').map(p => p.id);
   let options = [], votes = [];
   if (pollIds.length) {
-    // RLS decides what comes back from poll_votes: your own always, everyone's only once you
-    // have voted, plus officers holding can_view_analytics. So an empty tally here is the
-    // gate working, not a failed query.
+    // Totals plus your own vote, never who voted (loadPollVotes, js/feed.js). poll_totals() answers
+    // once you have voted, or if you hold can_view_analytics — so an empty tally here is that gate
+    // working, not a failed query.
     const [o, v] = await Promise.all([
       supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
-      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+      loadPollVotes(pollIds, user?.id || null),
     ]);
-    options = o.data || []; votes = v.data || [];
+    options = o.data || []; votes = v;
   }
 
-  const { data: { user } } = await supabaseClient.auth.getUser();
   _ocPosts = (posts || []).map(p => ({
     post: p,
     options: options.filter(o => o.post_id === p.id),

@@ -345,11 +345,11 @@ async function activityBuild() {
       const ids = closed.map(p => p.id);
       const [o, v] = await Promise.all([
         supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', ids),
-        supabaseClient.from('poll_votes').select('post_id, option_id').in('post_id', ids),
+        loadPollVotes(ids, eu.id),   // totals + your own vote, never who voted (js/feed.js)
       ]);
       closed.forEach(p => {
         const opts = (o.data || []).filter(x => x.post_id === p.id);
-        const pv = (v.data || []).filter(x => x.post_id === p.id);
+        const pv = v.filter(x => x.post_id === p.id);
         const total = pv.length;
         const ranked = opts.map(x => ({ x, n: pv.filter(y => y.option_id === x.id).length })).sort((a, b) => b.n - a.n);
         const top = ranked[0];

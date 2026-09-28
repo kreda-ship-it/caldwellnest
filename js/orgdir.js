@@ -361,17 +361,17 @@ async function orgPageOpen(orgId, preview = false) {
   // student sees, not what the officer is allowed to see.
   _opEvents = (evs.data || []).filter(e => e.status !== 'draft');
 
-  // Polls, so they can be answered here exactly as on Home. The same two tables Home reads;
-  // RLS decides whose votes come back (your own, or everyone's once you have voted).
+  // Polls, so they can be answered here exactly as on Home, loaded the same way: totals once you
+  // have voted, plus your own vote — never who voted (loadPollVotes, js/feed.js).
   const rows = posts.data || [];
   const pollIds = rows.filter(p => p.type === 'poll').map(p => p.id);
   let options = [], votes = [];
   if (pollIds.length) {
     const [o, v] = await Promise.all([
       supabaseClient.from('poll_options').select('id, post_id, label, position').in('post_id', pollIds).order('position'),
-      supabaseClient.from('poll_votes').select('post_id, option_id, user_id').in('post_id', pollIds),
+      loadPollVotes(pollIds, getEffectiveUser()?.id || null),
     ]);
-    options = o.data || []; votes = v.data || [];
+    options = o.data || []; votes = v;
   }
   _opPosts = rows.map(p => ({
     key: 'op' + p.id, kind: 'club', id: p.id, org: _opOrg,
@@ -581,8 +581,8 @@ async function orgPageVote(postId, optionId) {
   const { error } = await supabaseClient.from('poll_votes')
     .upsert({ post_id: postId, option_id: optionId, user_id: me }, { onConflict: 'post_id,user_id' });
   if (error) { toast('Could not record your vote'); console.error('[orgPageVote]', error); return; }
-  const { data } = await supabaseClient.from('poll_votes').select('post_id, option_id, user_id').eq('post_id', postId);
-  x.votes = data || [{ post_id: postId, option_id: optionId, user_id: me }];
+  const fresh = await loadPollVotes([postId], me);
+  x.votes = fresh.length ? fresh : [{ post_id: postId, option_id: optionId, user_id: me }];
   const home = (typeof _feedNews !== 'undefined' ? _feedNews : []).find(n => n.kind === 'club' && n.id === postId);
   if (home) home.votes = x.votes;
   _feedRevote.delete(postId);
