@@ -472,5 +472,27 @@ if (ran) {
                   : pass('polls reach the page as totals plus your own vote, never who voted');
 }
 
+// ------------------------------------------------ 16. no typed text inside an inline handler's quotes
+// Inside onclick="f('…')" neither esc() nor escAttr() is protection: the browser turns &#39; back
+// into ' before the JavaScript runs, and escAttr() does not touch ' at all. So a quote in the value
+// ends the string and the rest runs as code. Check 9 caught this for the activity log; it came back
+// on event photos (event_media.url, which an officer can write) — found 2026-09-28, second audit S2.
+// Handlers must pass an id or a number and look the text up inside the function.
+// This flags any quoted interpolation in a handler whose expression names a text field.
+if (ran) {
+  const TEXTY = /\b(url|urls|title|name|label|email|content|message|reason|body|note|comment|text|description|location|subject|caption|bio)\b/;
+  const bad = [];
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    for (const m of src.matchAll(/\bon(?:click|change|input|submit|keydown|keyup|blur|focus)\s*=\s*"([^"]*)"/g)) {
+      for (const q of m[1].matchAll(/'\$\{([^}]*)\}'/g)) {
+        if (TEXTY.test(q[1])) bad.push(`${f}:${src.slice(0, m.index).split('\n').length} '\${${q[1]}}'`);
+      }
+    }
+  }
+  bad.length ? fail(`typed text inside an inline handler's quotes: ${bad.join('; ')}`)
+             : pass('inline handlers pass ids and numbers, never typed text');
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

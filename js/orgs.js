@@ -2721,8 +2721,14 @@ function ocEvMakeCover(i) {
   ocEvPaintPhotos();
 }
 
-function ocEvRemoveExisting(url) {
-  _ocEvRemoved.push(url);
+// Takes the media row's id, never its url: event_media.url is text an officer can write, and
+// inside onclick="…" a quote in it would become code. The url is looked up here instead.
+// Guarded by check 16 in tests/load-order.js.
+function ocEvRemoveExisting(mediaId) {
+  const ev = _ocEvEditId ? _ocEvents.find(e => e.id === _ocEvEditId) : null;
+  const m = (ev?._media || []).find(x => x.id === mediaId);
+  if (!m) return;
+  _ocEvRemoved.push(m.url);
   ocEvPaintPhotos();
 }
 
@@ -2740,7 +2746,7 @@ function ocEvPaintPhotos() {
       <div class="oc-ev-thumb">
         <img src="${escAttr(m.url)}" alt="">
         ${i === 0 && !_ocEvPhotos.length ? '<span class="oc-ev-cover">Cover</span>' : ''}
-        <button class="oc-ev-x" onclick="ocEvRemoveExisting('${escAttr(m.url)}')" title="Remove">&times;</button>
+        <button class="oc-ev-x" onclick="ocEvRemoveExisting(${Number(m.id)})" title="Remove">&times;</button>
       </div>`).join('') +
     _ocEvPhotos.map((p, i) => `
       <div class="oc-ev-thumb">
@@ -4210,7 +4216,7 @@ function ocPaintRecap(msg) {
         : 'Add your best photos and a line about how it went. Nothing is shown to students until you share it.'}</p>
       ${recapShots.length ? `<div class="oc-ev-strip">${recapShots.map(m => `
         <div class="oc-ev-thumb"><img src="${escAttr(m.url)}" alt="">
-          ${canEv ? `<button class="oc-ev-x" onclick="ocDeleteRecap(${m.id}, '${escAttr(m.url)}')" title="Remove">&times;</button>` : ''}
+          ${canEv ? `<button class="oc-ev-x" onclick="ocDeleteRecap(${Number(m.id)})" title="Remove">&times;</button>` : ''}
         </div>`).join('')}</div>` : ''}
       ${canEv ? `
         <label for="ocRecapInput" class="oc-ev-drop">${icon('image', 16)} ${recapShots.length ? 'Add more photos' : 'Add photos from the event'}</label>
@@ -4321,11 +4327,14 @@ async function ocUploadRecap(eventId, input) {
   if (box && note != null) box.value = note;   // an unsaved note survives adding photos
 }
 
-async function ocDeleteRecap(mediaId, url) {
+// Takes only the media row's id (see ocEvRemoveExisting); the file's url is read back from the
+// database, so nothing an officer typed ever travels through the onclick.
+async function ocDeleteRecap(mediaId) {
   if (!confirm('Remove this photo?')) return;
+  const { data: row } = await supabaseClient.from('event_media').select('url').eq('id', mediaId).maybeSingle();
   const { error } = await supabaseClient.from('event_media').delete().eq('id', mediaId);
   if (error) { toast('Could not remove: ' + error.message); console.error('[ocDeleteRecap]', error); return; }
-  await deleteListingPhotos([url], 'event-media');
+  if (row?.url) await deleteListingPhotos([row.url], 'event-media');
   const note = document.getElementById('ocRecapNote')?.value;
   await renderOcEvents();
   ocPaintRecap();
