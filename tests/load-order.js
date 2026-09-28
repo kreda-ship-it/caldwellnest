@@ -414,5 +414,27 @@ if (ran) {
   }
 }
 
+// ------------------------------------------------ 14. a listing does not carry its poster's email
+// listings.poster_email is readable by every signed-in student. New listings no longer store the
+// poster's school email there — only the official marker, which the Official badge needs. Admins
+// still see a poster's email: loadListings() looks it up from `profiles`, which only admins can
+// read, and hands it to posterFromRow(). Added 2026-09-28 (security audit, L4).
+if (ran) {
+  const problems = [];
+  const listingsSrc = fs.readFileSync(path.join(ROOT, 'js/listings.js'), 'utf8');
+  // `u.email === OFFICIAL_POSTER_EMAIL ? … : null` is the allowed form; a bare `u.email` is the leak.
+  if (/poster_email:\s*u\.email\b(?!\s*===)/.test(listingsSrc)) problems.push("posting a listing still stores the student's email");
+  try {
+    ctx.__row  = { poster_id: 'eeeeeeee-0000-4000-8000-000000000005', poster_email: null, poster_name: 'Sam Doe' };
+    ctx.__prof = { display_name: 'Sam', first_name: 'Sam', last_name: 'Doe', initials: 'SD', color: '#2d6148' };
+    const p = vm.runInContext(`posterFromRow(__row, __prof, 'sam.doe@caldwell.edu')`, ctx);
+    if (p.email !== 'sam.doe@caldwell.edu') problems.push(`posterFromRow ignored the looked-up email (got ${JSON.stringify(p.email)})`);
+  } catch (e) {
+    problems.push(`posterFromRow could not be exercised: ${e.message}`);
+  }
+  problems.length ? fail(`listing emails: ${problems.join('; ')}`)
+                  : pass("new listings don't store the poster's email; admins get it from the profile");
+}
+
 console.log(failures ? `\n${failures} failure(s)\n` : '\nAll checks passed\n');
 process.exit(failures ? 1 : 0);

@@ -1830,6 +1830,13 @@ async function openListingDrawer(listingId) {
     supabaseClient.from('reports').select('*').eq('listing_id', listingId).order('created_at', { ascending: false })
   ]);
   if (!l) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this listing.</div>'; return; }
+  // The poster's email comes from their profile, which admins may read. New listings no longer
+  // store a copy (security audit, L4); older ones still do, so that stays the first choice.
+  let posterEmail = l.poster_email;
+  if (!posterEmail && l.poster_id) {
+    const { data: pe } = await supabaseClient.from('profiles').select('email').eq('id', l.poster_id).maybeSingle();
+    posterEmail = pe?.email || null;
+  }
   const sPill = s => aStatusPill(s);       // shared helper
   const statusColors = { approved:'var(--success)', pinned:'#7c3aed', pending:'var(--text-muted)', rejected:'var(--danger)', removed:'var(--danger)' };
   const statusLabel = { approved:'Approved', pinned:'Pinned', pending:'Pending review', rejected:'Rejected', removed:'Removed' };
@@ -1893,7 +1900,7 @@ async function openListingDrawer(listingId) {
         <div style="width:38px;height:38px;border-radius:50%;background:${safeColor(l.poster_color, '#3B5BA5')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${esc(l.poster_initials || '?')}</div>
         <div>
           ${l.poster_id ? `<div class="stu-link-a" style="font-size:14px;font-weight:500" onclick="closeHDrawer();aOpenStudentHistory('${l.poster_id}')">${esc(l.poster_name || 'Unknown')} <span style="font-size:11px;color:var(--text-faint)">→ view profile</span></div>` : `<div style="font-size:14px;font-weight:500">${esc(l.poster_name || 'Unknown')}</div>`}
-          <div style="font-size:12px;color:var(--text-faint)">${esc(l.poster_email || '—')}</div>
+          <div style="font-size:12px;color:var(--text-faint)">${esc(posterEmail || '—')}</div>
         </div>
       </div>
       ${l.created_at ? `<div style="font-size:11px;color:var(--text-faint);margin-top:10px">Posted ${fmtDate(l.created_at)}</div>` : ''}

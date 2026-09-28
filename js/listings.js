@@ -1914,9 +1914,12 @@ async function submitListing() {
     if (submitBtn) submitBtn.textContent = 'Saving…';
   }
 
+  // poster_email is null for students: every signed-in student can read that column, so a copy
+  // of the poster's school email there was visible to all. Only the official marker is stored
+  // (the Official badge needs it); admins look real emails up from `profiles` (loadListings).
   const { data, error } = await supabaseClient
     .from('listings')
-    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.display_name || u.name, poster_initials: u.initials, poster_email: u.email, poster_color: u.color, poster_id: u.id || null, emoji, status: initialStatus, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls })
+    .insert({ title, category: cat, price, location, description: desc || 'No description.', details, tags, poster_name: u.display_name || u.name, poster_initials: u.initials, poster_email: u.email === OFFICIAL_POSTER_EMAIL ? OFFICIAL_POSTER_EMAIL : null, poster_color: u.color, poster_id: u.id || null, emoji, status: initialStatus, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls })
     .select().single();
   if (error) {
     toast('Could not save listing — please try again.');

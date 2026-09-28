@@ -21,14 +21,16 @@ const isOfficialRow = row => row.poster_email === OFFICIAL_POSTER_EMAIL && row.p
 // Builds the canonical in-memory poster object for a listing.
 // - `prof` is the live profile row (or undefined for official posts / deleted profiles).
 // - Public `name` defaults to first-name only (privacy); `fullName`/`email` are kept for admin surfaces only.
-function posterFromRow(row, prof) {
+// - `email` is the poster's email looked up from `profiles` — admins only (see loadListings). New
+//   listings no longer store one; older rows still carry poster_email, which remains the fallback.
+function posterFromRow(row, prof, email) {
   const isOfficial = isOfficialRow(row);
   if (prof && !isOfficial) {
     return {
       name: prof.display_name || prof.first_name || 'Student',
       fullName: row.poster_name,
       initials: prof.initials, color: prof.color,
-      email: row.poster_email,
+      email: email || row.poster_email,
       avatar_url: prof.avatar_url || null,
       verified: true, official: false,
       year: prof.year || null, major: prof.major || null,
@@ -39,7 +41,7 @@ function posterFromRow(row, prof) {
   return {
     name: row.poster_name, fullName: row.poster_name,
     initials: row.poster_initials, color: row.poster_color,
-    email: row.poster_email,
+    email: email || row.poster_email,
     avatar_url: null,
     verified: false, official: isOfficial,
     year: null, major: null, memberSince: null
@@ -130,6 +132,14 @@ async function loadListings() {
       .in('id', realPosterIds);
     (profs || []).forEach(p => { profMap[p.id] = p; });
   }
+  // Admins see each poster's school email on the approval cards. It comes from `profiles`, which
+  // only admins may read — the listing no longer carries a copy, where every signed-in student
+  // could read it (security audit, L4). A student skips this; the query would return nothing anyway.
+  const emailMap = {};
+  if (currentRole === 'admin' && realPosterIds.length) {
+    const { data: emails } = await supabaseClient.from('profiles').select('id, email').in('id', realPosterIds);
+    (emails || []).forEach(p => { emailMap[p.id] = p.email; });
+  }
 
   const mapRow = row => ({
     id: row.id,
@@ -143,7 +153,7 @@ async function loadListings() {
     details: row.details || {},
     school: row.school ? row.school.toLowerCase() : null,
     poster_id: row.poster_id,
-    poster: posterFromRow(row, profMap[row.poster_id]),
+    poster: posterFromRow(row, profMap[row.poster_id], emailMap[row.poster_id]),
     posted: new Date(row.created_at).toLocaleDateString(),
     created_at: row.created_at, // raw timestamp — merged feed sorting needs it
     emoji: row.emoji || CATEGORY_EMOJI[row.category] || '&#127968;',
