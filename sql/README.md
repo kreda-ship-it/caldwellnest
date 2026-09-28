@@ -79,6 +79,7 @@ that is cheaper than trying to remember.
 | `2026-09-28_revoke_anon_checkers.sql` | **Second audit S3.** `check_email_available` callable by nobody from a browser (unused by the app); `check_username_available` signed-in only. Found by name, so argument types don't matter. |
 | `2026-09-28_event_signups_via_functions_only.sql` | **Second audit S4.** Drops `event_reg_insert` / `event_reg_update_self` and revokes INSERT/UPDATE from `authenticated`: sign-ups only through `register_for_event()` (profile name/email, capacity checked) and the other SECURITY DEFINER functions. The app never wrote the table directly. |
 | `2026-09-28_narrow_book_and_broadcast_reads.sql` | **Second audit S7.** `book_listings`: approved, your own, or admin. `broadcasts`: sent, or scheduled once its time has come. |
+| `2026-09-28_new_listing_status_from_settings.sql` | **Second audit S5 / first audit H2.** BEFORE INSERT trigger on `listings` and `book_listings` (`set_new_listing_fields()`): for non-admins the database sets `status` from `platform_settings.requireApproval` (missing = require review), and on listings `pinned = false`, no email, and poster name / initials / colour / school from the poster's profile. PART 2 is a self-test that speaks as a real student and rolls back. |
 
 ## Naming
 
