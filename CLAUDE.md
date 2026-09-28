@@ -104,8 +104,12 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 - The full **Content-Security-Policy** (the list of outside websites the page may load from or talk to) starts as
   `Content-Security-Policy-Report-Only`: it blocks nothing, it only logs `[Report Only] …` in the browser console.
   After a week of normal use with a clean console (log in, post with photos, chat, clubs, events, admin), enforce it:
-  rename that key to `Content-Security-Policy` and delete the small enforced one above it (its three rules are
+  rename that key to `Content-Security-Policy` and delete the small enforced one above it (its rules are
   already inside the full one).
+- **Images are already enforced** (since 2026-09-28): the small enforced policy carries
+  `img-src 'self' data: blob: <Supabase URL>`, so a listing photo, logo, cover or poster hosted anywhere else
+  does not load — nobody can log viewers' IP addresses through an image. A new image host must be added to
+  `img-src` in BOTH policies.
 - **Once enforced, every new outside website the app uses must be added to the policy, or it is silently blocked.**
   A new script CDN → `script-src`; a new API (e.g. the planned ISBN lookup) → `connect-src`; images from a new
   host → `img-src`. A new feature that "does nothing" is a policy symptom first — look for `Refused to…` in the console.
