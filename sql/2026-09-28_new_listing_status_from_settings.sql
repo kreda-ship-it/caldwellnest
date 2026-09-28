@@ -82,6 +82,9 @@ notify pgrst, 'reload schema';
 -- ============================================================================
 -- PART 2 — self-test (run on its own). Speaks as a real student, rolls everything back.
 -- THE ERROR MESSAGE IS THE REPORT, and the error is also what discards the test rows.
+-- Each test row is sent with the OPPOSITE status of the one the switch calls for, so a status test
+-- can only pass if the database overwrote it. (The first version sent 'approved' whatever the
+-- switch said — with the switch OFF it would have passed even with no trigger at all.)
 -- ============================================================================
 
 DO $verify$
@@ -89,6 +92,7 @@ DECLARE
   v_student uuid;
   v_require boolean;
   v_want    text;
+  v_sent    text;   -- the OPPOSITE of v_want, so a status only passes if the database changed it
   v_school  text;
   v_name    text;
   l         public.listings%rowtype;
@@ -107,14 +111,16 @@ BEGIN
   SELECT coalesce((value #>> '{}')::boolean, true) INTO v_require FROM public.platform_settings WHERE key = 'requireApproval';
   v_require := coalesce(v_require, true);
   v_want := CASE WHEN v_require THEN 'pending' ELSE 'approved' END;
-  r := r || format(E'Approval switch is %s, so new posts should be ''%s''.\n\n', CASE WHEN v_require THEN 'ON' ELSE 'OFF' END, v_want);
+  v_sent := CASE WHEN v_require THEN 'approved' ELSE 'pending' END;
+  r := r || format(E'Approval switch is %s, so new posts should be ''%s''. The test sends ''%s'' on purpose.\n\n',
+                   CASE WHEN v_require THEN 'ON' ELSE 'OFF' END, v_want, v_sent);
 
   -- become that student
   PERFORM set_config('role', 'authenticated', true);
   PERFORM set_config('request.jwt.claims', format('{"role":"authenticated","sub":"%s"}', v_student), true);
 
   INSERT INTO public.listings (title, category, poster_id, status, pinned, poster_name, poster_email, school)
-  VALUES ('verify', 'other', v_student, 'approved', true, 'Nestrel Housing Office', 'official@caldwellnest.com', NULL)
+  VALUES ('verify', 'other', v_student, v_sent, true, 'Nestrel Housing Office', 'official@caldwellnest.com', NULL)
   RETURNING * INTO l;
 
   IF l.status = v_want THEN r := r || format(E'TEST 1  listing status set by the database ......... PASS (%s)\n', l.status);
@@ -127,7 +133,7 @@ BEGIN
   ELSE r := r || format(E'TEST 4  school from the profile .................... *** FAIL — %s ***\n', l.school); ok := false; END IF;
 
   INSERT INTO public.book_listings (book_type, title, price, condition, poster_id, status)
-  VALUES ('other', 'verify', 0, 'Good', v_student, 'approved')
+  VALUES ('other', 'verify', 0, 'Good', v_student, v_sent)
   RETURNING * INTO b;
   IF b.status = v_want THEN r := r || format(E'TEST 5  book status set by the database ............ PASS (%s)\n', b.status);
   ELSE r := r || format(E'TEST 5  book status set by the database ............ *** FAIL — saved as %s ***\n', b.status); ok := false; END IF;
