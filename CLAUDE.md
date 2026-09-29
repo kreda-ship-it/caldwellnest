@@ -91,6 +91,15 @@ Skip the refining and make the change directly (I've decided it's clear enough).
 
 - **Supabase attaches DEFAULT PRIVILEGES to every new object in `public`** — tables AND views — before any `GRANT` of yours runs. A new table arrives already holding `REFERENCES`, `TRIGGER` and `TRUNCATE` for both `anon` and `authenticated`. So a `grant` only ever ADDS; the extras must be revoked explicitly. Every new-object file should end with `revoke truncate, references, trigger on <obj> from authenticated;` and `revoke all on <obj> from anon;`. `sql/2026-09-01_saved_items.sql` was the first file to get this right, which is why `favorites` is the cleanest table in the database. It has been missed twice since (2026-09-04, on the org tables and on `public_profiles`) — assume you will forget it, and check with the grant query in `sql/2026-09-03_capture_rls_and_grants.sql`.
 - **`TRUNCATE` is the one that matters on a table**, because **RLS does not apply to it**: it is a table-level operation, so one statement ignores every policy above it. On a view it is unreachable and the revoke is only consistency.
+- **Rules the database now enforces — keep new work in step (added 2026-09-29, security audit):**
+  - **Suspension:** every table students can write carries RESTRICTIVE `no_insert/update/delete_while_suspended`
+    policies, and `can_act()` refuses a suspended account. **A new table students write must be added to the list in
+    `sql/2026-09-28_enforce_suspension.sql` and PART 1 re-run**, or a suspended account can write to it.
+  - **New listings and books:** the trigger `set_new_listing_fields()` sets `status` from
+    `platform_settings.requireApproval` and fills poster name / school from the profile. What the browser sends is
+    ignored for non-admins — don't "fix" the app's status by trusting it again.
+  - **Organizations:** `guard_organization_columns()` leaves officers the descriptive fields only. A new column
+    officers should edit is free by default; one only a super admin should set must be added to its list.
 
 ## Browser cache (hard-learned 2026-09-04)
 - **Every local asset carries a `?v=` marker** — `js/*.js` and `styles.css` in `index.html`. **Bump it whenever you change a JS or CSS file**, or the browser serves the old one and you debug code that isn't running. The value is a date plus a letter (`2026-09-04a`) because more than one change can land in a day. It only has to differ from last time.
