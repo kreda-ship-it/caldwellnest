@@ -1055,12 +1055,27 @@ async function aHardDeleteListing(id) {
   const l = DB.listings.find(x => x.id === id);
   if (!l) return;
   if (!confirm(`Permanently delete "${l.title}"?\n\nThis will remove the listing and any uploaded photos from storage. This cannot be undone.`)) return;
-  await deleteListingPhotos(l.photo_urls);
-  const { error } = await supabaseClient.from('listings').delete().eq('id', id);
+  // Row first, files second, and the deleted row asked back. A delete the database's rules refuse
+  // is not an error: it deletes 0 rows and reports success. Until 2026-10-01 there was no admin
+  // DELETE rule on listings, so this button never deleted anything — and once admins could delete
+  // photo files (sql/2026-09-30_admin_photo_delete.sql) it deleted the photos and left the listing
+  // behind with broken images. The photo list comes from the deleted row, not the cache.
+  const { data: gone, error } = await supabaseClient.from('listings').delete().eq('id', id).select('id, photo_urls');
   if (error) { toast('Could not delete listing — please try again.'); console.error(error.message); return; }
+  if (!gone?.length) {
+    toast('The database did not allow this delete — nothing was removed.');
+    console.warn('[aHardDeleteListing] 0 rows deleted for listing', id, '— admins need a DELETE rule on listings (sub-admins step B1).');
+    return;
+  }
+  const photos = gone[0].photo_urls || [];
+  const photosGone = await deleteListingPhotos(photos);
   DB.listings.splice(DB.listings.findIndex(x => x.id === id), 1);
-  logAdminAction('listing_permanently_deleted', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category });
-  renderAListings(); updateAdminBadges(); toast('Listing permanently deleted');
+  logAdminAction('listing_permanently_deleted', { targetType: 'listing', targetId: id, targetLabel: l.title, school: l.school, category: l.category, meta: { photos: photos.length, photos_deleted: photosGone } });
+  renderAListings(); updateAdminBadges();
+  if (photosGone < photos.length) {
+    toast('Listing deleted, but some photo files are still stored — see the console.');
+    console.warn('[aHardDeleteListing] storage kept', photos.length - photosGone, 'of', photos.length, 'photo files:', photos);
+  } else toast('Listing permanently deleted');
 }
 
 // Featured spots on Home and the Marketplace. Was 3; the approved Home design has 6 (2026-09-24).
