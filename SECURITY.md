@@ -15,7 +15,7 @@ We take the security of Nestrel and the safety of our community seriously. As we
 
 ### How to Report
 
-* **Email:** Send your report directly to **redakalkidan@gmail.com**.
+* **Email:** Send your report directly to **amahledigitalcreatives@gmail.com**.
 * **Do not open a public issue:** Please avoid filing public GitHub issues or discussions for security vulnerabilities to protect user data while we work on a fix.
 
 ### What to Include in Your Report
