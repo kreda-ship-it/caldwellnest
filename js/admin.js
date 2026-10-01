@@ -448,7 +448,7 @@ function activityItem(e) {
   // onclick="…" one quote turns text into code — esc() cannot help, because the browser decodes
   // &#39; back into ' before the JavaScript runs. undoActivityEntry() reads the rest back from
   // the database instead. Guarded by check 9 in tests/load-order.js.
-  const undoBtn = (!e.undone_at && UNDOABLE_ACTIONS.has(e.action_type) && e.target_id)
+  const undoBtn = (!e.undone_at && UNDOABLE_ACTIONS.has(e.action_type) && e.target_id && aCanUndo(e.action_type))
     ? `<button onclick="event.stopPropagation();undoActivityEntry(${Number(e.id)})" style="flex-shrink:0;align-self:center;font-size:11px;padding:2px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-muted);cursor:pointer;font-family:inherit" title="Undo this action">&#8617; Undo</button>`
     : '';
   return `<div class="al-item" onclick="openActivityDetail(${Number(e.id)})" title="View detail">
@@ -621,6 +621,7 @@ async function undoActivityEntry(entryId) {
     renderAdminDashLog();
     return;
   }
+  if (!aCanUndo(e.action_type)) { toast('Your role doesn’t include undoing this.'); return; }
   const WARN = {
     approve_listing: "This will return the listing to the pending queue for re-review. The poster won't be notified.",
     suspend_student: "This will immediately restore the student's account access.",
@@ -815,12 +816,12 @@ function renderABookApprovals() {
   const liveHtml = live.length ? `
     <div style="margin-top:24px;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px">${live.length} live book${live.length>1?'s':''}</div>
     <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Price</th><th>Poster</th><th>Actions</th></tr></thead>
-    <tbody>${live.map(b => rowHtml(b, `<button class="btn-sm-a btn-a-danger" onclick="aRemoveBook(${b.id})">Remove</button>`)).join('')}</tbody></table></div>` : '';
+    <tbody>${live.map(b => rowHtml(b, aCan('remove_listings') ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveBook(${b.id})">Remove</button>` : '')).join('')}</tbody></table></div>` : '';
 
   const removedHtml = removed.length ? `
     <div style="margin-top:24px;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px">${removed.length} removed book${removed.length>1?'s':''}</div>
     <div style="overflow-x:auto"><table><thead><tr><th>Title</th><th>Type</th><th>Price</th><th>Poster</th><th>Actions</th></tr></thead>
-    <tbody>${removed.map(b => rowHtml(b, `<button class="btn-sm-a btn-a-success" onclick="aRestoreBook(${b.id})">&#8635; Restore</button>`)).join('')}</tbody></table></div>` : '';
+    <tbody>${removed.map(b => rowHtml(b, aCan('remove_listings') ? `<button class="btn-sm-a btn-a-success" onclick="aRestoreBook(${b.id})">&#8635; Restore</button>` : '')).join('')}</tbody></table></div>` : '';
 
   q.innerHTML = pendingHtml + liveHtml + removedHtml;
 }
@@ -970,6 +971,7 @@ function renderAListings() {
   if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">${icon('x',13)} Clear filters</button>` : ''}`;
 
   // Table rows
+  const canApprove = aCan('approve_listings'), canRemove = aCan('remove_listings');
   // A row opens the listing's details (photos included). The actions cell stops the click there,
   // so its buttons do only their own job and never open the drawer behind them.
   document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr class="a-row-click" onclick="openListingDrawer(${l.id})" title="Open details">
@@ -980,9 +982,9 @@ function renderAListings() {
     <td><div style="font-size:13px">${esc(l.poster?.name || l.poster || '—')}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${esc(l.school.replace(/_/g,' '))}</div>` : ''}</td>
     <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">${icon('note',12)} ${esc(l.rejection_reason)}</div>`:''}</td>
     <td onclick="event.stopPropagation()"><div class="arow">
-      <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">${icon('pencil',14)} Edit</button>
-      ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : icon('star',13) + ' Pin'}</button>` : ''}
-      ${l.status === 'approved' ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveListing(${l.id})">Remove</button>` : ''}
+      ${canApprove ? `<button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">${icon('pencil',14)} Edit</button>` : ''}
+      ${canApprove && l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : icon('star',13) + ' Pin'}</button>` : ''}
+      ${canRemove && l.status === 'approved' ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveListing(${l.id})">Remove</button>` : ''}
     </div></td>
   </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-faint)">No listings match the current filters.</td></tr>`;
 
@@ -998,7 +1000,7 @@ function renderAListings() {
     <td style="font-weight:600;color:var(--text-muted)">$${l.rent}</td>
     <td>${esc(l.poster?.name || l.poster || '—')}</td>
     <td style="font-size:12px;color:var(--text-muted)">${l.updated_at ? fmtDate(l.updated_at) : '—'}</td>
-    <td style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()"><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button></td>
+    <td style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()">${canRemove ? `<button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button>` : ''}</td>
   </tr>`).join('');
 }
 
@@ -1341,7 +1343,8 @@ async function renderAStudents() {
   document.getElementById('aStuTb').innerHTML = students.length ? students.map(st => {
     const suspended = st.status === 'suspended';
     const statusPill = `<span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${esc(st.status || 'active')}</span>`;
-    const actionBtn = suspended
+    const actionBtn = !aCan('suspend_students') ? ''
+      : suspended
       ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${st.id}')">Reinstate</button>`
       : isProtectedAdmin(st.id) ? ''
       : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${st.id}')">Suspend</button>`;
@@ -1516,7 +1519,8 @@ async function aViewStu(id) {
   const suspended = s.status === 'suspended';
   const initials = ((s.first_name?.[0] || '') + (s.last_name?.[0] || '')).toUpperCase();
   const color = s.color || AC[0];
-  const actionBtn = suspended
+  const actionBtn = !aCan('suspend_students') ? ''
+    : suspended
     ? `<button class="btn-sm-a btn-a-success" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aReinstate('${s.id}')">Reinstate</button>`
     : isProtectedAdmin(s.id) ? ''
     : `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend('${s.id}')">Suspend</button>`;
@@ -1526,7 +1530,7 @@ async function aViewStu(id) {
   const photo = safeAvatarUrl(s.avatar_url);
   const photoRow = s.avatar_url ? `<div class="a-stu-photo-row">
       <span>Profile photo${photo ? ` · <a class="link-brand" href="${escAttr(photo)}" target="_blank" rel="noopener noreferrer">View full size</a>` : ' (not shown: stored outside Nestrel)'}</span>
-      <button class="btn-sm-a btn-a-danger" onclick="aOpenRemoveAvatar('${s.id}')">Remove profile photo</button>
+      ${aCan('suspend_students') ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenRemoveAvatar('${s.id}')">Remove profile photo</button>` : ''}
     </div>` : '';
   document.getElementById('aStuBody').innerHTML = `
     <div class="a-stu-head">
@@ -1659,7 +1663,8 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
   _histListings = listings;
   _histBooks = books;
   _histListingView = 'list';
-  const actionBtn = suspended
+  const actionBtn = !aCan('suspend_students') ? ''
+    : suspended
     ? `<button class="btn-sm-a btn-a-success" onclick="aReinstate('${profile.id}')">Reinstate</button>`
     : isProtectedAdmin(profile.id) ? ''
     : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${profile.id}')">Suspend</button>`;
@@ -1776,6 +1781,18 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
         </div>`;
       }).join('') : '<div class="hist-empty">No appeals filed.</div>'}</div>
     </div>`;
+
+  // Reports and appeals sit behind their own switches. Without one, the database returns none, and
+  // "0 reports" would be a wrong answer — so the tab and its count card go instead.
+  const hideTab = (tab, allowed) => {
+    if (allowed) return;
+    const t = document.getElementById('htab-' + tab);
+    if (t) t.hidden = true;
+    body.querySelectorAll('.hist-stat').forEach(c => { if (c.getAttribute('onclick') === `switchHistoryTab('${tab}')`) c.hidden = true; });
+  };
+  hideTab('reports-filed', aCan('view_reports'));
+  hideTab('reports-received', aCan('view_reports'));
+  hideTab('appeals', aCan('manage_appeals'));
 }
 
 function switchHistoryTab(tab) {
@@ -1984,6 +2001,7 @@ function aPhotoManagerHtml(kind, id, urls) {
   _aDrawerPhotos = { kind, id, urls: urls.slice() };
   if (!urls.length) return '';
   const n = urls.length;
+  const canRemove = aCan('remove_listings');
   return `<div class="a-photos">
     <div class="a-photos-head">Photos (${n})</div>
     <div class="a-photo-grid">${urls.map((u, i) => {
@@ -1991,7 +2009,7 @@ function aPhotoManagerHtml(kind, id, urls) {
       const href = safeUrl(u);   // a link must never be javascript: — an <img> can't run one, an <a> can
       return `<figure class="a-photo">
         ${href ? `<a href="${escAttr(href)}" target="_blank" rel="noopener noreferrer" title="Open full size">${img}</a>` : img}
-        <figcaption><span>${i + 1} of ${n}${i === 0 ? ' · cover' : ''}</span><button class="btn-sm-a btn-a-danger" onclick="aOpenRemovePhoto(${i})">Remove</button></figcaption>
+        <figcaption><span>${i + 1} of ${n}${i === 0 ? ' · cover' : ''}</span>${canRemove ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenRemovePhoto(${i})">Remove</button>` : ''}</figcaption>
       </figure>`;
     }).join('')}</div>
   </div>`;
@@ -2269,6 +2287,7 @@ async function renderAReports() {
     return;
   }
 
+  const canAct = aCan('action_reports');   // Dismiss / Reopen; Remove listing and Suspend poster need their own switch too
   const card = r => {
     const isOpen       = r.status === 'open';
     const reporterName = r.reporter ? `${r.reporter.first_name||''} ${r.reporter.last_name||''}`.trim() || r.reporter.email : '—';
@@ -2309,9 +2328,9 @@ async function renderAReports() {
       ${r.details ? `<div style="background:var(--bg);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;border-left:3px solid var(--border)">${esc(r.details)}</div>` : ''}
       ${isOpen
         ? `<div class="arow" onclick="event.stopPropagation()">
-            <button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>
-            ${listingExists ? `<button class="btn-sm-a btn-a-danger" onclick="hideListingFromReport('${r.id}',${r.listing_id})">Remove listing</button>` : ''}
-            ${posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}',${r.listing_id||null})">Suspend poster</button>` : ''}
+            ${canAct ? `<button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>` : ''}
+            ${canAct && aCan('remove_listings') && listingExists ? `<button class="btn-sm-a btn-a-danger" onclick="hideListingFromReport('${r.id}',${r.listing_id})">Remove listing</button>` : ''}
+            ${canAct && aCan('suspend_students') && posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}',${r.listing_id||null})">Suspend poster</button>` : ''}
           </div>`
         : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px" onclick="event.stopPropagation()">
             <div>
@@ -2319,7 +2338,7 @@ async function renderAReports() {
               ${r.suspension&&r.suspension.length>0?`<span style="font-size:12px;color:var(--danger);margin-left:8px">&#8594; <span class="stu-link-a" onclick="aOpenStudentHistory('${r.suspension[0].profile_id}')">view suspended student</span></span>`:''}
               <span style="font-size:11px;color:var(--text-faint);margin-left:8px">· ${fmtDate(r.resolved_at)}</span>
             </div>
-            <button class="btn-sm-a btn-a-neutral" onclick="reopenReport('${r.id}')">&#8634; Reopen</button>
+            ${canAct ? `<button class="btn-sm-a btn-a-neutral" onclick="reopenReport('${r.id}')">&#8634; Reopen</button>` : ''}
           </div>`
       }
     </div>`;
@@ -2893,7 +2912,7 @@ async function renderBcastFeatured() {
         <div class="bh-row-title">${esc(l.title)}</div>
         <div class="bh-row-meta">${priceLabel(l)} · ${esc(l.poster?.name || '')}${since[String(l.id)] ? ' · featured ' + esc(fmtActivityTime(since[String(l.id)])) : ''}${isListingLive(l) ? '' : ' · <b>not live — hidden from Home</b>'}</div>
       </div>
-      <button class="btn-sm-a btn-a-neutral" onclick="aTogglePin(${Number(l.id)})">Unfeature</button>
+      ${aCan('approve_listings') ? `<button class="btn-sm-a btn-a-neutral" onclick="aTogglePin(${Number(l.id)})">Unfeature</button>` : ''}
     </div>`).join('') : '<div class="bh-empty">No featured listings. Home skips the Featured row until there is one.</div>')
     + (pins.length < FEATURED_MAX
       ? `<button class="bh-add" onclick="ago('pinned', document.querySelector('.a-nav-item[onclick*=&quot;pinned&quot;]'))">+ Feature a listing</button>` : '');
@@ -3461,7 +3480,7 @@ const ADMIN_PERMISSIONS = [
 // The three roles sub-admins B1 set up, listed first; any role made on the Team page follows by name.
 const TEAM_BUILT_IN_ROLES = ['school_admin', 'content_editor', 'viewer'];
 
-let _aAccess = { isSuper: false, roles: [], perms: new Set() };
+let _aAccess = { isSuper: false, roles: [], perms: new Set(), name: '', initials: '', roleLabel: '' };
 
 async function loadAdminAccess() {
   let uid = adminUUID;
@@ -3471,15 +3490,76 @@ async function loadAdminAccess() {
     : { data: [] };
   const roles = (mine || []).map(r => r.role_id);
   const isSuper = roles.includes('super_admin');
-  let perms = new Set();
-  if (!isSuper && roles.length) {
-    const { data: rows } = await supabaseClient.from('role_permissions')
-      .select('permission_key, enabled').in('role_id', roles);
-    perms = new Set((rows || []).filter(x => x.enabled).map(x => x.permission_key));
-  }
-  _aAccess = { isSuper, roles, perms };
-  const teamNav = document.getElementById('aNavTeam');
-  if (teamNav) teamNav.hidden = !isSuper;
+  const [permsRes, meRes, labelsRes] = await Promise.all([
+    !isSuper && roles.length
+      ? supabaseClient.from('role_permissions').select('permission_key, enabled').in('role_id', roles)
+      : { data: [] },
+    uid ? supabaseClient.from('profiles').select('first_name, last_name, display_name, initials').eq('id', uid).maybeSingle()
+        : { data: null },
+    !isSuper && roles.length ? supabaseClient.from('admin_roles').select('id, label').in('id', roles) : { data: [] },
+  ]);
+  const perms = new Set((permsRes.data || []).filter(x => x.enabled).map(x => x.permission_key));
+  const me = meRes.data;
+  const name = (me?.display_name || `${me?.first_name || ''} ${me?.last_name || ''}`).trim() || 'Admin';
+  const initials = (me?.initials || name.split(/\s+/).map(w => w[0]).join('').slice(0, 2) || 'AD').toUpperCase();
+  const roleLabel = isSuper ? 'Super admin'
+    : (labelsRes.data || []).map(r => r.label).join(', ') || 'No role';
+  _aAccess = { isSuper, roles, perms, name, initials, roleLabel };
+  applyAdminAccess();
+}
+
+// Which switch opens each section (any one of the list is enough). An empty list: every admin.
+// null: the super admin only. A section missing from this map is closed — so a new section stays
+// hidden from sub-admins until someone decides who should see it.
+const ADMIN_SECTION_SWITCHES = {
+  dashboard: [], students: [], 'student-history': [], health: [],
+  approvals: ['approve_listings'],
+  listings:  ['approve_listings', 'remove_listings'],
+  pinned:    ['approve_listings'],
+  messages:  ['view_messages'],
+  reports:   ['view_reports'],
+  appeals:   ['manage_appeals'],
+  editor:    ['edit_site'],
+  broadcast: ['send_broadcasts'],
+  analytics: ['view_analytics'],
+  activity:  ['view_activity_log'],
+  exports:   ['export_data'],
+  asettings: ['edit_site'],
+  orgs: null, team: null,
+};
+// Undo replays the opposite action, so it needs that action's switch as well as the log's.
+const UNDO_NEEDS = {
+  reject_listing: 'approve_listings', approve_listing: 'approve_listings',
+  pin_listing: 'approve_listings', unpin_listing: 'approve_listings',
+  remove_listing: 'remove_listings', suspend_student: 'suspend_students',
+};
+
+const aCan = key => _aAccess.isSuper || _aAccess.perms.has(key);
+function aCanSee(sec) {
+  if (_aAccess.isSuper) return true;
+  if (!Object.prototype.hasOwnProperty.call(ADMIN_SECTION_SWITCHES, sec)) return false;
+  const need = ADMIN_SECTION_SWITCHES[sec];
+  return need !== null && (need.length === 0 || need.some(aCan));
+}
+const aCanUndo = type => aCan('view_activity_log') && !!UNDO_NEEDS[type] && aCan(UNDO_NEEDS[type]);
+
+// Shows and hides the dashboard's fixed parts to match the role. Everything drawn later by a
+// render function asks aCan() itself, as it draws.
+function applyAdminAccess() {
+  document.querySelectorAll('#adminApp [data-sec]').forEach(el => { el.hidden = !aCanSee(el.dataset.sec); });
+  document.querySelectorAll('#adminApp [data-super-only]').forEach(el => { el.hidden = !_aAccess.isSuper; });
+  // A sidebar heading with nothing visible under it goes too.
+  document.querySelectorAll('#adminApp .a-nav .a-sec-label').forEach(label => {
+    let any = false;
+    for (let el = label.nextElementSibling; el && !el.classList.contains('a-sec-label'); el = el.nextElementSibling) {
+      if (el.classList.contains('a-nav-item') && !el.hidden) any = true;
+    }
+    label.hidden = !any;
+  });
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  set('aFootAv', _aAccess.initials || 'AD');
+  set('aFootName', _aAccess.name || 'Admin');
+  set('aFootRole', _aAccess.roleLabel || '');
 }
 
 // ---------------------------------------------------------------- the Team page
@@ -4233,7 +4313,9 @@ function _appealCard(a) {
       ${a.suspension.report_id ? ` &nbsp;·&nbsp; <span class="stu-link-a" onclick="openReportDrawer('${a.suspension.report_id}')">View triggering report ↗</span>` : ''}
     </div>` : ''}
     <p style="color:var(--text-muted);font-size:13px;line-height:1.6;margin:0 0 12px">${esc(a.message || '—')}</p>
-    ${isOpen
+    ${!aCan('suspend_students')
+      ? '<p class="a-perm-note">Deciding an appeal also needs the “Suspend and reinstate students” switch.</p>'
+      : isOpen
       ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
            <button class="btn-sm-a btn-a-success" onclick="aReinstate('${a.profile_id}','${a.id}')">${icon('check',13)} Reinstate — grant appeal</button>
            <button class="btn-sm-a btn-a-danger"  onclick="openUpholdForm('${a.id}')">Uphold — deny appeal</button>
@@ -4470,6 +4552,14 @@ function closeAdminDrawer() {
 function _adminDrawerEsc(e) { if (e.key === 'Escape') closeAdminDrawer(); }
 
 function ago(s, btn) {
+  // Shortcuts (dashboard cards, Analytics, the school table) all arrive here, so this one check
+  // covers every way into a section the role does not include. The database refuses the data
+  // anyway; this just says so instead of showing an empty page.
+  const secKey = document.getElementById('asec-' + s) ? s : 'a' + s;
+  if (!aCanSee(secKey)) {
+    toast(`Your role doesn’t include ${(ATITLES[secKey] || s).toLowerCase()}.`);
+    return;
+  }
   document.querySelectorAll('.a-section').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.a-nav-item').forEach(x => x.classList.remove('active'));
   // handle both asec-asettings and asec-settings

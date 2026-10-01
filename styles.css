@@ -1187,9 +1187,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The reason dialog opens from inside the details drawer (Remove on a photo). Modals sit at 500 and
    the drawer at 501, so without this the dialog would open BEHIND the drawer, invisible. */
 #rejectModal{z-index:502;}
-/* Admin · Admin team (2026-10-01, sub-admins B2). .a-nav-item sets display:flex, which beats the
-   browser's own [hidden] rule — so a hidden sidebar item needs saying twice. */
-.a-nav-item[hidden]{display:none;}
+/* Admin · access (2026-10-01, sub-admins B2/B3). applyAdminAccess() (js/admin.js) hides what an
+   admin's role does not include by setting `hidden`. Many admin classes set their own display
+   (.a-nav-item is flex, .asc a grid cell), and any of them beats the browser's own [hidden] rule —
+   so inside the admin, hidden is made to mean hidden. Nothing in the admin uses `hidden` otherwise
+   except the phone drawer's backdrop, which wants exactly this. */
+#adminApp [hidden]{display:none !important;}
+.a-perm-note{margin:0 0 12px;font-size:12px;color:var(--text-muted);}
 .team-intro{margin:-4px 0 16px;font-size:14px;color:var(--text-muted);}
 .team-empty{padding:28px;text-align:center;color:var(--text-muted);font-size:14px;}
 .team-count{font-size:12px;color:var(--text-muted);font-weight:500;}

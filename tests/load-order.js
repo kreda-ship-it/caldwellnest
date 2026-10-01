@@ -276,6 +276,10 @@ if (ran) {
   ctx.__logRow = { id: 7, action_type: 'approve_listing', target_type: 'listing', target_id: PAYLOAD,
                    target_label: 'A listing', created_at: '2026-09-25T12:00:00Z', undone_at: null };
   try {
+    // Since sub-admins (2026-10-01) the Undo button is drawn only for an admin whose role can undo
+    // that action, and this harness is signed in as nobody. Render as the super admin, so the button
+    // this check inspects is actually there.
+    vm.runInContext('_aAccess = { ..._aAccess, isSuper: true }', ctx);
     const out = vm.runInContext('activityItem(__logRow)', ctx);
     const leaks = [
       out.includes('alert(1)')           && 'target_id reached the markup',
