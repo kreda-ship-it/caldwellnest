@@ -1539,8 +1539,16 @@ function _consentCell(s) {
 }
 
 async function aViewStu(id) {
-  const { data: s, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
+  const [{ data: s, error }, lc, bc] = await Promise.all([
+    supabaseClient.from('profiles').select('*').eq('id', id).single(),
+    // Real counts (this row read a typed-in 0 until 2026-10-01). Every status is counted: an
+    // admin sees pending, rejected and removed posts too. "—" when a count could not be read.
+    supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('poster_id', id),
+    supabaseClient.from('book_listings').select('id', { count: 'exact', head: true }).eq('poster_id', id),
+  ]);
   if (error || !s) { toast('Could not load student profile.'); return; }
+  const count = (r, word) => r.error ? `— ${word}s` : `${r.count ?? 0} ${word}${r.count === 1 ? '' : 's'}`;
+  const posted = `${count(lc, 'listing')} · ${count(bc, 'book')}`;
   const suspended = s.status === 'suspended';
   const initials = ((s.first_name?.[0] || '') + (s.last_name?.[0] || '')).toUpperCase();
   const color = s.color || AC[0];
@@ -1565,7 +1573,7 @@ async function aViewStu(id) {
     ${photoRow}
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${esc(s.major || '—')}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${esc(s.year || '—')}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>0</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Posted</label><span>${posted}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span></div>
     <div class="a-kv"><label>Terms</label><span>${_consentCell(s)}</span></div>
     <div style="margin-top:14px;display:flex;gap:8px;">${actionBtn}</div>`;
