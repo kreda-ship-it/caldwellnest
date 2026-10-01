@@ -396,13 +396,17 @@ const ACTION_META = {
   reject_book:          { label: 'Book rejected',           color: '#c0392b' },
   remove_book:          { label: 'Book removed',            color: '#c0392b' },
   restore_book:         { label: 'Book restored',           color: '#1a7a45' },
+  // One photo taken down, the listing kept (2026-09-30). Never undoable: the file is deleted.
+  remove_listing_photo: { label: 'Listing photo removed',   color: '#c0392b' },
+  remove_book_photo:    { label: 'Book photo removed',      color: '#c0392b' },
+  remove_avatar:        { label: 'Profile photo removed',   color: '#c0392b' },
   report_submitted:     { label: 'Report filed',            color: '#c0392b' },
   appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
 };
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
-  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
@@ -739,13 +743,15 @@ async function aReturnToPending(id) {
   toast('Listing returned to pending review');
 }
 
-let _rejectTarget = 'listing'; // 'listing' | 'book' — which confirmReject() should act on
-// One modal serves three actions; each opener must set BOTH labels, or the previous
+let _rejectTarget = 'listing'; // 'listing' | 'book' | 'removal' | 'photo' | 'avatar' — which confirmReject() should act on
+// One modal serves five actions; each opener must set BOTH labels, or the previous
 // action's wording leaks into the next one.
 function aOpenReject(id) { aRejectId = id; _rejectTarget = 'listing'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject listing'; document.getElementById('rejConfirmBtn').textContent = 'Confirm rejection'; openModal('rejectModal'); }
 async function confirmReject() {
   if (_rejectTarget === 'book') return confirmRejectBook();
   if (_rejectTarget === 'removal') return confirmRemoval();
+  if (_rejectTarget === 'photo')   return confirmRemovePhoto();
+  if (_rejectTarget === 'avatar')  return confirmRemoveAvatar();
   const l = DB.pending.find(x => x.id === aRejectId); if (!l) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
   const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
@@ -956,32 +962,45 @@ function renderAListings() {
   if (metaEl) metaEl.innerHTML = `<span>${src.length} listing${src.length !== 1 ? 's' : ''}</span>${isFiltered ? `<button class="filter-chip" style="font-size:11px;padding:3px 10px" onclick="clearAListFilters()">${icon('x',13)} Clear filters</button>` : ''}`;
 
   // Table rows
-  document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr>
+  // A row opens the listing's details (photos included). The actions cell stops the click there,
+  // so its buttons do only their own job and never open the drawer behind them.
+  document.getElementById('aListTb').innerHTML = src.length ? src.map(l => `<tr class="a-row-click" onclick="openListingDrawer(${l.id})" title="Open details">
+    <td class="a-thumb-cell">${aThumbHtml(l)}</td>
     <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.pinned ? icon('star',13) + ' ' : ''}${esc(l.title)}</td>
     <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--brand)">$${l.rent}</td>
     <td><div style="font-size:13px">${esc(l.poster?.name || l.poster || '—')}</div>${l.school ? `<div style="font-size:10px;color:var(--brand);font-weight:500;text-transform:capitalize;margin-top:2px">${esc(l.school.replace(/_/g,' '))}</div>` : ''}</td>
     <td><span class="pill ${l.pinned?'pill-pinned':l.status==='approved'?'pill-approved':l.status==='rejected'?'pill-rejected':'pill-pending'}">${l.pinned ? 'pinned' : esc(l.status)}</span>${l.rejection_reason?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;max-width:160px;white-space:normal">${icon('note',12)} ${esc(l.rejection_reason)}</div>`:''}</td>
-    <td><div class="arow">
+    <td onclick="event.stopPropagation()"><div class="arow">
       <button class="btn-sm-a btn-a-neutral" onclick="aOpenEdit(${l.id},'${l.status==='pending'?'pending':'listing'}')">${icon('pencil',14)} Edit</button>
       ${l.status === 'approved' ? `<button class="btn-sm-a ${l.pinned?'btn-a-neutral':'btn-a-pin'}" onclick="aTogglePin(${l.id})">${l.pinned ? 'Unpin' : icon('star',13) + ' Pin'}</button>` : ''}
       ${l.status === 'approved' ? `<button class="btn-sm-a btn-a-danger" onclick="aRemoveListing(${l.id})">Remove</button>` : ''}
     </div></td>
-  </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-faint)">No listings match the current filters.</td></tr>`;
+  </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-faint)">No listings match the current filters.</td></tr>`;
 
   // Removed section
   const removed = DB.listings.filter(l => l.status === 'removed' && (!schoolF || l.school === schoolF));
   const wrap = document.getElementById('aRemovedWrap');
   wrap.style.display = removed.length ? 'block' : 'none';
   document.getElementById('aRemovedCount').textContent = removed.length ? `${removed.length} listing${removed.length > 1 ? 's' : ''}` : '';
-  document.getElementById('aRemovedTb').innerHTML = removed.map(l => `<tr>
+  document.getElementById('aRemovedTb').innerHTML = removed.map(l => `<tr class="a-row-click" onclick="openListingDrawer(${l.id})" title="Open details">
+    <td class="a-thumb-cell">${aThumbHtml(l)}</td>
     <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)">${esc(l.title)}</td>
     <td><span class="pill pill-active" style="font-size:10px">${esc(l.type)}</span></td>
     <td style="font-weight:600;color:var(--text-muted)">$${l.rent}</td>
     <td>${esc(l.poster?.name || l.poster || '—')}</td>
     <td style="font-size:12px;color:var(--text-muted)">${l.updated_at ? fmtDate(l.updated_at) : '—'}</td>
-    <td style="display:flex;gap:6px;align-items:center;"><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button></td>
+    <td style="display:flex;gap:6px;align-items:center;" onclick="event.stopPropagation()"><button class="btn-sm-a btn-a-success" onclick="aRestoreListing(${l.id})">&#8635; Restore</button><button class="btn-sm-a btn-a-danger" onclick="aHardDeleteListing(${l.id})">Delete forever</button></td>
   </tr>`).join('');
+}
+
+// The first photo as a small square, with a "+2" badge when there are more. A listing without
+// photos shows its category icon, so the column still reads at a glance.
+function aThumbHtml(l) {
+  const urls = l.photo_urls || [];
+  if (!urls.length) return `<div class="a-thumb a-thumb-empty">${catIcon(l.category, 18)}</div>`;
+  const more = urls.length > 1 ? `<span class="a-thumb-count">+${urls.length - 1}</span>` : '';
+  return `<div class="a-thumb-wrap"><img class="a-thumb" src="${escAttr(urls[0])}" alt="" loading="lazy">${more}</div>`;
 }
 
 function aft(id, q) { document.querySelectorAll(`#${id} tr`).forEach(r => r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'); }
@@ -1478,17 +1497,29 @@ async function aViewStu(id) {
     ? `<button class="btn-sm-a btn-a-success" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aReinstate('${s.id}')">Reinstate</button>`
     : isProtectedAdmin(s.id) ? ''
     : `<button class="btn-sm-a btn-a-danger" style="flex:1;padding:9px;font-size:13px" onclick="closeModal('aStuModal');aOpenSuspend('${s.id}')">Suspend</button>`;
+  // Profile photo: shown when it is in our storage (safeAvatarUrl), with a full-size link. Remove
+  // is offered whenever the field is set at all — an address pointing elsewhere is never drawn,
+  // but it is still something to clear.
+  const photo = safeAvatarUrl(s.avatar_url);
+  const photoRow = s.avatar_url ? `<div class="a-stu-photo-row">
+      <span>Profile photo${photo ? ` · <a class="link-brand" href="${escAttr(photo)}" target="_blank" rel="noopener noreferrer">View full size</a>` : ' (not shown: stored outside Nestrel)'}</span>
+      <button class="btn-sm-a btn-a-danger" onclick="aOpenRemoveAvatar('${s.id}')">Remove profile photo</button>
+    </div>` : '';
   document.getElementById('aStuBody').innerHTML = `
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-      <div style="width:48px;height:48px;border-radius:50%;background:${safeColor(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">${esc(initials)}</div>
+    <div class="a-stu-head">
+      <div class="a-stu-avatar" id="aStuAvatar"></div>
       <div><div style="font-size:17px;font-weight:600">${esc(s.first_name)} ${esc(s.last_name)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(s.email || '—')}</div><span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}" style="margin-top:4px;display:inline-flex">${esc(s.status || 'active')}</span></div>
     </div>
+    ${photoRow}
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Major</label><span>${esc(s.major || '—')}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Year</label><span>${esc(s.year || '—')}</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><label style="color:var(--text-muted)">Listings</label><span>0</span></div>
     <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;"><label style="color:var(--text-muted)">Joined</label><span>${s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span></div>
     <div class="a-kv"><label>Terms</label><span>${_consentCell(s)}</span></div>
     <div style="margin-top:14px;display:flex;gap:8px;">${actionBtn}</div>`;
+  const av = document.getElementById('aStuAvatar');
+  av.style.backgroundColor = safeColor(color);   // behind the photo too, for any transparent edge
+  paintAvatarEl(av, s.avatar_url, initials, safeColor(color));
   openModal('aStuModal');
 }
 
@@ -1807,7 +1838,7 @@ async function openBookHistoryDrawer(bookId) {
   const sPill = s => aStatusPill(s);       // shared helper
   document.getElementById('hDrawerTitle').innerHTML = `${icon('book',16)} ${esc(b.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
-    ${b.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(b.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerBookGalMain' })}</div>` : ''}
+    ${aPhotoManagerHtml('book', b.id, b.photo_urls)}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${sPill(b.status)}
       <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${esc(b.book_type === 'course' ? (b.course_code || 'Textbook') : (b.genre || 'Book'))}</span>
@@ -1850,6 +1881,7 @@ async function openListingDrawer(listingId) {
     pin_listing:       { label: 'Pinned',                col: '#7c3aed' },
     unpin_listing:     { label: 'Unpinned',              col: 'var(--text-muted)' },
     edit_listing:      { label: 'Edited by admin',       col: '#3B5BA5' },
+    remove_listing_photo: { label: 'Photo removed by admin', col: 'var(--danger)' },
   };
   const shHtml = (sh || []).length ? `
     <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
@@ -1885,7 +1917,7 @@ async function openListingDrawer(listingId) {
     </div>` : '';
   document.getElementById('hDrawerTitle').innerHTML = `${catIcon(l.category, 16)} ${esc(l.title)}`;
   document.getElementById('hDrawerBody').innerHTML = `
-    ${l.photo_urls?.length ? `<div style="margin-bottom:14px">${photoGalleryHtml(l.photo_urls, { height: 220, radius: 'var(--radius-sm)', mainId: 'drawerGalMain' })}</div>` : ''}
+    ${aPhotoManagerHtml('listing', l.id, l.photo_urls)}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${sPill(l.status)}
       <span style="font-size:12px;background:var(--brand-pale);color:var(--brand);padding:2px 10px;border-radius:20px;font-weight:500">${esc(CATEGORY_LABELS[l.category] || l.category)}</span>
@@ -1908,6 +1940,145 @@ async function openListingDrawer(listingId) {
     ${shHtml}
     ${repsHtml}
   `;
+}
+
+// ============================================================
+// ADMIN — PHOTOS (2026-09-30)
+// ============================================================
+// Every photo on a listing or book, shown in its details drawer with its own Remove button.
+// Before this the drawer was view-only, so one bad photo meant taking the whole listing down.
+//
+// The Remove button passes a position number, never the photo's address: an address is text, and
+// inside onclick="…" escaping does not protect text (check 16 in tests/load-order.js). The drawer
+// remembers what it drew, and the removal re-reads the row first, so a student changing their
+// photos in the meantime can never make us delete a different one.
+let _aDrawerPhotos = null;  // { kind: 'listing' | 'book', id, urls } — what the open drawer shows
+let _aPhotoTarget  = null;  // { kind, id, url } — the photo the reason dialog is about
+let _aAvatarTarget = null;  // profile id whose profile photo the reason dialog is about
+
+function aPhotoManagerHtml(kind, id, urls) {
+  urls = urls || [];
+  _aDrawerPhotos = { kind, id, urls: urls.slice() };
+  if (!urls.length) return '';
+  const n = urls.length;
+  return `<div class="a-photos">
+    <div class="a-photos-head">Photos (${n})</div>
+    <div class="a-photo-grid">${urls.map((u, i) => {
+      const img  = `<img src="${escAttr(u)}" alt="Photo ${i + 1}" loading="lazy">`;
+      const href = safeUrl(u);   // a link must never be javascript: — an <img> can't run one, an <a> can
+      return `<figure class="a-photo">
+        ${href ? `<a href="${escAttr(href)}" target="_blank" rel="noopener noreferrer" title="Open full size">${img}</a>` : img}
+        <figcaption><span>${i + 1} of ${n}${i === 0 ? ' · cover' : ''}</span><button class="btn-sm-a btn-a-danger" onclick="aOpenRemovePhoto(${i})">Remove</button></figcaption>
+      </figure>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+function aOpenRemovePhoto(i) {
+  const d = _aDrawerPhotos;
+  const url = d?.urls[i];
+  if (!url) return;
+  _aPhotoTarget = { kind: d.kind, id: d.id, url };
+  _rejectTarget = 'photo';
+  document.getElementById('rejReason').value = '';
+  document.getElementById('rejectModalTitle').textContent = `Remove photo ${i + 1}`;
+  document.getElementById('rejConfirmBtn').textContent = 'Remove photo';
+  openModal('rejectModal');
+}
+
+async function confirmRemovePhoto() {
+  const t = _aPhotoTarget;
+  const reason = document.getElementById('rejReason').value.trim() || 'Did not meet guidelines.';
+  closeModal('rejectModal');
+  _aPhotoTarget = null;
+  if (!t) return;
+  const isBook = t.kind === 'book';
+  const table  = isBook ? 'book_listings' : 'listings';
+  const reopen = () => isBook ? openBookHistoryDrawer(t.id) : openListingDrawer(t.id);
+
+  const { data: row, error: readErr } = await supabaseClient.from(table).select('*').eq('id', t.id).single();
+  if (readErr || !row) { toast('Could not load it — please try again.'); console.error(readErr?.message); return; }
+  const before = row.photo_urls || [];
+  if (!before.includes(t.url)) { toast('That photo has already changed — showing the latest.'); reopen(); return; }
+  const after = before.filter(u => u !== t.url);
+
+  // .select() so a refused update shows up: the database answers one with "0 rows", not an error.
+  const { data: upd, error } = await supabaseClient.from(table).update({ photo_urls: after }).eq('id', t.id).select('id');
+  if (error || !upd?.length) { toast('Could not remove the photo — please try again.'); console.error(error?.message || 'update refused (0 rows)'); return; }
+
+  // Only once the row no longer points at the file: deleting first would leave a broken image
+  // behind if the update had failed.
+  const fileGone = (await deleteListingPhotos([t.url])) > 0;
+
+  // The tables draw from these caches; keep them in step with the database.
+  (isBook ? [DB.pendingBooks, DB.adminBooks] : [DB.listings, DB.pending]).forEach(arr => {
+    const x = (arr || []).find(r => r.id === t.id);
+    if (x) x.photo_urls = after;
+  });
+
+  const what = isBook ? 'book' : 'listing';
+  if (row.poster_id) aNotifyStudent(row.poster_id, 'photo_removed', `A photo was removed from your ${what} "${row.title}" by a moderator. Reason: ${reason}`);
+  logAdminAction(isBook ? 'remove_book_photo' : 'remove_listing_photo', {
+    targetType: isBook ? 'book_listing' : 'listing', targetId: t.id, targetLabel: row.title,
+    school: row.school ?? null, category: row.category ?? null, reason,
+    before: { photos: before.length }, after: { photos: after.length },
+    // The address is kept only when the file survived, so it can still be found and deleted by hand.
+    meta: { file_deleted: fileGone, ...(fileGone ? {} : { photo_url: t.url }) },
+  });
+
+  if (fileGone) toast('Photo removed');
+  else {
+    toast('Photo taken off the listing, but its file is still stored — see the console.');
+    console.warn('[confirmRemovePhoto] Storage did not delete the file. Run sql/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', t.url);
+  }
+  reopen();
+  if (!isBook) { renderAListings(); renderListings(); }
+}
+
+// Profile photo, from the student quick-view. Same reason → notify → log path as a listing photo.
+function aOpenRemoveAvatar(profileId) {
+  if (!UUID_RE.test(String(profileId))) return;
+  _aAvatarTarget = profileId;
+  _rejectTarget = 'avatar';
+  document.getElementById('rejReason').value = '';
+  document.getElementById('rejectModalTitle').textContent = 'Remove profile photo';
+  document.getElementById('rejConfirmBtn').textContent = 'Remove photo';
+  openModal('rejectModal');
+}
+
+async function confirmRemoveAvatar() {
+  const id = _aAvatarTarget;
+  const reason = document.getElementById('rejReason').value.trim() || 'Did not meet guidelines.';
+  closeModal('rejectModal');
+  _aAvatarTarget = null;
+  if (!id) return;
+
+  const { data: p, error: readErr } = await supabaseClient.from('profiles')
+    .select('id, first_name, last_name, school, avatar_url').eq('id', id).single();
+  if (readErr || !p) { toast('Could not load this student — please try again.'); console.error(readErr?.message); return; }
+  if (!p.avatar_url) { toast('They no longer have a profile photo.'); aViewStu(id); return; }
+
+  const { data: upd, error } = await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', id).select('id');
+  if (error || !upd?.length) { toast('Could not remove the photo — please try again.'); console.error(error?.message || 'update refused (0 rows)'); return; }
+
+  // Only a file in our own storage can be deleted. An address pointing anywhere else was never
+  // shown (safeAvatarUrl) and has nothing of ours behind it, so clearing the field is the whole job.
+  const ours = safeAvatarUrl(p.avatar_url);
+  const fileGone = ours ? (await deleteListingPhotos([ours])) > 0 : true;
+
+  const name = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+  aNotifyStudent(id, 'avatar_removed', `Your profile photo was removed by a moderator. Reason: ${reason}`);
+  logAdminAction('remove_avatar', {
+    targetType: 'student', targetId: id, targetLabel: name, school: p.school, reason,
+    meta: { file_deleted: fileGone, ...(fileGone ? {} : { photo_url: ours }) },
+  });
+
+  if (fileGone) toast('Profile photo removed');
+  else {
+    toast('Profile photo taken off, but its file is still stored — see the console.');
+    console.warn('[confirmRemoveAvatar] Storage did not delete the file. Run sql/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', ours);
+  }
+  aViewStu(id);
 }
 
 async function openReportDrawer(reportId) {

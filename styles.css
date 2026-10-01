@@ -1164,6 +1164,29 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .btn-a-success{background:var(--success-pale);color:var(--success);}.btn-a-success:hover{background:var(--success);color:#fff;}
 .btn-a-neutral{background:var(--bg);color:var(--text-muted);border:1px solid var(--border);}.btn-a-neutral.active{background:var(--brand);color:#fff;border-color:var(--brand);}
 .btn-a-pin{background:var(--pin-pale);color:var(--pin);}.btn-a-pin:hover{background:var(--pin);color:#fff;}
+/* Admin · photos (2026-09-30). The thumbnail column in All listings, the photo grid in the listing
+   and book drawers (each photo with its own Remove), and the profile photo in the student quick-view. */
+.a-row-click{cursor:pointer;}
+.a-thumb-cell{width:60px;}
+.a-thumb-wrap{position:relative;width:44px;height:44px;}
+.a-thumb{width:44px;height:44px;border-radius:6px;object-fit:cover;display:block;background:var(--bg);border:1px solid var(--border);}
+.a-thumb-empty{display:flex;align-items:center;justify-content:center;color:var(--text-faint);}
+.a-thumb-count{position:absolute;right:-5px;bottom:-5px;min-width:18px;padding:0 5px;border-radius:9px;background:var(--brand);color:#fff;font-size:10px;font-weight:600;line-height:18px;text-align:center;}
+.a-photos{margin-bottom:16px;}
+.a-photos-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px;}
+.a-photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.a-photo{margin:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface);}
+.a-photo a{display:block;}
+.a-photo img{width:100%;height:150px;object-fit:cover;display:block;background:var(--bg);}
+.a-photo figcaption{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;font-size:11px;color:var(--text-muted);}
+.a-photo .btn-sm-a{padding:4px 10px;font-size:11px;}
+.a-stu-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+/* cover/center kept in CSS for the same reason as .nav-avatar: paintAvatarEl() sets only the image. */
+.a-stu-avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:#fff;background-size:cover;background-position:center;background-repeat:no-repeat;}
+.a-stu-photo-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--text-muted);}
+/* The reason dialog opens from inside the details drawer (Remove on a photo). Modals sit at 500 and
+   the drawer at 501, so without this the dialog would open BEHIND the drawer, invisible. */
+#rejectModal{z-index:502;}
 /* Admin · Home & announcements (2026-09-24): Live now and Featured on Home, beside the composer. */
 .bh-intro{margin:-4px 0 16px;font-size:14px;color:var(--text-muted);}
 .bh-hint{margin:-2px 0 16px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg);font-size:12.5px;line-height:1.55;color:var(--text-muted);}

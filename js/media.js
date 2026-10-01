@@ -54,14 +54,22 @@ async function uploadListingPhoto(blob, posterId, bucket = BUCKET_LISTINGS) {
 // is recovered by splitting the public URL on the bucket name, so passing the wrong one
 // yields no paths and deletes nothing. Silently — which is why the split result is checked
 // rather than assumed.
+//
+// Returns how many files were ACTUALLY removed (added 2026-09-30). Storage answers a delete the
+// policies refuse with success and an empty list, not an error — so an admin deleting another
+// person's photo looked fine while the file stayed public. Callers that act on someone else's
+// files (the admin photo tools) compare this with what they asked for.
 async function deleteListingPhotos(photoUrls, bucket = BUCKET_LISTINGS) {
-  if (!photoUrls || !photoUrls.length) return;
+  if (!photoUrls || !photoUrls.length) return 0;
   const marker = `/${bucket}/`;
   const paths = photoUrls.map(url => {
-    const m = url.split(marker);
+    const m = String(url).split('?')[0].split(marker);   // .split('?') drops any legacy ?v= cache-buster
     return m.length === 2 ? m[1] : null;
   }).filter(Boolean);
-  if (paths.length) await supabaseClient.storage.from(bucket).remove(paths);
+  if (!paths.length) return 0;
+  const { data, error } = await supabaseClient.storage.from(bucket).remove(paths);
+  if (error) { console.error('[deleteListingPhotos]', error.message, paths); return 0; }
+  return (data || []).length;
 }
 
 // Renders a photo gallery: one main image + (if more than one) a strip of
