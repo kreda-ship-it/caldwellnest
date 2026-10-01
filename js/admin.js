@@ -2168,17 +2168,26 @@ function aBackFromHistory() {
 }
 
 // ADMIN MESSAGES
+// How many of the newest messages the Conversations table reads. Asked for explicitly: an
+// unranged select was silently cut off by Supabase at 1,000 rows, so past that the counts were
+// wrong with no sign of it. Now the cut is ours, and the page says where it is.
+const ADMIN_MSG_SCAN = 2000;
+
 async function renderAMessages() {
   const tbody = document.getElementById('aMsgTb');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-faint);font-size:13px">Loading…</td></tr>';
+  const note = document.getElementById('aMsgNote');
+  if (note) note.textContent = '';
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-faint);font-size:13px">Loading…</td></tr>';
 
+  // Who and when only — never `content`. See the banner above the table and the Privacy Policy.
   const { data: msgs, error } = await supabaseClient
     .from('messages')
     .select('id, conversation_key, sender_id, receiver_id, listing_id, created_at')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(0, ADMIN_MSG_SCAN - 1);
 
-  if (error) { tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;color:var(--danger);font-size:13px">Could not load messages. ${error.message}</td></tr>`; return; }
-  if (!msgs || msgs.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-faint);font-size:13px">No conversations yet.</td></tr>'; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="4" style="padding:20px;color:var(--danger);font-size:13px">Could not load messages. ${esc(error.message)}</td></tr>`; return; }
+  if (!msgs || msgs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:36px;color:var(--text-faint);font-size:13px">No conversations yet.</td></tr>'; return; }
 
   // Deduplicate: one row per conversation_key (latest message first), count total per key
   const convMap = new Map();
@@ -2188,6 +2197,9 @@ async function renderAMessages() {
     if (!convMap.has(m.conversation_key)) convMap.set(m.conversation_key, m);
   });
   const convos = [...convMap.values()];
+  if (note) note.textContent = msgs.length >= ADMIN_MSG_SCAN
+    ? `${convos.length} conversations in the newest ${ADMIN_MSG_SCAN.toLocaleString()} messages. Older conversations are not listed, and counts cover only those messages.`
+    : `${convos.length} conversation${convos.length === 1 ? '' : 's'} · ${msgs.length} message${msgs.length === 1 ? '' : 's'} in all.`;
 
   // Batch-fetch participant names + listing titles
   const userIds    = [...new Set(convos.flatMap(c => [c.sender_id, c.receiver_id].filter(Boolean)))];
@@ -2222,8 +2234,6 @@ async function renderAMessages() {
       <td style="color:var(--text-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(listing)}</td>
       <td style="text-align:center">${count}</td>
       <td style="color:var(--text-faint)">${fmtDate(c.created_at)}</td>
-      <td><span class="pill pill-active">active</span></td>
-      <td><button class="btn-sm-a btn-a-neutral" onclick="toast('Full viewer coming soon')">View log</button></td>
     </tr>`;
   }).join('');
 }
