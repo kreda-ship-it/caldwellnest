@@ -100,6 +100,12 @@ Skip the refining and make the change directly (I've decided it's clear enough).
     ignored for non-admins — don't "fix" the app's status by trusting it again.
   - **Organizations:** `guard_organization_columns()` leaves officers the descriptive fields only. A new column
     officers should edit is free by default; one only a super admin should set must be added to its list.
+  - **Admin permissions (2026-10-01, sub-admins B1):** the database no longer treats "any admin" as a full admin.
+    Every admin rule calls `has_admin_permission('<switch>')` — always true for the super admin; for anyone else,
+    true only if one of their roles has that switch on in `role_permissions`. A new admin feature that changes
+    data or reads something sensitive needs a switch, and its rule must call `has_admin_permission`, never
+    `user_is_admin()` or `exists (select 1 from user_roles …)`. Hiding a button is not a permission. A sub-admin
+    can never change another admin's profile (`can_moderate_profile()`). See `sql/2026-10-01_admin_permissions.sql`.
 
 ## Browser cache (hard-learned 2026-09-04)
 - **Every local asset carries a `?v=` marker** — `js/*.js` and `styles.css` in `index.html`. **Bump it whenever you change a JS or CSS file**, or the browser serves the old one and you debug code that isn't running. The value is a date plus a letter (`2026-09-04a`) because more than one change can land in a day. It only has to differ from last time.
