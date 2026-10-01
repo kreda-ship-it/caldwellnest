@@ -3442,10 +3442,14 @@ async function saveCNIdentity() {
   toast('Official identity saved');
 }
 
+// Only switches something actually reads. Two were removed 2026-10-01 because nothing did:
+//   eduOnly      — the .edu rule is enforced by the database (enforce_school_email) and cannot be
+//                  switched off from here; the switch only changed a value nobody looked at.
+//   emailAlerts  — would need an email service, which does not exist yet (see launch blockers).
+// Their old rows in platform_settings are harmless and left alone. Add a switch here only together
+// with the code that obeys it.
 const SETTINGS = [
   { key:'requireApproval', label:'Require listing approval', desc:'New listings must be reviewed before going live' },
-  { key:'eduOnly', label:'Enforce @caldwell.edu only', desc:'Block registrations from non-.edu emails' },
-  { key:'emailAlerts', label:'Email alerts for new signups', desc:'Notify admin on new student registrations' },
   { key:'maintenance', label:'Maintenance mode', desc:'Show maintenance screen to all students' },
 ];
 function buildASettings() {
