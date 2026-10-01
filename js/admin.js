@@ -401,6 +401,7 @@ const ACTION_META = {
   remove_listing_photo: { label: 'Listing photo removed',   color: '#c0392b' },
   remove_book_photo:    { label: 'Book photo removed',      color: '#c0392b' },
   remove_avatar:        { label: 'Profile photo removed',   color: '#c0392b' },
+  clear_bio:            { label: 'Bio cleared',             color: '#c0392b' },
   // Admin team (2026-10-01) — written only by the super admin, from the Team page
   admin_added:             { label: 'Admin added',              color: '#3B5BA5' },
   admin_removed:           { label: 'Admin removed',            color: '#c0392b' },
@@ -414,7 +415,7 @@ const ACTION_META = {
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
-  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
@@ -752,8 +753,8 @@ async function aReturnToPending(id) {
   toast('Listing returned to pending review');
 }
 
-let _rejectTarget = 'listing'; // 'listing' | 'book' | 'removal' | 'photo' | 'avatar' — which confirmReject() should act on
-// One modal serves five actions; each opener must set BOTH labels, or the previous
+let _rejectTarget = 'listing'; // 'listing' | 'book' | 'removal' | 'photo' | 'avatar' | 'bio' — which confirmReject() should act on
+// One modal serves six actions; each opener must set BOTH labels, or the previous
 // action's wording leaks into the next one.
 function aOpenReject(id) { aRejectId = id; _rejectTarget = 'listing'; document.getElementById('rejReason').value = ''; document.getElementById('rejectModalTitle').textContent = 'Reject listing'; document.getElementById('rejConfirmBtn').textContent = 'Confirm rejection'; openModal('rejectModal'); }
 async function confirmReject() {
@@ -761,6 +762,7 @@ async function confirmReject() {
   if (_rejectTarget === 'removal') return confirmRemoval();
   if (_rejectTarget === 'photo')   return confirmRemovePhoto();
   if (_rejectTarget === 'avatar')  return confirmRemoveAvatar();
+  if (_rejectTarget === 'bio')     return confirmClearBio();
   const l = DB.pending.find(x => x.id === aRejectId); if (!l) return;
   const r = document.getElementById('rejReason').value || 'Did not meet guidelines.';
   const { error } = await supabaseClient.from('listings').update({ status: 'rejected', rejection_reason: r }).eq('id', aRejectId);
@@ -1702,6 +1704,24 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
     : isProtectedAdmin(profile.id) ? ''
     : `<button class="btn-sm-a btn-a-danger" onclick="aOpenSuspend('${profile.id}')">Suspend</button>`;
 
+  // Their public profile, as other students see it — plus their real name, which a display name
+  // can hide. Remove profile photo and Clear bio need suspend_students, the switch the database
+  // asks for before any change to a profile (can_moderate_profile).
+  const realName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || '—';
+  const handle = [profile.username ? '@' + esc(profile.username) : '', profile.pronouns ? esc(profile.pronouns) : ''].filter(Boolean).join(' · ');
+  const photo = safeAvatarUrl(profile.avatar_url);
+  const canModerate = aCan('suspend_students') && !isProtectedAdmin(profile.id);
+  const profileActions = [
+    photo ? `<a class="link-brand" href="${escAttr(photo)}" target="_blank" rel="noopener noreferrer">View photo full size</a>` : '',
+    canModerate && profile.avatar_url ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenRemoveAvatar('${profile.id}')">Remove profile photo</button>` : '',
+    canModerate && profile.bio ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenClearBio('${profile.id}')">Clear bio</button>` : '',
+  ].filter(Boolean).join('');
+  const profileBlock = `<div class="hist-profile">
+      <div class="hist-profile-label">Bio</div>
+      <div class="hist-bio">${profile.bio ? esc(profile.bio) : '<em>No bio.</em>'}</div>
+      ${profileActions ? `<div class="hist-profile-actions">${profileActions}</div>` : ''}
+    </div>`;
+
   // pill helper
   const statusPill = s => {
     const map = { approved:'pill-approved', pinned:'pill-pinned', pending:'pill-pending', rejected:'pill-rejected' };
@@ -1754,9 +1774,10 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
     <div class="tcard" style="margin-bottom:16px">
       <div style="padding:20px 24px;display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:54px;height:54px;border-radius:50%;background:${safeColor(color)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;flex-shrink:0">${esc(initials)}</div>
+          <div class="a-stu-avatar hist-avatar" id="hAvatar"></div>
           <div>
-            <div style="font-size:20px;font-weight:600;line-height:1.2">${esc(profile.display_name || (profile.first_name + ' ' + profile.last_name))}</div>
+            <div style="font-size:20px;font-weight:600;line-height:1.2">${esc(profile.display_name || realName)}${profile.display_name && profile.display_name.trim() !== realName ? `<span class="hist-realname">real name: ${esc(realName)}</span>` : ''}</div>
+            ${handle ? `<div class="hist-handle">${handle}</div>` : ''}
             <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${esc(profile.email || '—')}</div>
             <div style="display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap">
               <span class="pill ${suspended ? 'pill-suspended' : 'pill-active'}">${esc(profile.status || 'active')}</span>
@@ -1768,6 +1789,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
         </div>
         <div>${actionBtn}</div>
       </div>
+      ${profileBlock}
       <div class="hist-stat-grid">
         <div class="hist-stat" style="cursor:pointer" onclick="switchHistoryTab('listings')">
           <div class="hist-stat-num">${listings.length + books.length}</div><div class="hist-stat-label">Listings posted</div>
@@ -1814,6 +1836,9 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
         </div>`;
       }).join('') : '<div class="hist-empty">No appeals filed.</div>'}</div>
     </div>`;
+
+  const av = document.getElementById('hAvatar');
+  if (av) { av.style.backgroundColor = safeColor(color); paintAvatarEl(av, profile.avatar_url, initials, safeColor(color)); }
 
   // Reports and appeals sit behind their own switches. Without one, the database returns none, and
   // "0 reports" would be a wrong answer — so the tab and its count card go instead.
@@ -2152,7 +2177,52 @@ async function confirmRemoveAvatar() {
     toast('Profile photo taken off, but its file is still stored — see the console.');
     console.warn('[confirmRemoveAvatar] Storage did not delete the file. Run sql/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', ours);
   }
-  aViewStu(id);
+  _aRefreshStudentViews(id);
+}
+
+// Clear bio — the same reason → notify → log path as a profile photo.
+let _aBioTarget = null;  // profile id the reason dialog is about
+
+function aOpenClearBio(profileId) {
+  if (!UUID_RE.test(String(profileId))) return;
+  _aBioTarget = profileId;
+  _rejectTarget = 'bio';
+  document.getElementById('rejReason').value = '';
+  document.getElementById('rejectModalTitle').textContent = 'Clear bio';
+  document.getElementById('rejConfirmBtn').textContent = 'Clear bio';
+  openModal('rejectModal');
+}
+
+async function confirmClearBio() {
+  const id = _aBioTarget;
+  const reason = document.getElementById('rejReason').value.trim() || 'Did not meet guidelines.';
+  closeModal('rejectModal');
+  _aBioTarget = null;
+  if (!id) return;
+  const { data: p, error: readErr } = await supabaseClient.from('profiles')
+    .select('id, first_name, last_name, school, bio').eq('id', id).single();
+  if (readErr || !p) { toast('Could not load this student — please try again.'); console.error(readErr?.message); return; }
+  if (!p.bio) { toast('Their bio is already empty.'); _aRefreshStudentViews(id); return; }
+  const oldBio = p.bio;   // taken before the change, so the log always records what was removed
+  const { data: upd, error } = await supabaseClient.from('profiles').update({ bio: null }).eq('id', id).select('id');
+  if (error || !upd?.length) { toast('Could not clear the bio — please try again.'); console.error(error?.message || 'update refused (0 rows)'); return; }
+  const name = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+  aNotifyStudent(id, 'bio_cleared', `Your profile bio was removed by a moderator. Reason: ${reason}`);
+  // The old text is kept in the log on purpose: it is the evidence for the decision, readable only by
+  // admins with the activity-log switch, and it is what makes the action reviewable later.
+  logAdminAction('clear_bio', { targetType: 'student', targetId: id, targetLabel: name, school: p.school, reason, before: { bio: oldBio }, after: { bio: null } });
+  toast('Bio cleared');
+  _aRefreshStudentViews(id);
+}
+
+// After a profile change, redraw whichever view of that student is open: the record page (in place,
+// without adding a step to its Back history) and/or the quick-view pop-up.
+function _aRefreshStudentViews(id) {
+  if (document.getElementById('asec-student-history')?.classList.contains('active') && _histCurrentProfileId === id) {
+    _histGoingBack = true;
+    aOpenStudentHistory(id);
+  }
+  if (document.getElementById('aStuModal')?.classList.contains('open')) aViewStu(id);
 }
 
 async function openReportDrawer(reportId) {
@@ -3513,7 +3583,7 @@ const ADMIN_PERMISSIONS = [
   { key: 'view_reports',      label: 'See reports' },
   { key: 'action_reports',    label: 'Act on reports' },
   { key: 'manage_appeals',    label: 'Handle appeals' },
-  { key: 'suspend_students',  label: 'Suspend and reinstate students, remove profile photos' },
+  { key: 'suspend_students',  label: 'Suspend and reinstate students, remove profile photos and bios' },
   { key: 'view_messages',     label: 'Read private messages',
     sensitive: 'Anyone with this role will be able to read every private conversation between students.' },
   { key: 'send_broadcasts',   label: 'Home & announcements' },

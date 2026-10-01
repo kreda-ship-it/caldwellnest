@@ -1183,6 +1183,15 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .a-stu-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
 /* cover/center kept in CSS for the same reason as .nav-avatar: paintAvatarEl() sets only the image. */
 .a-stu-avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;color:#fff;background-size:cover;background-position:center;background-repeat:no-repeat;}
+/* Student record header (2026-10-01): photo, real name, @username · pronouns, and the bio block. */
+.hist-avatar{width:54px;height:54px;font-size:19px;}
+.hist-realname{margin-left:8px;font-size:12px;font-weight:500;color:var(--text-muted);}
+.hist-handle{margin-top:3px;font-size:13px;color:var(--brand);font-weight:500;}
+.hist-profile{margin:0 24px 16px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);}
+.hist-profile-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px;}
+.hist-bio{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;}
+.hist-bio em{color:var(--text-faint);}
+.hist-profile-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;font-size:12px;}
 .a-stu-photo-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--text-muted);}
 /* The reason dialog opens from inside the details drawer (Remove on a photo). Modals sit at 500 and
    the drawer at 501, so without this the dialog would open BEHIND the drawer, invisible. */
