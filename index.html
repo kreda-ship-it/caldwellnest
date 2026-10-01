@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-01d">
+<link rel="stylesheet" href="styles.css?v=2026-10-01e">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -1087,7 +1087,7 @@
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="exportActivityLog()">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('log','json')">&#8675; JSON</button></div></div></div>
 
             <div class="tcard" style="margin-bottom:0;border:2px solid var(--brand-light);"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Full platform backup</div></div>
-              <div class="exp-body"><p class="exp-desc">Complete JSON snapshot of all platform data — students, listings, messages, reports, logs.</p>
+              <div class="exp-body"><p class="exp-desc">Complete JSON snapshot of all platform data — students, listings, messages (who and when, never what was said), reports, logs.</p>
               <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> All records · Full backup</div>
               <button style="width:100%;padding:9px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="expFull()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Export full backup (JSON)</button></div></div>
           </div>
@@ -1906,6 +1906,41 @@
   </div>
 </div>
 
+<!-- REPORT A CONVERSATION (student side, 2026-10-01). Filed through report_conversation() — see
+     sql/2026-10-01_reported_conversations.sql. The note says plainly what reporting allows. -->
+<div class="modal-overlay" id="chatReportModal">
+  <div class="modal modal-narrow">
+    <div class="modal-header"><div class="modal-title">Report this conversation</div><button class="modal-close" onclick="closeModal('chatReportModal')" aria-label="Close">&#215;</button></div>
+    <div class="modal-body">
+      <div id="crFormWrap">
+        <p class="cr-lead">Your conversation with <strong id="crName"></strong>.</p>
+        <p class="cr-note">If you report it, an admin may read this conversation — the messages up to now — to look into it. <span id="crName2"></span> isn't told that you reported them.</p>
+        <div class="form-group">
+          <label class="form-label" for="crCategory">Reason</label>
+          <select class="form-input" id="crCategory">
+            <option value="">Choose a reason…</option>
+            <option value="harassment">Harassment, threats or bullying</option>
+            <option value="scam_or_fraud">Scam or fraud</option>
+            <option value="spam">Spam</option>
+            <option value="inappropriate_content">Inappropriate or explicit content</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="crDetails">Details <span class="label-hint">(optional · max 1000 characters)</span></label>
+          <textarea class="form-textarea" id="crDetails" rows="3" maxlength="1000" autocomplete="off" placeholder="What happened? Anything that helps the review…"></textarea>
+        </div>
+        <div class="login-error" id="crErr"></div>
+        <button class="btn-full btn-brand" id="crSubmit" onclick="submitChatReport()">Report conversation</button>
+      </div>
+      <div class="cr-success" id="crSuccess" hidden>
+        <strong>Thanks — your report was sent.</strong>
+        An admin will review this conversation. You never have to reply to anyone, and if you ever feel unsafe, call 911.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- STUDENT NOTIFICATION MODAL (appeal decisions + edits) -->
 <div class="modal-overlay" id="notifModal">
   <div class="modal modal-narrow">
@@ -1955,8 +1990,8 @@
 <script src="js/listings.js?v=2026-09-28a"></script>
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
-<script src="js/messages.js?v=2026-09-27a"></script>
-<script src="js/admin.js?v=2026-10-01h"></script>
+<script src="js/messages.js?v=2026-10-01a"></script>
+<script src="js/admin.js?v=2026-10-01i"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>

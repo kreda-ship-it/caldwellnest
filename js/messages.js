@@ -453,6 +453,7 @@ function chatShellHTML(otherUserId, info, bodyHtml) {
           ${school ? `<span class="ch-school">${esc(school)}</span>` : ''}
         </span>
       </button>
+      <button class="ch-report" onclick="openChatReport()" aria-label="Report this conversation" title="Report this conversation">${icon('flag', 18)}</button>
     </div>
     <div class="ch-strip" id="chStrip"></div>
     <div class="chat-messages" id="chatMsgs">${bodyHtml}</div>
@@ -462,6 +463,54 @@ function chatShellHTML(otherUserId, info, bodyHtml) {
       <textarea class="chat-input" id="msgInput" placeholder="Message…" rows="1" aria-label="Message" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!isMobileView()){event.preventDefault();sMsg()}"></textarea>
       <button class="send-btn" onclick="sMsg()" aria-label="Send"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>`;
+}
+
+// ---- Report this conversation (2026-10-01) ----
+// The student half of "an admin reads a chat only when someone in it reports it". Filing goes through
+// report_conversation() in the database, which checks the reporter really is in this conversation —
+// the reports table refuses a conversation report sent any other way. The form says plainly what a
+// report allows, because that is the whole bargain: reporting is what opens a chat to an admin.
+function openChatReport() {
+  const c = sConvoActive;
+  if (!c?.userId) return;
+  const name = c.name || 'This person';
+  document.getElementById('crName').textContent = name;
+  document.getElementById('crName2').textContent = name;
+  document.getElementById('crCategory').value = '';
+  document.getElementById('crDetails').value = '';
+  const err = document.getElementById('crErr');
+  err.textContent = ''; err.style.display = 'none';
+  document.getElementById('crFormWrap').hidden = false;
+  document.getElementById('crSuccess').hidden = true;
+  document.getElementById('crSubmit').disabled = false;
+  openModal('chatReportModal');
+}
+
+async function submitChatReport() {
+  const c = sConvoActive, eu = getEffectiveUser();
+  if (!c?.userId || !eu) return;
+  const category = document.getElementById('crCategory').value;
+  const details = document.getElementById('crDetails').value.trim();
+  const err = document.getElementById('crErr');
+  const showErr = msg => { err.textContent = msg; err.style.display = 'block'; };
+  err.style.display = 'none';
+  if (!category) { showErr('Please choose a reason.'); return; }
+
+  const btn = document.getElementById('crSubmit');
+  btn.disabled = true;
+  const { data: reportId, error } = await supabaseClient.rpc('report_conversation',
+    { p_other: c.userId, p_category: category, p_details: details || null });
+  btn.disabled = false;
+  if (error) {
+    showErr(/part of/.test(error.message || '')
+      ? 'You can report this conversation once a message has been sent in it.'
+      : 'Could not send the report — please try again.');
+    console.error('[submitChatReport]', error.message);
+    return;
+  }
+  logEvent('report_submitted', { targetType: 'conversation', targetId: reportId, school: eu.school });
+  document.getElementById('crFormWrap').hidden = true;
+  document.getElementById('crSuccess').hidden = false;
 }
 
 // ---- The listings this chat is about ----

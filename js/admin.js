@@ -140,7 +140,8 @@ let _msgCountTimer = null;
 function scheduleMessageCountRefresh() {
   clearTimeout(_msgCountTimer);
   _msgCountTimer = setTimeout(async () => {
-    const { count, error } = await supabaseClient.from('messages').select('id', { count: 'exact', head: true });
+    // A count, never the messages: admins have no rule that reads message rows (2026-10-01).
+    const { data: count, error } = await supabaseClient.rpc('admin_message_count');
     if (error) { console.warn('[messages count]', error.message); return; }
     const el = document.getElementById('ds-m');
     if (el) el.textContent = count ?? '—';
@@ -212,7 +213,7 @@ async function updateAdminBadges() {
   }
   const [{ count: stuN }, { count: pendN }, { count: liveN }, { count: pinN }, { count: msgN }, { count: pendBookN }] =
     await Promise.all([stuQ, pendQ, liveQ, pinQ,
-      supabaseClient.from('messages').select('id', { count: 'exact', head: true }), pendBookQ]);
+      supabaseClient.rpc('admin_message_count').then(r => ({ count: r.error ? null : r.data })), pendBookQ]);
   const pending = (pendN || 0) + (pendBookN || 0);
   document.getElementById('pendBadge').textContent = pending;
   document.getElementById('pendBadge').style.display = pending ? 'inline' : 'none';
@@ -402,6 +403,8 @@ const ACTION_META = {
   remove_book_photo:    { label: 'Book photo removed',      color: '#c0392b' },
   remove_avatar:        { label: 'Profile photo removed',   color: '#c0392b' },
   clear_bio:            { label: 'Bio cleared',             color: '#c0392b' },
+  // Written by the database (read_reported_conversation), once per opening of a reported chat
+  conversation_opened:  { label: 'Reported chat opened',    color: '#6b21a8' },
   // Admin team (2026-10-01) — written only by the super admin, from the Team page
   admin_added:             { label: 'Admin added',              color: '#3B5BA5' },
   admin_removed:           { label: 'Admin removed',            color: '#c0392b' },
@@ -415,7 +418,7 @@ const ACTION_META = {
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
-  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
@@ -1674,6 +1677,9 @@ async function aOpenStudentHistory(profileId) {
     const { data: ra } = await supabaseClient.from('reports').select('*, listing:listing_id(title)').in('listing_id', listingIds).order('created_at', { ascending: false });
     reportsAgainst = ra || [];
   }
+  // Conversation reports name the person directly (2026-10-01).
+  const { data: rc } = await supabaseClient.from('reports').select('*').eq('reported_user_id', profileId).order('created_at', { ascending: false });
+  if (rc?.length) reportsAgainst = [...reportsAgainst, ...rc].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
   renderStudentHistory(profile, listings || [], books || [], reportsBy || [], reportsAgainst, suspHistory || [], appeals || []);
 }
@@ -1742,7 +1748,7 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%">
         <div>
           <div style="font-weight:500;font-size:14px">${esc(REPORT_LABELS[r.category] || r.category)}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Re: <strong>${esc(r.listing?.title || r.listing_title_snapshot || 'Listing #' + r.listing_id)}</strong></div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:3px">Re: <strong>${r.kind === 'conversation' ? 'a conversation' : esc(r.listing?.title || r.listing_title_snapshot || 'Listing #' + r.listing_id)}</strong></div>
           <div style="font-size:11px;color:var(--text-faint);margin-top:3px">${fmtDate(r.created_at)}</div>
         </div>
         ${rBadge(r)}
@@ -2227,7 +2233,9 @@ function _aRefreshStudentViews(id) {
 
 async function openReportDrawer(reportId) {
   openHDrawer('Report', '<div class="drawer-loading">Loading…</div>');
-  const { data: r } = await supabaseClient.from('reports').select('*, listing:listing_id(id, title, emoji, status, poster_name, poster_id)').eq('id', reportId).single();
+  const { data: r } = await supabaseClient.from('reports')
+    .select('*, listing:listing_id(id, title, emoji, status, poster_name, poster_id), reporter:reporter_id(first_name, last_name, display_name, email), reported:reported_user_id(first_name, last_name, display_name, email)')
+    .eq('id', reportId).single();
   if (!r) { document.getElementById('hDrawerBody').innerHTML = '<div style="color:var(--danger);padding:20px;font-size:14px">Could not load this report.</div>'; return; }
   const cfg = r.status === 'open' ? ['#fde8e8','#c0392b','Open'] : r.status === 'dismissed' ? ['#f0f0f0','#888','Dismissed'] : ['#e8f5e9','#1a7a45','Actioned'];
   const listing = r.listing;
@@ -2250,11 +2258,67 @@ async function openReportDrawer(reportId) {
         <span style="font-size:14px;color:var(--text-faint)">›</span>
       </div>
     </div>` : ''}
+    ${r.kind === 'conversation' ? _reportChatBlock(r) : ''}
     ${r.reporter_id ? `<div style="border-top:1px solid var(--border);padding-top:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Reported by</div>
       <div class="stu-link-a" style="font-size:14px" onclick="closeHDrawer();aOpenStudentHistory('${r.reporter_id}')">View reporter's profile →</div>
     </div>` : ''}
   `;
+}
+
+// ---- A reported conversation, inside its report's drawer (2026-10-01) ----
+// Opening the drawer reads nothing. The chat is fetched only when the admin presses "Read
+// conversation", through read_reported_conversation(), which checks the switch and the 30-day window,
+// returns only the messages sent up to the report, and records the opening in the activity log.
+let _rcCtx = null;   // { reportId, reporterId, reportedId, names, reportedAt } for the open drawer
+
+function _reportChatBlock(r) {
+  const named = p => p ? ((p.display_name || `${p.first_name || ''} ${p.last_name || ''}`).trim() || p.email || '—') : '—';
+  _rcCtx = { reportId: r.id, reporterId: r.reporter_id, reportedId: r.reported_user_id, reportedAt: r.created_at,
+             names: { [r.reporter_id]: named(r.reporter), [r.reported_user_id]: named(r.reported) } };
+  const stillOpen = r.status === 'open' || (r.resolved_at && Date.now() - new Date(r.resolved_at).getTime() < 30 * 864e5);
+  const who = id => id && UUID_RE.test(id)
+    ? `<span class="stu-link-a" onclick="closeHDrawer();aOpenStudentHistory('${id}')">${esc(_rcCtx.names[id])}</span>` : '—';
+  const action = !aCan('read_reported_chats')
+    ? '<p class="rc-hint">Reading it needs the “Read reported conversations” switch.</p>'
+    : !stillOpen
+    ? `<p class="rc-hint">${icon('lock', 12)} Locked again: this report closed more than 30 days ago.</p>`
+    : `<button class="btn-sm-a btn-a-brand" id="rcReadBtn" onclick="aReadReportedChat('${r.id}')">${icon('eye', 13)} Read conversation</button>
+       <p class="rc-hint" id="rcPreHint">Opening it is recorded in the activity log with your name. You will see the messages up to the moment it was reported, not after.</p>`;
+  return `<div class="rc-box">
+    <div class="rc-label">Reported conversation</div>
+    <div class="rc-who">${who(r.reporter_id)} reported their conversation with ${who(r.reported_user_id)}.</div>
+    ${action}
+    <div id="rcThread"></div>
+  </div>`;
+}
+
+async function aReadReportedChat(reportId) {
+  if (!UUID_RE.test(String(reportId)) || _rcCtx?.reportId !== reportId) return;
+  const btn = document.getElementById('rcReadBtn');
+  const out = document.getElementById('rcThread');
+  if (btn) btn.disabled = true;
+  out.innerHTML = '<div class="drawer-loading">Opening…</div>';
+  const { data: msgs, error } = await supabaseClient.rpc('read_reported_conversation', { p_report_id: reportId });
+  if (error) {
+    out.innerHTML = `<p class="rc-hint rc-err">${esc(error.message)}</p>`;
+    if (btn) btn.disabled = false;
+    console.error('[aReadReportedChat]', error.message);
+    return;
+  }
+  if (btn) btn.remove();
+  document.getElementById('rcPreHint')?.remove();   // the line below says it again, now as a fact
+  const when = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const bubble = m => {
+    const shared = m.message_type === 'listing' ? `<em>Shared a listing${m.listing_id ? ` (#${Number(m.listing_id)})` : ''}:</em> ` : '';
+    return `<div class="rc-msg ${m.sender_id === _rcCtx.reporterId ? 'rc-msg-reporter' : 'rc-msg-reported'}">
+      <div class="rc-msg-meta">${esc(_rcCtx.names[m.sender_id] || 'Unknown')} · ${when(m.created_at)}</div>
+      <div class="rc-msg-text">${shared}${esc(m.content || '')}</div>
+    </div>`;
+  };
+  const rows = msgs || [];
+  out.innerHTML = `<p class="rc-hint">${rows.length} message${rows.length === 1 ? '' : 's'}, up to ${when(_rcCtx.reportedAt)} when it was reported. This opening has been recorded.</p>
+    <div class="rc-thread">${rows.length ? rows.map(bubble).join('') : '<p class="rc-hint">No messages before the report.</p>'}</div>`;
 }
 
 function aBackFromHistory() {
@@ -2282,12 +2346,10 @@ async function renderAMessages() {
   if (note) note.textContent = '';
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-faint);font-size:13px">Loading…</td></tr>';
 
-  // Who and when only — never `content`. See the banner above the table and the Privacy Policy.
-  const { data: msgs, error } = await supabaseClient
-    .from('messages')
-    .select('id, conversation_key, sender_id, receiver_id, listing_id, created_at')
-    .order('created_at', { ascending: false })
-    .range(0, ADMIN_MSG_SCAN - 1);
+  // Who and when only. admin_message_metadata() has no text to give: since 2026-10-01 no admin rule
+  // reads message rows at all, and a chat's words reach an admin only through a report
+  // (read_reported_conversation, see sql/2026-10-01_reported_conversations.sql).
+  const { data: msgs, error } = await supabaseClient.rpc('admin_message_metadata', { p_limit: ADMIN_MSG_SCAN });
 
   if (error) { tbody.innerHTML = `<tr><td colspan="4" style="padding:20px;color:var(--danger);font-size:13px">Could not load messages. ${esc(error.message)}</td></tr>`; return; }
   if (!msgs || msgs.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:36px;color:var(--text-faint);font-size:13px">No conversations yet.</td></tr>'; return; }
@@ -2345,7 +2407,9 @@ async function renderAMessages() {
 const REPORT_LABELS = {
   scam_or_fraud: 'Scam or fraud', not_a_student: 'Not a student',
   wrong_price: 'Wrong / misleading price', duplicate_listing: 'Duplicate listing',
-  inappropriate_content: 'Inappropriate content', suspicious: 'Suspicious activity', other: 'Other'
+  inappropriate_content: 'Inappropriate content', suspicious: 'Suspicious activity', other: 'Other',
+  // Conversation reports (2026-10-01) — the reasons report_conversation() accepts
+  harassment: 'Harassment or threats', spam: 'Spam',
 };
 
 async function renderAReports() {
@@ -2354,27 +2418,38 @@ async function renderAReports() {
 
   const { data: allReports, error } = await supabaseClient
     .from('reports')
-    .select('*, reporter:reporter_id(first_name, last_name, email), listing:listing_id(id, title, emoji, poster_id, poster_name, school), suspension:suspension_history(profile_id)')
+    .select('*, reporter:reporter_id(first_name, last_name, email, school), reported:reported_user_id(first_name, last_name, display_name, email), listing:listing_id(id, title, emoji, poster_id, poster_name, school), suspension:suspension_history(profile_id)')
     .order('created_at', { ascending: false });
 
   if (error) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">Could not load reports.</p>'; return; }
   if (!allReports || allReports.length === 0) { wrap.innerHTML = '<p style="padding:24px;color:var(--text-muted)">No reports yet.</p>'; return; }
 
+  // A report is about a listing or (since 2026-10-01) a conversation. These say who it is about and
+  // which school it belongs to either way — a chat has no school of its own, so the reporter's stands
+  // in; without it a school-scoped admin would never see a single chat report.
+  const named = p => p ? ((p.display_name || `${p.first_name || ''} ${p.last_name || ''}`).trim() || p.email || '—') : '—';
+  allReports.forEach(r => {
+    r._isChat      = r.kind === 'conversation';
+    r._subjectId   = r._isChat ? (r.reported_user_id || null) : (r.listing?.poster_id || null);
+    r._subjectName = r._isChat ? named(r.reported) : (r.listing?.poster_name || '—');
+    r._school      = r.listing?.school || r.reporter?.school || null;
+  });
+
   // School list for filter panel
   const reportSchools = !aAdminSchool
-    ? ['all', ...new Set(allReports.map(r => r.listing?.school).filter(Boolean))].sort((a,b) => a==='all'?-1:b==='all'?1:a.localeCompare(b))
+    ? ['all', ...new Set(allReports.map(r => r._school).filter(Boolean))].sort((a,b) => a==='all'?-1:b==='all'?1:a.localeCompare(b))
     : [];
 
   // Client-side filtering on the full fetch
   const schoolF = aAdminSchool || (_reportSchoolFilter !== 'all' ? _reportSchoolFilter : null);
-  let reports = schoolF ? allReports.filter(r => r.listing?.school === schoolF) : [...allReports];
+  let reports = schoolF ? allReports.filter(r => r._school === schoolF) : [...allReports];
   if (_reportStatusFilter !== 'all') reports = reports.filter(r => r.status === _reportStatusFilter);
   if (_reportCatFilter !== 'all')    reports = reports.filter(r => r.category === _reportCatFilter);
   if (_reportSearch.trim()) {
     const q = _reportSearch.trim().toLowerCase();
     reports = reports.filter(r => {
       const rep   = r.reporter ? `${r.reporter.first_name||''} ${r.reporter.last_name||''} ${r.reporter.email||''}`.toLowerCase() : '';
-      const poster = (r.listing?.poster_name || '').toLowerCase();
+      const poster = (r._subjectName || '').toLowerCase();
       const title  = (r.listing?.title || r.listing_title_snapshot || '').toLowerCase();
       return rep.includes(q) || poster.includes(q) || title.includes(q);
     });
@@ -2405,8 +2480,8 @@ async function renderAReports() {
     const isOpen       = r.status === 'open';
     const reporterName = r.reporter ? `${r.reporter.first_name||''} ${r.reporter.last_name||''}`.trim() || r.reporter.email : '—';
     const listingTitle = r.listing?.title || r.listing_title_snapshot || `Listing #${r.listing_id}`;
-    const posterName   = r.listing?.poster_name || '—';
-    const posterId     = r.listing?.poster_id  || null;
+    const posterName   = r._subjectName;
+    const posterId     = r._subjectId;
     const listingExists= !!r.listing;
     const listingEmoji = catIcon(r.listing?.category, 14);
     const statusColor  = isOpen ? '#c0392b' : r.status === 'dismissed' ? '#888' : '#1a7a45';
@@ -2414,7 +2489,9 @@ async function renderAReports() {
     const statusLabel  = isOpen ? 'Open' : r.status === 'dismissed' ? 'Dismissed' : 'Actioned';
     const actionTaken  = r.status === 'actioned' ? (r.resolution_note || 'Action taken') : 'Dismissed — no action';
 
-    const listingEl = listingExists
+    const listingEl = r._isChat
+      ? `<span class="rep-chat-title">${icon('message',14)} A conversation</span>`
+      : listingExists
       ? `<button onclick="event.stopPropagation();openListingDrawer(${r.listing_id})" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--brand);padding:0;text-align:left;font-family:'DM Sans',sans-serif;text-decoration:underline dotted">${listingEmoji} ${esc(listingTitle)}</button>`
       : `<span style="font-size:13px;font-weight:500;color:var(--text-muted)">${listingEmoji} "${esc(listingTitle)}" <span style="font-size:11px;color:var(--text-faint);font-style:italic">(removed)</span></span>`;
 
@@ -2443,7 +2520,7 @@ async function renderAReports() {
         ? `<div class="arow" onclick="event.stopPropagation()">
             ${canAct ? `<button class="btn-sm-a btn-a-success" onclick="dismissReport('${r.id}')">Dismiss</button>` : ''}
             ${canAct && aCan('remove_listings') && listingExists ? `<button class="btn-sm-a btn-a-danger" onclick="hideListingFromReport('${r.id}',${r.listing_id})">Remove listing</button>` : ''}
-            ${canAct && aCan('suspend_students') && posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}',${r.listing_id||null})">Suspend poster</button>` : ''}
+            ${canAct && aCan('suspend_students') && posterId && !isProtectedAdmin(posterId) ? `<button class="btn-sm-a btn-a-danger" onclick="suspendFromReport('${r.id}','${posterId}',${r.listing_id||null})">${r._isChat ? 'Suspend student' : 'Suspend poster'}</button>` : ''}
           </div>`
         : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;flex-wrap:wrap;gap:8px" onclick="event.stopPropagation()">
             <div>
@@ -2462,13 +2539,14 @@ async function renderAReports() {
     rpts.forEach(r => {
       let key, name, profileId, linkListId;
       if (field === 'subject') {
-        key = r.listing?.poster_id || '__unknown__'; name = r.listing?.poster_name || '(Unknown)'; profileId = r.listing?.poster_id || null;
+        key = r._subjectId || '__unknown__'; name = r._subjectName || '(Unknown)'; profileId = r._subjectId;
       } else if (field === 'reporter') {
         key = r.reporter_id || '__unknown__';
         const rp = r.reporter; name = rp ? (`${rp.first_name||''} ${rp.last_name||''}`.trim() || rp.email || '—') : '—';
         profileId = r.reporter_id || null;
       } else {
-        key = String(r.listing_id || '__unknown__'); name = r.listing?.title || r.listing_title_snapshot || `Listing #${r.listing_id}`; profileId = null; linkListId = r.listing_id;
+        if (r._isChat) { key = '__chats__'; name = 'Reported conversations'; profileId = null; linkListId = null; }
+        else { key = String(r.listing_id || '__unknown__'); name = r.listing?.title || r.listing_title_snapshot || `Listing #${r.listing_id}`; profileId = null; linkListId = r.listing_id; }
       }
       if (!groups[key]) groups[key] = { key, name, profileId, linkListId, reports: [] };
       groups[key].reports.push(r);
@@ -3584,8 +3662,9 @@ const ADMIN_PERMISSIONS = [
   { key: 'action_reports',    label: 'Act on reports' },
   { key: 'manage_appeals',    label: 'Handle appeals' },
   { key: 'suspend_students',  label: 'Suspend and reinstate students, remove profile photos and bios' },
-  { key: 'view_messages',     label: 'Read private messages',
-    sensitive: 'Anyone with this role will be able to read every private conversation between students.' },
+  { key: 'view_messages',     label: 'See who messaged whom (never what was said)' },
+  { key: 'read_reported_chats', label: 'Read reported conversations',
+    sensitive: 'Anyone with this role can read a conversation someone reported — its messages up to the report — while the report is open and for 30 days after. Every opening is recorded.' },
   { key: 'send_broadcasts',   label: 'Home & announcements' },
   { key: 'edit_site',         label: 'Site editor and platform settings',
     sensitive: 'This includes maintenance mode and the listing-approval switch, which affect every student.' },
@@ -3843,7 +3922,7 @@ async function aTeamCheck() {
   const [l, b, m] = await Promise.all([
     supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('poster_id', p.id),
     supabaseClient.from('book_listings').select('id', { count: 'exact', head: true }).eq('poster_id', p.id),
-    supabaseClient.from('messages').select('id', { count: 'exact', head: true }).or(`sender_id.eq.${p.id},receiver_id.eq.${p.id}`),
+    supabaseClient.rpc('admin_message_count', { p_user: p.id }).then(r => ({ error: r.error, count: r.data })),
   ]);
   const n = r => r.error ? null : (r.count ?? 0);
   const counts = [[n(l), 'listing'], [n(b), 'book'], [n(m), 'message']];
@@ -4008,7 +4087,7 @@ async function aTeamDeleteRole(ri) {
 async function renderExports() {
   const [{ count: stuN }, { count: msgN }, { count: repN }, { count: logN }] = await Promise.all([
     supabaseClient.from('profiles').select('id', { count: 'exact', head: true }),
-    supabaseClient.from('messages').select('id', { count: 'exact', head: true }),
+    supabaseClient.rpc('admin_message_count').then(r => ({ count: r.error ? null : r.data })),
     supabaseClient.from('reports').select('id',  { count: 'exact', head: true }),
     supabaseClient.from('admin_activity_log').select('id', { count: 'exact', head: true }),
   ]);
@@ -4045,7 +4124,9 @@ async function expData(type, fmt) {
   } else if (type === 'listings') {
     data = [...DB.listings, ...DB.pending.map(p => ({ ...p, poster: p.poster?.name || '', status: 'pending' }))];
   } else if (type === 'convos') {
-    const { data: rows } = await supabaseClient.from('messages').select('*').order('created_at');
+    // Who messaged whom and when — the page has always promised "No message content", and since
+    // 2026-10-01 that is true: admin_message_metadata() has no text to give.
+    const { data: rows } = await supabaseClient.rpc('admin_message_metadata', { p_limit: 50000 });
     data = rows || [];
   } else if (type === 'reports') {
     const { data: rows } = await supabaseClient.from('reports').select('*').order('created_at');
@@ -4075,7 +4156,7 @@ async function expFull() {
   toast('Preparing full backup…');
   const [{ data: students }, { data: messages }, { data: reports }, { data: activity }] = await Promise.all([
     supabaseClient.from('profiles').select('*').order('created_at'),
-    supabaseClient.from('messages').select('*').order('created_at'),
+    supabaseClient.rpc('admin_message_metadata', { p_limit: 50000 }),   // who and when, never what was said
     supabaseClient.from('reports').select('*').order('created_at'),
     // Same correction as expData('log') above — the durable table, not the in-memory DB.log.
     supabaseClient.from('admin_activity_log').select('*')
