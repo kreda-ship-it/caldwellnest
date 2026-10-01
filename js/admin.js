@@ -67,6 +67,7 @@ function applyMaintenance() {
 }
 
 async function initAdmin() {
+  await loadAdminAccess();   // who this admin is and what they may do — before anything is drawn
   await loadPlatformSettings();
   await loadListings();   // warm the listings cache so Approvals/Listings/Pinned aren't empty on entry
   await loadAdminBooks(); // warm the book_listings cache so Approvals isn't empty on entry
@@ -283,7 +284,7 @@ async function buildMultiSchoolStats() {
     </div>`;
 }
 
-const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings' };
+const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings', team:'Admin team' };
 // ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
 // (There used to be a second, earlier definition here. It never ran: two function declarations
 // with the same name in one script scope means the LAST one wins for the whole scope, so this
@@ -400,6 +401,13 @@ const ACTION_META = {
   remove_listing_photo: { label: 'Listing photo removed',   color: '#c0392b' },
   remove_book_photo:    { label: 'Book photo removed',      color: '#c0392b' },
   remove_avatar:        { label: 'Profile photo removed',   color: '#c0392b' },
+  // Admin team (2026-10-01) — written only by the super admin, from the Team page
+  admin_added:             { label: 'Admin added',              color: '#3B5BA5' },
+  admin_removed:           { label: 'Admin removed',            color: '#c0392b' },
+  admin_role_changed:      { label: 'Admin role changed',       color: '#d4860a' },
+  role_permission_changed: { label: 'Role switch changed',      color: '#d4860a' },
+  role_created:            { label: 'Role created',             color: '#3B5BA5' },
+  role_deleted:            { label: 'Role deleted',             color: '#c0392b' },
   report_submitted:     { label: 'Report filed',            color: '#c0392b' },
   appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
 };
@@ -408,7 +416,7 @@ const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
-  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export'],
+  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
 };
 
@@ -3420,6 +3428,381 @@ async function togClick(el, key) {
 }
 
 // ============================================================
+// ADMIN — ACCESS AND TEAM (2026-10-01, sub-admins B2)
+// ============================================================
+// Who the signed-in admin is, and the super admin's Team page: add and remove admins, change their
+// role, and switch each role's permissions on and off.
+//
+// The database is what actually enforces all of this (sql/2026-10-01_admin_permissions.sql and
+// sql/2026-10-01_admin_team_management.sql): every admin rule asks has_admin_permission('<switch>'),
+// and only the super admin may change user_roles, admin_roles and role_permissions — and even the
+// super admin cannot add, change or remove a super_admin row from here. What this file decides is
+// only what to SHOW. Hiding a button is never a permission.
+
+// The switches, in the order the Team page lists them. `key` must match role_permissions.permission_key.
+// `sensitive` is asked as a confirm before the switch is turned on.
+const ADMIN_PERMISSIONS = [
+  { key: 'approve_listings',  label: 'Approve, reject and pin listings and books' },
+  { key: 'remove_listings',   label: 'Remove and delete listings, and their photos' },
+  { key: 'view_reports',      label: 'See reports' },
+  { key: 'action_reports',    label: 'Act on reports' },
+  { key: 'manage_appeals',    label: 'Handle appeals' },
+  { key: 'suspend_students',  label: 'Suspend and reinstate students, remove profile photos' },
+  { key: 'view_messages',     label: 'Read private messages',
+    sensitive: 'Anyone with this role will be able to read every private conversation between students.' },
+  { key: 'send_broadcasts',   label: 'Home & announcements' },
+  { key: 'edit_site',         label: 'Site editor and platform settings',
+    sensitive: 'This includes maintenance mode and the listing-approval switch, which affect every student.' },
+  { key: 'view_analytics',    label: 'Analytics' },
+  { key: 'view_activity_log', label: 'Activity log' },
+  { key: 'export_data',       label: 'Data export',
+    sensitive: 'An export can include every student’s email, and with “Read private messages”, every conversation.' },
+];
+// The three roles sub-admins B1 set up, listed first; any role made on the Team page follows by name.
+const TEAM_BUILT_IN_ROLES = ['school_admin', 'content_editor', 'viewer'];
+
+let _aAccess = { isSuper: false, roles: [], perms: new Set() };
+
+async function loadAdminAccess() {
+  let uid = adminUUID;
+  if (!uid) uid = (await supabaseClient.auth.getUser()).data.user?.id || null;
+  const { data: mine } = uid
+    ? await supabaseClient.from('user_roles').select('role_id').eq('user_id', uid)
+    : { data: [] };
+  const roles = (mine || []).map(r => r.role_id);
+  const isSuper = roles.includes('super_admin');
+  let perms = new Set();
+  if (!isSuper && roles.length) {
+    const { data: rows } = await supabaseClient.from('role_permissions')
+      .select('permission_key, enabled').in('role_id', roles);
+    perms = new Set((rows || []).filter(x => x.enabled).map(x => x.permission_key));
+  }
+  _aAccess = { isSuper, roles, perms };
+  const teamNav = document.getElementById('aNavTeam');
+  if (teamNav) teamNav.hidden = !isSuper;
+}
+
+// ---------------------------------------------------------------- the Team page
+let _team = null;            // { roles, holders, perms: Map(role → Map(key → on)), people: Map(id → profile) }
+let _teamGridRoles = [];     // the role columns, in order — handlers pass an index into this
+let _teamGridPerms = [];     // the switch rows, in order — likewise
+let _teamCheck = null;       // { profile, roleId } once "Check account" has found someone
+let _teamNewRoleOpen = false;
+
+const _teamName = p => !p ? 'Unknown account'
+  : (p.display_name || `${p.first_name || ''} ${p.last_name || ''}`).trim() || p.email || 'Unnamed account';
+const _teamRoleLabel = id => id === 'super_admin' ? 'Super admin'
+  : (_team?.roles.find(r => r.id === id)?.label || id);
+
+async function renderTeam() {
+  const host = document.getElementById('asec-team');
+  if (!host) return;
+  if (!_aAccess.isSuper) { host.innerHTML = '<div class="tcard team-empty">Only the super admin can manage the admin team.</div>'; return; }
+  host.innerHTML = '<div class="tcard team-empty">Loading the team…</div>';
+
+  const [rolesRes, holdersRes, permsRes] = await Promise.all([
+    supabaseClient.from('admin_roles').select('id, label, description'),
+    supabaseClient.from('user_roles').select('user_id, role_id, school, granted_by, granted_at'),
+    supabaseClient.from('role_permissions').select('role_id, permission_key, enabled'),
+  ]);
+  const err = rolesRes.error || holdersRes.error || permsRes.error;
+  if (err) { host.innerHTML = `<div class="tcard team-empty">Could not load the team: ${esc(err.message)}</div>`; return; }
+
+  const holders = holdersRes.data || [];
+  const ids = [...new Set(holders.flatMap(h => [h.user_id, h.granted_by]).filter(Boolean))];
+  const { data: profs } = ids.length
+    ? await supabaseClient.from('profiles').select('id, first_name, last_name, display_name, email').in('id', ids)
+    : { data: [] };
+
+  const perms = new Map();
+  (permsRes.data || []).forEach(p => {
+    if (!perms.has(p.role_id)) perms.set(p.role_id, new Map());
+    perms.get(p.role_id).set(p.permission_key, !!p.enabled);
+  });
+  _team = { roles: rolesRes.data || [], holders, perms, people: new Map((profs || []).map(p => [p.id, p])) };
+
+  const order = id => { const i = TEAM_BUILT_IN_ROLES.indexOf(id); return i === -1 ? TEAM_BUILT_IN_ROLES.length : i; };
+  _teamGridRoles = _team.roles.filter(r => r.id !== 'super_admin')
+    .sort((a, b) => order(a.id) - order(b.id) || a.label.localeCompare(b.label));
+  // Any switch the database has that this file does not know yet still gets a row, under its key.
+  const known = new Set(ADMIN_PERMISSIONS.map(p => p.key));
+  const extra = [...new Set((permsRes.data || []).map(p => p.permission_key))].filter(k => !known.has(k)).sort();
+  _teamGridPerms = [...ADMIN_PERMISSIONS, ...extra.map(k => ({ key: k, label: k }))];
+
+  host.innerHTML = `
+    <p class="team-intro">Who can use this dashboard, and what each role may do. A change takes effect on that admin’s very next action — the database checks every one.</p>
+    ${_teamListHtml()}
+    ${_teamAddHtml()}
+    ${_teamGridHtml()}`;
+}
+
+function _teamListHtml() {
+  const rows = _team.holders.slice().sort((a, b) =>
+    (a.role_id === 'super_admin' ? 0 : 1) - (b.role_id === 'super_admin' ? 0 : 1)
+    || String(a.granted_at || '').localeCompare(String(b.granted_at || '')));
+  const body = rows.map(h => {
+    const p = _team.people.get(h.user_id);
+    const you = h.user_id === adminUUID ? ' <span class="team-you">you</span>' : '';
+    const isSuper = h.role_id === 'super_admin';
+    const role = isSuper
+      ? '<span class="pill pill-pinned">Super admin</span>'
+      : `<select class="form-select team-role-select" onchange="aTeamSetRole('${h.user_id}', this)">${
+          _teamGridRoles.map(r => `<option value="${escAttr(r.id)}"${r.id === h.role_id ? ' selected' : ''}>${esc(r.label)}</option>`).join('')
+        }</select>`;
+    const by = h.granted_by ? ` · by ${esc(_teamName(_team.people.get(h.granted_by)))}` : '';
+    const added = h.granted_at ? `${fmtDate(h.granted_at)}${by}` : '—';
+    const action = isSuper
+      ? '<span class="team-hint-inline">Changed only in SQL</span>'
+      : `<button class="btn-sm-a btn-a-danger" onclick="aTeamRemove('${h.user_id}')">Remove</button>`;
+    return `<tr>
+      <td><div class="team-person">${esc(_teamName(p))}${you}</div><div class="team-email">${esc(p?.email || '')}</div></td>
+      <td>${role}</td>
+      <td class="team-school">${esc((h.school || 'All schools').replace(/_/g, ' '))}</td>
+      <td class="team-added">${added}</td>
+      <td>${action}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="tcard">
+    <div class="tcard-head"><div class="tcard-title">Team</div><span class="team-count">${rows.length} ${rows.length === 1 ? 'person' : 'people'}</span></div>
+    <div class="table-scroll"><table><thead><tr><th>Admin</th><th>Role</th><th>School</th><th>Added</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
+  </div>`;
+}
+
+function _teamAddHtml() {
+  return `<div class="tcard">
+    <div class="tcard-head"><div class="tcard-title">Add an admin</div></div>
+    <div class="team-add">
+      <p class="team-hint">First create their login in Supabase: <b>Authentication → Users → Add user → Create new user</b>, with their own <b>@caldwell.edu</b> address (a separate one from any student account) and a temporary password, and tick <b>Auto Confirm User</b>. Then check that account here.</p>
+      <div class="team-add-row">
+        <input class="form-input" id="teamEmail" type="email" placeholder="name+admin@caldwell.edu" autocomplete="off" spellcheck="false" oninput="aTeamClearCheck()">
+        <select class="form-select" id="teamRole" onchange="aTeamClearCheck()">${
+          _teamGridRoles.map(r => `<option value="${escAttr(r.id)}">${esc(r.label)}</option>`).join('')
+        }</select>
+        <button class="btn-sm-a btn-a-brand" onclick="aTeamCheck()">Check account</button>
+      </div>
+      <div id="teamCheckOut"></div>
+    </div>
+  </div>`;
+}
+
+function _teamGridHtml() {
+  const head = _teamGridRoles.map((r, ri) => {
+    const n = _team.holders.filter(h => h.role_id === r.id).length;
+    const del = n ? '' : `<button class="team-role-del" onclick="aTeamDeleteRole(${ri})" title="Delete this role (nobody holds it)">Delete</button>`;
+    return `<th class="team-role-head" title="${escAttr(r.description || '')}">${esc(r.label)}<span>${n} ${n === 1 ? 'person' : 'people'}</span>${del}</th>`;
+  }).join('');
+  const body = _teamGridPerms.map((p, pi) => `<tr>
+    <td class="team-perm${p.sensitive ? ' team-sensitive' : ''}">${esc(p.label)}${p.sensitive ? ' <span class="team-flag">sensitive</span>' : ''}</td>
+    ${_teamGridRoles.map((r, ri) => `<td class="team-cell"><input type="checkbox" aria-label="${escAttr(r.label + ': ' + p.label)}"${_team.perms.get(r.id)?.get(p.key) ? ' checked' : ''} onchange="aTeamToggle(${ri}, ${pi}, this)"></td>`).join('')}
+  </tr>`).join('');
+  const form = _teamNewRoleOpen ? `<div class="team-newrole">
+      <input class="form-input" id="teamRoleName" placeholder="Role name, e.g. Housing helper" maxlength="40" autocomplete="off">
+      <input class="form-input" id="teamRoleDesc" placeholder="What it’s for (optional)" maxlength="120" autocomplete="off">
+      <button class="btn-sm-a btn-a-brand" onclick="aTeamCreateRole()">Create role</button>
+    </div>` : '';
+  return `<div class="tcard">
+    <div class="tcard-head"><div class="tcard-title">Roles &amp; switches</div><button class="btn-sm-a btn-a-neutral" onclick="aTeamNewRoleToggle()">${_teamNewRoleOpen ? 'Cancel' : '+ New role'}</button></div>
+    ${form}
+    <div class="table-scroll"><table class="team-grid"><thead><tr><th>Switch</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    <p class="team-hint team-grid-foot">Ticking a box saves it. You, the super admin, always have every switch. A new role starts with every switch off.</p>
+  </div>`;
+}
+
+// ---- adding someone: "Check account" reports what it finds, then Add is a second, deliberate press
+function aTeamClearCheck() {
+  _teamCheck = null;
+  const out = document.getElementById('teamCheckOut');
+  if (out) out.innerHTML = '';
+}
+
+async function aTeamCheck() {
+  const out = document.getElementById('teamCheckOut');
+  const raw = document.getElementById('teamEmail').value.trim();
+  const roleId = document.getElementById('teamRole').value;
+  const email = raw.toLowerCase();
+  _teamCheck = null;
+  const line = (kind, html) => `<div class="team-check-line team-check-${kind}">${kind === 'ok' ? '✓' : kind === 'warn' ? '!' : '✕'}<span>${html}</span></div>`;
+  const box = lines => `<div class="team-check">${lines.join('')}</div>`;
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { out.innerHTML = box([line('bad', 'Type the full email address of their account.')]); return; }
+  if (!_teamGridRoles.some(r => r.id === roleId)) { out.innerHTML = box([line('bad', 'Pick a role first.')]); return; }
+  out.innerHTML = box([line('ok', 'Checking…')]);
+
+  const cols = 'id, first_name, last_name, display_name, email, school, status, created_at, terms_accepted_at';
+  let { data: p, error } = await supabaseClient.from('profiles').select(cols).eq('email', email).maybeSingle();
+  if (!p && !error && raw !== email) ({ data: p, error } = await supabaseClient.from('profiles').select(cols).eq('email', raw).maybeSingle());
+  if (error) { out.innerHTML = box([line('bad', `Could not look that up: ${esc(error.message)}`)]); return; }
+  if (!p) {
+    out.innerHTML = box([line('bad', `No Nestrel account uses <b>${esc(email)}</b> yet. Create it in Supabase first (the steps are above), then press Check account again.`)]);
+    return;
+  }
+  const held = _team.holders.find(h => h.user_id === p.id);
+  if (held) { out.innerHTML = box([line('bad', `${esc(_teamName(p))} is already on the team, as ${esc(_teamRoleLabel(held.role_id))}.`)]); return; }
+  if (p.status === 'suspended') { out.innerHTML = box([line('bad', 'This account is suspended. Reinstate it first — a suspended account cannot change anything.')]); return; }
+  if (!p.school) { out.innerHTML = box([line('bad', 'This account has no school, so its admin access could not be scoped. Check the profile in Supabase.')]); return; }
+  if (!UUID_RE.test(p.id)) return;
+
+  // Student activity: a separate admin-only account should have none.
+  const [l, b, m] = await Promise.all([
+    supabaseClient.from('listings').select('id', { count: 'exact', head: true }).eq('poster_id', p.id),
+    supabaseClient.from('book_listings').select('id', { count: 'exact', head: true }).eq('poster_id', p.id),
+    supabaseClient.from('messages').select('id', { count: 'exact', head: true }).or(`sender_id.eq.${p.id},receiver_id.eq.${p.id}`),
+  ]);
+  const n = r => r.error ? null : (r.count ?? 0);
+  const counts = [[n(l), 'listing'], [n(b), 'book'], [n(m), 'message']];
+  const used = counts.filter(([c]) => c > 0);
+  const unknown = counts.filter(([c]) => c === null);
+  const plural = (c, w) => `${c} ${w}${c === 1 ? '' : 's'}`;
+
+  const lines = [line('ok', `Account found: <b>${esc(_teamName(p))}</b> · ${esc(p.email || email)} · created ${p.created_at ? fmtDate(p.created_at) : '—'}`)];
+  const schoolName = p.school.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+  lines.push(line('ok', `School: ${esc(schoolName)} — their admin access will cover this school.`));
+  if (used.length) {
+    lines.push(line('warn', `This looks like someone’s <b>student</b> account: ${used.map(([c, w]) => plural(c, w)).join(', ')}. `
+      + 'We agreed admins use a separate admin-only account. If you continue, signing in with this account opens the admin panel only — they can no longer use Nestrel as a student with it.'));
+  } else if (!unknown.length) {
+    lines.push(line('ok', 'No listings, books or messages — this looks like an admin-only account.'));
+  }
+  if (p.terms_accepted_at) lines.push(line('warn', 'This account went through the student sign-up (it accepted the student Terms).'));
+  if (unknown.length) lines.push(line('warn', `Could not count their ${unknown.map(([, w]) => w + 's').join(' and ')}.`));
+
+  const careful = used.length || p.terms_accepted_at;
+  const roleLabel = esc(_teamRoleLabel(roleId));
+  _teamCheck = { profile: p, roleId };
+  out.innerHTML = box(lines) + `<div class="team-check-actions">
+    <button class="btn-sm-a ${careful ? 'btn-a-danger' : 'btn-a-brand'}" onclick="aTeamAdd()">${careful ? `Add anyway, as ${roleLabel}` : `Add as ${roleLabel}`}</button>
+    <button class="btn-sm-a btn-a-neutral" onclick="aTeamClearCheck()">Cancel</button>
+  </div>`;
+}
+
+async function aTeamAdd() {
+  const c = _teamCheck;
+  if (!c) return;
+  const name = _teamName(c.profile);
+  const { data, error } = await supabaseClient.from('user_roles')
+    .insert({ user_id: c.profile.id, role_id: c.roleId, school: c.profile.school, granted_by: adminUUID })
+    .select('user_id');
+  if (error || !data?.length) {
+    toast('Could not add them — please try again.');
+    console.error('[aTeamAdd]', error?.message || 'insert refused (0 rows)');
+    return;
+  }
+  logAdminAction('admin_added', { targetType: 'admin', targetId: c.profile.id, targetLabel: name, school: c.profile.school, after: { role: c.roleId } });
+  _teamCheck = null;
+  toast(`${name} added as ${_teamRoleLabel(c.roleId)}`);
+  renderTeam();
+}
+
+// ---- changing and removing
+async function aTeamSetRole(userId, sel) {
+  if (!UUID_RE.test(String(userId)) || !_team) return;
+  const h = _team.holders.find(x => x.user_id === userId && x.role_id !== 'super_admin');
+  const newRole = sel.value;
+  if (!h || newRole === h.role_id || !_teamGridRoles.some(r => r.id === newRole)) { if (h) sel.value = h.role_id; return; }
+  const { data, error } = await supabaseClient.from('user_roles')
+    .update({ role_id: newRole }).eq('user_id', userId).eq('role_id', h.role_id).select('user_id');
+  if (error || !data?.length) {
+    sel.value = h.role_id;
+    toast('Could not change the role — please try again.');
+    console.error('[aTeamSetRole]', error?.message || 'update refused (0 rows)');
+    return;
+  }
+  const name = _teamName(_team.people.get(userId));
+  logAdminAction('admin_role_changed', { targetType: 'admin', targetId: userId, targetLabel: name, school: h.school, before: { role: h.role_id }, after: { role: newRole } });
+  toast(`${name} is now ${_teamRoleLabel(newRole)}`);
+  renderTeam();
+}
+
+async function aTeamRemove(userId) {
+  if (!UUID_RE.test(String(userId)) || !_team) return;
+  const h = _team.holders.find(x => x.user_id === userId && x.role_id !== 'super_admin');
+  if (!h) return;
+  const name = _teamName(_team.people.get(userId));
+  if (!confirm(`Remove ${name}'s admin access?\n\nThe database refuses them from their very next action, even if their dashboard is still open. Their account is kept, so they can be added back any time.`)) return;
+  const { data, error } = await supabaseClient.from('user_roles')
+    .delete().eq('user_id', userId).neq('role_id', 'super_admin').select('user_id');
+  if (error || !data?.length) {
+    toast('Could not remove them — please try again.');
+    console.error('[aTeamRemove]', error?.message || 'delete refused (0 rows)');
+    return;
+  }
+  logAdminAction('admin_removed', { targetType: 'admin', targetId: userId, targetLabel: name, school: h.school, before: { role: h.role_id } });
+  toast(`${name} no longer has admin access`);
+  renderTeam();
+}
+
+// ---- roles and switches
+async function aTeamToggle(ri, pi, input) {
+  const role = _teamGridRoles[ri], perm = _teamGridPerms[pi];
+  if (!role || !perm) return;
+  const on = input.checked;
+  if (on && perm.sensitive && !confirm(`Turn on “${perm.label}” for ${role.label}?\n\n${perm.sensitive}`)) { input.checked = false; return; }
+  input.disabled = true;
+  const { data, error } = await supabaseClient.from('role_permissions')
+    .upsert({ role_id: role.id, permission_key: perm.key, enabled: on }, { onConflict: 'role_id,permission_key' })
+    .select('role_id');
+  input.disabled = false;
+  if (error || !data?.length) {
+    input.checked = !on;
+    toast('Could not save that switch — please try again.');
+    console.error('[aTeamToggle]', error?.message || 'save refused (0 rows)');
+    return;
+  }
+  if (!_team.perms.has(role.id)) _team.perms.set(role.id, new Map());
+  _team.perms.get(role.id).set(perm.key, on);
+  logAdminAction('role_permission_changed', { targetType: 'role', targetId: role.id, targetLabel: role.label,
+    meta: { permission: perm.key }, before: { enabled: !on }, after: { enabled: on } });
+  toast(`${role.label}: “${perm.label}” ${on ? 'on' : 'off'}`);
+}
+
+function aTeamNewRoleToggle() {
+  _teamNewRoleOpen = !_teamNewRoleOpen;
+  renderTeam();
+}
+
+async function aTeamCreateRole() {
+  const label = (document.getElementById('teamRoleName')?.value || '').trim();
+  const description = (document.getElementById('teamRoleDesc')?.value || '').trim() || null;
+  if (label.length < 2) { toast('Give the role a name.'); return; }
+  // The id is made from the name: lower case, letters, numbers and underscores only.
+  let id = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+  if (!/^[a-z]/.test(id)) id = 'role_' + id;
+  if (id === 'super_admin' || _team.roles.some(r => r.id === id || r.label.toLowerCase() === label.toLowerCase())) {
+    toast('A role with that name already exists.');
+    return;
+  }
+  const { data, error } = await supabaseClient.from('admin_roles').insert({ id, label, description }).select('id');
+  if (error || !data?.length) {
+    toast('Could not create the role — please try again.');
+    console.error('[aTeamCreateRole]', error?.message || 'insert refused (0 rows)');
+    return;
+  }
+  // Every switch written as off, so the grid shows the role's full row from the start.
+  const { error: pErr } = await supabaseClient.from('role_permissions')
+    .insert(ADMIN_PERMISSIONS.map(p => ({ role_id: id, permission_key: p.key, enabled: false })));
+  if (pErr) console.error('[aTeamCreateRole] switches not written (they read as off anyway):', pErr.message);
+  logAdminAction('role_created', { targetType: 'role', targetId: id, targetLabel: label });
+  _teamNewRoleOpen = false;
+  toast(`Role “${label}” created — every switch starts off`);
+  renderTeam();
+}
+
+async function aTeamDeleteRole(ri) {
+  const role = _teamGridRoles[ri];
+  if (!role || _team.holders.some(h => h.role_id === role.id)) return;
+  if (!confirm(`Delete the role “${role.label}”?\n\nNobody holds it. Its switches are deleted with it.`)) return;
+  const { data, error } = await supabaseClient.from('admin_roles').delete().eq('id', role.id).select('id');
+  if (error || !data?.length) {
+    toast('Could not delete the role — please try again.');
+    console.error('[aTeamDeleteRole]', error?.message || 'delete refused (0 rows)');
+    return;
+  }
+  logAdminAction('role_deleted', { targetType: 'role', targetId: role.id, targetLabel: role.label });
+  toast(`Role “${role.label}” deleted`);
+  renderTeam();
+}
+
+// ============================================================
 // SHARED UTILITIES
 // ============================================================
 // ============================================================
@@ -4053,6 +4436,7 @@ const _agoMap = {
   broadcast: () => { renderBcastHistory(); },
   health: renderHealth,
   appeals: renderAppeals,
+  team: renderTeam,
 };
 // The one and only ago(). Switches the visible admin section, sets the title, and calls
 // that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.

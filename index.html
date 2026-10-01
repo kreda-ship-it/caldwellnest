@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-09-30a">
+<link rel="stylesheet" href="styles.css?v=2026-10-01a">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -601,6 +601,8 @@
         <button class="a-nav-item" onclick="ago('exports',this)" data-tooltip="Data export"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span><span class="n-label">Data export</span></button>
         <button class="a-nav-item" onclick="ago('health',this)" data-tooltip="Platform health"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="n-label">Platform health</span></button>
         <button class="a-nav-item" onclick="ago('asettings',this)" data-tooltip="Settings"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.1 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15a2 2 0 1 1 0-4 1.6 1.6 0 0 0 1.2-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 21 11a2 2 0 1 1 0 4z"/></svg></span><span class="n-label">Settings</span></button>
+        <!-- Super admin only: loadAdminAccess() (js/admin.js) removes `hidden` after reading your role. -->
+        <button class="a-nav-item" id="aNavTeam" hidden onclick="ago('team',this)" data-tooltip="Admin team"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 9.5C8 19.2 5 15.5 5 11V6z"/><circle cx="12" cy="10" r="2.2"/><path d="M8.8 15.6a3.6 3.6 0 0 1 6.4 0"/></svg></span><span class="n-label">Admin team</span></button>
       </div>
       <div class="a-sidebar-footer">
         <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
@@ -1174,13 +1176,10 @@
               </div>
             </div>
           </div>
-          <div class="tcard" style="margin-top:14px">
-            <div class="tcard-head"><div class="tcard-title">Admin accounts</div></div>
-            <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last login</th></tr></thead>
-            <tbody><tr><td style="font-weight:500">Admin</td><td>admin@caldwell.edu</td><td><span class="pill pill-active">Super admin</span></td><td>Now</td></tr>
-            <tr><td style="font-weight:500">Housing Office</td><td>housing@caldwell.edu</td><td><span class="pill pill-suspended">Moderator</span></td><td>2d ago</td></tr></tbody></table>
-          </div>
         </div>
+
+        <!-- Admin team (super admin only). Drawn by renderTeam() in js/admin.js. -->
+        <div class="a-section" id="asec-team"></div>
 
       </div><!-- /a-content -->
     </div><!-- /a-main -->
@@ -1955,7 +1954,7 @@
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-09-27a"></script>
-<script src="js/admin.js?v=2026-10-01a"></script>
+<script src="js/admin.js?v=2026-10-01b"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>

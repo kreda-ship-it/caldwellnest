@@ -1187,6 +1187,43 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 /* The reason dialog opens from inside the details drawer (Remove on a photo). Modals sit at 500 and
    the drawer at 501, so without this the dialog would open BEHIND the drawer, invisible. */
 #rejectModal{z-index:502;}
+/* Admin · Admin team (2026-10-01, sub-admins B2). .a-nav-item sets display:flex, which beats the
+   browser's own [hidden] rule — so a hidden sidebar item needs saying twice. */
+.a-nav-item[hidden]{display:none;}
+.team-intro{margin:-4px 0 16px;font-size:14px;color:var(--text-muted);}
+.team-empty{padding:28px;text-align:center;color:var(--text-muted);font-size:14px;}
+.team-count{font-size:12px;color:var(--text-muted);font-weight:500;}
+.team-person{font-weight:500;}
+.team-email,.team-added{font-size:12px;color:var(--text-muted);}
+.team-school{text-transform:capitalize;}
+.team-you{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;background:var(--brand-pale);color:var(--brand);font-size:10px;font-weight:600;vertical-align:1px;}
+.team-hint-inline{font-size:11px;color:var(--text-faint);}
+.team-role-select{width:auto;min-width:150px;padding:6px 10px;font-size:13px;}
+.team-add{padding:16px 18px;}
+.team-hint{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--text-muted);}
+.team-hint b{color:var(--text);font-weight:600;}
+.team-add-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.team-add-row .form-input{flex:1 1 240px;width:auto;}
+.team-add-row .form-select{flex:0 1 190px;width:auto;}
+.team-check{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);display:flex;flex-direction:column;gap:6px;}
+.team-check-line{display:flex;gap:8px;font-size:13px;line-height:1.5;}
+.team-check-line>span{flex:1;}
+.team-check-ok{color:var(--success);}
+.team-check-warn{color:var(--warning);}
+.team-check-bad{color:var(--danger);}
+.team-check-ok>span,.team-check-warn>span,.team-check-bad>span{color:var(--text);}
+.team-check-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.team-grid th.team-role-head{text-align:center;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text);}
+.team-role-head span{display:block;font-size:10px;font-weight:500;color:var(--text-faint);margin-top:2px;}
+.team-role-del{margin-top:4px;border:none;background:none;padding:0;font-size:10px;color:var(--danger);cursor:pointer;font-family:inherit;text-decoration:underline;}
+.team-perm{font-size:13px;}
+.team-sensitive{font-weight:500;}
+.team-flag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:9px;background:var(--warning-pale);color:var(--warning);font-size:10px;font-weight:600;}
+.team-cell{text-align:center;}
+.team-cell input{width:16px;height:16px;cursor:pointer;accent-color:var(--brand);}
+.team-newrole{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.team-newrole .form-input{flex:1 1 200px;width:auto;}
+.team-grid-foot{margin:0;padding:12px 18px;border-top:1px solid var(--border);}
 /* Admin · Home & announcements (2026-09-24): Live now and Featured on Home, beside the composer. */
 .bh-intro{margin:-4px 0 16px;font-size:14px;color:var(--text-muted);}
 .bh-hint{margin:-2px 0 16px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg);font-size:12.5px;line-height:1.55;color:var(--text-muted);}
