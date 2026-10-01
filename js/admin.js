@@ -1112,7 +1112,21 @@ function aOpenEdit(id, src) {
   aEditId = id; aEditSrc = src;
   const l = (src === 'pending' ? DB.pending : DB.listings).find(x => x.id === id); if (!l) return;
   document.getElementById('aeT').value = l.title;
-  document.getElementById('aeY').value = l.type;
+  // Room type belongs to housing only, and lives in details.room_type — there is no `type` column.
+  // A value the list does not know (an old spelling) is offered as itself, so saving never
+  // silently swaps it for whatever happens to be first.
+  const isHousing = (l.category || 'housing') === 'housing';
+  document.getElementById('aeYGroup').style.display = isHousing ? '' : 'none';
+  document.getElementById('aeRLabel').textContent = isHousing ? 'Rent / month' : 'Price';
+  const sel = document.getElementById('aeY');
+  sel.querySelectorAll('option[data-legacy]').forEach(o => o.remove());
+  const roomType = l.details?.room_type || '';
+  if (roomType && ![...sel.options].some(o => o.value === roomType)) {
+    const o = new Option(roomType, roomType);
+    o.dataset.legacy = '1';
+    sel.add(o, 1);
+  }
+  sel.value = roomType;
   document.getElementById('aeR').value = l.rent;
   document.getElementById('aeL').value = l.location || '';
   document.getElementById('aeD').value = l.desc || '';
@@ -1131,18 +1145,29 @@ async function saveAEdit() {
   const oldLoc    = src.location;
   const oldDesc   = src.desc;
   const newTitle = document.getElementById('aeT').value;
-  const newType = document.getElementById('aeY').value;
+  const isHousing = (src.category || 'housing') === 'housing';
+  const oldRoomType = src.details?.room_type || '';
+  const newRoomType = isHousing ? document.getElementById('aeY').value : oldRoomType;
   const newRent = parseInt(document.getElementById('aeR').value) || src.rent;
   const newLoc = document.getElementById('aeL').value;
   const newDesc = document.getElementById('aeD').value;
   const newStatus = document.getElementById('aeS').value;
   const newRejReason = document.getElementById('aeRej').value || null;
-  const { error } = await supabaseClient.from('listings').update({
+  const update = {
     title: newTitle, price: newRent, location: newLoc,
     description: newDesc, status: newStatus, rejection_reason: newRejReason
-  }).eq('id', aEditId);
+  };
+  // Only written when it changed, so editing a title never rewrites the other details.
+  let newDetails = src.details || {};
+  if (newRoomType !== oldRoomType) {
+    newDetails = { ...newDetails };
+    if (newRoomType) newDetails.room_type = newRoomType; else delete newDetails.room_type;
+    update.details = newDetails;
+  }
+  const { error } = await supabaseClient.from('listings').update(update).eq('id', aEditId);
   if (error) { toast('Could not save — please try again.'); console.error(error.message); return; }
-  src.title = newTitle; src.type = newType; src.rent = newRent;
+  src.title = newTitle; src.rent = newRent; src.details = newDetails;
+  src.type = newDetails.room_type || CATEGORY_LABELS[src.category] || 'Housing';   // as data.js shapes it
   src.location = newLoc; src.desc = newDesc; src.status = newStatus;
   src.rejection_reason = newRejReason;
   if (newStatus === 'pending' && aEditSrc !== 'pending') {
@@ -1152,7 +1177,7 @@ async function saveAEdit() {
     DB.pending.splice(DB.pending.findIndex(x => x.id === aEditId), 1);
     DB.listings.unshift(src);
   }
-  logAdminAction('edit_listing', { targetType: 'listing', targetId: aEditId, targetLabel: newTitle, school: src.school, category: src.category, reason: newStatus === 'rejected' ? newRejReason : null, before: { status: oldStatus, title: oldTitle, price: oldPrice, location: oldLoc, description: oldDesc }, after: { status: newStatus, title: newTitle, price: newRent, location: newLoc, description: newDesc } });
+  logAdminAction('edit_listing', { targetType: 'listing', targetId: aEditId, targetLabel: newTitle, school: src.school, category: src.category, reason: newStatus === 'rejected' ? newRejReason : null, before: { status: oldStatus, title: oldTitle, price: oldPrice, location: oldLoc, description: oldDesc, ...(newRoomType !== oldRoomType ? { room_type: oldRoomType || null } : {}) }, after: { status: newStatus, title: newTitle, price: newRent, location: newLoc, description: newDesc, ...(newRoomType !== oldRoomType ? { room_type: newRoomType || null } : {}) } });
   closeModal('aEditModal');
   renderAApprovals(); renderAListings(); renderListings(); updateAdminBadges();
   toast('Listing updated');

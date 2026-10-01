@@ -1824,8 +1824,9 @@
   <div class="modal-body">
     <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="aeT"></div>
     <div class="form-row-2">
-      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="aeY"><option>Private Room</option><option>Shared Room</option><option>Full Apartment</option><option>Looking for Room</option></select></div>
-      <div class="form-group"><label class="form-label">Rent</label><input class="form-input" id="aeR" type="number"></div>
+      <!-- Housing only: the listing's details.room_type. Values match LISTING_SPECS in js/listings.js. -->
+      <div class="form-group" id="aeYGroup"><label class="form-label" for="aeY">Room type</label><select class="form-select" id="aeY"><option value="">Not set</option><option value="Private Room">Private room</option><option value="Shared Room">Shared room</option><option value="Full Apartment">Full apartment</option><option value="Looking for Room">Looking for a room</option></select></div>
+      <div class="form-group"><label class="form-label" for="aeR" id="aeRLabel">Price</label><input class="form-input" id="aeR" type="number" autocomplete="off"></div>
     </div>
     <div class="form-group"><label class="form-label">Location</label><input class="form-input" id="aeL"></div>
     <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="aeD" rows="3"></textarea></div>
@@ -1955,7 +1956,7 @@
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-09-27a"></script>
-<script src="js/admin.js?v=2026-10-01d"></script>
+<script src="js/admin.js?v=2026-10-01e"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
