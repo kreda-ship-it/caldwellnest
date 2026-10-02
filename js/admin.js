@@ -77,7 +77,6 @@ async function initAdmin() {
   buildAdminBar();
   buildTypeChart();
   renderAdminDashLog();
-  buildPresets();
   buildASettings();
   renderBcastHistory();
   renderBcastTemplates();
@@ -2825,105 +2824,86 @@ async function exportActivityLog() {
 // ============================================================
 // ADMIN — SITE EDITOR (live updates student interface)
 // ============================================================
-const PRESETS = [
-  // Forest is the app's own palette. It has to match :root, or an admin who clicks it
-  // (or Reset) would quietly put the whole student platform back to the old grey ground.
-  { name:'Forest',brand:'#1a3a2a',accent:'#f0a500',bg:'#faf7f0',surface:'#fff' },
-  { name:'Ocean',brand:'#1a3a5c',accent:'#f0a500',bg:'#f0f5fa',surface:'#fff' },
-  { name:'Berry',brand:'#5c1a4a',accent:'#f0a500',bg:'#faf5f9',surface:'#fff' },
-  { name:'Slate',brand:'#2c3e50',accent:'#e74c3c',bg:'#f4f6f8',surface:'#fff' },
-  { name:'Gold',brand:'#7d5a00',accent:'#2d9e5c',bg:'#fdfbf5',surface:'#fff' },
-];
-let curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#faf7f0', surface:'#ffffff' };
-
-function buildPresets() {
-  document.getElementById('presetRow').innerHTML = PRESETS.map((p, i) => `<div class="pdot" style="background:${p.brand}" title="${p.name}" onclick="applyPreset(${i})"></div>`).join('');
-}
-
-function applyPreset(i) {
-  const p = PRESETS[i]; curColors = { brand: p.brand, accent: p.accent, bg: p.bg, surface: p.surface };
-  document.getElementById('cBrand').value = p.brand; document.getElementById('cBrandV').textContent = p.brand;
-  document.getElementById('cAccent').value = p.accent; document.getElementById('cAccentV').textContent = p.accent;
-  document.getElementById('cBg').value = p.bg; document.getElementById('cBgV').textContent = p.bg;
-  document.getElementById('cSurface').value = p.surface; document.getElementById('cSurfaceV').textContent = p.surface;
-  updatePreview(); toast(`Preset "${p.name}" applied to preview`);
-}
-
-function liveCol(k, v) {
-  curColors[k] = v;
-  const vmap = { brand:'cBrandV', accent:'cAccentV', bg:'cBgV', surface:'cSurfaceV' };
-  if (vmap[k]) document.getElementById(vmap[k]).textContent = v;
-  updatePreview();
-}
-
-function updatePreview() {
-  document.getElementById('pvNav').style.background = curColors.brand;
-  document.getElementById('pvHeroDiv').style.background = curColors.brand;
-  document.getElementById('pvCta').style.background = curColors.accent;
-  document.getElementById('pvCta').style.color = curColors.brand;
-  document.querySelectorAll('.pv-card-price').forEach(e => e.style.color = curColors.brand);
-  document.querySelector('.pv-frame').style.background = curColors.bg;
-}
-
-function applyColors() {
-  const r = document.documentElement;
-  r.style.setProperty('--brand', curColors.brand);
-  r.style.setProperty('--brand-mid', curColors.brand);
-  r.style.setProperty('--accent', curColors.accent);
-  r.style.setProperty('--bg', curColors.bg);
-  r.style.setProperty('--surface', curColors.surface);
-  logAdminAction('color_edit', { targetType: 'system', meta: { section: 'colors' } });
-  toast('Colors applied to student platform!');
-}
-
-function resetColors() {
-  curColors = { brand:'#1a3a2a', accent:'#f0a500', bg:'#faf7f0', surface:'#ffffff' };
-  const r = document.documentElement;
-  r.style.setProperty('--brand','#1a3a2a'); r.style.setProperty('--brand-mid','#2d6148');
-  r.style.setProperty('--accent','#f0a500'); r.style.setProperty('--bg','#faf7f0'); r.style.setProperty('--surface','#ffffff');
-  updatePreview(); toast('Colors reset');
-}
+// The Colors tab was removed 2026-10-01 (Kal's choice). It changed four CSS variables in the admin's own
+// browser and nothing else — students never saw it — and the design uses a dozen related shades, so
+// a four-colour picker could only produce clashes. A brand change belongs in styles.css.
 
 function edTab(t, btn) {
-  ['colors','content','layout'].forEach(x => { document.getElementById('ed'+x.charAt(0).toUpperCase()+x.slice(1)).style.display = x === t ? 'block' : 'none'; });
+  ['content','layout'].forEach(x => { document.getElementById('ed'+x.charAt(0).toUpperCase()+x.slice(1)).style.display = x === t ? 'block' : 'none'; });
   document.querySelectorAll('.ed-tab').forEach(x => x.classList.remove('active')); btn.classList.add('active');
 }
 
+// The small preview beside the editor. Empty fields show the default, as the live site would.
 function liveContent() {
-  const name = document.getElementById('txtName').value || 'Nestrel';
-  const tag = document.getElementById('txtTag').value || 'Nest';
-  document.getElementById('pvLogo').innerHTML = name.includes(tag) ? name.replace(tag, `<em>${tag}</em>`) : name;
-  document.getElementById('pvH1').innerHTML = `${document.getElementById('txtH1').value || 'One trusted hub'}<br>for <em id="pvH2">${document.getElementById('txtH2').value || 'campus life.'}</em>`;
-  document.getElementById('pvSub').textContent = document.getElementById('txtSub').value;
-  document.getElementById('pvCta').textContent = document.getElementById('txtCta').value || 'Get started free';
+  const d = DB.content, v = id => document.getElementById(id).value.trim();
+  const h1 = document.getElementById('pvH1');
+  const em = document.createElement('em');
+  em.id = 'pvH2';
+  em.textContent = v('txtH2') || d.h2;
+  h1.textContent = v('txtH1') || d.h1;          // text, never markup — see applyDBContent() in js/data.js
+  h1.append(document.createElement('br'), 'for ', em);
+  document.getElementById('pvSub').textContent = v('txtSub') || d.sub;
+  document.getElementById('pvCta').textContent = v('txtCta') || d.cta;
 }
 
-function applyContent() {
-  DB.content.h1 = document.getElementById('txtH1').value;
-  DB.content.h2 = document.getElementById('txtH2').value;
-  DB.content.sub = document.getElementById('txtSub').value;
-  DB.content.cta = document.getElementById('txtCta').value;
-  DB.content.listTitle = document.getElementById('txtLT').value;
-  DB.content.listSub = document.getElementById('txtLS').value;
+// Fills the editor with what is live now (saved edits over the defaults), every time it is opened.
+function fillSiteEditor() {
+  const saved = DB.settings.site_content || {};
+  const set = (id, k) => { document.getElementById(id).value = typeof saved[k] === 'string' ? saved[k] : ''; };
+  set('txtH1', 'h1'); set('txtH2', 'h2'); set('txtSub', 'sub'); set('txtCta', 'cta');
+  set('txtLT', 'listTitle'); set('txtLS', 'listSub'); set('bannerTxt', 'banner');
+  document.getElementById('bannerOn').checked = saved.bannerOn === true;
+  const d = DB.content;
+  [['txtH1', d.h1], ['txtH2', d.h2], ['txtSub', d.sub], ['txtCta', d.cta], ['txtLT', d.listTitle], ['txtLS', d.listSub]]
+    .forEach(([id, def]) => { document.getElementById(id).placeholder = def; });   // an empty field shows what it falls back to
+  liveContent();
+  const b = document.getElementById('pvBanner');
+  b.textContent = saved.banner || '';
+  b.style.display = saved.banner && saved.bannerOn ? 'block' : 'none';
+}
+
+// Saves into the platform_settings row 'site_content', which every visitor loads. Writing it needs the
+// edit_site switch (sql/2026-10-01_admin_permissions.sql). Empty fields are dropped, so they fall back
+// to the defaults; the Activity log keeps the old and new text.
+async function saveSiteContent(changes, section) {
+  const before = { ...(DB.settings.site_content || {}) };
+  const next = { ...before, ...changes };
+  Object.keys(next).forEach(k => { if (next[k] === '' || next[k] == null) delete next[k]; });
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data, error } = await supabaseClient.from('platform_settings')
+    .upsert({ key: 'site_content', value: next, updated_at: new Date().toISOString(), updated_by: user?.id }, { onConflict: 'key' })
+    .select('key');
+  if (error || !data?.length) {
+    toast('Could not save — please try again.');
+    console.error('[saveSiteContent]', error?.message || 'save refused (0 rows)');
+    return false;
+  }
+  DB.settings.site_content = next;
   applyDBContent();
-  logAdminAction('content_edit', { targetType: 'system', meta: { section: 'content' } });
-  toast('Content applied to student platform!');
+  logAdminAction('content_edit', { targetType: 'system', meta: { section }, before, after: next });
+  return true;
 }
 
-function selCardLayout(el) {
-  ['layoutGrid','layoutList'].forEach(id => { const d = document.getElementById(id); d.style.background='var(--bg)'; d.style.border='1px solid var(--border)'; d.style.color='var(--text-muted)'; });
-  el.style.background='var(--brand-pale)'; el.style.border='2px solid var(--brand)'; el.style.color='var(--brand)';
+async function applyContent() {
+  const v = (id, k) => document.getElementById(id).value.trim().slice(0, SITE_CONTENT_LIMITS[k]);
+  const ok = await saveSiteContent({
+    h1: v('txtH1', 'h1'), h2: v('txtH2', 'h2'), sub: v('txtSub', 'sub'), cta: v('txtCta', 'cta'),
+    listTitle: v('txtLT', 'listTitle'), listSub: v('txtLS', 'listSub'),
+  }, 'content');
+  if (ok) toast('Saved — every visitor sees it on their next page load');
 }
 
-function applyLayout() {
-  const bt = document.getElementById('bannerTxt').value.trim();
-  const bon = document.getElementById('bannerOn').checked;
-  DB.content.banner = bt; DB.content.bannerOn = bon;
-  applyDBContent();
-  document.getElementById('pvBanner').style.display = (bt && bon) ? 'block' : 'none';
-  document.getElementById('pvBanner').textContent = bt;
-  logAdminAction('content_edit', { targetType: 'system', meta: { section: 'layout' } });
-  toast('Layout applied!');
+// The Banner tab. (Its grid/list "Card display" chooser was removed 2026-10-01: nothing ever read it.)
+async function applyLayout() {
+  const banner = document.getElementById('bannerTxt').value.trim().slice(0, SITE_CONTENT_LIMITS.banner);
+  const bannerOn = document.getElementById('bannerOn').checked;
+  if (bannerOn && !banner) { toast('Type the banner text first, or untick "Enable banner".'); return; }
+  const ok = await saveSiteContent({ banner, bannerOn }, 'banner');
+  if (!ok) return;
+  const b = document.getElementById('pvBanner');
+  b.textContent = banner;
+  b.style.display = banner && bannerOn ? 'block' : 'none';
+  toast(bannerOn ? 'Banner is live for every visitor' : 'Banner saved, and switched off');
 }
 
 // ============================================================
@@ -4717,6 +4697,7 @@ const _agoMap = {
   health: renderHealth,
   appeals: renderAppeals,
   team: renderTeam,
+  editor: fillSiteEditor,
 };
 // The one and only ago(). Switches the visible admin section, sets the title, and calls
 // that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.

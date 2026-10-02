@@ -238,9 +238,34 @@ async function initStudent() {
   }
 }
 
+// The landing-page and marketplace text the admin Site editor controls (made real 2026-10-01).
+// DB.content (js/config.js) holds the defaults. An admin's saved edits are the platform_settings row
+// 'site_content', which loadPlatformSettings() loads for every visitor before this runs, and they win
+// field by field. An empty or missing field falls back to the default. The limits match the editor's.
+const SITE_CONTENT_LIMITS = { h1: 40, h2: 30, sub: 220, cta: 40, listTitle: 40, listSub: 120, banner: 160 };
+function siteContent() {
+  const out = { ...DB.content };
+  const saved = DB.settings && DB.settings.site_content;
+  if (saved && typeof saved === 'object') {
+    Object.keys(SITE_CONTENT_LIMITS).forEach(k => {
+      if (typeof saved[k] === 'string' && saved[k].trim()) out[k] = saved[k].trim().slice(0, SITE_CONTENT_LIMITS[k]);
+    });
+    if (typeof saved.bannerOn === 'boolean') out.bannerOn = saved.bannerOn;
+  }
+  return out;
+}
+
 function applyDBContent() {
-  const c = DB.content;
-  document.getElementById('heroH1').innerHTML = `${c.h1}<br>for <em id="heroEm">${c.h2}</em>`;
+  const c = siteContent();
+  // Built as text, never as markup: this is typed by an admin and shown to every visitor, so nothing
+  // in it may become a tag or a script. (It was innerHTML until 2026-10-01, harmless only while the
+  // editor saved nothing.)
+  const h1 = document.getElementById('heroH1');
+  const em = document.createElement('em');
+  em.id = 'heroEm';
+  em.textContent = c.h2;
+  h1.textContent = c.h1;
+  h1.append(document.createElement('br'), 'for ', em);
   document.getElementById('heroSub').textContent = c.sub;
   document.getElementById('heroCta').textContent = c.cta;
   document.getElementById('listingsTitle').textContent = c.listTitle;
