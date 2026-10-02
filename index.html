@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-01f">
+<link rel="stylesheet" href="styles.css?v=2026-10-01g">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -1801,6 +1801,29 @@
   <div class="modal-body" id="aStuBody"></div></div>
 </div>
 
+<!-- DELETE AN ACCOUNT (super admin only, 2026-10-01). Runs admin_delete_account() —
+     sql/2026-10-01_account_deletion.sql. The list says exactly what goes and what stays. -->
+<div class="modal-overlay" id="deleteAccountModal">
+  <div class="modal modal-narrow">
+    <div class="modal-header"><div class="modal-title">Delete this account permanently</div><button class="modal-close" onclick="closeModal('deleteAccountModal')" aria-label="Close">&#215;</button></div>
+    <div class="modal-body">
+      <p class="da-lead"><strong id="daName"></strong><br><span id="daEmail"></span></p>
+      <ul class="da-list">
+        <li><b>Deleted:</b> their profile, listings, books and photos, their messages (from both inboxes), follows, memberships, RSVPs and notifications.</li>
+        <li><b>Kept, without their name:</b> club events and posts they made, reports they filed, and the activity log.</li>
+        <li id="daSuspendedNote" hidden><b>Suspended account:</b> its email will be blocked from signing up again for 2 years.</li>
+      </ul>
+      <p class="da-warn">This cannot be undone.</p>
+      <div class="form-group">
+        <label class="form-label" for="daConfirm">Type their email to confirm</label>
+        <input class="form-input" id="daConfirm" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="login-error" id="daErr"></div>
+      <button class="btn-full da-btn" id="daSubmit" onclick="confirmDeleteAccount()">Delete account permanently</button>
+    </div>
+  </div>
+</div>
+
 <!-- SUSPEND -->
 <div class="modal-overlay" id="suspendModal">
   <div class="modal modal-narrow"><div class="modal-header"><div class="modal-title">Suspend student</div><button class="modal-close" onclick="closeModal('suspendModal')">&#215;</button></div>
@@ -1928,7 +1951,7 @@
 <script src="js/books.js?v=2026-10-01a"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-01m"></script>
+<script src="js/admin.js?v=2026-10-01n"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>

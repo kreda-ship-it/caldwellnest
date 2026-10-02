@@ -404,6 +404,8 @@ const ACTION_META = {
   clear_bio:            { label: 'Bio cleared',             color: '#c0392b' },
   // Written by the database (read_reported_conversation), once per opening of a reported chat
   conversation_opened:  { label: 'Reported chat opened',    color: '#6b21a8' },
+  // Written by the database (admin_delete_account), super admin only
+  account_deleted:      { label: 'Account deleted',         color: '#8b0000' },
   // Admin team (2026-10-01) — written only by the super admin, from the Team page
   admin_added:             { label: 'Admin added',              color: '#3B5BA5' },
   admin_removed:           { label: 'Admin removed',            color: '#c0392b' },
@@ -417,7 +419,7 @@ const ACTION_META = {
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
-  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened'],
+  moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened','account_deleted'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
   system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
@@ -1793,7 +1795,8 @@ function renderStudentHistory(profile, listings, books, reportsBy, reportsAgains
             </div>
           </div>
         </div>
-        <div>${actionBtn}</div>
+        <div class="hist-actions">${actionBtn}${_aAccess.isSuper && !isProtectedAdmin(profile.id)
+          ? `<button class="btn-sm-a btn-a-danger" onclick="aOpenDeleteAccount('${profile.id}')">Delete account</button>` : ''}</div>
       </div>
       ${profileBlock}
       <div class="hist-stat-grid">
@@ -2219,6 +2222,70 @@ async function confirmClearBio() {
   logAdminAction('clear_bio', { targetType: 'student', targetId: id, targetLabel: name, school: p.school, reason, before: { bio: oldBio }, after: { bio: null } });
   toast('Bio cleared');
   _aRefreshStudentViews(id);
+}
+
+// ---- Deleting an account (2026-10-01; super admin only) ----
+// The database does the deleting (admin_delete_account, sql/2026-10-01_account_deletion.sql): it checks
+// the typed email, refuses admin accounts, blocks a suspended account's email for 2 years, logs it, and
+// removes everything the Privacy Policy says goes with an account. Photo FILES are not in the database,
+// so they are collected here first and deleted only once the account is gone — and only files in the
+// student's own folder that their listings, books or profile used. A club logo they uploaded stays.
+let _daTarget = null;   // { id, email, name, suspended }
+
+async function aOpenDeleteAccount(profileId) {
+  if (!_aAccess.isSuper || !UUID_RE.test(String(profileId))) return;
+  const { data: p } = await supabaseClient.from('profiles')
+    .select('id, first_name, last_name, display_name, email, status').eq('id', profileId).maybeSingle();
+  if (!p) { toast('Could not load this account.'); return; }
+  _daTarget = { id: p.id, email: String(p.email || '').toLowerCase(), suspended: p.status === 'suspended',
+                name: (p.display_name || `${p.first_name || ''} ${p.last_name || ''}`).trim() || 'This student' };
+  document.getElementById('daName').textContent = _daTarget.name;
+  document.getElementById('daEmail').textContent = _daTarget.email || '(no email on file)';
+  document.getElementById('daSuspendedNote').hidden = !_daTarget.suspended;
+  document.getElementById('daConfirm').value = '';
+  const err = document.getElementById('daErr'); err.textContent = ''; err.style.display = 'none';
+  const btn = document.getElementById('daSubmit'); btn.disabled = false; btn.textContent = 'Delete account permanently';
+  openModal('deleteAccountModal');
+}
+
+async function confirmDeleteAccount() {
+  const t = _daTarget;
+  if (!t) return;
+  const err = document.getElementById('daErr');
+  const showErr = m => { err.textContent = m; err.style.display = 'block'; };
+  const typed = document.getElementById('daConfirm').value.trim().toLowerCase();
+  if (!typed || typed !== t.email) { showErr('Type their email exactly as shown above.'); return; }
+  const btn = document.getElementById('daSubmit');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+
+  const [ls, bs, pr] = await Promise.all([
+    supabaseClient.from('listings').select('photo_urls').eq('poster_id', t.id),
+    supabaseClient.from('book_listings').select('photo_urls').eq('poster_id', t.id),
+    supabaseClient.from('profiles').select('avatar_url').eq('id', t.id).maybeSingle(),
+  ]);
+  const candidates = [...(ls.data || []), ...(bs.data || [])].flatMap(r => r.photo_urls || []);
+  const avatar = safeAvatarUrl(pr.data?.avatar_url);
+  if (avatar) candidates.push(avatar);
+
+  const { data: res, error } = await supabaseClient.rpc('admin_delete_account', { p_user: t.id, p_email: typed });
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Delete account permanently';
+    showErr(error.message);
+    console.error('[confirmDeleteAccount]', error.message);
+    return;
+  }
+  const own = u => String(u).split('?')[0].includes(`/listing-photos/${t.id}/`);
+  const files = [...new Set(candidates.filter(own))];
+  const gone = files.length ? await deleteListingPhotos(files) : 0;
+  if (gone < files.length) console.warn('[confirmDeleteAccount] account deleted, but storage kept', files.length - gone, 'photo file(s):', files);
+
+  _daTarget = null;
+  closeModal('deleteAccountModal');
+  DB.listings = DB.listings.filter(l => l.poster_id !== t.id);
+  DB.pending  = DB.pending.filter(l => l.poster_id !== t.id);
+  toast(`Account deleted — ${res?.listings ?? 0} listings, ${res?.books ?? 0} books, ${res?.messages ?? 0} messages`
+        + (res?.blocked ? '; email blocked for 2 years' : ''));
+  ago('students', null);
 }
 
 // After a profile change, redraw whichever view of that student is open: the record page (in place,

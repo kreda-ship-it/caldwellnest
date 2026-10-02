@@ -1206,6 +1206,17 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .hist-bio{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;}
 .hist-bio em{color:var(--text-faint);}
 .hist-profile-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;font-size:12px;}
+.hist-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+/* Delete account (2026-10-01): the confirmation window. */
+.da-lead{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--text);}
+.da-lead span{font-size:13px;color:var(--text-muted);}
+.da-list{margin:0 0 12px;padding-left:18px;font-size:13px;line-height:1.55;color:var(--text-muted);}
+.da-list li{margin-bottom:4px;}
+.da-list b{color:var(--text);}
+#deleteAccountModal [hidden]{display:none;}
+.da-warn{margin:0 0 14px;font-size:13px;font-weight:600;color:var(--danger);}
+.da-btn{background:var(--danger);color:#fff;}
+.da-btn:disabled{opacity:.6;cursor:default;}
 .a-stu-photo-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--text-muted);}
 /* The reason dialog opens from inside the details drawer (Remove on a photo). Modals sit at 500 and
    the drawer at 501, so without this the dialog would open BEHIND the drawer, invisible. */
