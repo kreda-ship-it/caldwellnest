@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-01e">
+<link rel="stylesheet" href="styles.css?v=2026-10-01f">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -594,7 +594,6 @@
         <button class="a-nav-item" data-sec="reports" onclick="ago('reports',this)" data-tooltip="Reports"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4h9l1 2h6v10h-7l-1-2H4"/></svg></span><span class="n-label">Reports</span><span class="n-badge red" id="reportsBadge" style="display:none">0</span></button>
         <button class="a-nav-item" data-sec="appeals" onclick="ago('appeals',this)" data-tooltip="Appeals"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3 7l9 6 9-6"/></svg></span><span class="n-label">Appeals</span><span class="n-badge red" id="appealsBadge" style="display:none">0</span></button>
         <div class="a-sec-label">Platform</div>
-        <button class="a-nav-item" data-sec="editor" onclick="ago('editor',this)" data-tooltip="Site editor"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg></span><span class="n-label">Site editor</span></button>
         <button class="a-nav-item" data-sec="broadcast" onclick="ago('broadcast',this)" data-tooltip="Home &amp; announcements"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></span><span class="n-label">Home &amp; announcements</span></button>
         <button class="a-nav-item" data-sec="analytics" onclick="ago('analytics',this)" data-tooltip="Analytics"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="6"/><line x1="16" y1="20" x2="16" y2="10"/><line x1="22" y1="20" x2="22" y2="3"/></svg></span><span class="n-label">Analytics</span></button>
         <button class="a-nav-item" data-sec="activity" onclick="ago('activity',this)" data-tooltip="Activity log"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><span class="n-label">Activity log</span></button>
@@ -809,48 +808,6 @@
         <!-- APPEALS -->
         <div class="a-section" id="asec-appeals"></div>
 
-        <!-- SITE EDITOR -->
-        <div class="a-section" id="asec-editor">
-          <div style="margin-bottom:14px;padding:10px 14px;background:var(--accent-pale);border-radius:var(--radius-sm);font-size:13px;color:var(--warning);border:1px solid #f5c977;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg> Saving publishes to the live site: every visitor sees the change the next time a page loads.</div>
-          <div class="ed-layout">
-            <div class="ed-panel">
-              <div class="ed-tabs">
-                <button class="ed-tab active" onclick="edTab('content',this)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"/></svg> Content</button>
-                <button class="ed-tab" onclick="edTab('layout',this)"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> Banner</button>
-              </div>
-              <div class="ed-body" id="edContent">
-                <div class="es-title">Hero section</div>
-                <div class="ced-item"><div class="ced-label">Headline line 1</div><input class="ced-input" id="txtH1" maxlength="40" autocomplete="off" oninput="liveContent()"></div>
-                <div class="ced-item"><div class="ced-label">Headline highlight</div><input class="ced-input" id="txtH2" maxlength="30" autocomplete="off" oninput="liveContent()"></div>
-                <div class="ced-item"><div class="ced-label">Hero subtext</div><textarea class="form-textarea" id="txtSub" rows="2" maxlength="220" autocomplete="off" oninput="liveContent()" style="font-size:12px;"></textarea></div>
-                <div class="ced-item"><div class="ced-label">CTA button</div><input class="ced-input" id="txtCta" maxlength="40" autocomplete="off" oninput="liveContent()"></div>
-                <div class="es-title">Listings page</div>
-                <div class="ced-item"><div class="ced-label">Page title</div><input class="ced-input" id="txtLT" maxlength="40" autocomplete="off" oninput="liveContent()"></div>
-                <div class="ced-item"><div class="ced-label">Page subtitle</div><input class="ced-input" id="txtLS" maxlength="120" autocomplete="off" oninput="liveContent()"></div>
-                <button class="apply-btn-e" onclick="applyContent()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Save content</button>
-              </div>
-              <div class="ed-body" id="edLayout" style="display:none">
-                <div class="es-title">Announcement banner</div>
-                <textarea class="form-textarea" id="bannerTxt" maxlength="160" autocomplete="off" rows="2" placeholder="Add a sitewide notice for students..." style="font-size:12px;margin-bottom:8px;"></textarea>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:14px;"><input type="checkbox" id="bannerOn"> Enable banner</label>
-                <button class="apply-btn-e" onclick="applyLayout()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Save banner</button>
-              </div>
-            </div>
-            <!-- LIVE PREVIEW -->
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg> Live preview — reflects student board</div>
-              <div class="pv-frame" id="pvFrame">
-                <div class="pv-nav" id="pvNav"><div class="pv-logo" id="pvLogo">Nest<em>rel</em></div><div style="display:flex;gap:6px;"><div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:3px 10px;font-size:11px;color:#fff;">Browse</div><div style="background:var(--accent);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--brand);font-weight:600;">Sign up</div></div></div>
-                <div class="pv-hero-d" id="pvHeroDiv"><h1 id="pvH1">One trusted hub<br>for <em id="pvH2">campus life.</em></h1><p id="pvSub">Housing, marketplace, free stuff, events, and a verified student community — all in one place, just for your school.</p><div class="pv-cta-d" id="pvCta">Get started free</div></div>
-                <div class="pv-body"><div id="pvBanner" style="display:none;background:var(--accent-pale);border:1px solid #f5c977;border-radius:7px;padding:7px 11px;font-size:11px;color:var(--warning);margin-bottom:10px;"></div>
-                <div class="pv-cards">
-                  <div class="pv-card"><div class="pv-card-img"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><polyline points="9 21 9 14 15 14 15 21"/></svg></div><div class="pv-card-body"><div class="pv-card-title">Sunny private room</div><div class="pv-card-price">$750<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
-                  <div class="pv-card"><div class="pv-card-img"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 5 18.5V20"/><circle cx="11" cy="8" r="3.2"/><path d="M19.5 20v-1.2a3 3 0 0 0-2.2-2.9"/></svg></div><div class="pv-card-body"><div class="pv-card-title">Shared room near CU</div><div class="pv-card-price">$480<span style="font-size:10px;font-weight:400;color:var(--text-faint)">/mo</span></div></div></div>
-                </div></div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- BROADCAST -->
         <div class="a-section" id="asec-broadcast">
@@ -1964,14 +1921,14 @@
 <script src="js/config.js?v=2026-09-28a"></script>
 <script src="js/utils.js?v=2026-09-27a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
-<script src="js/data.js?v=2026-10-01a"></script>
+<script src="js/data.js?v=2026-10-01b"></script>
 <script src="js/auth.js?v=2026-09-25d"></script>
 <script src="js/profile.js?v=2026-09-25c"></script>
 <script src="js/listings.js?v=2026-09-28a"></script>
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-01j"></script>
+<script src="js/admin.js?v=2026-10-01k"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>

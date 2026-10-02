@@ -1283,46 +1283,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .atag{background:var(--bg);border:1px solid var(--border);color:var(--text-muted);font-size:11px;padding:2px 8px;border-radius:4px;}
 .mav{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
 
-/* EDITOR */
-.ed-layout{display:grid;grid-template-columns:310px 1fr;gap:18px;align-items:start;}
-.ed-panel{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;}
-.ed-tabs{display:flex;border-bottom:1px solid var(--border);}
-.ed-tab{flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;transition:all .15s;border-bottom:2px solid transparent;}
-.ed-tab.active{color:var(--brand);border-bottom:2px solid var(--brand);background:var(--brand-pale);}
-.ed-body{padding:16px;}
-.es-title{font-size:10px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;}
-.es-title:first-child{margin-top:0;}
-.c-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.c-label{font-size:13px;color:var(--text-muted);}
-.c-swatch{width:30px;height:30px;border-radius:7px;border:2px solid var(--border);overflow:hidden;flex-shrink:0;}
-.c-swatch input[type=color]{width:46px;height:46px;border:none;outline:none;cursor:pointer;transform:translate(-8px,-8px);}
-.preset-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px;}
-.pdot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;}
-.pdot:hover{border-color:var(--text);transform:scale(1.12);}
-.ced-item{margin-bottom:12px;}
-.ced-label{font-size:10px;font-weight:600;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+/* Small text input (Settings → Official account identity). The Site editor it was made for was removed 2026-10-01. */
 .ced-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;}
 .ced-input:focus{border-color:var(--brand-light);background:#fff;}
-.apply-btn-e{width:100%;margin-top:12px;padding:10px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
-.apply-btn-e:hover{background:var(--brand-mid);}
-.reset-btn-e{width:100%;margin-top:7px;padding:9px;background:var(--bg);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
-/* PREVIEW FRAME */
-.pv-frame{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;}
-.pv-nav{background:var(--brand);padding:0 14px;height:42px;display:flex;align-items:center;justify-content:space-between;}
-.pv-logo{font-family:'DM Serif Display',serif;color:#fff;font-size:17px;}
-.pv-logo em{color:var(--accent);font-style:normal;}
-.pv-hero-d{background:var(--brand);padding:28px 18px;text-align:center;}
-.pv-hero-d h1{font-family:'DM Serif Display',serif;color:#fff;font-size:24px;line-height:1.2;margin-bottom:8px;}
-.pv-hero-d h1 em{color:var(--accent);font-style:normal;}
-.pv-hero-d p{color:rgba(255,255,255,0.7);font-size:12px;max-width:300px;margin:0 auto 14px;}
-.pv-cta-d{display:inline-block;background:var(--accent);color:var(--brand);padding:8px 18px;border-radius:6px;font-size:12px;font-weight:600;}
-.pv-body{padding:16px;}
-.pv-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.pv-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
-.pv-card-img{height:58px;background:var(--brand-pale);display:flex;align-items:center;justify-content:center;font-size:20px;}
-.pv-card-body{padding:8px;}
-.pv-card-title{font-size:11px;font-weight:600;margin-bottom:2px;}
-.pv-card-price{font-family:'DM Serif Display',serif;font-size:14px;color:var(--brand);}
 /* CHARTS */
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
 .chart-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px;}
@@ -3983,7 +3946,6 @@ select.ao-input { cursor: pointer; }
 .form-select:focus-visible,
 .search-input:focus-visible,
 .a-sbar:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset);}
-.c-swatch:focus-within{outline:var(--focus-ring);outline-offset:2px;}
 
 /* Anyone who has asked their device for less motion gets it. The app declares 71 transitions and
    7 animations; until now only the skeleton shimmer listened. .01ms rather than 0 so that

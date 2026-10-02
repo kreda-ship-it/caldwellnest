@@ -284,7 +284,7 @@ async function buildMultiSchoolStats() {
     </div>`;
 }
 
-const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', editor:'Site editor', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings', team:'Admin team' };
+const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings', team:'Admin team' };
 // ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
 // (There used to be a second, earlier definition here. It never ran: two function declarations
 // with the same name in one script scope means the LAST one wins for the whole scope, so this
@@ -1608,6 +1608,7 @@ async function confirmSuspend() {
       status: 'actioned', resolved_by: user?.id, resolved_at: new Date().toISOString(),
       resolution_note: 'Poster suspended by admin'
     }).eq('id', _pendingReportId);
+    aNotifyReporter(_pendingReportId, 'actioned');
     _pendingReportId = null; _pendingListingId = null;
     updateReportsBadge(); renderAReports();
   }
@@ -2679,22 +2680,39 @@ async function dismissReport(id) {
     status: 'dismissed', resolved_by: user?.id, resolved_at: new Date().toISOString()
   }).eq('id', id);
   if (error) { toast('Could not dismiss — please try again.'); console.error(error); return; }
+  aNotifyReporter(id, 'dismissed');
   toast('Report dismissed');
   updateReportsBadge(); renderAReports();
 }
 
+// Tells the student who filed a report that it was looked at (2026-10-01). Until then a reporter
+// never heard back. Generic on purpose: it says whether action was taken, never what happened to the
+// other person or their post.
+async function aNotifyReporter(reportId, outcome) {
+  const { data: r } = await supabaseClient.from('reports')
+    .select('reporter_id, kind, listing_title_snapshot, listing:listing_id(title)').eq('id', reportId).maybeSingle();
+  if (!r?.reporter_id) return;
+  const about = r.kind === 'conversation'
+    ? 'a conversation'
+    : `the listing "${r.listing?.title || r.listing_title_snapshot || 'you reported'}"`;
+  aNotifyStudent(r.reporter_id, 'report_reviewed', outcome === 'actioned'
+    ? `Thanks for reporting ${about}. We reviewed it and took action.`
+    : `Thanks for reporting ${about}. We reviewed it and didn't find that it broke our rules this time.`);
+}
+
 async function hideListingFromReport(reportId, listingId) {
-  const [{ data: { user } }, { data: listing }] = await Promise.all([
-    supabaseClient.auth.getUser(),
-    supabaseClient.from('listings').select('title').eq('id', listingId).single()
-  ]);
-  await supabaseClient.from('reports').update({
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  // Only the four fields admins may change (sql/2026-10-01_reported_conversations.sql). This also wrote
+  // listing_title_snapshot until 2026-10-01, which that rule refuses — so the report stayed "open".
+  // The snapshot is written when the student files the report, so nothing is lost.
+  const { error: repErr } = await supabaseClient.from('reports').update({
     status: 'actioned',
     resolved_by: user?.id,
     resolved_at: new Date().toISOString(),
-    resolution_note: 'Listing removed by admin',
-    listing_title_snapshot: listing?.title || null
+    resolution_note: 'Listing removed by admin'
   }).eq('id', reportId);
+  if (repErr) { toast('Could not update the report — please try again.'); console.error('[hideListingFromReport]', repErr.message); return; }
+  aNotifyReporter(reportId, 'actioned');
   // Direct removal, not the modal: we're already mid-flow resolving a report, and the
   // report itself is the reason.
   await performRemoveListing(listingId, 'Removed following a report from another student.');
@@ -2824,87 +2842,9 @@ async function exportActivityLog() {
 // ============================================================
 // ADMIN — SITE EDITOR (live updates student interface)
 // ============================================================
-// The Colors tab was removed 2026-10-01 (Kal's choice). It changed four CSS variables in the admin's own
-// browser and nothing else — students never saw it — and the design uses a dozen related shades, so
-// a four-colour picker could only produce clashes. A brand change belongs in styles.css.
-
-function edTab(t, btn) {
-  ['content','layout'].forEach(x => { document.getElementById('ed'+x.charAt(0).toUpperCase()+x.slice(1)).style.display = x === t ? 'block' : 'none'; });
-  document.querySelectorAll('.ed-tab').forEach(x => x.classList.remove('active')); btn.classList.add('active');
-}
-
-// The small preview beside the editor. Empty fields show the default, as the live site would.
-function liveContent() {
-  const d = DB.content, v = id => document.getElementById(id).value.trim();
-  const h1 = document.getElementById('pvH1');
-  const em = document.createElement('em');
-  em.id = 'pvH2';
-  em.textContent = v('txtH2') || d.h2;
-  h1.textContent = v('txtH1') || d.h1;          // text, never markup — see applyDBContent() in js/data.js
-  h1.append(document.createElement('br'), 'for ', em);
-  document.getElementById('pvSub').textContent = v('txtSub') || d.sub;
-  document.getElementById('pvCta').textContent = v('txtCta') || d.cta;
-}
-
-// Fills the editor with what is live now (saved edits over the defaults), every time it is opened.
-function fillSiteEditor() {
-  const saved = DB.settings.site_content || {};
-  const set = (id, k) => { document.getElementById(id).value = typeof saved[k] === 'string' ? saved[k] : ''; };
-  set('txtH1', 'h1'); set('txtH2', 'h2'); set('txtSub', 'sub'); set('txtCta', 'cta');
-  set('txtLT', 'listTitle'); set('txtLS', 'listSub'); set('bannerTxt', 'banner');
-  document.getElementById('bannerOn').checked = saved.bannerOn === true;
-  const d = DB.content;
-  [['txtH1', d.h1], ['txtH2', d.h2], ['txtSub', d.sub], ['txtCta', d.cta], ['txtLT', d.listTitle], ['txtLS', d.listSub]]
-    .forEach(([id, def]) => { document.getElementById(id).placeholder = def; });   // an empty field shows what it falls back to
-  liveContent();
-  const b = document.getElementById('pvBanner');
-  b.textContent = saved.banner || '';
-  b.style.display = saved.banner && saved.bannerOn ? 'block' : 'none';
-}
-
-// Saves into the platform_settings row 'site_content', which every visitor loads. Writing it needs the
-// edit_site switch (sql/2026-10-01_admin_permissions.sql). Empty fields are dropped, so they fall back
-// to the defaults; the Activity log keeps the old and new text.
-async function saveSiteContent(changes, section) {
-  const before = { ...(DB.settings.site_content || {}) };
-  const next = { ...before, ...changes };
-  Object.keys(next).forEach(k => { if (next[k] === '' || next[k] == null) delete next[k]; });
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  const { data, error } = await supabaseClient.from('platform_settings')
-    .upsert({ key: 'site_content', value: next, updated_at: new Date().toISOString(), updated_by: user?.id }, { onConflict: 'key' })
-    .select('key');
-  if (error || !data?.length) {
-    toast('Could not save — please try again.');
-    console.error('[saveSiteContent]', error?.message || 'save refused (0 rows)');
-    return false;
-  }
-  DB.settings.site_content = next;
-  applyDBContent();
-  logAdminAction('content_edit', { targetType: 'system', meta: { section }, before, after: next });
-  return true;
-}
-
-async function applyContent() {
-  const v = (id, k) => document.getElementById(id).value.trim().slice(0, SITE_CONTENT_LIMITS[k]);
-  const ok = await saveSiteContent({
-    h1: v('txtH1', 'h1'), h2: v('txtH2', 'h2'), sub: v('txtSub', 'sub'), cta: v('txtCta', 'cta'),
-    listTitle: v('txtLT', 'listTitle'), listSub: v('txtLS', 'listSub'),
-  }, 'content');
-  if (ok) toast('Saved — every visitor sees it on their next page load');
-}
-
-// The Banner tab. (Its grid/list "Card display" chooser was removed 2026-10-01: nothing ever read it.)
-async function applyLayout() {
-  const banner = document.getElementById('bannerTxt').value.trim().slice(0, SITE_CONTENT_LIMITS.banner);
-  const bannerOn = document.getElementById('bannerOn').checked;
-  if (bannerOn && !banner) { toast('Type the banner text first, or untick "Enable banner".'); return; }
-  const ok = await saveSiteContent({ banner, bannerOn }, 'banner');
-  if (!ok) return;
-  const b = document.getElementById('pvBanner');
-  b.textContent = banner;
-  b.style.display = banner && bannerOn ? 'block' : 'none';
-  toast(bannerOn ? 'Banner is live for every visitor' : 'Banner saved, and switched off');
-}
+// The Site editor (landing-page text, banner, colours) was removed 2026-10-01 at Kal's request: not
+// needed for launch. Home & announcements covers sitewide notices. The landing page shows the text
+// written in index.html (DB.content, js/config.js); applyDBContent() in js/data.js draws it as text.
 
 // ============================================================
 // ADMIN — BROADCAST
@@ -3646,7 +3586,7 @@ const ADMIN_PERMISSIONS = [
   { key: 'read_reported_chats', label: 'Read reported conversations',
     sensitive: 'Anyone with this role can read a conversation someone reported — its messages up to the report — while the report is open and for 30 days after. Every opening is recorded.' },
   { key: 'send_broadcasts',   label: 'Home & announcements' },
-  { key: 'edit_site',         label: 'Site editor and platform settings',
+  { key: 'edit_site',         label: 'Platform settings (maintenance mode, listing approval)',
     sensitive: 'This includes maintenance mode and the listing-approval switch, which affect every student.' },
   { key: 'view_analytics',    label: 'Analytics' },
   { key: 'view_activity_log', label: 'Activity log' },
@@ -3695,7 +3635,6 @@ const ADMIN_SECTION_SWITCHES = {
   messages:  ['view_messages'],
   reports:   ['view_reports'],
   appeals:   ['manage_appeals'],
-  editor:    ['edit_site'],
   broadcast: ['send_broadcasts'],
   analytics: ['view_analytics'],
   activity:  ['view_activity_log'],
@@ -4697,7 +4636,6 @@ const _agoMap = {
   health: renderHealth,
   appeals: renderAppeals,
   team: renderTeam,
-  editor: fillSiteEditor,
 };
 // The one and only ago(). Switches the visible admin section, sets the title, and calls
 // that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.
