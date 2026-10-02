@@ -35,6 +35,9 @@
 --      conversations exactly as before ("Users can read own messages" is untouched).
 --   8. read_reported_chats is added to every role, switched OFF. The super admin always has it.
 --
+-- RE-RUNNING: PART 1 is safe to run again — every step either checks first or replaces in place.
+-- (It was re-run on 2026-10-01 after the reasons rule above was added.)
+--
 -- KNOWN SIDE EFFECT: live updates are filtered by the same rules, so the admin dashboard's message
 -- count no longer refreshes by itself when two students chat; Refresh updates it.
 --
@@ -77,9 +80,25 @@ $$;
 create index if not exists reports_conversation_key_idx on public.reports (conversation_key)
   where conversation_key is not null;
 
+-- The reasons a report may give: the listing reasons as captured on 2026-09-04
+-- (2026-09-04_capture_table_definitions.sql), plus the two chat reasons report_conversation() accepts.
+-- Missed in the first version of this file — the self-test caught it (2026-10-01). If the live table
+-- holds a reason not on this list, adding the rule fails on that row and NOTHING in PART 1 is applied:
+-- read the error rather than forcing it.
+alter table public.reports drop constraint if exists reports_category_check;
+alter table public.reports add constraint reports_category_check check (category = any (array[
+  'scam_or_fraud', 'not_a_student', 'wrong_price', 'duplicate_listing', 'inappropriate_content',
+  'suspicious', 'other', 'harassment', 'spam']));
+
 -- 2. Students file listing reports directly; conversation reports only through the function below.
+-- The live rule is "Students can file reports" — capital S. 2026-09-04_harden_policies.sql dropped
+-- its lowercase twin and kept this one. The first run of this file (2026-10-01) replaced the
+-- lowercase name instead, which created a new strict rule BESIDE the old loose one; rules of the same
+-- kind add up, so the loose one still let a student file a conversation report directly. The self-test
+-- caught it (TEST 1b). Postgres treats quoted names case by case, so both spellings are dropped here.
 drop policy if exists "students can file reports" on public.reports;
-create policy "students can file reports" on public.reports
+drop policy if exists "Students can file reports" on public.reports;
+create policy "Students can file reports" on public.reports
   as permissive for insert to authenticated
   with check (reporter_id = auth.uid() and kind = 'listing'
               and conversation_key is null and reported_user_id is null);
@@ -114,8 +133,9 @@ begin
   if p_category is null or p_category not in ('harassment', 'scam_or_fraud', 'spam', 'inappropriate_content', 'other') then
     raise exception 'Unknown reason: %', p_category using errcode = 'check_violation';
   end if;
-  if char_length(coalesce(p_details, '')) > 1000 then
-    raise exception 'Details are limited to 1000 characters' using errcode = 'check_violation';
+  -- 500 is the table's own limit (reports_details_check); checked here too, for a clear message.
+  if char_length(coalesce(p_details, '')) > 500 then
+    raise exception 'Details are limited to 500 characters' using errcode = 'check_violation';
   end if;
 
   -- Only a conversation you are in: there has to be a message between the two of you. The key is
@@ -256,23 +276,29 @@ DECLARE
   v_n     int;
   v_m     int;
   r       text := E'\n';
+  r_rules text;
   ok      boolean := true;
 BEGIN
   SELECT user_id INTO v_super FROM public.user_roles WHERE role_id = 'super_admin' LIMIT 1;
-  SELECT (array_agg(p.id ORDER BY p.created_at))[1], (array_agg(p.id ORDER BY p.created_at))[2],
-         (array_agg(p.id ORDER BY p.created_at))[3]
-    INTO v_a, v_b, v_c
+  SELECT (array_agg(p.id ORDER BY p.created_at))[1], (array_agg(p.id ORDER BY p.created_at))[2]
+    INTO v_a, v_b
   FROM public.profiles p
   WHERE p.status = 'active' AND p.school IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id);
-  IF v_super IS NULL OR v_c IS NULL THEN
-    RAISE EXCEPTION 'Needs the super admin and three active non-admin students to test with.';
+  -- C must never have messaged A, or TEST 2 ("cannot report a chat you are not in") would test
+  -- nothing. So C is chosen for that, not simply as the next-oldest account.
+  SELECT p.id INTO v_c
+  FROM public.profiles p
+  WHERE p.status = 'active' AND p.school IS NOT NULL AND p.id NOT IN (v_a, v_b)
+    AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id)
+    AND NOT EXISTS (SELECT 1 FROM public.messages m
+                    WHERE (m.sender_id = p.id AND m.receiver_id = v_a) OR (m.sender_id = v_a AND m.receiver_id = p.id))
+  ORDER BY p.created_at
+  LIMIT 1;
+  IF v_super IS NULL OR v_a IS NULL OR v_b IS NULL OR v_c IS NULL THEN
+    RAISE EXCEPTION 'Needs the super admin, two active non-admin students, and a third who has never messaged the first.';
   END IF;
   SELECT school INTO v_school FROM public.profiles WHERE id = v_c;
-  -- C must not already be in a conversation with A, or TEST 2 would test nothing.
-  IF EXISTS (SELECT 1 FROM public.messages m WHERE (m.sender_id = v_c AND m.receiver_id = v_a) OR (m.sender_id = v_a AND m.receiver_id = v_c)) THEN
-    RAISE EXCEPTION 'The three oldest students have chatted with each other; pick-up logic needs adjusting.';
-  END IF;
   INSERT INTO public.user_roles (user_id, role_id, school) VALUES (v_c, 'school_admin', v_school);
 
   PERFORM set_config('role', 'authenticated', true);
@@ -290,12 +316,26 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     r := r || format(E'TEST 1  a student can report a chat they are in ........ *** FAIL — %s ***\n', SQLERRM); ok := false;
   END;
+  -- Everything below reads this report. Without it the rest would only fail confusingly, so stop
+  -- here and show why it was refused.
+  IF v_rep IS NULL THEN
+    RAISE EXCEPTION '%', r || E'\nSTOPPED: no report was created, so the remaining tests cannot run. Nothing was saved.';
+  END IF;
   INSERT INTO public.messages (sender_id, receiver_id, content, created_at) VALUES (v_a, v_b, 'verify-after', now() + interval '1 minute');
 
+  -- The key comes from A's own report (A may read it), so this cannot pass by inserting nothing.
   BEGIN
     INSERT INTO public.reports (kind, conversation_key, reported_user_id, reporter_id, category)
-    SELECT 'conversation', m.conversation_key, v_b, v_a, 'other' FROM public.messages m WHERE m.content = 'verify-before-1';
-    r := r || E'TEST 1b a student cannot file one directly ............. *** FAIL — FILED ***\n'; ok := false;
+    SELECT 'conversation', rep.conversation_key, v_b, v_a, 'other' FROM public.reports rep WHERE rep.id = v_rep;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    IF v_n = 0 THEN
+      r := r || E'TEST 1b a student cannot file one directly ............. ?? proved nothing (A could not read the report)\n'; ok := false;
+    ELSE
+      -- Name every rule that let it through, so the fix is obvious.
+      SELECT string_agg(policyname || ' (' || permissive || ')', ', ') INTO r_rules
+      FROM pg_policies WHERE schemaname = 'public' AND tablename = 'reports' AND cmd IN ('INSERT', 'ALL');
+      r := r || format(E'TEST 1b a student cannot file one directly ............. *** FAIL — FILED. Insert rules: %s ***\n', r_rules); ok := false;
+    END IF;
   EXCEPTION WHEN insufficient_privilege THEN
     r := r || E'TEST 1b a student cannot file one directly ............. PASS (refused)\n';
   END;
