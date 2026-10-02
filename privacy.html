@@ -348,6 +348,11 @@
       <td>Your name, email address, profile picture link, and Google account ID, sent to us when you choose "Continue with Google". Google also knows that you signed in to Nestrel.</td>
     </tr>
     <tr>
+      <td><strong>GitHub</strong></td>
+      <td>Runs our weekly database backup and stores it in a private repository, so Nestrel can be restored if something goes wrong.</td>
+      <td>A copy of our database — account data, listings, messages, club and event records, and activity records, but not photos. It is encrypted as it is made, and only the encrypted copy is kept, for 35 days.</td>
+    </tr>
+    <tr>
       <td><strong>Google Fonts, jsDelivr, and cdnjs (Cloudflare)</strong></td>
       <td>Deliver the fonts and two code libraries our pages load (the database client, and a QR-code generator for event check-in).</td>
       <td>Like any file a website loads, your browser's request includes your IP address and basic browser details. No account information is sent.</td>
@@ -384,8 +389,9 @@
   </p>
   <p>
     When we delete information, it is removed from our database, not just hidden. Deleted
-    information may remain in our hosting provider's backups until those backups are replaced
-    on the provider's regular schedule. If you graduate or leave Caldwell, your account stays
+    information may remain in backups until they expire: our own weekly backups are encrypted
+    and kept for 35 days, then deleted, and our hosting provider may keep its own for a short
+    time on its regular schedule. If you graduate or leave Caldwell, your account stays
     open until you delete it; if we close an account we can no longer verify, we delete it on
     the same timeline.
   </p>
