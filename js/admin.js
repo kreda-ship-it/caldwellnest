@@ -4011,7 +4011,8 @@ async function renderExports() {
     supabaseClient.from('admin_activity_log').select('id', { count: 'exact', head: true }),
   ]);
   document.getElementById('expStudentCount').textContent = stuN ?? '—';
-  document.getElementById('expListCount').textContent = DB.listings.length + DB.pending.length;
+  const { count: listN } = await supabaseClient.from('listings').select('id', { count: 'exact', head: true });
+  document.getElementById('expListCount').textContent = listN ?? '—';
   document.getElementById('expConvoCount').textContent = msgN ?? '—';
   document.getElementById('expRepCount').textContent = repN ?? '—';
   document.getElementById('expLogCount').textContent = logN ?? '—';
@@ -4034,67 +4035,77 @@ function _downloadData(data, filename, fmt) {
   }
 }
 
-async function expData(type, fmt) {
-  toast('Preparing export…');
-  let data;
-  if (type === 'students') {
-    const { data: rows } = await supabaseClient.from('profiles').select('*').order('created_at');
-    data = rows || [];
-  } else if (type === 'listings') {
-    data = [...DB.listings, ...DB.pending.map(p => ({ ...p, poster: p.poster?.name || '', status: 'pending' }))];
-  } else if (type === 'convos') {
-    // Who messaged whom and when — the page has always promised "No message content", and since
-    // 2026-10-01 that is true: admin_message_metadata() has no text to give.
-    const { data: rows } = await supabaseClient.rpc('admin_message_metadata', { p_limit: 50000 });
-    data = rows || [];
-  } else if (type === 'reports') {
-    const { data: rows } = await supabaseClient.from('reports').select('*').order('created_at');
-    data = rows || [];
-  } else if (type === 'log') {
-    // The real audit trail is the admin_activity_log TABLE, not the in-memory DB.log this
-    // exported until 2026-09-03. DB.log resets on every page refresh, so the downloaded
-    // "log" held only what had happened since the last page load, while the durable record
-    // sat in Supabase and was never exported at all.
-    //
-    // The explicit range is deliberate. PostgREST silently caps an unranged select (commonly
-    // at 1000 rows) — it returns a short list, not an error. An activity log is the
-    // fastest-growing table in this project, and silently truncating an audit export is the
-    // one failure this screen must not have.
-    const { data: rows } = await supabaseClient
-      .from('admin_activity_log').select('*')
-      .order('created_at', { ascending: false }).range(0, 49999);
-    data = rows || [];
-  } else { data = []; }
-
-  _downloadData(data, `nestrel-${type}`, fmt);
-  logAdminAction('export', { targetType: 'system', meta: { export_type: type, format: fmt } });
-  toast(`${type} exported as ${fmt.toUpperCase()}`);
+// Supabase returns at most 1,000 rows per request — whatever range is asked for — and says nothing
+// when it stops. Every export before 2026-10-01 was therefore silently cut at 1,000 rows of each
+// table. fetchAllRows() reads a page at a time, in a stable order (the table's key), until a short
+// page says it has reached the end.
+const EXPORT_PAGE = 1000;
+async function fetchAllRows(source, orderCols, rpcArgs) {
+  const rows = [];
+  for (let from = 0; ; from += EXPORT_PAGE) {
+    let q = rpcArgs ? supabaseClient.rpc(source, rpcArgs) : supabaseClient.from(source).select('*');
+    orderCols.split(',').forEach(c => { q = q.order(c.trim(), { ascending: true }); });
+    const { data, error } = await q.range(from, from + EXPORT_PAGE - 1);
+    if (error) return { rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < EXPORT_PAGE) return { rows, error: null };
+  }
 }
 
+// Every table, with the key its pages are ordered by. Messages are not here: they come through
+// admin_message_metadata(), which gives who and when, never what was said (Privacy Policy, section 05).
+const EXPORT_TABLES = [
+  ['profiles', 'id'], ['listings', 'id'], ['book_listings', 'id'],
+  ['reports', 'id'], ['appeals', 'id'], ['appeal_audit_log', 'id'], ['suspension_history', 'id'],
+  ['listing_status_history', 'id'], ['notifications', 'id'], ['broadcasts', 'id'], ['favorites', 'id'],
+  ['organizations', 'id'], ['org_memberships', 'id'], ['org_follows', 'user_id,org_id'], ['org_posts', 'id'],
+  ['poll_options', 'id'], ['poll_votes', 'post_id,user_id'],
+  ['events', 'id'], ['event_registrations', 'id'], ['event_media', 'id'], ['event_feedback', 'id'],
+  ['event_views', 'event_id,user_id'], ['event_view_totals', 'event_id'], ['activity_state', 'user_id'],
+  ['schools', 'id'], ['school_domains', 'id'], ['school_interest', 'id'], ['courses', 'code'],
+  ['platform_settings', 'key'], ['admin_roles', 'id'], ['user_roles', 'user_id,role_id'],
+  ['role_permissions', 'role_id,permission_key'], ['admin_activity_log', 'id'],
+];
+const fetchMessageMetadata = () => fetchAllRows('admin_message_metadata', 'created_at,id', { p_limit: 50000 });
+
+async function expData(type, fmt) {
+  toast('Preparing export…');
+  const res = type === 'students' ? await fetchAllRows('profiles', 'id')
+            : type === 'listings' ? await fetchAllRows('listings', 'id')
+            : type === 'convos'   ? await fetchMessageMetadata()
+            : type === 'reports'  ? await fetchAllRows('reports', 'id')
+            : type === 'log'      ? await fetchAllRows('admin_activity_log', 'id')
+            : { rows: [], error: null };
+  if (res.error) {
+    toast('Export stopped part-way — nothing was downloaded. Please try again.');
+    console.error('[expData]', type, res.error.message);
+    return;
+  }
+  _downloadData(res.rows, `nestrel-${type}`, fmt);
+  logAdminAction('export', { targetType: 'system', meta: { export_type: type, format: fmt, rows: res.rows.length } });
+  toast(`${type} exported as ${fmt.toUpperCase()} — ${res.rows.length} rows`);
+}
+
+// Everything an admin account may read, in one JSON file. A RECORD, not a restorable backup: it holds
+// only rows this admin is allowed to see, no message text, and no photos. The weekly encrypted
+// database backup (GitHub, private repository) is what restores the site.
 async function expFull() {
-  toast('Preparing full backup…');
-  const [{ data: students }, { data: messages }, { data: reports }, { data: activity }] = await Promise.all([
-    supabaseClient.from('profiles').select('*').order('created_at'),
-    supabaseClient.rpc('admin_message_metadata', { p_limit: 50000 }),   // who and when, never what was said
-    supabaseClient.from('reports').select('*').order('created_at'),
-    // Same correction as expData('log') above — the durable table, not the in-memory DB.log.
-    supabaseClient.from('admin_activity_log').select('*')
-      .order('created_at', { ascending: false }).range(0, 49999),
-  ]);
-  const full = {
-    exportedAt: new Date().toISOString(),
-    students: students || [],
-    listings: [...DB.listings, ...DB.pending],
-    messages: messages || [],
-    reports: reports || [],
-    activityLog: activity || [],
-    settings: DB.settings,
-    content: DB.content
-  };
-  _downloadData(full, 'nestrel-full-backup', 'json');
-  localStorage.setItem('cn_last_backup', new Date().toISOString());
-  logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_backup', format: 'json' } });
-  toast('Full backup downloaded');
+  toast('Preparing the full export — this can take a minute…');
+  const tables = {}, notes = {};
+  for (const [t, key] of EXPORT_TABLES) {
+    const { rows, error } = await fetchAllRows(t, key);
+    if (error) notes[t] = `Not exported: ${error.message}`;
+    else tables[t] = rows;
+  }
+  const msg = await fetchMessageMetadata();
+  if (msg.error) notes.messages = `Not exported: ${msg.error.message}`;
+  else { tables.messages = msg.rows; notes.messages = 'Who messaged whom and when — never what was said.'; }
+  notes._about = 'Every table this admin account may read, at export time. Rows the database hides from this account are not included, and neither are photos. This is a record, not a restorable backup.';
+  const counts = Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length]));
+  _downloadData({ exportedAt: new Date().toISOString(), exportedBy: adminUUID, counts, notes, tables }, 'nestrel-full-export', 'json');
+  localStorage.setItem('cn_last_backup', new Date().toISOString());   // the Health page's "Last full export (this browser)"
+  logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_export', format: 'json', tables: Object.keys(tables).length, skipped: Object.keys(notes).filter(k => notes[k].startsWith('Not exported')) } });
+  toast(`Full export downloaded — ${Object.keys(tables).length} tables`);
 }
 
 // STUDENT VERIFICATION removed 2026-07-13 (PENDING_VERIFY / renderVerify / verApprove / verDeny).
@@ -4141,7 +4152,7 @@ async function renderHealth() {
   set('hPending',      pendingRes.count ?? '—');
   set('hReports',      reportsRes.count ?? '—');
 
-  // ── Last backup ──────────────────────────────────────────────────────────
+  // ── Last full export from this browser (not a database backup) ─────────────
   const backupEl = document.getElementById('hBackupAge');
   if (backupEl) {
     const lastBackup = localStorage.getItem('cn_last_backup');

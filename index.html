@@ -1023,10 +1023,10 @@
               <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> <span id="expLogCount">0</span> entries</div>
               <div class="exp-actions"><button class="btn-sm-a btn-a-success exp-btn" onclick="exportActivityLog()">&#8675; CSV</button><button class="btn-sm-a btn-a-neutral exp-btn" onclick="expData('log','json')">&#8675; JSON</button></div></div></div>
 
-            <div class="tcard" style="margin-bottom:0;border:2px solid var(--brand-light);"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Full platform backup</div></div>
-              <div class="exp-body"><p class="exp-desc">Complete JSON snapshot of all platform data — students, listings, messages (who and when, never what was said), reports, logs.</p>
-              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> All records · Full backup</div>
-              <button style="width:100%;padding:9px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="expFull()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Export full backup (JSON)</button></div></div>
+            <div class="tcard" style="margin-bottom:0;border:2px solid var(--brand-light);"><div class="tcard-head"><div class="tcard-title"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Full export</div></div>
+              <div class="exp-body"><p class="exp-desc">Every table your admin account can read, as one JSON file — students, listings, books, clubs, events, reports, appeals, logs, and messages (who and when, never what was said). Photos are not included. A record for you, not a restorable backup: the weekly encrypted database backup is what restores the site.</p>
+              <div class="exp-count"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> All tables · read in pages, so nothing is cut off</div>
+              <button style="width:100%;padding:9px;background:var(--brand);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="expFull()"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V9"/><line x1="10" y1="13.5" x2="14" y2="13.5"/></svg> Download full export (JSON)</button></div></div>
           </div>
         </div>
 
@@ -1065,9 +1065,9 @@
               <div class="asc-sub"><a class="link-brand" onclick="ago('reports',null)">Review &#8594;</a></div>
             </div>
             <div class="asc">
-              <div class="asc-label">Last backup</div>
+              <div class="asc-label">Last full export (this browser)</div>
               <div class="asc-num" id="hBackupAge" style="font-size:15px;margin-top:6px;">—</div>
-              <div class="asc-sub"><a class="link-brand" onclick="expFull()">&#8675; Run backup</a></div>
+              <div class="asc-sub"><a class="link-brand" onclick="expFull()">&#8675; Export now</a></div>
             </div>
           </div>
           <!-- What's tracked vs deferred -->
@@ -1928,7 +1928,7 @@
 <script src="js/books.js?v=2026-09-24b"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-01k"></script>
+<script src="js/admin.js?v=2026-10-01l"></script>
 <script src="js/orgs.js?v=2026-09-28b"></script>
 <script src="js/events.js?v=2026-09-25d"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
