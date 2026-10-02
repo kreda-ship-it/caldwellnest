@@ -449,9 +449,10 @@ async function submitBook() {
     if (btn) { btn.disabled = false; btn.textContent = 'Post book'; }
     return;
   }
-  logEvent('book_submitted', { targetType: 'book_listing', targetId: data.id, targetLabel: title, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
+  const status = data.status || initialStatus;   // what the database decided — see postStatusMessage() in js/listings.js
+  logEvent('book_submitted', { targetType: 'book_listing', targetId: data.id, targetLabel: title, after: { status, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
   closePostBook();
-  toast(initialStatus === 'pending' ? 'Book submitted for admin review!' : 'Your book is live!');
+  toast(postStatusMessage(status, 'book'));
   await loadBooks();
   renderListings(); // books live in the main grid now
 }

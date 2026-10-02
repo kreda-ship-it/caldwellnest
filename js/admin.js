@@ -3517,7 +3517,8 @@ async function saveCNIdentity() {
 // Their old rows in platform_settings are harmless and left alone. Add a switch here only together
 // with the code that obeys it.
 const SETTINGS = [
-  { key:'requireApproval', label:'Require listing approval', desc:'New listings must be reviewed before going live' },
+  // Off is not "no review": a student's first post is still reviewed (sql/2026-10-01_first_post_review.sql).
+  { key:'requireApproval', label:'Review every new listing', desc:'On: every new listing and book waits for review. Off: only a student\u2019s first post is reviewed — after one approval they post instantly.' },
   { key:'maintenance', label:'Maintenance mode', desc:'Show maintenance screen to all students' },
 ];
 function buildASettings() {

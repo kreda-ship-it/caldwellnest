@@ -1636,6 +1636,15 @@ async function sContact(listingId) {
   setTimeout(() => openConvo(l.poster_id, posterInfo, l.id), 100);
 }
 
+// The message after posting a listing or a book (js/books.js uses it too). A post held for review
+// says why, so a first-time poster isn't left wondering where it went.
+function postStatusMessage(status, what) {
+  if (status !== 'pending') return what === 'book' ? 'Your book is live!' : 'Listing posted!';
+  return DB.settings.requireApproval
+    ? `${what === 'book' ? 'Book' : 'Listing'} submitted — it goes live once an admin approves it.`
+    : 'Thanks! Your first post is reviewed once — it goes live when an admin approves it. After that, you post instantly.';
+}
+
 // REPORT A LISTING
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
@@ -1928,7 +1937,10 @@ async function submitListing() {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for review'; }
     return;
   }
-  logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status: initialStatus, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
+  // What the database decided, not what the switch suggests: set_new_listing_fields() holds a
+  // student's first post for review even with the switch off (sql/2026-10-01_first_post_review.sql).
+  const status = data.status || initialStatus;
+  logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
 
   const typeLabel = details.room_type || CATEGORY_LABELS[cat];
   // Canonical poster object for the just-posted listing (matches posterFromRow's shape).
@@ -1940,13 +1952,13 @@ async function submitListing() {
     verified: !isOfficialPost, official: isOfficialPost,
     year: u.year || null, major: u.major || null, memberSince: u.created_at || null
   };
-  if (initialStatus === 'pending') {
+  if (status === 'pending') {
     DB.pending.push({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, submitted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'pending', pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
   } else {
     DB.listings.unshift({ id: data.id, title, category: cat, type: typeLabel, rent: price, location, desc: desc || 'No description.', tags, details, poster: newPoster, posted: 'Just now', created_at: data.created_at || new Date().toISOString(), emoji, status: 'approved', lifecycle_status: 'active', expires_at: null, pinned: false, school: u.school || 'caldwell', photo_urls: photoUrls });
     renderListings();
   }
   closePostModal();
-  toast(initialStatus === 'pending' ? 'Listing submitted for admin review!' : 'Listing posted!');
+  toast(postStatusMessage(status, 'listing'));
   if (currentRole === 'admin') updateAdminBadges();
 }
