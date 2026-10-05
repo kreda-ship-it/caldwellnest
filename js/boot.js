@@ -8,6 +8,7 @@
 
 currentRole = 'student';
 masonryInit(); // desktop listing grids pack like Pinterest — see js/listings.js
+fbInitFab();   // the small round Feedback button: its saved place, and dragging it — see js/feedback.js
 const _settingsReady = loadPlatformSettings();
 // Wait for Supabase to finish restoring the saved login BEFORE the first data load.
 // initStudent() used to fire immediately and race the session restore: when its
@@ -68,7 +69,7 @@ if (!adminPreviewMode && !_recoveryMode) {
     // An unresolved session and an absent session must not render the same way — this branch
     // only runs once _sessionReady has resolved, so by here "no session" is a fact rather
     // than a race.
-    if (evHandleColdRoute(false)) return;
+    if (evHandleColdRoute(false) || fbHandleColdRoute(false)) return;
     const lastPage = sessionStorage.getItem('cn_last_page');
     const onPrivatePage = ['messages', 'profile', 'orgs'].includes(lastPage); // the early restore may have painted a signed-in-only page
     const prior = getPriorUser();
@@ -135,8 +136,8 @@ if (!adminPreviewMode && !_recoveryMode) {
   // A deep link beats the remembered page. Someone who just scanned a poster is asking for
   // one specific thing, and restoring wherever they happened to be last would ignore it.
   // evHandleColdRoute() returns true when it has taken the screen, so nothing paints twice.
-  if (evHandleColdRoute(true)) {
-    /* the event modal has the screen */
+  if (evHandleColdRoute(true) || fbHandleColdRoute(true)) {
+    /* the event modal, or the Feedback page (#/feedback), has the screen */
   } else if (lastPage === 'org-console') {
     orgConsoleRestore();
   } else if (lastPage && lastPage !== 'home' && document.getElementById('page-' + lastPage)) {

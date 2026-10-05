@@ -28,6 +28,7 @@ function showPage(name) {
   // in it. boot.js's page restore needs the same line for the same reason.
   if (name === 'events') renderEvents();
   if (name === 'search') renderSearch();
+  fbOnPage(name); // draws the Feedback page, and hides the round Feedback button where it is in the way (js/feedback.js)
   updateMTabbar(name);
   document.querySelector('.s-nav')?.classList.remove('m-hidden'); // navigating always reveals the top bar
   if (window.innerWidth <= 768) window.scrollTo(0, 0); // app-style: each page opens at its top

@@ -23,7 +23,7 @@ const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-const files = [...html.matchAll(/src="(js\/[a-z]+\.js)/g)].map(m => m[1]);
+const files = [...html.matchAll(/src="(js\/[a-z-]+\.js)/g)].map(m => m[1]);
 
 let failures = 0;
 const fail = (msg) => { failures++; console.log('  FAIL  ' + msg); };

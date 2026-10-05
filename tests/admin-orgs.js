@@ -26,7 +26,7 @@ const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 // boot.js is left out: it is the one file that RUNS the app rather than defining it.
-const files = [...html.matchAll(/src="(js\/[a-z]+\.js)/g)].map(m => m[1]).filter(f => f !== 'js/boot.js');
+const files = [...html.matchAll(/src="(js\/[a-z-]+\.js)/g)].map(m => m[1]).filter(f => f !== 'js/boot.js');
 
 let failures = 0;
 const check = (label, ok, detail = '') => {

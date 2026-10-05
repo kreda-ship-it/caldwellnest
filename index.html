@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-05d">
+<link rel="stylesheet" href="styles.css?v=2026-10-05e">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -65,6 +65,7 @@
            the same page on different tabs: two icons to learn and two badges to add up for one room.
            Now one, with one badge for everything waiting, opening on the tab that needs you (openInbox). -->
       <button class="nav-bell nav-i-inbox" data-page="messages" onclick="openInbox()" aria-label="Inbox" title="Inbox"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg><span class="nav-lbl">Inbox</span><span class="notif-badge" id="inboxBadge">0</span></button>
+      <button class="nav-ghost nav-btn nav-link nav-i-feedback" data-page="feedback" onclick="openFeedback()" title="Feedback"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg><span class="nav-lbl">Feedback</span></button>
       <button class="nav-you" data-page="profile" onclick="showPage('profile')" title="Your profile"><div class="nav-avatar" id="navAvatar">JD</div><span class="nav-lbl" id="navYouName">You</span></button>
     </div>
   </nav>
@@ -521,6 +522,8 @@
           Log out
         </button>
         <p class="pf-legal">
+          <a href="#/feedback" onclick="openFeedback();return false;">Send feedback</a>
+          <span aria-hidden="true">&#183;</span>
           <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
           <span aria-hidden="true">&#183;</span>
           <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
@@ -529,6 +532,9 @@
       </div>
     </div>
   </div>
+  <!-- FEEDBACK — rendered entirely by js/feedback.js: the start page, the 5-step evaluation, quick notes,
+       and the completion card a student can screenshot for a professor. -->
+  <div id="page-feedback" class="page"></div>
   <!-- MOBILE BOTTOM TAB BAR — hidden on desktop (see "MOBILE APP CHROME" in styles.css) -->
   <!-- MOBILE BOTTOM TAB BAR — five destinations, the same five the desktop bar shows.
        Search and Messages moved to the top bar: they are things you reach FROM a page,
@@ -557,6 +563,9 @@
       <span>You</span>
     </button>
   </nav>
+  <!-- The small round Feedback button on every student page. Movable; js/feedback.js places it and
+       hides it on the Feedback page itself; styles.css hides it when signed out and in a full-screen chat. -->
+  <button id="fbFab" class="fb-fab" type="button" hidden aria-label="Send feedback" title="Feedback"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></button>
 </div>
 
 <!-- MAINTENANCE PAGE -->
@@ -596,6 +605,7 @@
         <div class="a-sec-label">Platform</div>
         <button class="a-nav-item" data-sec="broadcast" onclick="ago('broadcast',this)" data-tooltip="Home &amp; announcements"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></span><span class="n-label">Home &amp; announcements</span></button>
         <button class="a-nav-item" data-sec="analytics" onclick="ago('analytics',this)" data-tooltip="Analytics"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="6"/><line x1="16" y1="20" x2="16" y2="10"/><line x1="22" y1="20" x2="22" y2="3"/></svg></span><span class="n-label">Analytics</span></button>
+        <button class="a-nav-item" data-sec="feedback" onclick="ago('feedback',this)" data-tooltip="Feedback"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg></span><span class="n-label">Feedback</span></button>
         <button class="a-nav-item" data-sec="activity" onclick="ago('activity',this)" data-tooltip="Activity log"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><span class="n-label">Activity log</span></button>
         <button class="a-nav-item" data-sec="exports" onclick="ago('exports',this)" data-tooltip="Data export"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span><span class="n-label">Data export</span></button>
         <button class="a-nav-item" data-sec="health" onclick="ago('health',this)" data-tooltip="Platform health"><span class="n-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="n-label">Platform health</span></button>
@@ -1127,6 +1137,8 @@
 
         <!-- Admin team (super admin only). Drawn by renderTeam() in js/admin.js. -->
         <div class="a-section" id="asec-team"></div>
+        <!-- Rendered entirely by renderFeedbackAdmin() in js/feedback-admin.js, like asec-orgs. -->
+        <div class="a-section" id="asec-feedback"></div>
 
       </div><!-- /a-content -->
     </div><!-- /a-main -->
@@ -1954,20 +1966,22 @@
 <script src="js/utils.js?v=2026-09-27a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-10-01b"></script>
-<script src="js/auth.js?v=2026-10-05a"></script>
+<script src="js/auth.js?v=2026-10-05b"></script>
 <script src="js/profile.js?v=2026-09-25c"></script>
-<script src="js/listings.js?v=2026-10-05a"></script>
+<script src="js/listings.js?v=2026-10-05b"></script>
 <script src="js/books.js?v=2026-10-05a"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-05b"></script>
+<script src="js/admin.js?v=2026-10-05c"></script>
 <script src="js/orgs.js?v=2026-10-05d"></script>
 <script src="js/events.js?v=2026-10-05a"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
 <script src="js/orgdir.js?v=2026-10-05c"></script>
 <script src="js/feed.js?v=2026-10-05a"></script>
 <script src="js/inbox.js?v=2026-10-05b"></script>
-  <script src="js/boot.js?v=2026-09-25a"></script>
+<script src="js/feedback.js?v=2026-10-05a"></script>
+<script src="js/feedback-admin.js?v=2026-10-05a"></script>
+  <script src="js/boot.js?v=2026-10-05a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

@@ -653,7 +653,8 @@ async function enterStudentSession(profile, userId, welcomeMsg) {
   // this is where they get sent back to THAT EVENT rather than dumped on the home feed,
   // which is the single most likely thing to make a QR feel broken at a real door.
   // Placed in enterStudentSession() because it is the one path login and signup share.
-  if (!evResumeIntent()) showPage('feed');
+  // Same for the #/feedback link a professor shares, and the Feedback button pressed while signed out.
+  if (!evResumeIntent() && !fbResumeIntent()) showPage('feed');
   checkStudentNotifications(userId);
   startGlobalMsgListener(userId);
   startNotifListener(userId);

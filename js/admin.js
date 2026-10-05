@@ -284,7 +284,7 @@ async function buildMultiSchoolStats() {
     </div>`;
 }
 
-const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings', team:'Admin team' };
+const ATITLES = { dashboard:'Dashboard', approvals:'Listing approvals', listings:'All listings', pinned:'Pinned / Featured', students:'Students', 'student-history':'Student record', orgs:'Organizations', messages:'Messages', reports:'Reports', broadcast:'Home & announcements', analytics:'Analytics', activity:'Activity log', asettings:'Settings', team:'Admin team', feedback:'Feedback' };
 // ago() — the admin section router — is defined ONCE, near _agoMap at the bottom of this file.
 // (There used to be a second, earlier definition here. It never ran: two function declarations
 // with the same name in one script scope means the LAST one wins for the whole scope, so this
@@ -416,13 +416,24 @@ const ACTION_META = {
   role_deleted:            { label: 'Role deleted',             color: '#c0392b' },
   report_submitted:     { label: 'Report filed',            color: '#c0392b' },
   appeal_submitted:     { label: 'Appeal submitted',        color: '#3B5BA5' },
+  // Admin → Feedback (js/feedback-admin.js). The target is "Feedback #12" — student words never enter the log.
+  feedback_status_changed: { label: 'Feedback status changed', color: '#3B5BA5' },
+  feedback_tags_changed:   { label: 'Feedback tagged',         color: '#3B5BA5' },
+  feedback_note_edited:    { label: 'Feedback note edited',    color: '#3B5BA5' },
+  feedback_linked:         { label: 'Feedback linked to a change',   color: '#1a7a45' },
+  feedback_unlinked:       { label: 'Feedback unlinked from a change', color: '#3B5BA5' },
+  product_change_created:  { label: 'Product change created',  color: '#1a7a45' },
+  product_change_updated:  { label: 'Product change updated',  color: '#3B5BA5' },
+  product_change_deleted:  { label: 'Product change deleted',  color: '#c0392b' },
+  students_told_of_change: { label: 'Students told of a change', color: '#1a7a45' },
+  completion_verified:     { label: 'Completion ID checked',   color: '#3B5BA5' },
 };
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened','account_deleted'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
-  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','orphan_photos_deleted','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
+  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','orphan_photos_deleted','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted','feedback_status_changed','feedback_tags_changed','feedback_note_edited','feedback_linked','feedback_unlinked','product_change_created','product_change_updated','product_change_deleted','students_told_of_change','completion_verified'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
 };
 
@@ -3661,6 +3672,9 @@ const ADMIN_PERMISSIONS = [
   { key: 'view_activity_log', label: 'Activity log' },
   { key: 'export_data',       label: 'Data export',
     sensitive: 'An export can include every student’s email, and with “Read private messages”, every conversation.' },
+  { key: 'view_feedback',     label: 'Student feedback: read responses, see patterns, check completion IDs',
+    sensitive: 'Feedback can include personal stories. A student’s name shows only when they agreed to be contacted.' },
+  { key: 'manage_feedback',   label: 'Student feedback: status, tags, internal notes and product changes' },
 ];
 // The three roles sub-admins B1 set up, listed first; any role made on the Team page follows by name.
 const TEAM_BUILT_IN_ROLES = ['school_admin', 'content_editor', 'viewer'];
@@ -3706,6 +3720,7 @@ const ADMIN_SECTION_SWITCHES = {
   appeals:   ['manage_appeals'],
   broadcast: ['send_broadcasts'],
   analytics: ['view_analytics'],
+  feedback:  ['view_feedback'],
   activity:  ['view_activity_log'],
   exports:   ['export_data'],
   asettings: ['edit_site'],
@@ -4814,6 +4829,8 @@ const _agoMap = {
   health: renderHealth,
   appeals: renderAppeals,
   team: renderTeam,
+  // Deferred like orgs: renderFeedbackAdmin() lives in js/feedback-admin.js, which loads after this file.
+  feedback: () => renderFeedbackAdmin(),
 };
 // The one and only ago(). Switches the visible admin section, sets the title, and calls
 // that section's renderer. rerenderActiveAdminSection() reuses _agoMap to repaint on reload.
