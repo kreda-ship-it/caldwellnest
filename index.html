@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-01g">
+<link rel="stylesheet" href="styles.css?v=2026-10-05a">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -1083,6 +1083,15 @@
               </ul>
             </div>
           </div>
+          <!-- Left-over photos (super admin only, 2026-10-05). aFindOrphanPhotos() in js/admin.js. -->
+          <div class="tcard orph-card" data-super-only>
+            <div class="tcard-head"><div class="tcard-title">Left-over photos</div></div>
+            <div class="orph-body">
+              <p class="orph-desc">Photo files that no listing, book, profile, club or event uses any more — left behind by deleted posts, replaced photos, and the old "Delete forever". Nobody can find them in Nestrel, but anyone with the address could still open one. Files from the last 24 hours are never counted, in case a post is still being saved.</p>
+              <button class="btn-sm-a btn-a-neutral" onclick="aFindOrphanPhotos()">Find left-over photos</button>
+              <div id="orphOut"></div>
+            </div>
+          </div>
         </div>
 
         <!-- SETTINGS (fixed ID) -->
@@ -1951,7 +1960,7 @@
 <script src="js/books.js?v=2026-10-05a"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-05a"></script>
+<script src="js/admin.js?v=2026-10-05b"></script>
 <script src="js/orgs.js?v=2026-10-05a"></script>
 <script src="js/events.js?v=2026-10-05a"></script>
 <script src="js/search.js?v=2026-09-25a"></script>

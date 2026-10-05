@@ -406,6 +406,7 @@ const ACTION_META = {
   conversation_opened:  { label: 'Reported chat opened',    color: '#6b21a8' },
   // Written by the database (admin_delete_account), super admin only
   account_deleted:      { label: 'Account deleted',         color: '#8b0000' },
+  orphan_photos_deleted: { label: 'Left-over photos deleted', color: '#8b0000' },
   // Admin team (2026-10-01) — written only by the super admin, from the Team page
   admin_added:             { label: 'Admin added',              color: '#3B5BA5' },
   admin_removed:           { label: 'Admin removed',            color: '#c0392b' },
@@ -421,7 +422,7 @@ const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened','account_deleted'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
-  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
+  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','orphan_photos_deleted','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
 };
 
@@ -4174,6 +4175,104 @@ async function expFull() {
   localStorage.setItem('cn_last_backup', new Date().toISOString());   // the Health page's "Last full export (this browser)"
   logAdminAction('export', { targetType: 'system', meta: { export_type: 'full_export', format: 'json', tables: Object.keys(tables).length, skipped: Object.keys(notes).filter(k => notes[k].startsWith('Not exported')) } });
   toast(`Full export downloaded — ${Object.keys(tables).length} tables`);
+}
+
+// ---- Left-over photos (2026-10-05; super admin only, Platform health) ----
+// The listing-photos bucket holds listing, book and profile photos and club logos and covers. A file
+// nothing points at any more is invisible in the app but still public to anyone with its address —
+// deleted posts (whose files a database delete cannot remove), replaced photos, and everything the old
+// "Delete forever" left behind before 2026-09-30. This finds them by comparing the bucket with EVERY
+// column that stores a photo address, and offers no delete at all if any of those reads fails: one
+// missed column would mean deleting a photo still in use.
+const ORPHAN_MIN_AGE_MS = 24 * 3600 * 1000;   // never a file from the last day: its post may still be saving
+let _orphans = [];
+
+const _photoPath = u => {
+  const m = String(u || '').split('?')[0].split(`/${BUCKET_LISTINGS}/`);
+  return m.length === 2 ? decodeURIComponent(m[1]) : null;
+};
+const _orphanUrl = path => supabaseClient.storage.from(BUCKET_LISTINGS).getPublicUrl(path).data.publicUrl;
+
+// Every place a photo address is stored (checked against sql/ on 2026-10-05). events.poster_url and
+// event_media.url normally point at the event-media bucket; they are read anyway, to be safe.
+async function _usedPhotoPaths() {
+  const used = new Set();
+  const add = u => { const p = _photoPath(u); if (p) used.add(p); };
+  const reads = [
+    ['listings',      'id', r => { (r.photo_urls || []).forEach(add); (r.photos || []).forEach(add); }],
+    ['book_listings', 'id', r => (r.photo_urls || []).forEach(add)],
+    ['profiles',      'id', r => add(r.avatar_url)],
+    ['organizations', 'id', r => { add(r.logo_url); add(r.cover_url); }],
+    ['events',        'id', r => add(r.poster_url)],
+    ['event_media',   'id', r => add(r.url)],
+  ];
+  for (const [table, key, take] of reads) {
+    const { rows, error } = await fetchAllRows(table, key);
+    if (error) throw new Error(`could not read ${table} (${error.message})`);
+    rows.forEach(take);
+  }
+  return used;
+}
+
+// Every file in the bucket: one folder per uploader, files inside it, read a page at a time.
+async function _listPhotoFiles() {
+  const bucket = supabaseClient.storage.from(BUCKET_LISTINGS);
+  const files = [];
+  const walk = async prefix => {
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await bucket.list(prefix, { limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } });
+      if (error) throw new Error(`could not list photo storage (${error.message})`);
+      for (const it of data || []) {
+        if (it.id === null) { if (!prefix) await walk(it.name); }               // a folder
+        else if (!it.name.startsWith('.')) files.push({ path: prefix ? `${prefix}/${it.name}` : it.name,
+                                                         created_at: it.created_at, size: it.metadata?.size || 0 });
+      }
+      if (!data || data.length < 1000) return;
+    }
+  };
+  await walk('');
+  return files;
+}
+
+async function aFindOrphanPhotos() {
+  if (!_aAccess.isSuper) return;
+  const out = document.getElementById('orphOut');
+  out.innerHTML = '<p class="orph-note">Checking every photo…</p>';
+  _orphans = [];
+  let used, files;
+  try { [used, files] = await Promise.all([_usedPhotoPaths(), _listPhotoFiles()]); }
+  catch (e) {
+    out.innerHTML = `<p class="orph-note orph-err">Stopped: ${esc(e.message)}. Nothing was deleted.</p>`;
+    console.error('[aFindOrphanPhotos]', e);
+    return;
+  }
+  const cutoff = Date.now() - ORPHAN_MIN_AGE_MS;
+  _orphans = files.filter(f => !used.has(f.path) && new Date(f.created_at).getTime() < cutoff);
+  if (!_orphans.length) {
+    out.innerHTML = `<p class="orph-note">${files.length} photo files checked — none left over.</p>`;
+    return;
+  }
+  const kb = Math.round(_orphans.reduce((s, f) => s + f.size, 0) / 1024);
+  out.innerHTML = `<p class="orph-note">${files.length} photo files checked. <b>${_orphans.length}</b> are used by nothing (${kb} KB):</p>
+    <div class="orph-grid">${_orphans.slice(0, 60).map(f => `<img src="${escAttr(_orphanUrl(f.path))}" alt="" loading="lazy">`).join('')}</div>
+    ${_orphans.length > 60 ? `<p class="orph-note">…and ${_orphans.length - 60} more.</p>` : ''}
+    <button class="btn-sm-a btn-a-danger" onclick="aDeleteOrphanPhotos()">Delete these ${_orphans.length} files</button>`;
+}
+
+async function aDeleteOrphanPhotos() {
+  if (!_aAccess.isSuper || !_orphans.length) return;
+  if (!confirm(`Delete ${_orphans.length} photo files that nothing uses?\n\nThis cannot be undone — the database backup does not include photos.`)) return;
+  const paths = _orphans.map(f => f.path);
+  let gone = 0;
+  for (let i = 0; i < paths.length; i += 100) {
+    const { data, error } = await supabaseClient.storage.from(BUCKET_LISTINGS).remove(paths.slice(i, i + 100));
+    if (error) { console.error('[aDeleteOrphanPhotos]', error.message); break; }
+    gone += (data || []).length;
+  }
+  logAdminAction('orphan_photos_deleted', { targetType: 'system', meta: { found: paths.length, deleted: gone } });
+  _orphans = [];
+  document.getElementById('orphOut').innerHTML = `<p class="orph-note">Deleted ${gone} of ${paths.length} left-over photo files.${gone < paths.length ? ' The rest were refused — see the console.' : ''}</p>`;
+  toast(`${gone} left-over photo files deleted`);
 }
 
 // STUDENT VERIFICATION removed 2026-07-13 (PENDING_VERIFY / renderVerify / verApprove / verDeny).

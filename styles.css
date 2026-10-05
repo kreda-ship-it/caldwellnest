@@ -1206,6 +1206,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:#fafbfa;}
 .hist-bio{font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;}
 .hist-bio em{color:var(--text-faint);}
 .hist-profile-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;font-size:12px;}
+/* Left-over photos (Platform health, 2026-10-05). */
+.orph-card{margin-top:14px;}
+.orph-body{padding:16px 18px;}
+.orph-desc{margin:0 0 12px;font-size:13px;line-height:1.6;color:var(--text-muted);}
+.orph-note{margin:12px 0 8px;font-size:13px;color:var(--text);}
+.orph-err{color:var(--danger);}
+.orph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-bottom:12px;}
+.orph-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--bg);}
 .hist-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 /* Delete account (2026-10-01): the confirmation window. */
 .da-lead{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--text);}
