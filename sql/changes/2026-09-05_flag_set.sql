@@ -191,7 +191,7 @@ begin
   --
   -- Note 'anon' deliberately does NOT match. An unauthenticated browser request carries
   -- role 'anon', which is a JWT, so it falls through to the real checks. This is the exact
-  -- distinction sql/2026-08-08_align_owner_guards.sql was written to make, after an earlier
+  -- distinction sql/changes/2026-08-08_align_owner_guards.sql was written to make, after an earlier
   -- guard used `auth.uid() IS NULL` and waved through every anonymous caller along with the
   -- SQL editor.
   --
@@ -364,9 +364,9 @@ where c.relname = 'org_memberships'
 -- ============================================================================
 -- THEN RUN THESE THREE, IN THIS ORDER
 -- ============================================================================
---   1. sql/2026-09-05_verify_flag_guard.sql   — the guard trigger, which has never been tested
---   2. sql/2026-09-04_verify_can_act.sql      — can_act(), now including the two new flags
---   3. sql/2026-08-08_verify_owner_guards.sql — unrelated, and re-run because §6.4 says so
+--   1. sql/checks/2026-09-05_verify_flag_guard.sql   — the guard trigger, which has never been tested
+--   2. sql/checks/2026-09-04_verify_can_act.sql      — can_act(), now including the two new flags
+--   3. sql/checks/2026-08-08_verify_owner_guards.sql — unrelated, and re-run because §6.4 says so
 --
 -- Both org verification files need at least three non-admin student accounts to be complete.
--- See sql/2026-09-05_seed_dev_org.sql for how to create them.
+-- See sql/data/2026-09-05_seed_dev_org.sql for how to create them.

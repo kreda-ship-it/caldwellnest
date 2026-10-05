@@ -1,7 +1,7 @@
 -- Close the real holes found by the 2026-09-03 permission audit
 -- 2026-09-03
 --
--- Produced by running sql/2026-09-03_capture_rls_and_grants.sql against the live database.
+-- Produced by running sql/snapshots/2026-09-03_capture_rls_and_grants.sql against the live database.
 -- That audit found nine things. This file fixes the three that matter (fix 3 was added after
 -- running fixes 1 and 2 revealed it) and deliberately leaves the rest alone — they are listed at the bottom as follow-ups,
 -- because changing nine things at once to a live database is how you lose the ability to

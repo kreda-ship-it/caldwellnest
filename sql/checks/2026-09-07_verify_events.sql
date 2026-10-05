@@ -483,7 +483,7 @@ BEGIN
   -- refuses. Correctly: whoever can grant permissions can grant them to themselves, which is
   -- why that guard exists at all.
   --
-  -- This is the cost sql/2026-09-05_flag_set.sql writes down in the guard's own comment —
+  -- This is the cost sql/changes/2026-09-05_flag_set.sql writes down in the guard's own comment —
   -- "a test that inserts rows from the SQL editor without setting request.jwt.claims is not
   -- testing this trigger, it is walking straight past it." Here we WANT to walk past it: this
   -- is fixture setup for TEST 3, not an assertion about the guard. 2026-09-05_verify_flag_guard.sql

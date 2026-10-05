@@ -160,4 +160,4 @@ select depth, type, path,
 from tree order by path;
 
 
--- Then run sql/2026-09-06_verify_self_removal.sql.
+-- Then run sql/checks/2026-09-06_verify_self_removal.sql.

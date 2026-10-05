@@ -34,7 +34,7 @@
 //         bold title and a dot, the convention unread email uses — so what you have not dealt
 //         with stays easy to find even after the badge has gone.
 // School notices keep their own `read` column in `notifications`. Everything else is remembered
-// in this browser and, once sql/2026-09-25_activity_state.sql has run, with your account
+// in this browser and, once sql/changes/2026-09-25_activity_state.sql has run, with your account
 // (activity_state), so reading something on your phone marks it read on your laptop too.
 //
 // Loaded as a plain script (not a module) so every function stays global; the HTML's

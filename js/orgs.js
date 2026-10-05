@@ -8,8 +8,8 @@
 // exactly one purpose: deciding whether to draw a button. It runs in the browser, where the
 // person using it can open the console and make it return whatever they like.
 //
-// The real enforcement is Row Level Security, defined in sql/2026-09-04_org_hierarchy.sql
-// and proven by sql/2026-09-04_verify_can_act.sql. If a student forces this function to
+// The real enforcement is Row Level Security, defined in sql/changes/2026-09-04_org_hierarchy.sql
+// and proven by sql/checks/2026-09-04_verify_can_act.sql. If a student forces this function to
 // return true, the button appears and the database still refuses the write.
 //
 // This is the standing project rule, and it is a launch blocker when broken: UI-only gating
@@ -59,7 +59,7 @@ const ORG_ACTIONS = {
   check_in:          'can_check_in',        // read by attendance (Phase 4)
 };
 
-// FROZEN 2026-09-05 by sql/2026-09-05_flag_set.sql, and the freeze is the point. Eight
+// FROZEN 2026-09-05 by sql/changes/2026-09-05_flag_set.sql, and the freeze is the point. Eight
 // flags, and adding a ninth is not one column: it is a column, a branch in can_act(), two
 // lists inside the guard trigger, a list inside the insert policy, and the two places in
 // this file. Six edits that must agree, checked by nothing.
@@ -94,7 +94,7 @@ async function loadOrgContext(force = false) {
       // These column names must match ORG_ACTIONS above and the columns on the table. Asking
       // for a column that does not exist is not a silent miss — PostgREST rejects the whole
       // query, loadOrgContext() returns null, and every officer's console goes empty. Which
-      // is why this file and sql/2026-09-05_flag_set.sql have to land together.
+      // is why this file and sql/changes/2026-09-05_flag_set.sql have to land together.
       .select('org_id, role, title, status, can_post, can_manage_members, can_view_analytics, can_message, can_create_child_orgs, can_manage_admins, can_manage_events, can_check_in')
       .eq('user_id', user.id),
     // "Users can read own roles" allows this; it is how the super-admin branch of the mirror
@@ -269,13 +269,13 @@ async function renderOrgs() {
   }
 
   if (!orgTree().length) {
-    // The school row is created by the bootstrap in sql/2026-09-04_org_hierarchy.sql, and
+    // The school row is created by the bootstrap in sql/changes/2026-09-04_org_hierarchy.sql, and
     // only a super admin can create a root organization — that is what makes verification
     // provenance rather than a checkbox. So an empty tree means bootstrap has not been run,
     // not that something is broken.
     host.innerHTML = '<div class="org-empty"><strong>No organizations yet.</strong><br>'
       + 'The school organization is created once, by hand, in the SQL editor — see the '
-      + 'BOOTSTRAP section of <code>sql/2026-09-04_org_hierarchy.sql</code>.</div>';
+      + 'BOOTSTRAP section of <code>sql/changes/2026-09-04_org_hierarchy.sql</code>.</div>';
     return;
   }
 
@@ -928,7 +928,7 @@ async function orgTogglePanel(orgId) {
         </div>`; }).join('')
     : '<div class="org-empty">No members yet.</div>';
 
-  // "Add me as an officer here" — the BOOTSTRAP block of sql/2026-09-04_org_hierarchy.sql,
+  // "Add me as an officer here" — the BOOTSTRAP block of sql/changes/2026-09-04_org_hierarchy.sql,
   // without the SQL editor. §2.7 is explicit that platform operator and officer are two
   // identities sharing one login: can_act() answers true for a super admin everywhere, but
   // orgMemberships() lists real rows only, so a super admin with no row is told they are an
@@ -969,7 +969,7 @@ async function _orgGrantOfficer(orgId, email) {
   // came back identically as null, and the code took the second branch for both.
   //
   // That is not theoretical. The read policy on profiles is own-row plus school-scoped admin
-  // (sql/2026-09-04_restrict_profiles_select.sql), so a school admin outside that school gets
+  // (sql/changes/2026-09-04_restrict_profiles_select.sql), so a school admin outside that school gets
   // a refusal here, and the old code responded by writing a membership row with a null
   // user_id — a person who appears on the roster and can never log in as themselves.
   const { data: prof, error: lookupErr } = await supabaseClient
@@ -1089,7 +1089,7 @@ async function orgRestoreMember(membershipId, orgId) {
 }
 
 // ---------- put yourself on a roster you already govern ----------
-// The BOOTSTRAP block of sql/2026-09-04_org_hierarchy.sql, as a button. That block is
+// The BOOTSTRAP block of sql/changes/2026-09-04_org_hierarchy.sql, as a button. That block is
 // commented out and easy to skip, and skipping it produces a confusing state: you administer
 // every organization on campus through is_super_admin(), and the console tells you that you
 // are an officer of nothing — because orgMemberships() lists membership rows, and you have
@@ -1114,12 +1114,12 @@ async function orgAddSelf(orgId) {
     return;
   }
 
-  // The full set, matching the bootstrap row in sql/2026-09-04_org_hierarchy.sql. It grants
+  // The full set, matching the bootstrap row in sql/changes/2026-09-04_org_hierarchy.sql. It grants
   // no authority a super admin did not already hold — can_act() short-circuits on
   // is_super_admin() before it ever looks at a membership — so this row is about identity.
   //
   // can_manage_events and can_check_in are included, which means this needs
-  // sql/2026-09-05_flag_set.sql to have been run. Same dependency as the column list in
+  // sql/changes/2026-09-05_flag_set.sql to have been run. Same dependency as the column list in
   // loadOrgContext(); they land together or neither works.
   const grant = {
     role: 'officer', title: 'Administrator', status: 'active',
@@ -1763,7 +1763,7 @@ async function renderOcProfile() {
   const [{ data: row, error }, dir, cover] = await Promise.all([
     supabaseClient.from('organizations').select(cols.join(', ')).eq('id', orgId).maybeSingle(),
     supabaseClient.from('org_directory').select('id, parent_name, grandparent_name, follower_count').eq('id', orgId).maybeSingle(),
-    // Asked for on its own: until sql/2026-09-25_club_cover_and_recaps.sql has been run the
+    // Asked for on its own: until sql/changes/2026-09-25_club_cover_and_recaps.sql has been run the
     // column does not exist, and asking for it in the query above would fail the whole form.
     supabaseClient.from('organizations').select('cover_url').eq('id', orgId).maybeSingle(),
   ]);
@@ -1804,7 +1804,7 @@ async function renderOcProfile() {
             : `<div class="oc-cover" data-tint="${((Number(row.id) || 0) % 6) + 1}">
                 <span class="oc-cover-empty">${icon('image', 22)}<span>Cover photo</span></span></div>
               <span class="oc-hint oc-cover-hint oc-needs-db">Cover photos need a one-time database update first:
-                <b>sql/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Once it has run, the upload button appears here.</span>`}
+                <b>sql/changes/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Once it has run, the upload button appears here.</span>`}
           <div class="oc-logo-row">
             ${_dirLogoHTML(row, 'oc-logo')}
             <div class="oc-logo-side">
@@ -2052,7 +2052,7 @@ function ocMembersPaint(listOnly) {
   const tintOf = id => { let h = 0; for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) % 997; return (h % 6) + 1; };
   // Same rule as the admin panel: your own row carries no Remove control, because
   // guard_org_self_removal() refuses it and a button that can only produce an error is not
-  // a feature. See sql/2026-09-06_guard_self_removal.sql.
+  // a feature. See sql/changes/2026-09-06_guard_self_removal.sql.
   const row = m => {
     const mine = m.user_id && m.user_id === _orgCtx?.userId;
     const name = nameOf(m);
@@ -2324,10 +2324,10 @@ async function renderOcEvents() {
       supabaseClient.from('event_media').select('id, event_id, kind, url, phase, sort_order')
         .in('event_id', ids).order('sort_order'),
       // Read from events itself: visible_events expands e.* at creation, so it does not carry
-      // columns added later. An error here means sql/2026-09-24_event_feedback_window.sql has
+      // columns added later. An error here means sql/changes/2026-09-24_event_feedback_window.sql has
       // not been run yet — the Feedback settings then stay hidden rather than half-work.
       supabaseClient.from('events').select('id, feedback_enabled, feedback_closes_at').in('id', ids),
-      // Same reason, for the recap's note and whether it is shared (sql/2026-09-25_club_cover_and_recaps.sql).
+      // Same reason, for the recap's note and whether it is shared (sql/changes/2026-09-25_club_cover_and_recaps.sql).
       supabaseClient.from('events').select('id, recap_note, recap_shared_at').in('id', ids),
     ]);
     regs = r.data || []; media = m.data || [];
@@ -3900,7 +3900,7 @@ async function ocPickLogo(input) {
 //   4. Where do people drop off?    each event from viewed -> saved -> RSVP'd -> came
 //   5. What did people think?       ratings and the anonymous comments; poll results
 //
-// EVERY NUMBER COMES FROM get_org_analytics() (sql/2026-09-15_org_analytics_and_event_views.sql),
+// EVERY NUMBER COMES FROM get_org_analytics() (sql/changes/2026-09-15_org_analytics_and_event_views.sql),
 // which returns counts and nothing else — never a name, never a user id. The privacy rules Kal set
 // on 2026-09-14 live there: a view is a student OPENING an event, counted once, never the club's
 // own officers, and the link to the student erased 30 days after the event. Ratings stay hidden
@@ -3933,7 +3933,7 @@ async function renderOcAnalytics() {
   if (error) {
     const missing = error.code === 'PGRST202' || /Could not find the function/i.test(error.message || '');
     body.innerHTML = ocHeadHTML('Analytics', '') + `<div class="oc-empty-card"><b>${missing ? 'Analytics is not switched on yet' : 'Analytics could not load'}</b>
-      <p>${missing ? 'The database update that powers this tab has not been run. Ask a Nestrel admin to run sql/2026-09-15_org_analytics_and_event_views.sql.'
+      <p>${missing ? 'The database update that powers this tab has not been run. Ask a Nestrel admin to run sql/changes/2026-09-15_org_analytics_and_event_views.sql.'
         : /Not authorized/i.test(error.message || '') ? 'Your role in this club does not include analytics. Ask whoever manages your club to grant it.'
         : esc(error.message || 'Please try again.')}</p></div>`;
     if (!missing) console.error('[renderOcAnalytics]', error);
@@ -4210,7 +4210,7 @@ function ocPaintRecap(msg) {
                                    : '<span class="oc-chip">Draft · only officers see it</span>') : ''}
       </div>
       <p class="oc-recap-lead">${!_ocRecapReady ? `<span class="oc-needs-db">Sharing a recap as a draft first needs a one-time
-          database update: <b>sql/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Until then there is no
+          database update: <b>sql/changes/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Until then there is no
           Share recap button, and photos show to students as soon as they are added.</span>`
         : shared ? "Students see it on the event, on your club page, in Recaps on the Events page, and on your followers' Home for a week."
         : 'Add your best photos and a line about how it went. Nothing is shown to students until you share it.'}</p>

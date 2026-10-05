@@ -24,9 +24,9 @@ Live at [nestrel.org](https://nestrel.org).
 | `styles.css` | All the styling. |
 | `js/` | All the JavaScript, one file per feature (listings, messages, events, …). |
 | `terms.html`, `privacy.html` | The Terms of Service and Privacy Policy. |
-| `sql/` | The database: every change to its tables and rules, and the scripts that check those rules hold. Start with [`sql/README.md`](sql/README.md). |
+| `sql/` | The database, in four folders: `changes/` (every change to its tables and rules), `checks/` (scripts that prove those rules hold), `snapshots/` (copies of what is live, for the record) and `data/` (sample data and one-off repairs). Start with [`sql/README.md`](sql/README.md). |
+| `sql/data/courses.csv` | The Caldwell course list, in the same columns as the database's `courses` table (the course picker when posting a book). |
 | `tests/` | Checks you run on your own computer. See [`tests/README.md`](tests/README.md). |
-| `courses.csv` | The Caldwell course list, in the same columns as the database's `courses` table (the course picker when posting a book). |
 | `vercel.json` | The live site's security headers. |
 | `.vercelignore` | The list of files that get published. Anything not on it never reaches the live site. |
 | `SECURITY.md` | How to report a security problem. |

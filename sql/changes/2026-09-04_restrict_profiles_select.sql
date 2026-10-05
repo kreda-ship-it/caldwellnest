@@ -2,7 +2,7 @@
 -- 2026-09-04
 --
 -- DO NOT RUN THIS UNTIL:
---   1. sql/2026-09-04_public_profiles_view.sql has been run, AND
+--   1. sql/changes/2026-09-04_public_profiles_view.sql has been run, AND
 --   2. the app has been reloaded (HARD refresh) and tested with the migrated code, AND
 --   3. the feed, a public profile page, messages and the books list all still show names.
 --

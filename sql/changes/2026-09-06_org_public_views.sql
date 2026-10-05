@@ -13,7 +13,7 @@
 --
 --   FOLLOWER COUNT. org_follows SELECT is `using (user_id = auth.uid())` — own rows only.
 --   A student running count(*) gets 1 or 0: their own follow, or nothing. Not the count.
---   sql/2026-09-04_org_hierarchy.sql says so in a comment and defers it to "the analytics
+--   sql/changes/2026-09-04_org_hierarchy.sql says so in a comment and defers it to "the analytics
 --   workstream"; the directory needs it a workstream early.
 --
 --   THE OFFICER LIST. org_memberships SELECT is own-row or can_act('manage_members'). A
@@ -202,5 +202,5 @@ from public.org_directory
 order by grandparent_name nulls first, parent_name nulls first, name;
 
 
--- Then run sql/2026-09-06_verify_org_visibility.sql, which impersonates a real non-member
+-- Then run sql/checks/2026-09-06_verify_org_visibility.sql, which impersonates a real non-member
 -- and checks what they can and cannot read.

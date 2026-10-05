@@ -118,7 +118,7 @@ BEGIN
   ORDER BY id LIMIT 1;
 
   IF v_root IS NULL THEN
-    RAISE EXCEPTION E'\nNo root organization for school "%". Run the BOOTSTRAP section at the bottom of\nsql/2026-09-04_org_hierarchy.sql first — it is the one manual step, and everything\nelse in the hierarchy hangs off it.\n', v_school;
+    RAISE EXCEPTION E'\nNo root organization for school "%". Run the BOOTSTRAP section at the bottom of\nsql/changes/2026-09-04_org_hierarchy.sql first — it is the one manual step, and everything\nelse in the hierarchy hangs off it.\n', v_school;
   END IF;
 
   -- ---------- a department, then a club under it ----------

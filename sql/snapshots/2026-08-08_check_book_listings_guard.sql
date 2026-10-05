@@ -81,5 +81,5 @@ $function$;
 --    so anon and authenticated requests share a session_user.
 --
 --    The working version tests the JWT role claim instead. See
---    sql/2026-08-08_align_owner_guards.sql.
+--    sql/changes/2026-08-08_align_owner_guards.sql.
 -- ============================================================================

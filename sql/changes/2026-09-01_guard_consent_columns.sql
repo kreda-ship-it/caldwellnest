@@ -26,7 +26,7 @@ as $function$
 begin
   -- auth.uid(), never current_user: inside SECURITY DEFINER, current_user is the
   -- function's owner, so it would exempt everybody. (Learned the hard way -- see
-  -- sql/2026-08-08_check_book_listings_guard.sql.)
+  -- sql/snapshots/2026-08-08_check_book_listings_guard.sql.)
   if exists (select 1 from public.user_roles where user_id = auth.uid()) then
     return new;
   end if;

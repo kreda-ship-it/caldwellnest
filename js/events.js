@@ -553,7 +553,7 @@ function evPaintSuggest() {
 // ---------- Recaps (2026-09-25) ----------
 // After an event, its officers add photos and a line about how it went, then press "Share recap"
 // in the console (ocShareRecap). Until then the photos are private: the event_media policy hides
-// recap rows from students (sql/2026-09-25_club_cover_and_recaps.sql). Students then meet the
+// recap rows from students (sql/changes/2026-09-25_club_cover_and_recaps.sql). Students then meet the
 // recap in four places — the event itself, the club's page (Past), this page, and followers' Home.
 
 // SHARED recaps for these events: Map(event id -> { note, sharedAt, photos: [url] }). The filter on
@@ -987,7 +987,7 @@ async function evOpen(id) {
     data.has_ended ? evLoadRated() : null,
     data.has_ended ? evLoadRecaps([id]) : null,
   ]);
-  // A view, under the privacy rules Kal set on 2026-09-14 (sql/2026-09-15_org_analytics_and_event_views.sql):
+  // A view, under the privacy rules Kal set on 2026-09-14 (sql/changes/2026-09-15_org_analytics_and_event_views.sql):
   // counted once per student, never the club's own officers, and the link to the student erased
   // 30 days after the event. All of that is enforced inside record_event_view(); the browser only
   // asks. Fire and forget — a failed count must never get in the way of opening the event.
@@ -1565,7 +1565,7 @@ function goingRowHTML(e, reg) {
 // ended within seven days — not here. Everything below decides what to OFFER; the database
 // decides what to accept, and a student reading the network tab reaches the same answer.
 
-// Until sql/2026-09-24_event_feedback_window.sql has run, the database's rule is the old one —
+// Until sql/changes/2026-09-24_event_feedback_window.sql has run, the database's rule is the old one —
 // 7 days after the event ends, always on — and this mirrors it.
 const EV_FEEDBACK_DAYS = 7;
 

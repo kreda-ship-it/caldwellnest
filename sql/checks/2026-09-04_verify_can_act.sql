@@ -38,7 +38,7 @@
 --     TEST 6  pending member-> post on their own club   -> must be FALSE  (status must be active)
 --     TEST 7  a parent_id cycle                         -> must RETURN, not hang
 --
---   Added 2026-09-05 with the frozen flag set (sql/2026-09-05_flag_set.sql):
+--   Added 2026-09-05 with the frozen flag set (sql/changes/2026-09-05_flag_set.sql):
 --     TEST 8  club officer  -> manage_events on own club -> must be TRUE
 --     TEST 9  club officer  -> check_in on own club      -> must be FALSE (flag not held)
 --     TEST 10 school admin  -> check_in on the club below-> must be TRUE   (the walk up)

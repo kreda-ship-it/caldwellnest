@@ -189,7 +189,7 @@ ROLLBACK;
 
 -- ---------------------------------------------------------------------------
 -- If TEST 1, 2 or 6 fails, revert by re-running:
---   sql/2026-08-08_fix_owner_lifecycle_guard.sql   (listings)
---   sql/2026-08-08_check_book_listings_guard.sql   (books — its recorded body is
+--   sql/changes/2026-08-08_fix_owner_lifecycle_guard.sql   (listings)
+--   sql/snapshots/2026-08-08_check_book_listings_guard.sql   (books — its recorded body is
 --     the pre-change version; run just its CREATE OR REPLACE FUNCTION)
 -- ---------------------------------------------------------------------------

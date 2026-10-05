@@ -19,7 +19,7 @@
 // your own follow. org_memberships is invisible to a non-member, so a roster query returns
 // nothing. Neither number can be assembled client-side, and neither should be: the point is
 // to publish the FACT (how many follow, who runs it) without publishing the rows behind it.
-// sql/2026-09-06_org_public_views.sql does that with two views that read past RLS and carry
+// sql/changes/2026-09-06_org_public_views.sql does that with two views that read past RLS and carry
 // no identifying column. See that file's header before changing either query here.
 
 

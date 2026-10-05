@@ -10,6 +10,17 @@ because the only correct copy of these rules lives in one hosted database.
 
 This folder is the beginning of the fix. It is **not yet complete** — see "Still missing".
 
+## Folders
+
+| Folder | What is in it | When you would open it |
+|---|---|---|
+| `changes/` | Files that change the database: new tables, rules, functions. | To see how a rule came to be, or to apply a new one. |
+| `checks/` | The `_verify_` files. Each proves a rule really holds, then cleans up after itself. | After any schema change, and re-run all of them, not only the one for what you changed. |
+| `snapshots/` | The `_capture_` files: copies of what is live, written down on a date. | To see what the database really has, or to rebuild it. |
+| `data/` | Changes to rows rather than rules: test data, one-off repairs, the course list. | Rarely. Read a file's header before running it. |
+
+**A new file goes in the folder that matches its job.** The name format is the same in all four (see "Naming").
+
 ## How to run one
 
 Supabase Dashboard → SQL Editor → paste the whole file → Run.
@@ -33,22 +44,22 @@ that is cheaper than trying to remember.
 
 ## Files
 
+Every file that has a description, by folder. Within a folder the order is roughly the order they were written.
+
+### `changes/`: what changed the database
+
+Files that change the database: tables, rules, functions, triggers. A file with a self-test at the bottom (a "PART 2") is still a change.
+
 | File | What it does |
 |---|---|
 | `2026-08-08_fix_owner_lifecycle_guard.sql` | Repairs the trigger function that blocked every owner status change on `listings`. |
 | `2026-08-08_change_listing_status_any_transition.sql` | The lifecycle RPC. Lets any status move to any other; whitelists the legal values. |
-| `2026-08-08_check_book_listings_guard.sql` | The `book_listings` owner guard as it really is. **Checked 2026-08-08: not affected, nothing to run.** Records why `current_user` must never be used in these functions. |
 | `2026-08-08_align_owner_guards.sql` | Applied 2026-08-08. Makes both guards trust the caller's JWT role claim instead of a NULL user id. Its own test block needs ids filled in — prefer the verify file below. |
-| `2026-08-08_verify_owner_guards.sql` | **Run this to check the guards.** Self-contained: finds its own ids, impersonates each caller type, rolls everything back. Reports by raising an exception — the error message is the report. |
 | `2026-09-01_record_signup_consent.sql` | Adds `profiles.terms_accepted_at` / `terms_version` and teaches `handle_new_user` to record consent at signup. Applied 2026-09-01. |
 | `2026-09-01_guard_consent_columns.sql` | Adds the consent columns to the privileged-columns guard, so a student cannot erase their own consent record. Also captures `guard_profile_privileged_columns` in full. |
-| `2026-09-01_capture_profiles_triggers.sql` | **Capture only, no change.** The `.edu` email gate (`enforce_school_email` + its trigger), written down for the first time. |
 | `2026-09-01_saved_items.sql` | Creates the `favorites` table (private per-student saved items) with its RLS policies and GRANTs. Reads are own-rows-only by design — no admin read policy. |
-| `2026-09-03_capture_rls_and_grants.sql` | **Read only, changes nothing.** Nine numbered introspection queries that dump every policy, GRANT, view, function, trigger and column definition. Run it any time you want to re-check what the database actually enforces. |
 | `2026-09-03_fix_rls_and_grants.sql` | Applied 2026-09-03. Enables RLS on `admin_activity_log` (it was **off**, with three policies that were therefore never consulted) and revokes dead `anon` write grants on `listings` and `reports`. Lists seven remaining follow-ups. |
-| `2026-09-04_capture_permission_functions.sql` | **Capture only.** `is_super_admin()`, `get_admin_school()` and `user_is_admin()` — every admin permission routes through one of the three, and none had been written down. |
-| `2026-09-04_capture_rls_policies.sql` | **Capture.** All 67 RLS policies, emitted by the database itself rather than retyped. Records reality including its duplicates, and lists five findings — notably that both `notifications` INSERT policies check `true`. |
-| `2026-09-04_harden_policies.sql` | Closes four of those five findings: notification forgery, the world-readable admin roster, nine duplicate policies, and unpinned `search_path` on the three permission functions. Explains why the fifth (profile columns) needs code, not a policy. |
+| `2026-09-04_harden_policies.sql` | Closes four of the five findings in `2026-09-04_capture_rls_policies.sql`: notification forgery, the world-readable admin roster, nine duplicate policies, and unpinned `search_path` on the three permission functions. Explains why the fifth (profile columns) needs code, not a policy. |
 | `2026-09-04_fix_membership_insert_guard.sql` | Closes a privilege-escalation gap in `2026-09-04_org_hierarchy.sql`: the flag guard was BEFORE UPDATE only, so `can_manage_members` was enough to INSERT a new membership carrying every flag. Now BEFORE INSERT OR UPDATE, with the SQL-editor break-glass the other guards use. **Superseded 2026-09-05 by `2026-09-05_flag_set.sql`** — do not run this one afterwards, it would restore the old flag set. |
 | `2026-09-04_public_profiles_view.sql` | **STEP 1 of the F2 fix, additive.** Creates `public_profiles`, a view of the safe profile columns — no email, no `suspension_reason`, no consent columns. Protects nothing on its own. |
 | `2026-09-04_restrict_profiles_select.sql` | **STEP 2 of the F2 fix — the one that can break things.** Replaces the `using (true)` read policy on `profiles` with own-row plus school-scoped admin. Run only after step 1 and after the app has been tested. |
@@ -59,20 +70,12 @@ that is cheaper than trying to remember.
 | `2026-09-04_favorites_allow_event.sql` | Adds `'event'` to `favorites.item_type`, so an event can be starred. Papercut 5 / plan §12 C6. |
 | `2026-09-04_drop_saved_listings.sql` | **The only destructive file here.** Drops `saved_listings`, the empty and ungranted predecessor of `favorites`. Four preconditions checked before writing it. |
 | `2026-09-04_school_foreign_keys.sql` | Constrains `school` to a real row in `schools` on six tables, and drops the `profiles.school DEFAULT 'Caldwell'` that disagreed with every comparison in the project. `admin_activity_log` is deliberately excluded — an audit log records what was true then, not what is true now. |
-| `2026-09-04_capture_table_definitions.sql` | **Capture only — do not run against the live database.** All 25 tables in `public`: part 1 the columns, part 2 all 99 keys and constraints. The rebuild reference. Records ten observations, including that nothing anywhere constrains `school`. |
-| `2026-09-04_verify_can_act.sql` | **Run this to check `can_act()`.** Self-contained: builds a throwaway three-level hierarchy, impersonates a club officer / school admin / plain member, rolls everything back. Reports by raising an exception — the error message is the report. Needs two non-admin profiles, three for full coverage. **Repaired and extended 2026-09-05:** it had been unrunnable since `2026-09-04_school_foreign_keys.sql` constrained `organizations.school` — the first INSERT failed on the foreign key before any test ran. Now eleven properties, including the two new flags. |
 | `2026-09-05_flag_set.sql` | **Freezes the permission flag set at eight.** Drops `can_moderate` (nothing read it), adds `can_manage_events` and `can_check_in`. Touches all five places the set is written down: the columns, the `CASE` in `can_act()`, both flag lists in the guard trigger, and the pinned-false list in the insert policy. Phase 0 of the engagement build. |
-| `2026-09-05_verify_flag_guard.sql` | **Run this to check the flag guard.** The trigger had no test at all until now — `verify_can_act.sql` inserts its setup rows with no JWT, which lands in the guard's break-glass branch and walks straight past it. Ten properties, including the two that catch a flag added to the table and forgotten in the guard. Tests the trigger only; RLS is bypassed in the SQL editor. |
-| `2026-09-05_seed_dev_org.sql` | **DEV ONLY, and the only file here that leaves rows behind.** Wires three signed-up test accounts into a Dev Chess Club as officer / plain member / outsider, with a public post, a members-only post and a poll — the fixtures needed to check the poll-results gate and members-only visibility by hand. Has a runbook for creating the accounts and a teardown. |
 | `2026-09-06_org_public_views.sql` | **Phase 1.** Two views a student can read: `org_directory` (active orgs, follower count, breadcrumb) and `org_public_officers` (name and title, no `user_id`). Both run as owner so they read past RLS — the safety is that neither carries an identifying column. Also adds the `org_follows(org_id)` index the count needs. |
-| `2026-09-06_verify_org_visibility.sql` | **Run this to check what an outsider can see.** Unlike the other verify files it does `set local role authenticated` and speaks as three students in turn — RLS is bypassed in the SQL editor, so a file that skips that step proves nothing. Eleven properties. |
 | `2026-09-06_guard_self_removal.sql` | Closes a second hole in the membership policies: the DELETE policy said "a student may always leave" and did not distinguish an officer, and the UPDATE policy let a manager set `status='removed'` on their own row. The last officer of the ROOT organization could strand every club beneath it. A membership carrying `can_manage_members` can no longer be removed by its own holder. |
-| `2026-09-06_verify_self_removal.sql` | **Run this to check that guard.** Six properties — and three of them assert a removal SUCCEEDS, because a guard refusing everything would make a club a room nobody could leave. |
 | `2026-09-04_org_hierarchy.sql` | Campus engagement workstream 1 stage 1: `organizations`, `org_memberships`, `org_follows`, the `can_act()` permission rule, a flag guard trigger, RLS and GRANTs. Creates no rows — see its BOOTSTRAP section. **Run after the hardening file.** |
 | `2026-09-15_org_analytics_and_event_views.sql` | **Analytics.** `event_views` + `event_view_totals` (RLS on, no policies, no grants — only functions can reach them), `record_event_view()` (a student opening an event, once per event, never the club's own officers, never past 30 days), `purge_event_views()` (nightly via pg_cron: views of events that ended 30+ days ago become a total), `get_org_analytics()` (counts only, gated on `view_analytics`, handles the walk-in-on-an-existing-row case), `org_follower_counts()` (suspended clubs included, for admins with authority). |
-| `2026-09-15_verify_org_analytics.sql` | **Run this to check those privacy rules.** Speaks as three real students under `authenticated`: twelve properties, including that a student cannot read, write or purge views, that an officer's own open is not counted, and that no user id appears anywhere in the analytics result. Rolls everything back. |
 | `2026-09-23_google_signup.sql` | **Sign up with Google, Caldwell only.** `handle_new_user()` now refuses any email not on `@caldwell.edu` (the app's Google `hd` hint is only a front door; this is the lock) and fills in what Google doesn't send (school from the domain, names split from Google's full name, initials, colour). `guard_profile_privileged_columns()` gets one escape hatch, reachable only from `complete_google_signup()`, which the finish screen calls to save the username and record consent with `now()`. Replaces two live functions, so check them first with the two queries at the top of the file. |
-| `2026-09-28_clear_listing_emails.sql` | **Data cleanup, run once.** Blanks `listings.poster_email` on every listing except official posts (which keep the marker the Official badge needs). New listings stopped storing emails in commit `7f83fe4`; admins read emails from `profiles`. Three steps — look, clear, confirm — run one at a time. |
 | `2026-09-28_poll_totals.sql` | **Polls, step 1 of 2 — additive.** `poll_totals(bigint[])`: per-option vote counts, for a poll the caller can see (restates `org_posts_select`) and whose results are open to them (voted, or `view_analytics`). The app reads counts from it instead of downloading who voted. Safe to run any time. |
 | `2026-09-28_poll_votes_own_rows_only.sql` | **Polls, step 2 of 2 — run only after the app code calling `poll_totals()` is live.** `poll_votes_select` loses its "every row of a poll you voted in" branch: your own row, or `view_analytics` on the club (as the Privacy Policy says). |
 | `2026-09-28_storage_no_listing.sql` | **Second audit S1.** Two RESTRICTIVE SELECT policies on `storage.objects`: visitors cannot list `listing-photos` or `event-media`; signed-in users see only their own `listing-photos` folder (admins all) and `event-media` only for clubs whose events they manage. Public photo addresses keep working (public buckets don't consult these). Drops nothing; undo is in the header. |
@@ -89,9 +92,45 @@ that is cheaper than trying to remember.
 | `2026-10-01_first_post_review.sql` | **First post reviewed.** One line of `set_new_listing_fields()` replaced in place: a new listing or book is `pending` when the approval switch is on, OR when the poster has no approved listing and no approved book yet; otherwise `approved`. Switch off = first post reviewed, then instant. Refuses (changes nothing) if the expected line is missing. PART 2: 3 tests, switch flipped inside a rolled-back test. |
 | `2026-10-01_account_deletion.sql` | **Account deletion.** 19 links re-pointed by table/column/target (name kept): listings + books CASCADE with the account; activity log, admins' fields, club content, check-ins, `added_by`, status history, settings and **reports a person filed** SET NULL (kept, name removed). `blocked_signups` + `refuse_blocked_signup()` trigger: a suspended account's email can't sign up for 2 years. `admin_delete_account(user, typed_email)`: super admin only, refuses admin accounts and a mismatched email, logs `account_deleted`. Refuses to commit if any public link to profiles/auth.users is still no action/restrict. PART 2 (9 tests) deletes two real students inside a rolled-back test. |
 
+### `checks/`: run these to prove a rule holds
+
+Each one proves a rule really holds, as the people it applies to, and leaves nothing behind. Most report by raising an error on purpose: **the error message is the report.**
+
+| File | What it does |
+|---|---|
+| `2026-08-08_verify_owner_guards.sql` | **Run this to check the owner guards.** Self-contained: finds its own ids, impersonates each caller type, rolls everything back. Reports by raising an exception — the error message is the report. |
+| `2026-09-04_verify_can_act.sql` | **Run this to check `can_act()`.** Self-contained: builds a throwaway three-level hierarchy, impersonates a club officer / school admin / plain member, rolls everything back. Reports by raising an exception — the error message is the report. Needs two non-admin profiles, three for full coverage. **Repaired and extended 2026-09-05:** it had been unrunnable since `2026-09-04_school_foreign_keys.sql` constrained `organizations.school` — the first INSERT failed on the foreign key before any test ran. Now eleven properties, including the two new flags. |
+| `2026-09-05_verify_flag_guard.sql` | **Run this to check the flag guard.** The trigger had no test at all until now — `verify_can_act.sql` inserts its setup rows with no JWT, which lands in the guard's break-glass branch and walks straight past it. Ten properties, including the two that catch a flag added to the table and forgotten in the guard. Tests the trigger only; RLS is bypassed in the SQL editor. |
+| `2026-09-06_verify_org_visibility.sql` | **Run this to check what an outsider can see.** Unlike the other verify files it does `set local role authenticated` and speaks as three students in turn — RLS is bypassed in the SQL editor, so a file that skips that step proves nothing. Eleven properties. |
+| `2026-09-06_verify_self_removal.sql` | **Run this to check the self-removal guard** (`2026-09-06_guard_self_removal.sql`). Six properties — and three of them assert a removal SUCCEEDS, because a guard refusing everything would make a club a room nobody could leave. |
+| `2026-09-15_verify_org_analytics.sql` | **Run this to check the analytics privacy rules** (`2026-09-15_org_analytics_and_event_views.sql`). Speaks as three real students under `authenticated`: twelve properties, including that a student cannot read, write or purge views, that an officer's own open is not counted, and that no user id appears anywhere in the analytics result. Rolls everything back. |
+
+### `snapshots/`: what was live, written down
+
+Photographs of the live database on the day they were taken. Read them; run one only if its header says that is safe. Two are read-only queries you can run any time: `2026-09-03_capture_rls_and_grants.sql` and `2026-09-06_capture_views.sql`.
+
+| File | What it does |
+|---|---|
+| `2026-08-08_check_book_listings_guard.sql` | The `book_listings` owner guard as it really is. **Checked 2026-08-08: not affected, nothing to run.** Records why `current_user` must never be used in these functions. |
+| `2026-09-01_capture_profiles_triggers.sql` | **Capture only, no change.** The `.edu` email gate (`enforce_school_email` + its trigger), written down for the first time. |
+| `2026-09-03_capture_rls_and_grants.sql` | **Read only, changes nothing.** Nine numbered introspection queries that dump every policy, GRANT, view, function, trigger and column definition. Run it any time you want to re-check what the database actually enforces. |
+| `2026-09-04_capture_permission_functions.sql` | **Capture only.** `is_super_admin()`, `get_admin_school()` and `user_is_admin()` — every admin permission routes through one of the three, and none had been written down. |
+| `2026-09-04_capture_rls_policies.sql` | **Capture.** All 67 RLS policies, emitted by the database itself rather than retyped. Records reality including its duplicates, and lists five findings — notably that both `notifications` INSERT policies check `true`. |
+| `2026-09-04_capture_table_definitions.sql` | **Capture only — do not run against the live database.** All 25 tables in `public`: part 1 the columns, part 2 all 99 keys and constraints. The rebuild reference. Records ten observations, including that nothing anywhere constrains `school`. |
+
+### `data/`: rows, not rules
+
+Changes to rows, not rules: test data, one-off repairs, and the course list. **Read the header before running anything here.**
+
+| File | What it does |
+|---|---|
+| `2026-09-05_seed_dev_org.sql` | **DEV ONLY, and the only file here that leaves rows behind.** Wires three signed-up test accounts into a Dev Chess Club as officer / plain member / outsider, with a public post, a members-only post and a poll — the fixtures needed to check the poll-results gate and members-only visibility by hand. Has a runbook for creating the accounts and a teardown. |
+| `2026-09-28_clear_listing_emails.sql` | **Data cleanup, run once.** Blanks `listings.poster_email` on every listing except official posts (which keep the marker the Official badge needs). New listings stopped storing emails in commit `7f83fe4`; admins read emails from `profiles`. Three steps — look, clear, confirm — run one at a time. |
+| `courses.csv` | The Caldwell course list (code, name, department, aliases): the same columns as the `courses` table, which the course picker reads when someone posts a book. Moved here from the top of the repo on 2026-10-05. |
+
 ## Naming
 
-`YYYY-MM-DD_short_description.sql`, so the folder reads chronologically. These are not
+`YYYY-MM-DD_short_description.sql`, so each folder reads chronologically. These are not
 numbered migrations — there is no migration runner. They are the real current definitions,
 kept so they can be read, reviewed, and re-applied.
 

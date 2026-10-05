@@ -80,7 +80,7 @@ BEGIN
   ) t;
 
   IF v_users IS NULL OR array_length(v_users, 1) < 2 THEN
-    RAISE EXCEPTION E'\nNot enough non-admin profiles to test with (found %). This needs at least 2, and 3 for full coverage.\nSee sql/2026-09-05_seed_dev_org.sql for how to create them.\n',
+    RAISE EXCEPTION E'\nNot enough non-admin profiles to test with (found %). This needs at least 2, and 3 for full coverage.\nSee sql/data/2026-09-05_seed_dev_org.sql for how to create them.\n',
       coalesce(array_length(v_users, 1), 0);
   END IF;
 

@@ -63,7 +63,7 @@
 --   can only ever contain what that person could already read. Approve vs remove vs pin is one
 --   "may change listings" rule here; the app's buttons split it.
 --
--- UNDO: the rules as they were are recorded in sql/2026-09-04_capture_rls_policies.sql (unchanged
+-- UNDO: the rules as they were are recorded in sql/snapshots/2026-09-04_capture_rls_policies.sql (unchanged
 -- since, confirmed against the live database on 2026-10-01). Ask Claude for an undo file.
 
 

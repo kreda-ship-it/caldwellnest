@@ -2,7 +2,7 @@
 -- 2026-09-04
 --
 -- Found while building the stage 3 admin UI, which is the first code that inserts an officer
--- row. Fixes a hole in sql/2026-09-04_org_hierarchy.sql, shipped earlier the same day.
+-- row. Fixes a hole in sql/changes/2026-09-04_org_hierarchy.sql, shipped earlier the same day.
 --
 -- Run in: Supabase Dashboard -> SQL Editor -> paste the whole file -> Run. Safe to re-run.
 --
@@ -50,7 +50,7 @@ begin
   --
   -- Note 'anon' deliberately does NOT match. An unauthenticated browser request carries
   -- role 'anon', which is a JWT, so it falls through to the real checks. This is the exact
-  -- distinction sql/2026-08-08_align_owner_guards.sql was written to make, after an earlier
+  -- distinction sql/changes/2026-08-08_align_owner_guards.sql was written to make, after an earlier
   -- guard used `auth.uid() IS NULL` and waved through every anonymous caller along with the
   -- SQL editor.
   v_role := coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role', '');
@@ -117,7 +117,7 @@ from pg_trigger t
 join pg_class c on c.oid = t.tgrelid
 where c.relname = 'org_memberships' and not t.tgisinternal;
 
--- Re-run sql/2026-09-04_verify_can_act.sql after this. It inserts officer rows during setup
+-- Re-run sql/checks/2026-09-04_verify_can_act.sql after this. It inserts officer rows during setup
 -- while impersonating nobody in particular, so it exercises the new INSERT branch. If it
 -- still reports ALL TESTS PASSED, the guard is discriminating rather than simply refusing
 -- everything — which is the failure mode a guard like this actually has.

@@ -1519,7 +1519,7 @@ function ownerManagePanelHtml(l) {
   } else if (ls === 'sold') {
     // Sold and withdrawn used to offer only "back to active", so every other move cost two
     // hops. change_listing_status() now accepts any of the four states directly (see
-    // sql/2026-08-08_change_listing_status_any_transition.sql), so the buttons can match.
+    // sql/changes/2026-08-08_change_listing_status_any_transition.sql), so the buttons can match.
     actions = `
       <button class="btn-sm-a btn-a-neutral" onclick="lifecycleAction(${l.id},'listings','active')">Mark active again</button>
       <button class="btn-sm-a btn-a-danger" onclick="lifecycleAction(${l.id},'listings','withdrawn')">Withdraw</button>`;
@@ -1938,7 +1938,7 @@ async function submitListing() {
     return;
   }
   // What the database decided, not what the switch suggests: set_new_listing_fields() holds a
-  // student's first post for review even with the switch off (sql/2026-10-01_first_post_review.sql).
+  // student's first post for review even with the switch off (sql/changes/2026-10-01_first_post_review.sql).
   const status = data.status || initialStatus;
   logEvent('listing_submitted', { targetType: 'listing', targetId: data.id, targetLabel: title, school: u.school || 'caldwell', category: cat, after: { status, hasPhoto: photoUrls.length > 0, photoCount: photoUrls.length } });
 

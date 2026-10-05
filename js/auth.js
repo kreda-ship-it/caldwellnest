@@ -234,7 +234,7 @@ async function submitNewPassword() {
 //   2. The lock: handle_new_user() in the database refuses any other domain while the account
 //      is being created. Supabase then sends the student back with an error in the URL, which
 //      showGoogleReturnError() turns into plain words.
-// Changing the school means changing BOTH (sql/2026-09-23_google_signup.sql).
+// Changing the school means changing BOTH (sql/changes/2026-09-23_google_signup.sql).
 const SIGNUP_GOOGLE_DOMAIN = 'caldwell.edu';
 
 // Set just before leaving for Google, read once when the page loads again. It is how boot.js

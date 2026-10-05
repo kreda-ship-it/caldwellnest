@@ -1,7 +1,7 @@
 -- Close the four findings from the 2026-09-04 policy capture
 -- 2026-09-04
 --
--- Follows sql/2026-09-04_capture_rls_policies.sql, which recorded five findings. Four are
+-- Follows sql/snapshots/2026-09-04_capture_rls_policies.sql, which recorded five findings. Four are
 -- fixed here. The fifth (F2, profile columns) is NOT — it cannot be fixed with a policy, and
 -- the reason is written out at the bottom so nobody wastes an afternoon trying.
 --

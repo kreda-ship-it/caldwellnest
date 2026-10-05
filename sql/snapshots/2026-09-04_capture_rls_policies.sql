@@ -2,7 +2,7 @@
 -- 2026-09-04
 --
 -- CAPTURE. These 68 policies were emitted by the database itself (query 10 of
--- sql/2026-09-03_capture_rls_and_grants.sql, which builds CREATE POLICY statements from
+-- sql/snapshots/2026-09-03_capture_rls_and_grants.sql, which builds CREATE POLICY statements from
 -- pg_policies) and are reproduced here verbatim. Nobody retyped them — a policy transcribed
 -- with one wrong operator would look authoritative and be wrong, which is worse than having
 -- no file at all.

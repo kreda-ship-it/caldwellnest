@@ -62,7 +62,7 @@ async function loadBooks() {
   // exists in the `visible_book_listings` view (`p.status <> 'suspended'`) and nothing on
   // this path implemented it, so a suspended poster's books stayed in the feed while their
   // listings vanished — a moderation action that half-worked, silently. Found 2026-09-06
-  // during E0; see sql/2026-09-06_capture_views.sql.
+  // during E0; see sql/snapshots/2026-09-06_capture_views.sql.
   //
   // On a FAILED poster lookup we keep the previously cached books rather than publishing
   // an unfiltered set. Same principle as loadListings(): a transient failure must never

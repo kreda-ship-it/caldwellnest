@@ -311,7 +311,7 @@ function feedPollClosed(item) {
 
 // ---- Poll results: totals, never who voted ----
 // The Privacy Policy says students see poll results as totals. So the page never reads anyone
-// else's vote: counts come from poll_totals() (sql/2026-09-28_poll_totals.sql), which returns
+// else's vote: counts come from poll_totals() (sql/changes/2026-09-28_poll_totals.sql), which returns
 // nothing for a poll you have not voted in or cannot see, and the only vote row read is your own.
 // Used by Home, the club page, the club console and the inbox. Guarded by check 15 in
 // tests/load-order.js.

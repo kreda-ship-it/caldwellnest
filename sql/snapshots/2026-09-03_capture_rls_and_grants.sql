@@ -142,7 +142,7 @@ order by viewname;
 -- SECURITY DEFINER means the function runs with its OWNER's permissions, not the caller's.
 -- That is deliberate and necessary for the guard functions, but it also means such a
 -- function must never trust `current_user` — inside SECURITY DEFINER, current_user is the
--- owner, so a check against it exempts everybody. sql/2026-08-08_check_book_listings_guard.sql
+-- owner, so a check against it exempts everybody. sql/snapshots/2026-08-08_check_book_listings_guard.sql
 -- records learning that the hard way. These functions use auth.uid() instead.
 
 select p.proname                                        as function_name,
@@ -232,7 +232,7 @@ order by table_name, ordinal_position;
 -- ============================================================================
 -- 9. Has the favorites table been applied yet?
 -- ============================================================================
--- sql/2026-09-01_saved_items.sql is written and uncommitted, and nothing in js/ references
+-- sql/changes/2026-09-01_saved_items.sql is written and uncommitted, and nothing in js/ references
 -- `favorites`, so it may or may not have been run. This settles it.
 --
 -- If it returns zero rows, the file has not been applied — which is the good case, because

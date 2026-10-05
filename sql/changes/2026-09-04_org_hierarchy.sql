@@ -4,7 +4,7 @@
 -- Implements §2.2, §2.4 and §2.6 of docs/nestrel-campus-engagement-plan.md, with every
 -- correction from its §12 applied. Nothing here is new design — it is the plan, in SQL.
 --
--- RUN THE HARDENING FILE FIRST. sql/2026-09-04_harden_policies.sql pins search_path on
+-- RUN THE HARDENING FILE FIRST. sql/changes/2026-09-04_harden_policies.sql pins search_path on
 -- is_super_admin(), which can_act() calls. Run that, confirm the app still works, and only
 -- then run this. Two permission changes at once means a break you cannot attribute.
 --
@@ -37,7 +37,7 @@ begin;
 --
 -- `generated always as identity` rather than bigserial is correction C5 — identity owns its
 -- sequence internally, so INSERT on the table is enough and no GRANT USAGE ON SEQUENCE is
--- needed. sql/2026-09-01_saved_items.sql records the confusing error bigserial gives without it.
+-- needed. sql/changes/2026-09-01_saved_items.sql records the confusing error bigserial gives without it.
 
 create table if not exists public.organizations (
   id              bigint generated always as identity primary key,
@@ -368,7 +368,7 @@ grant select, insert, delete         on public.org_follows     to authenticated;
 -- issue a TRUNCATE, so this was never an open door — but a permission that RLS cannot govern
 -- has no business sitting on the table that decides who is an officer.
 --
--- sql/2026-09-01_saved_items.sql found and documented this first, on `favorites`. That is why
+-- sql/changes/2026-09-01_saved_items.sql found and documented this first, on `favorites`. That is why
 -- favorites is the only table in the database with no anon grant at all.
 
 revoke truncate, references, trigger on public.organizations   from authenticated;

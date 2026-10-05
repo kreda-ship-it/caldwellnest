@@ -17,7 +17,7 @@
 --
 -- 1. can_act() action names DROP the `can_` prefix.
 --    The plan writes can_act('can_manage_events', org_id). The real names are
---    'manage_events', 'check_in', 'view_analytics' (sql/2026-09-05_flag_set.sql:146-153).
+--    'manage_events', 'check_in', 'view_analytics' (sql/changes/2026-09-05_flag_set.sql:146-153).
 --    can_act() ends in `else false`, so a wrong name does not raise — it refuses
 --    EVERYONE. Every officer locked out of their own events, with nothing in the
 --    console to debug from. The flag_set file warns about exactly this: "a misspelled
@@ -218,7 +218,7 @@ create or replace view public.visible_events with (security_invoker = true) as
 -- is unreachable and the revoke is only consistency.
 --
 -- This block has been missed twice since 2026-09-01_saved_items.sql got it right.
--- Verify afterwards with the grant query in sql/2026-09-03_capture_rls_and_grants.sql
+-- Verify afterwards with the grant query in sql/snapshots/2026-09-03_capture_rls_and_grants.sql
 -- rather than assuming it worked.
 --
 -- No DELETE for students anywhere. A registration is cancelled, not deleted, so the
@@ -443,9 +443,9 @@ notify pgrst, 'reload schema';
 -- ============================================================================
 -- AFTER RUNNING THIS
 -- ============================================================================
--- 1. Run sql/2026-09-07_events_rpcs.sql next. Nothing works without it: students
+-- 1. Run sql/changes/2026-09-07_events_rpcs.sql next. Nothing works without it: students
 --    hold no path to register safely until register_for_event() exists.
 -- 2. Confirm the grants landed as intended with the query in
---    sql/2026-09-03_capture_rls_and_grants.sql. Do not assume the revokes worked.
+--    sql/snapshots/2026-09-03_capture_rls_and_grants.sql. Do not assume the revokes worked.
 -- 3. The verification file comes after both, and then every other file in sql/
 --    gets re-run. A green test not re-run is a memory, not evidence.

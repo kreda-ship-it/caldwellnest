@@ -1,7 +1,7 @@
 -- The events RPCs: registration, the door, cancellation, feedback
 -- 2026-09-07  ·  Session E1 of docs/nestrel-events-door-feedback-plan.md
 --
--- Run AFTER sql/2026-09-07_events_schema.sql. Safe to re-run.
+-- Run AFTER sql/changes/2026-09-07_events_schema.sql. Safe to re-run.
 --
 -- ############################################################################
 -- WHY THESE EXIST AT ALL

@@ -108,4 +108,4 @@ that creates elements whenever `innerHTML` containing `id="…"` is assigned.
 - **Will:** the page's logic — counts, flags, the suspend and create flows, what gets written.
 - **Will not:** layout, CSS, or the real database's security rules. The fake database answers the
   way the rules are *written* to answer; whether Supabase actually enforces them is proven by the
-  `sql/…_verify_*.sql` files, not here.
+  `sql/checks/…_verify_*.sql` files, not here.

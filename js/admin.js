@@ -1074,7 +1074,7 @@ async function aHardDeleteListing(id) {
   // Row first, files second, and the deleted row asked back. A delete the database's rules refuse
   // is not an error: it deletes 0 rows and reports success. Until 2026-10-01 there was no admin
   // DELETE rule on listings, so this button never deleted anything — and once admins could delete
-  // photo files (sql/2026-09-30_admin_photo_delete.sql) it deleted the photos and left the listing
+  // photo files (sql/changes/2026-09-30_admin_photo_delete.sql) it deleted the photos and left the listing
   // behind with broken images. The photo list comes from the deleted row, not the cache.
   const { data: gone, error } = await supabaseClient.from('listings').delete().eq('id', id).select('id, photo_urls');
   if (error) { toast('Could not delete listing — please try again.'); console.error(error.message); return; }
@@ -2137,7 +2137,7 @@ async function confirmRemovePhoto() {
   if (fileGone) toast('Photo removed');
   else {
     toast('Photo taken off the listing, but its file is still stored — see the console.');
-    console.warn('[confirmRemovePhoto] Storage did not delete the file. Run sql/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', t.url);
+    console.warn('[confirmRemovePhoto] Storage did not delete the file. Run sql/changes/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', t.url);
   }
   reopen();
   if (!isBook) { renderAListings(); renderListings(); }
@@ -2184,7 +2184,7 @@ async function confirmRemoveAvatar() {
   if (fileGone) toast('Profile photo removed');
   else {
     toast('Profile photo taken off, but its file is still stored — see the console.');
-    console.warn('[confirmRemoveAvatar] Storage did not delete the file. Run sql/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', ours);
+    console.warn('[confirmRemoveAvatar] Storage did not delete the file. Run sql/changes/2026-09-30_admin_photo_delete.sql, then delete it in Supabase → Storage → listing-photos:', ours);
   }
   _aRefreshStudentViews(id);
 }
@@ -2225,7 +2225,7 @@ async function confirmClearBio() {
 }
 
 // ---- Deleting an account (2026-10-01; super admin only) ----
-// The database does the deleting (admin_delete_account, sql/2026-10-01_account_deletion.sql): it checks
+// The database does the deleting (admin_delete_account, sql/changes/2026-10-01_account_deletion.sql): it checks
 // the typed email, refuses admin accounts, blocks a suspended account's email for 2 years, logs it, and
 // removes everything the Privacy Policy says goes with an account. Photo FILES are not in the database,
 // so they are collected here first and deleted only once the account is gone — and only files in the
@@ -2415,7 +2415,7 @@ async function renderAMessages() {
 
   // Who and when only. admin_message_metadata() has no text to give: since 2026-10-01 no admin rule
   // reads message rows at all, and a chat's words reach an admin only through a report
-  // (read_reported_conversation, see sql/2026-10-01_reported_conversations.sql).
+  // (read_reported_conversation, see sql/changes/2026-10-01_reported_conversations.sql).
   const { data: msgs, error } = await supabaseClient.rpc('admin_message_metadata', { p_limit: ADMIN_MSG_SCAN });
 
   if (error) { tbody.innerHTML = `<tr><td colspan="4" style="padding:20px;color:var(--danger);font-size:13px">Could not load messages. ${esc(error.message)}</td></tr>`; return; }
@@ -2769,7 +2769,7 @@ async function aNotifyReporter(reportId, outcome) {
 
 async function hideListingFromReport(reportId, listingId) {
   const { data: { user } } = await supabaseClient.auth.getUser();
-  // Only the four fields admins may change (sql/2026-10-01_reported_conversations.sql). This also wrote
+  // Only the four fields admins may change (sql/changes/2026-10-01_reported_conversations.sql). This also wrote
   // listing_title_snapshot until 2026-10-01, which that rule refuses — so the report stayed "open".
   // The snapshot is written when the student files the report, so nothing is lost.
   const { error: repErr } = await supabaseClient.from('reports').update({
@@ -3584,7 +3584,7 @@ async function saveCNIdentity() {
 // Their old rows in platform_settings are harmless and left alone. Add a switch here only together
 // with the code that obeys it.
 const SETTINGS = [
-  // Off is not "no review": a student's first post is still reviewed (sql/2026-10-01_first_post_review.sql).
+  // Off is not "no review": a student's first post is still reviewed (sql/changes/2026-10-01_first_post_review.sql).
   { key:'requireApproval', label:'Review every new listing', desc:'On: every new listing and book waits for review. Off: only a student\u2019s first post is reviewed — after one approval they post instantly.' },
   { key:'maintenance', label:'Maintenance mode', desc:'Show maintenance screen to all students' },
 ];
@@ -3635,8 +3635,8 @@ async function togClick(el, key) {
 // Who the signed-in admin is, and the super admin's Team page: add and remove admins, change their
 // role, and switch each role's permissions on and off.
 //
-// The database is what actually enforces all of this (sql/2026-10-01_admin_permissions.sql and
-// sql/2026-10-01_admin_team_management.sql): every admin rule asks has_admin_permission('<switch>'),
+// The database is what actually enforces all of this (sql/changes/2026-10-01_admin_permissions.sql and
+// sql/changes/2026-10-01_admin_team_management.sql): every admin rule asks has_admin_permission('<switch>'),
 // and only the super admin may change user_roles, admin_roles and role_permissions — and even the
 // super admin cannot add, change or remove a super_admin row from here. What this file decides is
 // only what to SHOW. Hiding a button is never a permission.
