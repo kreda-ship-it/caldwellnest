@@ -228,8 +228,14 @@ async function activityBuild() {
     typeof loadOrgContext === 'function' ? loadOrgContext() : null,
   ]);
   const orgName = id => (_dirOrgs || []).find(o => o.id === id)?.name
-    || (typeof _evOrgs !== 'undefined' ? _evOrgs.get(id)?.name : '') || 'A club you follow';
-  const follows = typeof _dirFollows !== 'undefined' ? [..._dirFollows] : [];
+    || (typeof _evOrgs !== 'undefined' ? _evOrgs.get(id)?.name : '') || 'One of your clubs';
+  // Clubs you follow AND clubs you belong to (2026-10-05). Until then only follows counted, so a member
+  // who had not also pressed Follow never saw the club's members-only announcements here — the one
+  // place a club can reach its members. orgMemberships() lists active memberships only.
+  const follows = [...new Set([
+    ...(typeof _dirFollows !== 'undefined' ? [..._dirFollows] : []),
+    ...(typeof orgMemberships === 'function' ? orgMemberships().map(m => m.org_id) : []),
+  ])];
   const since = new Date(week).toISOString();
 
   // Everything that needs a query, at once.
@@ -311,7 +317,7 @@ async function activityBuild() {
     }
   });
 
-  // ---- Clubs you follow ----
+  // ---- Clubs you follow or belong to ----
   (evs.data || []).filter(e => e.is_browsable).forEach(e => {
     const when = new Date(e.starts_at).toLocaleString(undefined, { weekday: 'long', hour: 'numeric', minute: '2-digit' });
     add({ key: 'ev' + e.id, at: e.created_at, icon: 'school', tone: 'green',
