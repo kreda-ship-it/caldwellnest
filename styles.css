@@ -2039,6 +2039,41 @@ select.ao-input { cursor: pointer; }
 .ao-tab:focus-visible, .ao-btn:focus-visible, .ao-more:focus-visible, .ao-reason:focus-visible,
 .ao-link:focus-visible, .ao-input:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
 
+/* E-board and school setup (2026-10-05). The school heading is always drawn now and carries its
+   Rename; the first screen is one card, "Create the school". */
+.ao-school { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ao-school .ao-link { font-size: 12px; letter-spacing: 0; text-transform: none; }
+.ao-school-actions { display: flex; gap: 14px; }
+.ao-school.is-renaming { padding: 8px 0 0; letter-spacing: 0; text-transform: none; }
+.ao-school.is-renaming .ao-strip { width: 100%; padding-left: 20px; border-bottom: 0; }
+.ao-rename .ao-input { flex: 1 1 220px; width: auto; }
+.ao-start { display: flex; flex-direction: column; gap: 14px; max-width: 520px; padding: 20px 22px 22px; }
+.eb-custom[hidden] { display: none; }
+
+/* The add form in an E-board panel: email, position, and (for Other) a typed title, wrapping on a phone. */
+.eb-add { flex-wrap: wrap; }
+.eb-add .org-input { min-width: 150px; }
+.eb-add select.org-input { flex: 0 1 190px; cursor: pointer; }
+
+/* The editor under one E-board row: position, then a box per power. */
+.eb-edit {
+  display: flex; flex-direction: column; gap: 10px;
+  margin: 2px 0 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+}
+.eb-edit-pos { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.eb-edit-pos .org-input { flex: 0 1 220px; }
+.eb-edit-label {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint);
+}
+.eb-powers { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
+.eb-power { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; cursor: pointer; }
+.eb-power input { margin-top: 2px; flex: none; cursor: pointer; }
+.eb-power.is-locked { cursor: not-allowed; opacity: .6; }
+.eb-power-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.eb-power-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.eb-power-hint { font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+.eb-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 @media (max-width: 1200px) {
   .ao-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -2056,6 +2091,9 @@ select.ao-input { cursor: pointer; }
   .ao-num-l { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; font-weight: 400; color: var(--text-muted); }
   .ao-dept, .ao-strip, .ao-school, .ao-page .org-panel:not(:empty) { padding-left: 14px; padding-right: 14px; }
   .ao-suspend-row .ao-input { flex-basis: 100%; }
+  .ao-rename .ao-input, .eb-add .org-input { flex-basis: 100%; }
+  .ao-school.is-renaming .ao-strip { padding-left: 14px; }
+  .ao-start { padding: 18px 16px 20px; }
 }
 
 /* ── Notification bell + history (2026-09-04) ──────────────────────────────── */

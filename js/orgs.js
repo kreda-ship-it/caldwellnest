@@ -206,6 +206,121 @@ function orgTree(school) {
 }
 
 
+// ------------------------------------------------------------
+// E-board positions (2026-10-05)
+// ------------------------------------------------------------
+// "Officers" became "E-board members", each with a position. ONLY THE WORDS ON SCREEN CHANGED: the
+// database still stores role = 'officer', because renaming that value would touch about 40 rules
+// for no visible gain. The position is the membership's `title`.
+//
+// A club has ONE President and ONE Vice President; any other position can be held by several people.
+// The page checks that before saving, and the index in
+// sql/changes/2026-10-05_one_president_per_club.sql is the rule that actually holds.
+const EBOARD_POSITIONS = ['President', 'Vice President', 'Secretary', 'Treasurer', 'Social Media Manager', 'Event Coordinator'];
+const EBOARD_ONE_ONLY  = ['President', 'Vice President'];
+
+// The powers, in the order the editor lists them, each described by what it opens in the app.
+// Kal, 2026-10-05: a student-run E-board is teamwork, so every position starts with every power,
+// and the admin narrows them per person — except Manage E-board, which in a club only the President
+// starts with (see eboardDefaultPowers). The keys are the flag columns in ORG_ACTIONS above.
+const EBOARD_POWERS = [
+  ['can_manage_events',     'Events',              'Create and edit events'],
+  ['can_check_in',          'Door check-in',       'Check people in at events'],
+  ['can_post',              'Posts',               'Announcements and polls'],
+  ['can_manage_members',    'Members & club page', 'Approve and remove members, edit the club page'],
+  ['can_view_analytics',    'Analytics',           'See how the club is doing'],
+  ['can_message',           'Message members',     'Kept for a future feature — nothing uses it yet'],
+  ['can_manage_admins',     'Manage E-board',      'Add E-board members and change their powers'],
+  ['can_create_child_orgs', 'Add clubs',           'Create clubs under this department'],
+];
+
+// "Add clubs" only means something above a club. Given to a club's E-board, it would let them
+// create organizations under their own club through the API, outside any department's oversight.
+function eboardPowerApplies(key, org) {
+  return key !== 'can_create_child_orgs' || org?.type === 'department' || org?.type === 'school';
+}
+
+// What a new E-board member starts with: everything that applies to this kind of organization —
+// except that in a club, Manage E-board (adding, editing and removing E-board members) starts on
+// for the President only. Everyone holding it could reshape the E-board, so it is given on purpose:
+// an admin can still switch it on for, say, a Vice President. Departments and the school are staff,
+// who get the full set.
+function eboardDefaultPowers(org, title) {
+  const p = {};
+  EBOARD_POWERS.forEach(([k]) => { p[k] = eboardPowerApplies(k, org); });
+  if (org?.type === 'club') p.can_manage_admins = title === 'President';
+  return p;
+}
+
+// Where a title sorts: the positions in their list order, then any other title, then no title.
+// Shared with the club page (orgOfficersHTML in orgdir.js), so a President is always listed first.
+function orgPositionRank(title) {
+  const t = (title || '').trim().toLowerCase();
+  if (!t) return EBOARD_POSITIONS.length + 1;
+  const i = EBOARD_POSITIONS.findIndex(p => p.toLowerCase() === t);
+  return i === -1 ? EBOARD_POSITIONS.length : i;
+}
+
+// A position picker: the positions, then "Other…", which shows a box to type a title in.
+// `base` names the two controls (base-pos, base-title); eboardReadTitle(base) reads them back.
+function eboardPickerHTML(base, current, cls) {
+  const cur    = (current || '').trim();
+  const preset = EBOARD_POSITIONS.find(p => p.toLowerCase() === cur.toLowerCase());
+  const other  = !!cur && !preset;
+  return `
+    <select class="${cls}" id="${base}-pos" onchange="eboardPosChanged('${base}')" aria-label="Position">
+      ${EBOARD_POSITIONS.map(p => `<option value="${escAttr(p)}"${p === preset ? ' selected' : ''}>${esc(p)}</option>`).join('')}
+      <option value="other"${other ? ' selected' : ''}>Other…</option>
+    </select>
+    <input class="${cls} eb-custom" id="${base}-title" type="text" maxlength="40" autocomplete="off"
+           placeholder="Position title, e.g. Outreach Chair" aria-label="Position title"
+           value="${other ? escAttr(cur) : ''}"${other ? '' : ' hidden'}>`;
+}
+
+function eboardPosChanged(base) {
+  const other = document.getElementById(base + '-pos')?.value === 'other';
+  const box = document.getElementById(base + '-title');
+  if (!box) return;
+  box.hidden = !other;
+  if (other) box.focus();
+}
+
+// The title picked, or null after telling the admin what is missing. A typed title that matches
+// a position ("president") is saved as that position, so the one-President rule still sees it.
+function eboardReadTitle(base) {
+  const pick = document.getElementById(base + '-pos')?.value;
+  if (!pick) return null;
+  if (pick !== 'other') return pick;
+  const box = document.getElementById(base + '-title');
+  const typed = (box?.value || '').replace(/\s+/g, ' ').trim();
+  if (!typed) { toast('Type the position title'); box?.focus(); return null; }
+  return EBOARD_POSITIONS.find(p => p.toLowerCase() === typed.toLowerCase()) || typed;
+}
+
+// Who already holds a one-per-club position, other than the row being edited. null when the
+// position has no limit, when it is free, or when the check itself failed: the database rule
+// stands behind this either way, so a failed check never blocks a save on its own.
+async function _eboardSeatTaken(orgId, title, exceptId = null) {
+  if (!EBOARD_ONE_ONLY.includes(title)) return null;
+  const { data, error } = await supabaseClient.from('org_memberships').select('id')
+    .eq('org_id', orgId).eq('role', 'officer').eq('status', 'active').ilike('title', title);
+  if (error) { console.error('[_eboardSeatTaken]', error.message); return null; }
+  return (data || []).find(m => m.id !== exceptId) || null;
+}
+
+function _eboardSeatMessage(org, title) {
+  return `${org?.name || 'This club'} already has a ${title}. Change that person's position first.`;
+}
+
+// Turns a refused write into words. The one-President index and the (org, person) uniqueness both
+// arrive as 23505, so the constraint's name tells them apart.
+function _eboardErrorText(error, org, title, verb = 'save') {
+  if (error?.code === '23505' && /one_president_vp/.test(error.message || '')) return _eboardSeatMessage(org, title || 'President or Vice President');
+  if (error?.code === '23505') return 'That person is already on this roster';
+  return `Could not ${verb}: ${error?.message || 'unknown error'}`;
+}
+
+
 // ============================================================
 // ADMIN UI — the Organizations tab
 // ============================================================
@@ -236,12 +351,13 @@ let _aoOpenRow = null;       // org id whose action strip is open
 let _aoSuspend = null;       // org id whose suspend form is open
 let _aoReason  = null;       // the reason picked in that form
 let _aoAddMode = 'club';     // 'club' | 'department': what the add card creates
+let _aoRename  = null;       // org id whose rename box is open (a club, a department or the school)
 let _aoStats   = null;       // the numbers, from _aoLoadStats()
 
 const AO_TABS = ['active', 'attention', 'suspended'];
 const AO_DECISION_TYPES = ['org_created', 'org_deactivated', 'org_reactivated'];
 // Suspending asks for one of these, because "why" is the half of a decision that is lost first.
-const AO_REASONS = ['No active officer', 'Breaks campus policy', 'Club asked to close', 'Other'];
+const AO_REASONS = ['No active E-board', 'Breaks campus policy', 'Club asked to close', 'Other'];
 // Supabase's default "max rows". A longer answer is cut off WITHOUT an error, so a result this
 // long is treated as unknown rather than counted: a wrong number is worse than no number.
 const AO_ROW_CAP = 1000;
@@ -269,13 +385,11 @@ async function renderOrgs() {
   }
 
   if (!orgTree().length) {
-    // The school row is created by the bootstrap in sql/changes/2026-09-04_org_hierarchy.sql, and
-    // only a super admin can create a root organization — that is what makes verification
-    // provenance rather than a checkbox. So an empty tree means bootstrap has not been run,
-    // not that something is broken.
-    host.innerHTML = '<div class="org-empty"><strong>No organizations yet.</strong><br>'
-      + 'The school organization is created once, by hand, in the SQL editor — see the '
-      + 'BOOTSTRAP section of <code>sql/changes/2026-09-04_org_hierarchy.sql</code>.</div>';
+    // Everything hangs off the school organization, and only a super admin can create a root
+    // organization (organizations_insert) — that is what makes verification provenance rather than
+    // a checkbox. Until 2026-10-05 this screen sent the admin to a BOOTSTRAP block in the SQL editor;
+    // now the super admin creates it here.
+    host.innerHTML = await _aoStartHtml(ctx);
     return;
   }
 
@@ -288,6 +402,82 @@ async function renderOrgs() {
   if (search) search.value = _aoQuery;
   _aoPaintAdd();
   _aoPaint();
+}
+
+// ---------- the first step: create the school ----------
+// The school organization IS the school's slug: its `school` and its `slug` are both 'caldwell',
+// as the old SQL bootstrap made it. Only the name is typed, and it can be renamed later.
+let _aoSchools = [];   // [{ slug, name }] from the schools table, for the picker
+
+async function _aoStartHtml(ctx) {
+  if (!ctx.isSuper) {
+    return '<div class="org-empty"><strong>No organizations yet.</strong><br>'
+      + 'A platform administrator creates the school first, then its departments and clubs.</div>';
+  }
+  const { data, error } = await supabaseClient.from('schools').select('slug, name').order('name');
+  if (error || !data?.length) {
+    if (error) console.error('[_aoStartHtml] schools:', error.message);
+    return '<div class="org-empty"><strong>No organizations yet.</strong><br>Could not load the list of schools'
+      + (error ? ': ' + esc(error.message) : '') + '. Reload to try again.</div>';
+  }
+  _aoSchools = data;
+  const first = data.find(s => s.slug === 'caldwell') || data[0];
+  return `
+    <div class="ao-page">
+      <section class="ao-card ao-start" aria-labelledby="aoStartTitle">
+        <div>
+          <h2 class="ao-card-title" id="aoStartTitle">Create the school</h2>
+          <p class="ao-card-lede">Everything starts here. Departments sit under the school, and clubs sit under
+            departments. You can rename it later.</p>
+        </div>
+        <div class="ao-field">
+          <label for="aoSchoolSlug">School</label>
+          <select class="ao-input" id="aoSchoolSlug" onchange="aoPickSchool(this.value)">
+            ${data.map(s => `<option value="${escAttr(s.slug)}"${s === first ? ' selected' : ''}>${esc(s.name || s.slug)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ao-field">
+          <label for="aoSchoolName">Name students will see</label>
+          <input class="ao-input" id="aoSchoolName" type="text" maxlength="80" autocomplete="off" value="${escAttr(first.name || '')}">
+        </div>
+        <div class="ao-add-actions">
+          <button class="ao-btn ao-btn-go" id="aoSchoolBtn" onclick="aoCreateSchool()">Create the school</button>
+        </div>
+      </section>
+    </div>`;
+}
+
+function aoPickSchool(slug) {
+  const s = _aoSchools.find(x => x.slug === slug);
+  const name = document.getElementById('aoSchoolName');
+  if (s && name) name.value = s.name || '';
+}
+
+async function aoCreateSchool() {
+  if (!_orgCtx?.isSuper) { toast('Only a platform administrator can create the school'); return; }
+  const slug   = document.getElementById('aoSchoolSlug')?.value || '';
+  const nameEl = document.getElementById('aoSchoolName');
+  const name   = (nameEl?.value || '').replace(/\s+/g, ' ').trim();
+  if (!slug) { toast('Choose the school'); return; }
+  if (!name) { toast('Give the school a name'); nameEl?.focus(); return; }
+
+  const btn = document.getElementById('aoSchoolBtn');
+  if (btn) btn.disabled = true;
+  const { data, error } = await supabaseClient.from('organizations').insert({
+    school: slug, parent_id: null, type: 'school', name, slug, created_by: _orgCtx.userId,
+  }).select('id').single();
+  if (error) {
+    if (btn) btn.disabled = false;
+    toast(error.code === '23505' ? 'That school already exists — reload the page' : 'Could not create: ' + error.message);
+    console.error('[aoCreateSchool]', error);
+    return;
+  }
+  await logEvent('org_created', { targetType: 'organization', targetId: data.id, targetLabel: name,
+                                  school: slug, after: { type: 'school' } });
+  toast(`${name} created. Next, add a department.`);
+  _aoAddMode = 'department';
+  clearOrgContext();
+  renderOrgs();
 }
 
 // Four reads in parallel, and each can fail on its own. A failed or truncated read makes its
@@ -411,7 +601,7 @@ function _aoFrameHtml() {
             <span class="ao-card-note">Grouped by department · events counted this semester</span>
           </div>
           <div class="ao-cols" aria-hidden="true">
-            <span>Name</span><span>Followers</span><span>Events</span><span>Officers</span><span>Status</span><span></span>
+            <span>Name</span><span>Followers</span><span>Events</span><span>E-board</span><span>Status</span><span></span>
           </div>
           <div id="aoList"></div>
         </section>
@@ -471,6 +661,13 @@ function _aoPaintList() {
   const roots = orgTree();
   let html = '';
 
+  // The school heading is always drawn (it used to appear only with two schools or more), because it
+  // carries the school's Rename. With no department yet it is drawn above the empty message.
+  if (roots.length === 1 && !q && !(roots[0].children || []).length) {
+    el.innerHTML = _aoSchoolHtml(roots[0]) + `<div class="org-empty">${_aoEmptyText()}</div>`;
+    return;
+  }
+
   roots.forEach(school => {
     const kids = school.children || [];
     let groups = '';
@@ -489,8 +686,7 @@ function _aoPaintList() {
     // schema forbids one, so it is shown rather than silently dropped.
     const loose = kids.filter(k => k.type !== 'department');
     if (loose.length) groups += group(null, loose);
-    if (groups && roots.length > 1) html += `<div class="ao-school">${esc(school.name)}</div>`;
-    html += groups;
+    if (groups) html += _aoSchoolHtml(school) + groups;
   });
 
   el.innerHTML = html || `<div class="org-empty">${_aoEmptyText()}</div>`;
@@ -501,14 +697,29 @@ function _aoPaintList() {
   }
 }
 
+// The school's heading: its name, then E-board and Rename for whoever may manage it (in practice the
+// super admin). The school's own E-board panel opens underneath, like a department's.
+function _aoSchoolHtml(school) {
+  const panel = `<div class="org-panel" id="org-panel-${school.id}"></div>`;
+  if (_aoRename === school.id) return `<div class="ao-school is-renaming">${_aoRenameHtml(school)}</div>` + panel;
+  const canManage = orgCanAct('manage_members', school.id);
+  return `<div class="ao-school"><span>${esc(school.name)}</span>${canManage ? `<span class="ao-school-actions">
+      <button class="ao-link" onclick="aoOfficers(${school.id})" aria-label="E-board of ${escAttr(school.name)}">E-board</button>
+      <button class="ao-link" onclick="aoAskRename(${school.id})" aria-label="Rename ${escAttr(school.name)}">Rename</button>
+    </span>` : ''}</div>` + panel;
+}
+
 function _aoEmptyText() {
   if (_aoQuery.trim()) return `Nothing matches “${esc(_aoQuery.trim())}”.`;
+  if (_aoTab === 'active' && _orgCtx && ![..._orgCtx.orgs.values()].some(o => o.type !== 'school')) {
+    return 'No departments yet. Start with “Add a department” — clubs go inside departments.';
+  }
   if (_aoTab === 'attention' && !_aoAllRostersKnown()) {
-    return 'Some rosters could not be read, so a club with no officers may not be listed here.';
+    return 'Some rosters could not be read, so a club with no E-board may not be listed here.';
   }
   return {
     active:    'No active organizations.',
-    attention: 'Every active club has at least one officer.',
+    attention: 'Every active club has at least one E-board member.',
     suspended: 'No suspended organizations.',
   }[_aoTab];
 }
@@ -533,7 +744,7 @@ function _aoDeptHtml(d, f, clubCount) {
   const canChild  = d.is_active && orgCanAct('create_child_orgs', d.id);
   const canManage = orgCanAct('manage_members', d.id);
   const meta = ['Department', `${clubCount} club${clubCount === 1 ? '' : 's'}`,
-                f.officers === null ? null : `${f.officers} officer${f.officers === 1 ? '' : 's'}`]
+                f.officers === null ? null : `${f.officers} on the E-board`]
                .filter(Boolean).join(' · ');
   return `
     <div class="ao-dept${d.is_active ? '' : ' is-off'}${open ? ' is-open' : ''}">
@@ -542,7 +753,7 @@ function _aoDeptHtml(d, f, clubCount) {
       ${d.is_active ? '' : '<span class="ao-badge is-off">Suspended</span>'}
       <span class="ao-dept-actions">
         ${canChild ? `<button class="ao-btn" onclick="aoAddClubTo(${d.id})" aria-label="Add a club to ${escAttr(d.name)}">+ Club</button>` : ''}
-        ${canManage ? `<button class="ao-btn" onclick="aoOfficers(${d.id})">Officers</button>` : ''}
+        ${canManage ? `<button class="ao-btn" onclick="aoOfficers(${d.id})">E-board</button>` : ''}
         ${canManage ? _aoMoreHtml(d) : ''}
       </span>
     </div>
@@ -552,7 +763,7 @@ function _aoDeptHtml(d, f, clubCount) {
 
 function _aoRowHtml(o, f) {
   const open = _aoOpenRow === o.id;
-  const sub = f.attention ? '<span class="ao-sub is-warn">No active officer</span>'
+  const sub = f.attention ? '<span class="ao-sub is-warn">No E-board yet</span>'
     : f.last  ? `<span class="ao-sub">Last event ${_aoDate(f.last)}</span>`
     : f.next  ? `<span class="ao-sub">Next event ${_aoDate(f.next)}</span>`
     : f.events === null ? '' : '<span class="ao-sub">No events in the past year</span>';
@@ -566,7 +777,7 @@ function _aoRowHtml(o, f) {
       <span class="ao-nums">
         ${_aoNumHtml(f.followers, 'follower', 'followers', o.is_active ? couldNot : 'Not counted while suspended')}
         ${_aoNumHtml(f.events, 'event', 'events', couldNot)}
-        ${_aoNumHtml(f.officers, 'officer', 'officers', f.rosterReadable || !_aoStats?.ok?.officers ? couldNot : 'You cannot read this roster', f.attention)}
+        ${_aoNumHtml(f.officers, 'on the E-board', 'on the E-board', f.rosterReadable || !_aoStats?.ok?.officers ? couldNot : 'You cannot read this roster', f.attention)}
       </span>
       <span class="ao-status">${badge}</span>
       ${_aoMoreHtml(o)}
@@ -577,8 +788,10 @@ function _aoRowHtml(o, f) {
 
 function _aoStripHtml(o, isDept) {
   if (_aoSuspend === o.id) return _aoSuspendHtml(o);
+  if (_aoRename === o.id) return _aoRenameHtml(o);
   return `<div class="ao-strip">
-    ${isDept ? '' : `<button class="ao-btn" onclick="aoOfficers(${o.id})">Officers</button>`}
+    ${isDept ? '' : `<button class="ao-btn" onclick="aoOfficers(${o.id})">E-board</button>`}
+    <button class="ao-btn" onclick="aoAskRename(${o.id})">Rename</button>
     ${o.is_active
       ? `<button class="ao-btn ao-btn-warn" onclick="aoAskSuspend(${o.id})">Suspend…</button>`
       : `<button class="ao-btn ao-btn-go" onclick="orgSetActive(${o.id}, true)">Reactivate</button>`}
@@ -606,6 +819,18 @@ function _aoSuspendHtml(o) {
         <button class="ao-btn" onclick="aoCancelSuspend(${o.id})">Cancel</button>
         <button class="ao-btn ao-btn-danger" onclick="aoConfirmSuspend(${o.id})">Suspend ${o.type === 'department' ? 'department' : 'club'}</button>
       </div>
+    </div>`;
+}
+
+// Rename, in the same strip as Suspend. Enter saves.
+function _aoRenameHtml(o) {
+  return `
+    <div class="ao-strip ao-rename" role="group" aria-label="Rename ${escAttr(o.name)}">
+      <input class="ao-input" id="aoRename-${o.id}" type="text" maxlength="80" autocomplete="off"
+             value="${escAttr(o.name)}" aria-label="New name for ${escAttr(o.name)}"
+             onkeydown="if (event.key === 'Enter') aoSaveRename(${o.id})">
+      <button class="ao-btn" onclick="aoCancelRename(${o.id})">Cancel</button>
+      <button class="ao-btn ao-btn-go" onclick="aoSaveRename(${o.id})">Save name</button>
     </div>`;
 }
 
@@ -655,7 +880,7 @@ function _aoPaintAdd() {
       <div>
         <h2 class="ao-card-title" id="aoAddTitle">${isClub ? 'Add a club' : 'Add a department'}</h2>
         <p class="ao-card-lede">${isClub
-          ? 'It appears in the directory straight away. Add an officer now so it has a console to run from.'
+          ? 'It appears in the directory straight away. Add its first E-board member now so it has a console to run from.'
           : 'Departments hold clubs. Add one only if the school really has it.'}</p>
       </div>
     </div>
@@ -672,9 +897,11 @@ function _aoPaintAdd() {
     </div>
     ${isClub ? `
     <div class="ao-field">
-      <label for="aoNewOfficer">First officer <span class="ao-optional">(optional)</span></label>
-      <input class="ao-input" id="aoNewOfficer" type="email" autocomplete="off" placeholder="officer@caldwell.edu">
-      <span class="ao-hint">They need a Nestrel account first.</span>
+      <label for="aoNewOfficer">First E-board member <span class="ao-optional">(optional)</span></label>
+      <input class="ao-input" id="aoNewOfficer" type="email" autocomplete="off" placeholder="student@caldwell.edu">
+      ${eboardPickerHTML('aoNewEb', 'President', 'ao-input')}
+      <span class="ao-hint">They need a Nestrel account first. They start with every power (Manage E-board only if
+        they are the President) — adjust them under E-board.</span>
     </div>` : ''}
     <div class="ao-add-actions">
       ${other}
@@ -685,7 +912,7 @@ function _aoPaintAdd() {
 // ---------- page interactions ----------
 function aoSetTab(tab) {
   if (!AO_TABS.includes(tab)) return;
-  _aoTab = tab; _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoTab = tab; _aoOpenRow = null; _aoSuspend = null; _aoReason = null; _aoRename = null;
   saveUiState('aoTab', tab);
   _aoPaintTabs();
   _aoPaintList();
@@ -693,7 +920,7 @@ function aoSetTab(tab) {
 
 function aoSearch(value) {
   _aoQuery = value || '';
-  _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoOpenRow = null; _aoSuspend = null; _aoReason = null; _aoRename = null;
   _aoPaintList();
 }
 
@@ -703,7 +930,7 @@ function _aoFocus(selector) { document.querySelector(selector)?.focus(); }
 
 function aoToggleRow(id) {
   _aoOpenRow = _aoOpenRow === id ? null : id;
-  _aoSuspend = null; _aoReason = null;
+  _aoSuspend = null; _aoReason = null; _aoRename = null;
   _aoPaintList();
   _aoFocus(`[aria-controls="ao-strip-${id}"]`);
 }
@@ -711,7 +938,7 @@ function aoToggleRow(id) {
 function aoAskSuspend(id) {
   const org = _orgCtx?.orgs.get(id);
   if (!org) return;
-  _aoOpenRow = id; _aoSuspend = id;
+  _aoOpenRow = id; _aoSuspend = id; _aoRename = null;
   // A club flagged for having no officer is usually being suspended for exactly that.
   _aoReason = _aoFacts(org).attention ? AO_REASONS[0] : null;
   _aoPaintList();
@@ -735,6 +962,57 @@ function aoCancelSuspend(id) {
   _aoFocus(`[aria-controls="ao-strip-${id}"]`);
 }
 
+function aoAskRename(id) {
+  const org = _orgCtx?.orgs.get(id);
+  if (!org) return;
+  _aoOpenRow = org.type === 'school' ? null : id;   // the school's box sits in its heading, not a strip
+  _aoRename = id; _aoSuspend = null; _aoReason = null;
+  _aoPaintList();
+  const box = document.getElementById('aoRename-' + id);
+  if (box) { box.focus(); box.select(); }
+}
+
+function aoCancelRename(id) {
+  const org = _orgCtx?.orgs.get(id);
+  _aoRename = null;
+  _aoPaintList();
+  _aoFocus(org?.type === 'school' ? '.ao-school .ao-link' : `[aria-controls="ao-strip-${id}"]`);
+}
+
+// Only the name changes for a school: its slug is its school's address ('caldwell'), so it never moves.
+// For a department or club the slug follows the name, so a new one can take the old name later —
+// `unique (school, slug)` would otherwise refuse it. Only a super admin may change a slug
+// (guard_organization_columns), so anyone else renames the name alone.
+async function aoSaveRename(id) {
+  const org = _orgCtx?.orgs.get(id);
+  if (!org) return;
+  const box  = document.getElementById('aoRename-' + id);
+  const name = (box?.value || '').replace(/\s+/g, ' ').trim();
+  if (!name) { toast('The name cannot be empty'); box?.focus(); return; }
+  if (name === org.name) { aoCancelRename(id); return; }
+
+  const changes = { name };
+  if (_orgCtx.isSuper && org.type !== 'school') {
+    const slug = _aoSlug(name);
+    if (!slug) { toast('That name has no letters or numbers in it'); box?.focus(); return; }
+    changes.slug = slug;
+  }
+  // .select() so a write that row security quietly refuses is not announced as done.
+  const { data, error } = await supabaseClient.from('organizations').update(changes).eq('id', id).select('id');
+  if (error) {
+    toast(error.code === '23505' ? 'Another organization already has that name' : 'Could not rename: ' + error.message);
+    console.error('[aoSaveRename]', error);
+    return;
+  }
+  if (!data?.length) { toast(`You don't have authority to rename ${org.name}`); return; }
+
+  await logEvent('org_renamed', { targetType: 'organization', targetId: id, targetLabel: name, school: org.school,
+                                  before: { name: org.name }, after: { name } });
+  toast(`Renamed to ${name}`);
+  _aoRename = null; _aoOpenRow = null;
+  renderOrgs();
+}
+
 async function aoConfirmSuspend(id) {
   const noteEl = document.getElementById('aoSusNote-' + id);
   const note = (noteEl?.value || '').trim();
@@ -744,7 +1022,7 @@ async function aoConfirmSuspend(id) {
 }
 
 function aoOfficers(id) {
-  _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoOpenRow = null; _aoSuspend = null; _aoReason = null; _aoRename = null;
   _aoPaintList();
   orgTogglePanel(id);
 }
@@ -769,6 +1047,8 @@ function aoOpenActivityLog() {
 }
 
 // ---------- create a club or department ----------
+function _aoSlug(name) { return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+
 async function aoCreateOrg() {
   const type   = _aoAddMode === 'department' ? 'department' : 'club';
   const nameEl = document.getElementById('aoNewName');
@@ -778,10 +1058,14 @@ async function aoCreateOrg() {
 
   if (!name)   { toast(`Give the ${type} a name first`); nameEl?.focus(); return; }
   if (!parent) { toast('Choose where it belongs'); return; }
+  // Read before anything is created, so a missing custom title stops the whole thing rather than
+  // leaving a club with nobody on it.
+  const title = email ? eboardReadTitle('aoNewEb') : null;
+  if (email && !title) return;
 
   // The slug is derived, never typed. It is half of `unique (school, slug)`, so letting a
   // person enter it invites two clubs that differ only by a capital letter.
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const slug = _aoSlug(name);
   if (!slug) { toast('That name has no letters or numbers in it'); nameEl?.focus(); return; }
 
   const btn = document.getElementById('aoCreateBtn');
@@ -809,15 +1093,15 @@ async function aoCreateOrg() {
   let message = `${name} created`;
   if (email) {
     await loadOrgContext(true);   // the new club must be in the cache before anything looks it up
-    const r = await _orgGrantOfficer(data.id, email);
-    // The club exists either way, and the message must say so. "Could not add officer" on its
-    // own reads as though nothing was created, and the admin makes a second club.
-    message = r.ok ? `${name} created, with ${email} as its first officer`
-                   : `${name} was created, but the officer was not added. ${r.message}`;
+    const r = await _orgGrantOfficer(data.id, email, title);
+    // The club exists either way, and the message must say so. "Could not add" on its own reads
+    // as though nothing was created, and the admin makes a second club.
+    message = r.ok ? `${name} created, with ${email} as its ${title}`
+                   : `${name} was created, but ${email} was not added. ${r.message}`;
   }
   toast(message);
 
-  _aoTab = 'active'; _aoQuery = ''; _aoOpenRow = null; _aoSuspend = null; _aoReason = null;
+  _aoTab = 'active'; _aoQuery = ''; _aoOpenRow = null; _aoSuspend = null; _aoReason = null; _aoRename = null;
   saveUiState('aoTab', 'active');
   clearOrgContext();
   renderOrgs();
@@ -859,23 +1143,31 @@ async function _aoAfterRosterChange(orgId) {
   orgTogglePanel(orgId);
 }
 
-// ---------- the officer panel ----------
+// ---------- the E-board panel ----------
+// Was "the officer panel" until 2026-10-05. Same rows; the screen now says E-board, sorts by
+// position, and lets whoever holds "Manage E-board" change a person's position and powers.
+let _orgRoster  = null;   // { orgId, rows, names, namesFailed } — the panel's data, so Edit can redraw without a reload
+let _orgEditing = null;   // membership id whose editor is open
+
+const _EB_COLS = EBOARD_POWERS.map(([k]) => k).join(', ');
+
 async function orgTogglePanel(orgId) {
   const el = document.getElementById('org-panel-' + orgId);
   if (!el) return;
   // The permission cache must be loaded before this draws, or orgCanAct() answers false and the
-  // roster repaints without its Add officer form. Every roster change clears the cache and then
-  // calls this, which is exactly when that used to happen.
+  // roster repaints without its add form. Every roster change clears the cache and then calls
+  // this, which is exactly when that used to happen.
   if (!_orgCtx) await loadOrgContext();
-  if (_orgOpenPanel === orgId) { el.innerHTML = ''; _orgOpenPanel = null; return; }
+  if (_orgOpenPanel === orgId) { el.innerHTML = ''; _orgOpenPanel = null; _orgEditing = null; return; }
 
   document.querySelectorAll('.org-panel').forEach(p => p.innerHTML = '');
   _orgOpenPanel = orgId;
+  _orgEditing = null;
   el.innerHTML = '<div class="org-empty">Loading roster…</div>';
 
   const { data, error } = await supabaseClient
     .from('org_memberships')
-    .select('id, user_id, pending_email, role, title, status, can_post, can_manage_members, can_manage_admins')
+    .select(`id, user_id, pending_email, role, title, status, ${_EB_COLS}`)
     .eq('org_id', orgId);
   if (error) { el.innerHTML = '<div class="org-empty">Could not load the roster.</div>'; console.error('[orgTogglePanel]', error); return; }
 
@@ -893,20 +1185,36 @@ async function orgTogglePanel(orgId) {
     if (profErr) { namesFailed = true; console.error('[orgTogglePanel] name lookup failed:', profErr.message); }
     (profs || []).forEach(p => names[p.id] = `${p.first_name} ${p.last_name}`.trim() + ` · ${p.email}`);
   }
+  _orgRoster = { orgId, rows: data || [], names, namesFailed };
+  _orgPaintRoster();
+}
+
+function _orgPaintRoster() {
+  const R = _orgRoster;
+  if (!R) return;
+  const orgId = R.orgId;
+  const el = document.getElementById('org-panel-' + orgId);
+  if (!el) return;
+  const org = _orgCtx?.orgs.get(orgId);
+
   const who = m => m.user_id
-    ? (names[m.user_id] || (namesFailed ? 'Name unavailable — no permission to read it' : 'Unknown student'))
+    ? (R.names[m.user_id] || (R.namesFailed ? 'Name unavailable — no permission to read it' : 'Unknown student'))
     : (m.pending_email + ' (invited — see below)');
 
   const canGrant = orgCanAct('manage_admins', orgId);
 
-  // Active first, then everyone who has left. A removed row is history rather than a member,
-  // so it is dimmed and offers Restore instead of Remove.
-  const sorted = (data || []).slice().sort((a, b) =>
-    (a.status === 'removed' ? 1 : 0) - (b.status === 'removed' ? 1 : 0));
+  // E-board first, by position (President, Vice President, …, then any other title), then members,
+  // then everyone who has left. A removed row is history rather than a member, so it is dimmed and
+  // offers Restore instead of Remove.
+  const group = m => m.status === 'removed' ? 2 : m.role === 'officer' ? 0 : 1;
+  const sorted = R.rows.slice().sort((a, b) =>
+    group(a) - group(b) || orgPositionRank(a.title) - orgPositionRank(b.title)
+    || who(a).localeCompare(who(b)));
 
   const rows = sorted.length
     ? sorted.map(m => {
         const gone = m.status === 'removed';
+        const eboard = m.role === 'officer' && m.status === 'active';
         // No Remove control on your own row. The database refuses it anyway
         // (guard_org_self_removal), and a button whose only outcome is an error message is
         // worse than no button — this is the mirror, and the mirror should not offer what
@@ -915,54 +1223,136 @@ async function orgTogglePanel(orgId) {
         // Anyone who can see this roster holds can_manage_members, so "my own row" and "a
         // row the guard protects" are the same row here.
         const mine = m.user_id && m.user_id === _orgCtx?.userId;
+        const edit = eboard && canGrant
+          ? `<button class="org-btn" onclick="orgEditEboard(${m.id})" aria-expanded="${_orgEditing === m.id}">Edit</button>` : '';
         const action = mine
           ? '<span class="org-roster-self">You</span>'
           : gone
             ? `<button class="org-btn" onclick="orgRestoreMember(${m.id}, ${orgId})">Restore</button>`
             : `<button class="org-btn org-btn-warn" onclick="orgRemoveMember(${m.id}, ${orgId})">Remove</button>`;
+        const label = m.role === 'officer' ? (m.title || 'E-board') : 'Member';
         return `
         <div class="org-roster-row${gone ? ' org-roster-row-off' : ''}">
           <span class="org-roster-who">${esc(who(m))}</span>
-          <span class="org-roster-role">${esc(m.title || m.role)}${m.status !== 'active' ? ' · ' + esc(m.status) : ''}</span>
-          ${action}
-        </div>`; }).join('')
+          <span class="org-roster-role">${esc(label)}${m.status !== 'active' ? ' · ' + esc(m.status) : ''}</span>
+          ${edit}${action}
+        </div>
+        ${_orgEditing === m.id && eboard && canGrant ? _orgEboardEditorHTML(m, org, mine) : ''}`; }).join('')
     : '<div class="org-empty">No members yet.</div>';
 
-  // "Add me as an officer here" — the BOOTSTRAP block of sql/changes/2026-09-04_org_hierarchy.sql,
-  // without the SQL editor. §2.7 is explicit that platform operator and officer are two
+  // "Add me to this roster" — what the BOOTSTRAP block of sql/changes/2026-09-04_org_hierarchy.sql
+  // used to do in the SQL editor. §2.7 is explicit that platform operator and officer are two
   // identities sharing one login: can_act() answers true for a super admin everywhere, but
-  // orgMemberships() lists real rows only, so a super admin with no row is told they are an
-  // officer of nothing. True, and useless. This is the button that fixes it.
+  // orgMemberships() lists real rows only, so a super admin with no row is told they are on
+  // the E-board of nothing. True, and useless. This is the button that fixes it.
   //
   // SUPER ADMINS ONLY, deliberately. Someone holding can_manage_admins on one club could
   // otherwise use this to grant themselves can_create_child_orgs — a flag they were never
   // given — which is the escalation shape the whole flag guard exists to prevent. A super
   // admin already holds every authority through is_super_admin(), so the row they create
   // here adds identity, not power.
-  const myRow = (data || []).find(m => m.user_id === _orgCtx?.userId);
+  const myRow = R.rows.find(m => m.user_id === _orgCtx?.userId);
   const selfBtn = (_orgCtx?.isSuper && (!myRow || myRow.status !== 'active'))
     ? `<div class="org-form">
-         <button class="org-btn" onclick="orgAddSelf(${orgId})">Add me as an officer here</button>
+         <button class="org-btn" onclick="orgAddSelf(${orgId})">Add me to this roster, as Administrator</button>
        </div>`
     : '';
 
+  // The add form starts on the first one-per-club position nobody holds, so the common case —
+  // a new club getting its President, then its Vice President — needs no change to the picker.
+  const held = new Set(R.rows.filter(m => m.role === 'officer' && m.status === 'active')
+                              .map(m => (m.title || '').trim().toLowerCase()));
+  const firstFree = EBOARD_ONE_ONLY.find(p => !held.has(p.toLowerCase())) || EBOARD_POSITIONS[2];
+
   el.innerHTML = rows + selfBtn + (canGrant ? `
-    <div class="org-form">
-      <input class="org-input" id="org-add-${orgId}" type="email" placeholder="officer@caldwell.edu" autocomplete="off">
-      <button class="org-btn" onclick="orgAddOfficer(${orgId})">Add officer</button>
+    <div class="org-form eb-add">
+      <input class="org-input" id="org-add-${orgId}" type="email" placeholder="student@caldwell.edu" autocomplete="off" aria-label="Email of the person to add">
+      ${eboardPickerHTML('eb-add-' + orgId, firstFree, 'org-input')}
+      <button class="org-btn" onclick="orgAddOfficer(${orgId})">Add to E-board</button>
     </div>
-    <div class="org-note">They must already have a Nestrel account. Adding someone who has not
-    signed up yet is not supported — the invite would never resolve into a real membership.<br>
-    You cannot remove your own officer role: another officer, or someone in the organization
-    above this one, has to do it.</div>`
-    : '<div class="org-empty">Adding officers needs the \u201Cmanage admins\u201D permission.</div>');
+    <div class="org-note">New E-board members start with every power, except that only a President starts with
+    Manage E-board; use Edit to change a position or narrow
+    the powers. One President and one Vice President per club. They must already have a Nestrel account —
+    adding someone who has not signed up yet is not supported.<br>
+    You cannot remove yourself from an E-board: another E-board member, or someone in the
+    organization above this one, has to do it.</div>`
+    : '<div class="org-empty">Adding E-board members needs the “Manage E-board” power.</div>');
 }
 
-// Adds `email` as an officer of orgId and REPORTS what happened instead of toasting it, so each
-// caller can word the outcome for its own context: the roster panel, and "Add a club", which
-// creates a club and names its first officer in one step. Every check below is the one
-// orgAddOfficer() always made, moved here unchanged.
-async function _orgGrantOfficer(orgId, email) {
+// The editor under one E-board row: position, then each power that applies to this kind of
+// organization. Your own "Members & club page" box is locked unless you are a super admin, because
+// guard_org_self_removal refuses to let you take that power from yourself.
+function _orgEboardEditorHTML(m, org, mine) {
+  const lockSelf = mine && !_orgCtx?.isSuper;
+  const base = 'eb-ed-' + m.id;
+  const powers = EBOARD_POWERS.filter(([k]) => eboardPowerApplies(k, org)).map(([k, label, hint]) => {
+    const locked = lockSelf && k === 'can_manage_members';
+    return `
+      <label class="eb-power${locked ? ' is-locked' : ''}"${locked ? ' title="You cannot take this power from yourself"' : ''}>
+        <input type="checkbox" data-k="${k}"${m[k] ? ' checked' : ''}${locked ? ' disabled' : ''}>
+        <span class="eb-power-text"><span class="eb-power-name">${esc(label)}</span><span class="eb-power-hint">${esc(hint)}</span></span>
+      </label>`;
+  }).join('');
+  return `
+    <div class="eb-edit" id="${base}" role="group" aria-label="Position and powers">
+      <div class="eb-edit-pos">
+        <span class="eb-edit-label">Position</span>
+        ${eboardPickerHTML(base, m.title, 'org-input')}
+      </div>
+      <div class="eb-edit-label">Powers</div>
+      <div class="eb-powers">${powers}</div>
+      <div class="eb-edit-actions">
+        <button class="org-btn" onclick="orgEditEboard(null)">Cancel</button>
+        <button class="org-btn org-btn-go" onclick="orgSaveEboard(${m.id})">Save</button>
+      </div>
+    </div>`;
+}
+
+// Opens (or, given null or the open row, closes) the editor. Redraws from memory: nothing is saved yet.
+function orgEditEboard(membershipId) {
+  _orgEditing = (membershipId == null || _orgEditing === membershipId) ? null : membershipId;
+  _orgPaintRoster();
+  if (_orgEditing) document.getElementById(`eb-ed-${_orgEditing}-pos`)?.focus();
+}
+
+async function orgSaveEboard(membershipId) {
+  const R = _orgRoster;
+  const m = R?.rows.find(r => r.id === membershipId);
+  if (!m) return;
+  const orgId = R.orgId;
+  const org = _orgCtx?.orgs.get(orgId);
+  const base = 'eb-ed-' + membershipId;
+
+  const title = eboardReadTitle(base);
+  if (!title) return;
+  const changes = { title };
+  document.querySelectorAll(`#${base} input[data-k]`).forEach(cb => { changes[cb.dataset.k] = cb.checked; });
+  // Never on a club, even if an old row carried it (see eboardPowerApplies).
+  if (!eboardPowerApplies('can_create_child_orgs', org)) changes.can_create_child_orgs = false;
+
+  const before = {}, after = {};
+  Object.keys(changes).forEach(k => { if (changes[k] !== m[k]) { before[k] = m[k]; after[k] = changes[k]; } });
+  if (!Object.keys(after).length) { orgEditEboard(null); return; }
+
+  if (after.title && await _eboardSeatTaken(orgId, title, membershipId)) { toast(_eboardSeatMessage(org, title)); return; }
+
+  const { data, error } = await supabaseClient.from('org_memberships')
+    .update(changes).eq('id', membershipId).select('id');
+  if (error) { toast(_eboardErrorText(error, org, title)); console.error('[orgSaveEboard]', error); return; }
+  if (!data?.length) { toast("You don't have authority to change this E-board"); return; }
+
+  logEvent('org_eboard_changed', { targetType: 'membership', targetId: membershipId,
+    targetLabel: (R.names[m.user_id] || '').split(' · ')[0] || title, school: org?.school, before, after });
+  toast('Saved');
+  _orgEditing = null;
+  _aoAfterRosterChange(orgId);
+}
+
+// Adds `email` to orgId's E-board as `title` and REPORTS what happened instead of toasting it, so
+// each caller can word the outcome for its own context: the roster panel, and "Add a club", which
+// creates a club and names its first E-board member in one step. The name says "officer" because
+// the database does (role = 'officer').
+async function _orgGrantOfficer(orgId, email, title) {
 
   // Look the person up. THE ERROR MATTERS AS MUCH AS THE RESULT, and until 2026-09-05 this
   // line discarded it — so "the database refused me this read" and "nobody has that address"
@@ -998,28 +1388,25 @@ async function _orgGrantOfficer(orgId, email) {
   // UPDATE. Without this branch it fails on the unique constraint with a duplicate-key
   // message that names neither the person nor the reason.
   const { data: existing, error: existErr } = await supabaseClient
-    .from('org_memberships').select('id, status')
+    .from('org_memberships').select('id, status, role')
     .eq('org_id', orgId).eq('user_id', prof.id).maybeSingle();
 
   if (existErr) {
     console.error('[_orgGrantOfficer] roster check failed:', existErr);
     return { ok: false, message: 'Could not check the roster: ' + existErr.message };
   }
+  // Adding again would quietly reset their position and powers to the defaults. Edit is the way.
+  if (existing && existing.status === 'active' && existing.role === 'officer') {
+    return { ok: false, message: email + ' is already on the E-board — use Edit to change their position' };
+  }
 
-  const grant = {
-    role: 'officer',
-    title: 'Officer',
-    status: 'active',
-    // A deliberate default, not a full set: post, manage the roster, read analytics, reply to
-    // messages. NOT create_child_orgs and NOT manage_admins — granting authority is the one
-    // thing that should never be handed out by default.
-    //
-    // Also not can_manage_events or can_check_in, which is correct only until Phase 3 ships:
-    // nothing reads them yet, but the day events exist, an officer added here will not be
-    // able to create one. Whether the default officer grant should include them is a Phase 3
-    // decision, and this comment is the reminder to make it deliberately.
-    can_post: true, can_manage_members: true, can_view_analytics: true, can_message: true,
-  };
+  const org = _orgCtx?.orgs.get(orgId);
+  if (await _eboardSeatTaken(orgId, title, existing?.id)) return { ok: false, message: _eboardSeatMessage(org, title) };
+
+  // Every power that applies, whatever the position (Kal, 2026-10-05): a student-run E-board is
+  // teamwork, and the admin narrows powers per person with Edit. Until then the default was four
+  // flags and no way to change them afterwards.
+  const grant = { role: 'officer', title, status: 'active', ...eboardDefaultPowers(org, title) };
 
   const { error } = existing
     ? await supabaseClient.from('org_memberships').update(grant).eq('id', existing.id)
@@ -1027,21 +1414,22 @@ async function _orgGrantOfficer(orgId, email) {
 
   if (error) {
     console.error('[_orgGrantOfficer]', error);
-    return { ok: false, message: error.code === '23505' ? 'That person is already on this roster' : 'Could not add: ' + error.message };
+    return { ok: false, message: _eboardErrorText(error, org, title, 'add') };
   }
-  const org = _orgCtx?.orgs.get(orgId);
   logEvent('org_officer_added', { targetType: 'membership', targetId: orgId, targetLabel: email,
-                                  school: org?.school, after: { role: 'officer' } });
+                                  school: org?.school, after: { role: 'officer', title } });
   return { ok: true };
 }
 
 async function orgAddOfficer(orgId) {
   const input = document.getElementById('org-add-' + orgId);
   const email = (input?.value || '').trim().toLowerCase();
-  if (!email) return;
-  const r = await _orgGrantOfficer(orgId, email);
+  if (!email) { toast('Type their email first'); input?.focus(); return; }
+  const title = eboardReadTitle('eb-add-' + orgId);
+  if (!title) return;
+  const r = await _orgGrantOfficer(orgId, email, title);
   if (!r.ok) { toast(r.message); return; }
-  toast('Officer added');
+  toast(`Added as ${title}`);
   _aoAfterRosterChange(orgId);
 }
 
@@ -1081,7 +1469,13 @@ async function orgRemoveMember(membershipId, orgId) {
 async function orgRestoreMember(membershipId, orgId) {
   const { error } = await supabaseClient.from('org_memberships')
     .update({ status: 'active' }).eq('id', membershipId);
-  if (error) { toast('Could not restore: ' + error.message); console.error('[orgRestoreMember]', error); return; }
+  if (error) {
+    // A past President cannot come back while the club has a new one (one_president_vp).
+    const m = _orgRoster?.rows.find(r => r.id === membershipId);
+    toast(_eboardErrorText(error, _orgCtx?.orgs.get(orgId), m?.title, 'restore'));
+    console.error('[orgRestoreMember]', error);
+    return;
+  }
   logEvent('org_member_restored', { targetType: 'membership', targetId: membershipId,
                                     before: { status: 'removed' }, after: { status: 'active' } });
   toast('Restored');
@@ -1102,7 +1496,7 @@ async function orgAddSelf(orgId) {
   if (!org) return;
   if (!_orgCtx?.isSuper) { toast('Only a platform administrator can do that'); return; }
   if (!_orgCtx?.userId)  { toast('Could not identify your account — try signing in again'); return; }
-  if (!confirm(`Add yourself as an officer of ${org.name}?\n\nThis does not change what you are allowed to do — you already administer every organization. It makes you appear on this roster and lets you open this organization's console.`)) return;
+  if (!confirm(`Add yourself to the ${org.name} roster, as Administrator?\n\nThis does not change what you are allowed to do — you already administer every organization. It makes you appear on this roster and lets you open this organization's console.`)) return;
 
   const { data: existing, error: existErr } = await supabaseClient
     .from('org_memberships').select('id')
@@ -1136,7 +1530,7 @@ async function orgAddSelf(orgId) {
 
   logEvent('org_self_added', { targetType: 'membership', targetId: orgId, targetLabel: org.name,
                                school: org.school, after: { role: 'officer', title: 'Administrator' } });
-  toast('You are now an officer of ' + org.name);
+  toast(`You are now on the ${org.name} roster, as Administrator`);
   _aoAfterRosterChange(orgId);
 }
 
@@ -1189,7 +1583,7 @@ async function orgConsoleOpen(orgId) {
   if (!ctx) { toast('Could not load your organizations: ' + (_orgCtxError || 'unknown error')); return; }
 
   const mine = orgMemberships().filter(m => m.role === 'officer');
-  if (!mine.length) { toast('You are not an officer of any organization'); return; }
+  if (!mine.length) { toast('You are not on the E-board of any organization'); return; }
 
   // Where the console opens (2026-09-25), the way Slack and Discord open: straight into the
   // organization you used last. Only with nothing to go on — several organizations and no last
@@ -1288,7 +1682,7 @@ function ocNeeds(sm) {
 // there — so choosing is also a glance at all of them.
 async function orgConsoleClubs() {
   const mine = orgMemberships().filter(m => m.role === 'officer');
-  if (!mine.length) { toast('You are not an officer of any organization'); return; }
+  if (!mine.length) { toast('You are not on the E-board of any organization'); return; }
   showPage('org-console');
   document.getElementById('ocShell')?.classList.add('is-clubs');
   document.getElementById('ocShell')?.classList.remove('has-rail');   // the cards ARE the list here
@@ -2056,7 +2450,7 @@ function ocMembersPaint(listOnly) {
   const row = m => {
     const mine = m.user_id && m.user_id === _orgCtx?.userId;
     const name = nameOf(m);
-    const role = m.title || (m.role === 'officer' ? 'Officer' : '');
+    const role = m.title || (m.role === 'officer' ? 'E-board' : '');
     return `
     <div class="oc-member">
       <span class="oc-member-av dir-logo-none" data-tint="${tintOf(m.user_id || m.pending_email)}" aria-hidden="true">${esc(initials(name))}</span>
@@ -2070,31 +2464,32 @@ function ocMembersPaint(listOnly) {
 
   const q = _ocMemQuery.trim().toLowerCase();
   const match = m => !q || nameOf(m).toLowerCase().includes(q) || (m.title || '').toLowerCase().includes(q);
-  const officers = active.filter(m => m.role === 'officer').filter(match);
+  const officers = active.filter(m => m.role === 'officer').filter(match)
+    .sort((a, b) => orgPositionRank(a.title) - orgPositionRank(b.title) || nameOf(a).localeCompare(nameOf(b)));
   const members  = active.filter(m => m.role !== 'officer').filter(match);
   const group = (title, list, empty) => `
     <section class="oc-sec"><h3 class="oc-sec-t">${title}<span class="oc-sec-n">${list.length}</span></h3>
       ${list.length ? `<div class="oc-member-list">${list.map(row).join('')}</div>` : `<div class="oc-ev-empty">${empty}</div>`}</section>`;
-  const lists = group('Officers', officers, q ? 'No officer matches.' : 'No officers.')
+  const lists = group('E-board', officers, q ? 'Nobody on the E-board matches.' : 'Nobody on the E-board yet.')
     + group('Members', members, q ? 'No member matches.' : 'No members yet. Students who ask to join appear above for you to approve.');
 
   if (listOnly) { const host = document.getElementById('ocMemLists'); if (host) { host.innerHTML = lists; return; } }
 
-  // What students see of all this: the officers, by name and title, on the club page (the
-  // org_public_officers view). Drawn by the page's own orgOfficersHTML().
+  // What students see of all this: the E-board, by name and position, on the club page (the
+  // org_public_officers view). Drawn by the page's own orgOfficersHTML(), which sorts by position.
   const pub = active.filter(m => m.role === 'officer' && m.user_id)
     .map(m => ({ name: names[m.user_id] || '', title: m.title })).filter(x => x.name);
   const rail = `
     <div class="oc-sv">
       <div class="oc-sv-k">${icon('eye', 14)} On your club page</div>
       <div class="oc-sv-page" data-tint="${((Number(_ocOrgId) || 0) % 6) + 1}">${pub.length ? orgOfficersHTML(pub)
-        : '<p class="oc-note">No officers are listed yet.</p>'}</div>
-      <p class="oc-note">Students see officers' names and titles, so they know who to talk to. Members are never listed.</p>
+        : '<p class="oc-note">Nobody on the E-board is listed yet.</p>'}</div>
+      <p class="oc-note">Students see your E-board's names and positions, so they know who to talk to. Members are never listed.</p>
     </div>`;
 
   const nOff = active.filter(m => m.role === 'officer').length;
   body.innerHTML = `
-    ${ocHeadHTML('Members', `${active.length} ${active.length === 1 ? 'person' : 'people'} in the club, ${nOff} of them officer${nOff === 1 ? '' : 's'}.`)}
+    ${ocHeadHTML('Members', `${active.length} ${active.length === 1 ? 'person' : 'people'} in the club, ${nOff} of them on the E-board.`)}
     <div class="oc-split">
       <div class="oc-split-main">
         ${pending.length ? `
@@ -2103,7 +2498,7 @@ function ocMembersPaint(listOnly) {
         ${active.length > 8 ? `<input class="oc-input oc-mem-search" type="search" placeholder="Search by name or title" autocomplete="off"
             value="${escAttr(_ocMemQuery)}" oninput="ocMemSearch(this.value)" aria-label="Search members">` : ''}
         <div id="ocMemLists">${lists}</div>
-        <p class="oc-foot-note">Adding officers and changing what they can do is done by a Nestrel admin for now. Removing someone keeps a record that they were in the club, and an admin can restore them. You can't remove your own officer role — another officer has to.</p>
+        <p class="oc-foot-note">Adding E-board members and changing their positions or powers is done by a Nestrel admin for now. Removing someone keeps a record that they were in the club, and an admin can restore them. You can't remove yourself from the E-board — another E-board member has to.</p>
       </div>
       <aside class="oc-split-rail">${rail}</aside>
     </div>`;
@@ -3349,7 +3744,7 @@ function ocEventCardHTML(e) {
     e._past && !cancelled && _ocRecapReady && recapShared ? `<span class="oc-chip oc-chip-live">${icon('check', 11)} Recap shared</span>` : '',
     e._past && !cancelled && _ocRecapReady && !recapShared && recapN ? `<span class="oc-chip">Recap draft · ${recapN} photo${recapN === 1 ? '' : 's'}</span>` : '',
     cancelled ? '<span class="oc-chip oc-chip-urgent">Cancelled</span>' : '',
-    draft ? '<span class="oc-chip">Draft · only officers see it</span>' : '',
+    draft ? '<span class="oc-chip">Draft · only the E-board sees it</span>' : '',
     e.members_only ? '<span class="oc-chip">Members only</span>' : '',
   ].join('');
 
@@ -4012,7 +4407,7 @@ function ocAnaPaint() {
       <div class="oc-ana-h">Events</div>
       ${evs.length ? `
         <p class="oc-note oc-note-top">From seeing it to showing up. Views count each student once and
-          never your own officers; nobody's name is ever shown.</p>
+          never your own E-board; nobody's name is ever shown.</p>
         <div class="oc-ev-rows">${evs.map(ocAnaEventHTML).join('')}</div>`
       : '<p class="oc-note">No events in this period yet.</p>'}
     </div>
@@ -4151,7 +4546,7 @@ function ocPaintRecap(msg) {
 
   let summary;
   if (fb.denied) {
-    summary = `<div class="oc-note">Feedback is visible to officers with analytics access.
+    summary = `<div class="oc-note">Feedback is visible to E-board members with the Analytics power.
                Ask whoever administers your organization to grant it.</div>`;
   } else if (!fb.count) {
     summary = '<div class="oc-note">No feedback yet. Only people who checked in can leave any.</div>';
@@ -4207,7 +4602,7 @@ function ocPaintRecap(msg) {
       <div class="oc-recap-top">
         <h4 class="oc-recap-t">Recap for students</h4>
         ${_ocRecapReady ? (shared ? `<span class="oc-chip oc-chip-live">${icon('check', 11)} Shared ${esc(sharedOn)}</span>`
-                                   : '<span class="oc-chip">Draft · only officers see it</span>') : ''}
+                                   : '<span class="oc-chip">Draft · only the E-board sees it</span>') : ''}
       </div>
       <p class="oc-recap-lead">${!_ocRecapReady ? `<span class="oc-needs-db">Sharing a recap as a draft first needs a one-time
           database update: <b>sql/changes/2026-09-25_club_cover_and_recaps.sql</b>, run in Supabase. Until then there is no

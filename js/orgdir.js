@@ -499,13 +499,16 @@ function orgPagePaint() {
     </div>`;
 }
 
-// Who runs it: [{ name, title }]. Shared with the console's Members section, which shows the
-// officer what students see of their roster.
+// The E-board: [{ name, title }]. Shared with the console's Members section, which shows the
+// E-board what students see of their roster. Sorted by position, President first
+// (orgPositionRank in orgs.js), because the view returns rows in no particular order.
 function orgOfficersHTML(list) {
+  const sorted = list.slice().sort((a, b) =>
+    orgPositionRank(a.title) - orgPositionRank(b.title) || (a.name || '').localeCompare(b.name || ''));
   return `
     <section class="op-sec op-people">
-      <h2 class="op-sec-title">Who runs it</h2>
-      <div class="op-officers">${list.map(x => {
+      <h2 class="op-sec-title">E-board</h2>
+      <div class="op-officers">${sorted.map(x => {
         const ini = (x.name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
         return `
         <div class="op-officer">

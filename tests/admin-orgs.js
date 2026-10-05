@@ -5,8 +5,10 @@
 //   - a club is flagged "Needs attention" only when its roster was actually readable
 //   - suspending requires a reason, and the reason reaches the activity log
 //   - a write the database silently refuses is not announced as a success
-//   - "Add a club" says plainly when the club was made but its officer was not
+//   - "Add a club" says plainly when the club was made but its first E-board member was not
 //   - an organization name cannot inject markup
+//   - E-board (2026-10-05): a position is saved, every power is on by default, the editor changes
+//     them, one President per club, the school is created from the page, and names can change
 //
 //   node tests/admin-orgs.js
 //
@@ -44,7 +46,7 @@ function makeEl(id, value = '') {
   let inner = '';
   return {
     id, value, hidden: false, disabled: false, placeholder: '',
-    focus() { page.focused = '#' + id; }, scrollIntoView() {},
+    focus() { page.focused = '#' + id; }, select() {}, scrollIntoView() {},
     setAttribute() {}, getAttribute: () => null, addEventListener() {},
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     get innerHTML() { return inner; },
@@ -74,11 +76,25 @@ const document = {
     if (byId) return els.get(byId[1]) || null;
     return { focus() { page.focused = sel; } };
   },
-  querySelectorAll: sel => (strict && sel === '.org-panel')
-    ? [...els.values()].filter(e => e.id.startsWith('org-panel-')) : [],
+  querySelectorAll: sel => {
+    if (strict && sel === '.org-panel') return [...els.values()].filter(e => e.id.startsWith('org-panel-'));
+    // The E-board editor's power boxes, read from the HTML that drew them. `unchecked` lets a check
+    // untick a box before saving, as a person would.
+    const box = strict && sel.match(/^#(\S+) input\[data-k\]$/);
+    if (box) {
+      const host = [...els.values()].find(e => e.innerHTML.includes(`id="${box[1]}"`));
+      if (!host) return [];
+      const part = host.innerHTML.slice(host.innerHTML.indexOf(`id="${box[1]}"`));
+      const end = part.indexOf('eb-edit-actions');
+      return [...part.slice(0, end < 0 ? undefined : end).matchAll(/<input type="checkbox" data-k="(\w+)"( checked)?/g)]
+        .map(m => ({ dataset: { k: m[1] }, checked: !!m[2] && !unchecked.has(m[1]) }));
+    }
+    return [];
+  },
   createElement: () => permissive, addEventListener() {}, removeEventListener() {},
   body: permissive, documentElement: permissive, head: permissive, cookie: '',
 };
+const unchecked = new Set();
 const store = new Map();
 const storage = { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)),
                   removeItem: k => store.delete(k), clear: () => store.clear() };
@@ -107,8 +123,14 @@ function respond(q) {
     case 'org_directory':
       return { data: S.orgs.filter(o => o.is_active).map(o => ({ id: o.id, follower_count: S.followers[o.id] || 0 })), error: null };
     case 'events':        return { data: S.events, error: null };
+    case 'schools':       return { data: S.schools || [], error: null };
     case 'org_memberships':
-      if (q.op === 'insert' || q.op === 'update') { S.grants.push(q.payload); return { data: null, error: null }; }
+      if (q.op === 'insert' || q.op === 'update') {
+        if (S.grantError) return { data: null, error: S.grantError };
+        S.grants.push({ ...q.payload, _id: f.id });
+        return { data: q.op === 'update' ? [{ id: f.id }] : null, error: null };
+      }
+      if ('title' in f) return { data: S.seats || [], error: null };   // who holds a one-per-club position
       if (q.cols && q.cols.includes('can_check_in') && 'user_id' in f) return { data: S.myGrants, error: null };
       if (f.role === 'officer') return { data: S.officers, error: null };
       if ('user_id' in f) return one([]);                        // "already on this roster?" — no
@@ -134,6 +156,7 @@ function from(table) {
     is(c, v)   { q.filters.push(['is', c, v]); return b; },
     gte(c, v)  { q.filters.push(['gte', c, v]); return b; },
     lte(c, v)  { q.filters.push(['lte', c, v]); return b; },
+    ilike(c, v) { q.filters.push(['ilike', c, v]); return b; },
     order() { return b; }, limit() { return b; }, range() { return b; }, or() { return b; },
     maybeSingle() { q.single = true; return b; }, single() { q.single = true; return b; },
     then(ok, bad) { calls.push(q); return Promise.resolve().then(() => respond(q)).then(ok, bad); },
@@ -237,8 +260,8 @@ function scenario(overrides = {}) {
   check('tabs count 5 active, 1 needing attention, 1 suspended',
     tabCount('Active') === '5' && tabCount('Needs attention') === '1' && tabCount('Suspended') === '1',
     `got active=${tabCount('Active')} attention=${tabCount('Needs attention')} suspended=${tabCount('Suspended')}`);
-  check('the club with no officers is flagged, and says why',
-    rowOf('Film Society').includes('Needs attention') && rowOf('Film Society').includes('No active officer'));
+  check('the club with no E-board is flagged, and says why',
+    rowOf('Film Society').includes('Needs attention') && rowOf('Film Society').includes('No E-board yet'));
   check('a club with officers is not flagged', rowOf('Eco Club').includes('is-ok">Active'));
   check('Eco Club shows 84 followers and 2 events this semester',
     /ao-num">84</.test(rowOf('Eco Club')) && /ao-num">2</.test(rowOf('Eco Club')));
@@ -267,15 +290,15 @@ function scenario(overrides = {}) {
   run('aoCancelSuspend(20)');
 
   run('aoAskSuspend(21)');
-  check('a flagged club opens the form with "No active officer" already chosen',
-    /aria-pressed="true"[^>]*>No active officer</.test($('aoList')));
+  check('a flagged club opens the form with "No active E-board" already chosen',
+    /aria-pressed="true"[^>]*>No active E-board</.test($('aoList')));
   els.get('aoSusNote-21').value = 'president graduated in May';
   await run('aoConfirmSuspend(21)'); await settle();
   const upd = writes('organizations', 'update').pop();
   const logged = S.log.find(r => r.action_type === 'org_deactivated' && r.target_label === 'Film Society');
   check('suspending writes is_active = false', upd && upd.payload.is_active === false);
   check('the reason and the note reach the activity log',
-    logged && logged.reason === 'No active officer — president graduated in May', logged && logged.reason);
+    logged && logged.reason === 'No active E-board — president graduated in May', logged && logged.reason);
   check('the page then shows 2 suspended', tabCount('Suspended') === '2', `got ${tabCount('Suspended')}`);
   check('and the new decision is already in Recent decisions', $('aoDecisions').indexOf('Film Society') > -1);
 
@@ -297,8 +320,8 @@ function scenario(overrides = {}) {
   const ins = writes('organizations', 'insert').pop();
   check('a club is created under the chosen department, with a derived slug',
     ins && ins.payload.parent_id === 10 && ins.payload.type === 'club' && ins.payload.slug === 'robotics-club' && ins.payload.school === 'caldwell');
-  check('an officer with no account: the message says the club WAS created',
-    lastToast().startsWith('Robotics Club was created, but the officer was not added.'), lastToast());
+  check('a first E-board member with no account: the message says the club WAS created',
+    lastToast().startsWith('Robotics Club was created, but nobody@caldwell.edu was not added.'), lastToast());
 
   els.get('aoNewName').value = 'Chess Club Two';
   els.get('aoNewParent').value = '10';
@@ -306,17 +329,20 @@ function scenario(overrides = {}) {
   const grantsBefore = S.grants.length;
   await run('aoCreateOrg()'); await settle();
   const grant = S.grants[S.grants.length - 1];
-  check('a real officer is granted on the NEW club, as an officer',
-    S.grants.length === grantsBefore + 1 && grant.user_id === 'u-ana' && grant.role === 'officer' && grant.org_id === S.nextId - 1,
-    JSON.stringify(grant));
-  check('and the message names them', lastToast() === 'Chess Club Two created, with ana@caldwell.edu as its first officer', lastToast());
+  check('a real person is added to the NEW club\'s E-board, as its President',
+    S.grants.length === grantsBefore + 1 && grant.user_id === 'u-ana' && grant.role === 'officer' && grant.org_id === S.nextId - 1
+    && grant.title === 'President', JSON.stringify(grant));
+  const CLUB_POWERS = ['can_manage_events', 'can_check_in', 'can_post', 'can_manage_members', 'can_view_analytics', 'can_message', 'can_manage_admins'];
+  check('...with every club power on, and never "Add clubs"',
+    CLUB_POWERS.every(k => grant[k] === true) && grant.can_create_child_orgs === false, JSON.stringify(grant));
+  check('and the message names them and the position', lastToast() === 'Chess Club Two created, with ana@caldwell.edu as its President', lastToast());
 
   // ---------------------------------------------------------- 5. the roster repaint bug
   run('clearOrgContext()');
   run('_orgOpenPanel = null');
   await run('orgTogglePanel(20)'); await settle();
-  check('after the cache is cleared, the officer panel still draws its Add officer form',
-    $('org-panel-20').includes('Add officer'), $('org-panel-20').slice(0, 160));
+  check('after the cache is cleared, the E-board panel still draws its add form',
+    $('org-panel-20').includes('Add to E-board'), $('org-panel-20').slice(0, 160));
 
   // ---------------------------------------------------------- 6. an admin who cannot read rosters
   S = scenario({ isSuper: false, myGrants: [] });
@@ -353,6 +379,157 @@ function scenario(overrides = {}) {
   await run('renderOrgs()'); await settle();
   check('1000 event rows (Supabase\'s silent cap) make event counts "—", not 1000',
     rowOf('Eco Club').includes('>—<') && !rowOf('Eco Club').includes('>1000<'));
+
+  // ---------------------------------------------------------- 8. E-board positions and powers
+  const full = { can_post: true, can_manage_members: true, can_view_analytics: true, can_message: true,
+                 can_create_child_orgs: false, can_manage_admins: true, can_manage_events: true, can_check_in: true };
+  S = scenario({
+    roster: [
+      { id: 501, user_id: 'u-ana', role: 'officer', title: 'Secretary',     status: 'active', ...full },
+      { id: 502, user_id: 'u-bo',  role: 'officer', title: 'President',     status: 'active', ...full },
+      { id: 503, user_id: 'u-cy',  role: 'member',  title: null,            status: 'active' },
+      { id: 504, user_id: 'u-admin', role: 'officer', title: 'Administrator', status: 'active', ...full },
+    ],
+  });
+  S.profiles.push({ id: 'u-bo', first_name: 'Bo', last_name: 'Lee', email: 'bo@caldwell.edu' },
+                  { id: 'u-cy', first_name: 'Cy', last_name: 'Park', email: 'cy@caldwell.edu' });
+  store.clear();
+  await run('renderOrgs()'); await settle();
+  run('_orgOpenPanel = null');
+  await run('orgTogglePanel(20)'); await settle();
+  let panel = $('org-panel-20');
+  const at = n => panel.indexOf(n);
+  check('the roster lists the President first, then other positions, then members',
+    at('Bo Lee') > -1 && at('Bo Lee') < at('Ana Nunez') && at('Ana Nunez') < at('Kal Reda') && at('Kal Reda') < at('Cy Park'),
+    [at('Bo Lee'), at('Ana Nunez'), at('Kal Reda'), at('Cy Park')].join(' '));
+  check('every E-board row has Edit, and a plain member does not',
+    panel.includes('orgEditEboard(501)') && panel.includes('orgEditEboard(502)') && !panel.includes('orgEditEboard(503)'));
+  check('the add form starts on Vice President, because the club already has a President',
+    /<option value="Vice President" selected>/.test(panel), (panel.match(/<option[^>]*selected>[^<]*/) || [''])[0]);
+  check('nothing on the panel says "officer" any more', !panel.replace(/<[^>]*>/g, '').includes('fficer'),
+    (panel.replace(/<[^>]*>/g, '').match(/.{30}fficer.{30}/) || [''])[0]);
+
+  run('orgEditEboard(501)');
+  panel = $('org-panel-20');
+  check('Edit opens the editor with the position and the powers',
+    panel.includes('id="eb-ed-501"') && panel.includes('data-k="can_manage_admins"') && panel.includes('Door check-in'));
+  check('a club\'s editor has no "Add clubs" power', !panel.includes('data-k="can_create_child_orgs"'));
+
+  els.get('eb-ed-501-pos').value = 'other';
+  els.get('eb-ed-501-title').value = '  outreach   chair ';
+  unchecked.add('can_post');
+  const logBefore = S.log.length;
+  await run('orgSaveEboard(501)'); await settle();
+  unchecked.clear();
+  let g = S.grants[S.grants.length - 1];
+  check('saving writes the typed position (tidied) and the unticked power',
+    g && g._id === 501 && g.title === 'outreach chair' && g.can_post === false && g.can_check_in === true, JSON.stringify(g));
+  const changed = S.log.find(r => r.action_type === 'org_eboard_changed');
+  check('...and logs only what changed', S.log.length === logBefore + 1 && changed
+    && JSON.stringify(changed.before_state) === '{"title":"Secretary","can_post":true}'
+    && JSON.stringify(changed.after_state) === '{"title":"outreach chair","can_post":false}',
+    changed && JSON.stringify([changed.before_state, changed.after_state]));
+
+  // A typed title that IS a position is saved as that position, so the one-President rule sees it.
+  S.seats = [{ id: 502 }];
+  const grantsNow = S.grants.length;
+  run('orgEditEboard(501)');
+  els.get('eb-ed-501-pos').value = 'other';
+  els.get('eb-ed-501-title').value = 'PRESIDENT';
+  await run('orgSaveEboard(501)'); await settle();
+  check('a second President is refused before anything is written, even typed as "PRESIDENT"',
+    S.grants.length === grantsNow && lastToast() === "Eco Club already has a President. Change that person's position first.", lastToast());
+
+  run('orgEditEboard(null)');
+  run('orgEditEboard(502)');
+  unchecked.add('can_view_analytics');
+  await run('orgSaveEboard(502)'); await settle();
+  unchecked.clear();
+  g = S.grants[S.grants.length - 1];
+  check('the President keeps their own position while their powers change',
+    S.grants.length === grantsNow + 1 && g._id === 502 && g.title === 'President' && g.can_view_analytics === false, lastToast());
+
+  // The database's rule, if the page's check is ever skipped or wrong.
+  S.seats = [];
+  S.grantError = { code: '23505', message: 'duplicate key value violates unique constraint "org_memberships_one_president_vp"' };
+  run('_orgOpenPanel = null');
+  await run('orgTogglePanel(20)'); await settle();
+  els.get('org-add-20').value = 'cy@caldwell.edu';
+  els.get('eb-add-20-pos').value = 'Vice President';
+  await run('orgAddOfficer(20)'); await settle();
+  check('the database refusing a second Vice President reads as words, not a code',
+    lastToast() === "Eco Club already has a Vice President. Change that person's position first.", lastToast());
+  S.grantError = null;
+
+  // A department's E-board can add clubs; a club's cannot.
+  S.roster = [];
+  run('_orgOpenPanel = null');
+  await run('orgTogglePanel(10)'); await settle();
+  els.get('org-add-10').value = 'cy@caldwell.edu';
+  els.get('eb-add-10-pos').value = 'other';
+  els.get('eb-add-10-title').value = 'Director';
+  await run('orgAddOfficer(10)'); await settle();
+  g = S.grants[S.grants.length - 1];
+  check('a department\'s new E-board member starts with every power, "Add clubs" included',
+    g && g.title === 'Director' && g.can_create_child_orgs === true && g.can_manage_admins === true, JSON.stringify(g));
+  check('...and the message names the position', lastToast() === 'Added as Director', lastToast());
+
+  // In a club, only the President starts with Manage E-board.
+  S.roster = [{ id: 502, user_id: 'u-bo', role: 'officer', title: 'President', status: 'active', ...full }];
+  run('_orgOpenPanel = null');
+  await run('orgTogglePanel(20)'); await settle();
+  els.get('org-add-20').value = 'cy@caldwell.edu';
+  els.get('eb-add-20-pos').value = 'Secretary';
+  await run('orgAddOfficer(20)'); await settle();
+  g = S.grants[S.grants.length - 1];
+  check('a club Secretary starts with every power except Manage E-board',
+    g && g.title === 'Secretary' && g.can_manage_admins === false && g.can_post === true && g.can_manage_events === true, JSON.stringify(g));
+
+  // ---------------------------------------------------------- 9. renaming
+  S = scenario();
+  store.clear();
+  await run('renderOrgs()'); await settle();
+  check('the school heading is shown with one school, and offers Rename', $('aoList').includes('aoAskRename(1)'));
+  run('aoToggleRow(10)');
+  check('a department\'s actions include Rename', $('aoList').includes('aoAskRename(10)'));
+  run('aoAskRename(10)');
+  els.get('aoRename-10').value = '  Campus   Life ';
+  await run('aoSaveRename(10)'); await settle();
+  let ren = writes('organizations', 'update').pop();
+  check('renaming a department writes the new name and a matching address (slug)',
+    ren && ren.payload.name === 'Campus Life' && ren.payload.slug === 'campus-life', JSON.stringify(ren && ren.payload));
+  check('...and logs the old and new name', S.log.some(r => r.action_type === 'org_renamed'
+    && r.before_state?.name === 'Student Life' && r.after_state?.name === 'Campus Life'));
+  run('aoAskRename(1)');
+  els.get('aoRename-1').value = 'Caldwell U';
+  await run('aoSaveRename(1)'); await settle();
+  ren = writes('organizations', 'update').pop();
+  check('renaming the school changes its name only — its address is the school\'s',
+    ren && ren.payload.name === 'Caldwell U' && !('slug' in ren.payload), JSON.stringify(ren && ren.payload));
+
+  // ---------------------------------------------------------- 10. creating the school
+  S = scenario({ orgs: [], schools: [{ slug: 'caldwell', name: 'Caldwell University' }, { slug: 'drew', name: 'Drew University' }] });
+  store.clear();
+  await run('renderOrgs()'); await settle();
+  check('with no organizations, a super admin sees "Create the school", not the SQL editor',
+    $('asec-orgs').includes('aoCreateSchool()') && !$('asec-orgs').includes('SQL editor'));
+  check('the name box starts filled in with the school\'s name',
+    /id="aoSchoolName"[^>]*value="Caldwell University"/.test($('asec-orgs')));
+  els.get('aoSchoolName').value = 'Caldwell University';   // the fake page reads value="" only before id=""
+  await run('aoCreateSchool()'); await settle();
+  const sch = writes('organizations', 'insert').pop();
+  check('it creates a root organization of type school, addressed by the school\'s slug',
+    sch && sch.payload.type === 'school' && sch.payload.parent_id === null && sch.payload.school === 'caldwell'
+    && sch.payload.slug === 'caldwell' && sch.payload.name === 'Caldwell University', JSON.stringify(sch && sch.payload));
+  check('then the page shows the school, says what comes next, and offers "Add a department"',
+    $('aoList').includes('Caldwell University') && $('aoList').includes('No departments yet') && $('aoAdd').includes('Add a department'),
+    $('aoList').slice(0, 200));
+
+  S = scenario({ orgs: [], isSuper: false, schools: [{ slug: 'caldwell', name: 'Caldwell University' }] });
+  store.clear();
+  await run('renderOrgs()'); await settle();
+  check('anyone else is told an administrator creates it, with no button',
+    !$('asec-orgs').includes('aoCreateSchool()') && $('asec-orgs').includes('platform administrator'));
 
   console.log(failures ? `\n  ${failures} failure(s)\n` : '\n  All checks passed\n');
   process.exit(failures ? 1 : 0);

@@ -423,6 +423,11 @@ select public.can_act('post', 1) as can_i_post_in_org_1;
 -- ============================================================================
 -- BOOTSTRAP — one manual step, then everything else is data (§2.8)
 -- ============================================================================
+-- *** 2026-10-05: DO NOT RUN THIS BLOCK. *** It is kept as history. The school is now created on the
+-- admin page (Organizations -> Create the school), and "Add me to this roster" on its E-board panel
+-- adds you. The membership insert below also names can_moderate, a column dropped by
+-- 2026-09-05_flag_set.sql, so it would fail; and auth.uid() is empty in the SQL editor.
+--
 -- This file creates no rows. The hierarchy starts with the school organization, and only a
 -- super admin can create a root org, which is why §2.8 calls it the one manual step.
 --
