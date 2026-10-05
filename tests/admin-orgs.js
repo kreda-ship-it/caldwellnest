@@ -9,6 +9,10 @@
 //   - an organization name cannot inject markup
 //   - E-board (2026-10-05): a position is saved, every power is on by default, the editor changes
 //     them, one President per club, the school is created from the page, and names can change
+//   - the club console: whoever holds Manage E-board adds members to the E-board, edits and removes
+//     them, and can never name a President; nobody else gets those controls
+//   - a club page: Ask to join sends a powerless request; Requested, Member and Not a member say
+//     where you stand, and cancelling or leaving deletes only your own row
 //
 //   node tests/admin-orgs.js
 //
@@ -128,13 +132,16 @@ function respond(q) {
       if (q.op === 'insert' || q.op === 'update') {
         if (S.grantError) return { data: null, error: S.grantError };
         S.grants.push({ ...q.payload, _id: f.id });
+        if (q.op === 'insert' && q.single) return one([{ id: 777, role: q.payload.role, status: q.payload.status }]);
         return { data: q.op === 'update' ? [{ id: f.id }] : null, error: null };
       }
+      if (q.op === 'delete') { (S.deleted = S.deleted || []).push(f.id); return { data: [{ id: f.id }], error: null }; }
       if ('title' in f) return { data: S.seats || [], error: null };   // who holds a one-per-club position
       if (q.cols && q.cols.includes('can_check_in') && 'user_id' in f) return { data: S.myGrants, error: null };
       if (f.role === 'officer') return { data: S.officers, error: null };
       if ('user_id' in f) return one([]);                        // "already on this roster?" — no
       return { data: S.roster || [], error: null };               // the officer panel
+    case 'public_profiles': return { data: S.profiles, error: null };
     case 'profiles':
       if ('email' in f) return one(S.profiles.filter(p => p.email === f.email));
       return { data: S.profiles, error: null };
@@ -530,6 +537,100 @@ function scenario(overrides = {}) {
   await run('renderOrgs()'); await settle();
   check('anyone else is told an administrator creates it, with no button',
     !$('asec-orgs').includes('aoCreateSchool()') && $('asec-orgs').includes('platform administrator'));
+
+  // ---------------------------------------------------------- 11. the club console: the President runs the E-board
+  const presGrant = { org_id: 20, role: 'officer', title: 'President', status: 'active', ...full, can_manage_admins: true };
+  const consoleRoster = () => [
+    { id: 500, user_id: 'u-admin', role: 'officer', title: 'President', status: 'active', ...full },
+    { id: 501, user_id: 'u-ana', role: 'officer', title: 'Secretary', status: 'active', ...full, can_manage_admins: false },
+    { id: 503, user_id: 'u-cy', role: 'member', title: null, status: 'active' },
+  ];
+  S = scenario({ isSuper: false, myGrants: [presGrant], roster: consoleRoster() });
+  S.profiles.push({ id: 'u-cy', first_name: 'Cy', last_name: 'Park', email: 'cy@caldwell.edu' });
+  store.clear();
+  els.set('ocBody', makeEl('ocBody'));
+  run('clearOrgContext()');
+  await run('loadOrgContext(true)');
+  run("_ocOrgId = 20; _ocSection = 'members'");
+  await run('renderOcMembers()'); await settle();
+  let ocb = $('ocBody');
+  check('console: the President can put a member on the E-board, and edit another E-board member',
+    ocb.includes('ocEboardOpen(503)') && ocb.includes('Add to the E-board') && ocb.includes('ocEboardOpen(501)'));
+  check('console: the President\'s own row has no controls', !ocb.includes('ocEboardOpen(500)') && !ocb.includes('ocEboardRemove(500)'));
+  check('console: nothing here says "officer"', !ocb.replace(/<[^>]*>/g, '').includes('fficer'),
+    (ocb.replace(/<[^>]*>/g, '').match(/.{30}fficer.{30}/) || [''])[0]);
+
+  run('ocEboardOpen(503)');
+  let lists = $('ocMemLists');
+  check('console: putting a member on the E-board never offers President',
+    lists.includes('id="oc-eb-503"') && !lists.includes('<option value="President"'));
+  check('console: ...starts on Vice President, with every power except Manage E-board',
+    /<option value="Vice President" selected>/.test(lists)
+    && /data-k="can_post" checked/.test(lists) && /data-k="can_manage_admins">/.test(lists) && !lists.includes('can_create_child_orgs'));
+
+  els.get('oc-eb-503-pos').value = 'other';
+  els.get('oc-eb-503-title').value = 'president';
+  const before11 = S.grants.length;
+  await run('ocEboardSave(503)'); await settle();
+  check('console: typing "president" into Other is refused before anything is written',
+    S.grants.length === before11 && lastToast() === 'Only a Nestrel admin can name a President', lastToast());
+
+  els.get('oc-eb-503-pos').value = 'Treasurer';
+  await run('ocEboardSave(503)'); await settle();
+  g = S.grants[S.grants.length - 1];
+  check('console: the member joins the E-board as Treasurer, without Manage E-board or Add clubs',
+    g && g._id === 503 && g.role === 'officer' && g.title === 'Treasurer' && g.can_post === true
+    && g.can_manage_admins === false && g.can_create_child_orgs === false, JSON.stringify(g));
+  check('console: ...logged, and announced by name', S.log.some(r => r.action_type === 'org_officer_added' && r.target_label === 'Cy Park')
+    && lastToast() === 'Cy Park is now Treasurer', lastToast());
+
+  await run('ocEboardRemove(501)'); await settle();
+  g = S.grants[S.grants.length - 1];
+  check('console: "Take off the E-board" keeps them as a member with no position or powers',
+    g && g._id === 501 && g.role === 'member' && g.title === null && g.status === undefined
+    && ['can_post', 'can_manage_members', 'can_manage_admins', 'can_manage_events', 'can_check_in'].every(k => g[k] === false), JSON.stringify(g));
+  check('console: ...and logs what they held', S.log.some(r => r.action_type === 'org_eboard_removed' && r.before_state?.title === 'Secretary'));
+
+  // Someone with "Members & club page" but not Manage E-board: runs members, not the E-board.
+  S = scenario({ isSuper: false, roster: consoleRoster(),
+    myGrants: [{ org_id: 20, role: 'officer', title: 'Secretary', status: 'active', ...full, can_manage_admins: false }] });
+  S.roster[0].user_id = 'u-bo'; S.roster[1].user_id = 'u-admin';
+  store.clear();
+  run('clearOrgContext()');
+  await run('loadOrgContext(true)');
+  run("_ocOrgId = 20; _ocSection = 'members'");
+  await run('renderOcMembers()'); await settle();
+  ocb = $('ocBody');
+  check('console: without Manage E-board there is no Add to the E-board, Edit, or Remove on an E-board member',
+    !ocb.includes('ocEboardOpen(') && !ocb.includes('ocEboardRemove(') && !ocb.includes('ocRemove(500)'));
+  check('console: ...but plain members can still be removed from the club', ocb.includes('ocRemove(503)'));
+
+  // ---------------------------------------------------------- 12. a club page: Ask to join
+  S = scenario({ isSuper: false });
+  store.clear();
+  run("sUser = { id: 'u-cy', first: 'Cy' }; adminPreviewMode = false");
+  run("_opOrg = { id: 20, name: 'Eco Club', type: 'club', follower_count: 3 }; _opEvents = []; _opPosts = []; _opOfficers = []; _opPreview = false; _opTab = null");
+  els.set('orgPageBody', makeEl('orgPageBody'));
+  run('_opMember = null'); run('orgPagePaint()');
+  check('club page: a student who is not a member sees Ask to join', $('orgPageBody').includes('orgPageJoin(20)'));
+  await run('orgPageJoin(20)'); await settle();
+  const req = S.grants[S.grants.length - 1];
+  check('club page: asking writes a powerless request for yourself',
+    req && req.org_id === 20 && req.user_id === 'u-cy' && req.role === 'member' && req.status === 'pending'
+    && !Object.keys(req).some(k => k.startsWith('can_') && req[k]), JSON.stringify(req));
+  check('club page: ...then shows Requested, which cancels', $('orgPageBody').includes('Requested') && $('orgPageBody').includes('orgPageCancelJoin(20)'));
+  await run('orgPageCancelJoin(20)'); await settle();
+  check('club page: cancelling deletes only your own request', (S.deleted || []).join() === '777' && $('orgPageBody').includes('orgPageJoin(20)'));
+
+  run("_opMember = { id: 778, role: 'member', status: 'active' }"); run('orgPagePaint()');
+  check('club page: a member sees Member, which leaves', $('orgPageBody').includes('>Member<') && $('orgPageBody').includes('orgPageLeave(20)'));
+  run("_opMember = { id: 779, role: 'officer', status: 'active' }"); run('orgPagePaint()');
+  check('club page: the E-board gets no join control', !/orgPage(Join|Leave|CancelJoin)\(/.test($('orgPageBody')));
+  run("_opMember = { id: 780, role: 'member', status: 'removed' }"); run('orgPagePaint()');
+  check('club page: after a decline or removal it reads "Not a member", with no button to ask again',
+    $('orgPageBody').includes('Not a member') && !$('orgPageBody').includes('orgPageJoin(20)'));
+  run("_opMember = { error: true }"); run('orgPagePaint()');
+  check('club page: if your membership could not be read, no join control is offered', !/orgPage(Join|Leave|CancelJoin)\(/.test($('orgPageBody')));
 
   console.log(failures ? `\n  ${failures} failure(s)\n` : '\n  All checks passed\n');
   process.exit(failures ? 1 : 0);

@@ -314,6 +314,7 @@ let _opOfficers = [];
 let _opTab = null;      // 'upcoming' | 'posts' | 'past'
 let _opPreview = false; // opened from the console's "View as student"
 let _opRecaps = new Map();   // past event id -> its shared recap (evLoadRecaps in events.js)
+let _opMember = null;        // your own membership of the open club: { id, role, status }, null, or { error }
 
 // preview: opened by an officer from their console. The page is the same page — only a bar across
 // the top says so and leads back, instead of "All clubs".
@@ -388,10 +389,25 @@ async function orgPageOpen(orgId, preview = false) {
   // never have opened the directory, so it is fetched rather than assumed. The org context tells
   // us whether this student runs the club (cached after the first load).
   _opRecaps = new Map();
-  await Promise.all([orgPageLoadFollow(orgId), typeof loadOrgContext === 'function' ? loadOrgContext() : null,
+  await Promise.all([orgPageLoadFollow(orgId), orgPageLoadMembership(orgId),
+    typeof loadOrgContext === 'function' ? loadOrgContext() : null,
     typeof evLoadRecaps === 'function'
       ? evLoadRecaps(_opEvents.filter(e => e.has_ended).map(e => e.id)).then(m => { _opRecaps = m; }) : null]);
   orgPagePaint();
+}
+
+// Your own membership row, if any — the one org_memberships row a student may always read. Loaded
+// here rather than taken from orgs.js's cache, which this file does not share (see the top).
+// A failed read draws no join button at all: offering "Ask to join" to someone who is already a
+// member would only produce a duplicate-row error.
+async function orgPageLoadMembership(orgId) {
+  _opMember = null;
+  const eu = getEffectiveUser();
+  if (!eu?.id) return;
+  const { data, error } = await supabaseClient.from('org_memberships')
+    .select('id, role, status').eq('org_id', orgId).eq('user_id', eu.id).maybeSingle();
+  if (error) { console.error('[orgPageLoadMembership]', error.message); _opMember = { error: true }; return; }
+  _opMember = data || null;
 }
 
 async function orgPageLoadFollow(orgId) {
@@ -408,6 +424,7 @@ async function orgPageLoadFollow(orgId) {
 //   opt.preview   draw Follow as a picture of the button, not a working one
 //   opt.upcoming  how many events are coming up (the page counts them; the console passes it in)
 //   opt.following / opt.manage   the student's own state on the real page
+//   opt.join      the Ask to join control (_opJoinHTML), drawn beside Follow
 function orgHeroHTML(o, opt = {}) {
   const id = Number(o.id) || 0;
   const crumbs = [o.grandparent_name, o.parent_name].filter(Boolean);
@@ -448,6 +465,7 @@ function orgHeroHTML(o, opt = {}) {
       </header>
       <div class="op-acts">
         ${follow}
+        ${opt.preview ? '<span class="dir-follow op-join is-preview" aria-hidden="true">Ask to join</span>' : (opt.join || '')}
         ${opt.manage ? `<button class="org-btn op-manage" onclick="orgConsoleOpen(${id})">${icon('pencil', 14)} Manage club</button>` : ''}
       </div>
       ${(o.description || '').trim() ? `<p class="op-desc">${esc(o.description)}</p>`
@@ -486,7 +504,7 @@ function orgPagePaint() {
         <button class="op-preview-back" onclick="orgPageBackToConsole()">Back to console</button>
       </div>` : ''}
     <div class="op-layout">
-      <div class="op-side">${orgHeroHTML(o, { following, upcoming: upcoming.length, manage })}</div>
+      <div class="op-side">${orgHeroHTML(o, { following, upcoming: upcoming.length, manage, join: _opPreview ? '' : _opJoinHTML(o) })}</div>
       ${_opOfficers.length ? `<div class="op-side2">${orgOfficersHTML(_opOfficers.map(x =>
         ({ name: `${x.first_name || ''} ${x.last_name || ''}`.trim(), title: x.title })))}</div>` : ''}
       <div class="op-main">
@@ -522,6 +540,87 @@ function orgOfficersHTML(list) {
 }
 
 function orgPageTab(k) { _opTab = k; orgPagePaint(); }
+
+// ---------- joining (2026-10-05) ----------
+// A student asks; the club's E-board approves or declines under Members in its console ("Waiting to
+// join"). The request is the powerless row the insert policy allows a student to write for
+// themselves: role 'member', status 'pending', every power off. Members are never listed publicly.
+//
+// Kal chose this over letting the E-board add people from the follower list, which would have
+// broken the Privacy Policy's promise that officers can't see who follows a club.
+//
+// Requested and Member reuse Follow's look: a pale "state" button that turns red and says what a
+// tap does (Cancel request, Leave) while the pointer is on it. The E-board's own button is Manage
+// club, so they get no join control. A request that was declined, or a membership the E-board ended,
+// reads "Not a member" — asking again is a conversation with the E-board, not a button to press
+// until they give in.
+function _opJoinHTML(o) {
+  const m = _opMember;
+  const id = Number(o.id);
+  if (m?.error) return '';
+  if (!m) return `<button class="dir-follow op-join" onclick="orgPageJoin(${id})">Ask to join</button>`;
+  if (m.status === 'pending') {
+    return `<button class="dir-follow op-join is-following" onclick="orgPageCancelJoin(${id})" aria-label="Requested. Cancel your request">
+      <span class="df-is">Requested</span><span class="df-do">Cancel request</span></button>`;
+  }
+  if (m.status === 'active' && m.role !== 'officer') {
+    return `<button class="dir-follow op-join is-following" onclick="orgPageLeave(${id})" aria-label="Member. Leave the club">
+      <span class="df-is">Member</span><span class="df-do">Leave</span></button>`;
+  }
+  if (m.status === 'active') return '';
+  return `<span class="op-join-note" title="Ask the club's E-board if you'd like to rejoin">Not a member</span>`;
+}
+
+// The roster changed for this student, so anything orgs.js cached about their clubs is stale.
+function _opMembershipChanged() {
+  if (typeof clearOrgContext === 'function') clearOrgContext();
+  if (_opOrg) orgPagePaint();
+}
+
+async function orgPageJoin(orgId) {
+  const eu = getEffectiveUser();
+  if (!eu?.id) { toast('Sign in to join a club'); return; }
+  const { data, error } = await supabaseClient.from('org_memberships')
+    .insert({ org_id: orgId, user_id: eu.id, role: 'member', status: 'pending' })
+    .select('id, role, status').single();
+  if (error) {
+    // 23505: there is already a row — another tab, or a request made earlier. Show what is true.
+    if (error.code === '23505') { await orgPageLoadMembership(orgId); _opMembershipChanged(); return; }
+    toast('Could not send your request: ' + error.message);
+    console.error('[orgPageJoin]', error);
+    return;
+  }
+  _opMember = data;
+  _opMembershipChanged();
+  toast(`Request sent. ${_opOrg?.name || 'The club'}'s E-board will review it.`);
+}
+
+// Your own row, deleted: the delete policy has always let a student leave. A plain member's row
+// carries no powers and no history worth keeping, unlike an E-board row, which never reaches here.
+async function _opDeleteOwnRow(what) {
+  const m = _opMember;
+  if (!m?.id) return false;
+  const { data, error } = await supabaseClient.from('org_memberships').delete().eq('id', m.id).select('id');
+  if (error || !data?.length) {
+    toast(`Could not ${what}` + (error ? ': ' + error.message : ''));
+    if (error) console.error('[_opDeleteOwnRow]', error);
+    return false;
+  }
+  _opMember = null;
+  _opMembershipChanged();
+  return true;
+}
+
+// No dialog, like Unfollow: the button said "Cancel request" under the pointer, and asking again is one tap.
+async function orgPageCancelJoin(orgId) {
+  if (await _opDeleteOwnRow('cancel your request')) toast('Request cancelled');
+}
+
+async function orgPageLeave(orgId) {
+  const name = _opOrg?.name || 'this club';
+  if (!confirm(`Leave ${name}?\n\nYou'll stop seeing its members-only posts and events. You can ask to join again later.`)) return;
+  if (await _opDeleteOwnRow('leave')) toast('You left ' + name);
+}
 
 // The club's recaps as a row of circles above its tabs — where Instagram puts Highlights, under
 // the bio and above the posts, because that is what a visitor sees before deciding to follow: what

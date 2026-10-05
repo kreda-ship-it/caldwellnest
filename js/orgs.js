@@ -263,13 +263,15 @@ function orgPositionRank(title) {
 
 // A position picker: the positions, then "Other…", which shows a box to type a title in.
 // `base` names the two controls (base-pos, base-title); eboardReadTitle(base) reads them back.
-function eboardPickerHTML(base, current, cls) {
+// `omit` leaves positions out — the club console omits President, which only an admin sets.
+function eboardPickerHTML(base, current, cls, omit = []) {
   const cur    = (current || '').trim();
-  const preset = EBOARD_POSITIONS.find(p => p.toLowerCase() === cur.toLowerCase());
+  const list   = EBOARD_POSITIONS.filter(p => !omit.includes(p));
+  const preset = list.find(p => p.toLowerCase() === cur.toLowerCase());
   const other  = !!cur && !preset;
   return `
     <select class="${cls}" id="${base}-pos" onchange="eboardPosChanged('${base}')" aria-label="Position">
-      ${EBOARD_POSITIONS.map(p => `<option value="${escAttr(p)}"${p === preset ? ' selected' : ''}>${esc(p)}</option>`).join('')}
+      ${list.map(p => `<option value="${escAttr(p)}"${p === preset ? ' selected' : ''}>${esc(p)}</option>`).join('')}
       <option value="other"${other ? ' selected' : ''}>Other…</option>
     </select>
     <input class="${cls} eb-custom" id="${base}-title" type="text" maxlength="40" autocomplete="off"
@@ -2402,7 +2404,7 @@ async function renderOcMembers() {
 
   const { data, error } = await supabaseClient
     .from('org_memberships')
-    .select('id, user_id, pending_email, role, title, status')
+    .select(`id, user_id, pending_email, role, title, status, ${_EB_COLS}`)
     .eq('org_id', _ocOrgId);
   if (error) { body.innerHTML = ocHeadHTML('Members', '') + '<div class="oc-empty-card"><b>Could not load the roster</b><p>Reload to try again.</p></div>'; console.error('[renderOcMembers]', error); return; }
 
@@ -2419,6 +2421,7 @@ async function renderOcMembers() {
 
   _ocMembers = { orgId: _ocOrgId, rows: data || [], names };
   _ocMemQuery = '';
+  _ocEbOpen = null;
   ocMembersPaint();
 }
 
@@ -2447,20 +2450,36 @@ function ocMembersPaint(listOnly) {
   // Same rule as the admin panel: your own row carries no Remove control, because
   // guard_org_self_removal() refuses it and a button that can only produce an error is not
   // a feature. See sql/changes/2026-09-06_guard_self_removal.sql.
+  //
+  // The E-board (2026-10-05): whoever holds Manage E-board — by default the President — adds
+  // members to it, edits positions and powers, and takes people off it. Nobody else gets those
+  // controls, nor Remove on an E-board member: guard_eboard_changes() refuses both. The President's
+  // own row has no controls for anyone here, because only a Nestrel admin names or replaces one.
+  const canEb = orgCanAct('manage_admins', _ocOrgId);
+  const actionsOf = m => {
+    if (m.status === 'pending') {
+      return `<button class="oc-btn-go" onclick="ocApprove(${m.id})">Approve</button>
+              <button class="org-btn" onclick="ocRemove(${m.id}, true)">Decline</button>`;
+    }
+    if (m.user_id && m.user_id === _orgCtx?.userId) return '<span class="org-roster-self">You</span>';
+    if (m.role === 'officer') {
+      if (!canEb || orgPositionRank(m.title) === 0) return '';
+      return `<button class="org-btn" onclick="ocEboardOpen(${m.id})" aria-expanded="${_ocEbOpen === m.id}">Edit</button>`
+        + ocMoreHTML([['Take off the E-board…', `ocEboardRemove(${m.id})`, true], ['Remove from club…', `ocRemove(${m.id})`, true]]);
+    }
+    return ocMoreHTML([...(canEb ? [['Add to the E-board…', `ocEboardOpen(${m.id})`]] : []),
+                       ['Remove from club…', `ocRemove(${m.id})`, true]]);
+  };
   const row = m => {
-    const mine = m.user_id && m.user_id === _orgCtx?.userId;
     const name = nameOf(m);
     const role = m.title || (m.role === 'officer' ? 'E-board' : '');
     return `
     <div class="oc-member">
       <span class="oc-member-av dir-logo-none" data-tint="${tintOf(m.user_id || m.pending_email)}" aria-hidden="true">${esc(initials(name))}</span>
       <span class="oc-member-who">${esc(name)}${role ? `<span class="oc-member-sub">${esc(role)}</span>` : ''}</span>
-      ${m.status === 'pending'
-        ? `<button class="oc-btn-go" onclick="ocApprove(${m.id})">Approve</button>
-           <button class="org-btn" onclick="ocRemove(${m.id}, true)">Decline</button>`
-        : mine ? '<span class="org-roster-self">You</span>'
-        : ocMoreHTML([['Remove from club…', `ocRemove(${m.id})`, true]])}
-    </div>`; };
+      ${actionsOf(m)}
+    </div>
+    ${canEb && _ocEbOpen === m.id && m.status === 'active' ? ocEboardEditorHTML(m) : ''}`; };
 
   const q = _ocMemQuery.trim().toLowerCase();
   const match = m => !q || nameOf(m).toLowerCase().includes(q) || (m.title || '').toLowerCase().includes(q);
@@ -2498,7 +2517,11 @@ function ocMembersPaint(listOnly) {
         ${active.length > 8 ? `<input class="oc-input oc-mem-search" type="search" placeholder="Search by name or title" autocomplete="off"
             value="${escAttr(_ocMemQuery)}" oninput="ocMemSearch(this.value)" aria-label="Search members">` : ''}
         <div id="ocMemLists">${lists}</div>
-        <p class="oc-foot-note">Adding E-board members and changing their positions or powers is done by a Nestrel admin for now. Removing someone keeps a record that they were in the club, and an admin can restore them. You can't remove yourself from the E-board — another E-board member has to.</p>
+        <p class="oc-foot-note">${canEb
+          ? 'You run the E-board: put a member on it with “Add to the E-board…”, change positions and powers with Edit, and take people off it — they stay in the club as members.'
+          : 'Only the President, or whoever holds Manage E-board, can change the E-board.'}
+          Only a Nestrel admin can name or replace the President. Removing someone from the club keeps a record that
+          they were in it, and an admin can restore them. You can't remove yourself from the E-board.</p>
       </div>
       <aside class="oc-split-rail">${rail}</aside>
     </div>`;
@@ -2513,6 +2536,113 @@ async function ocApprove(membershipId) {
   renderOcMembers();
   ocLoadStats(_ocOrgId);   // the waiting count on the Members tab
   ocLoadClubs(true).then(ocPaintRail);   // and beside the console
+}
+
+// ---------- the E-board, run by its President ----------
+// One editor for both jobs: on a member it puts them on the E-board, on an E-board member it
+// changes their position and powers. President is not offered — only a Nestrel admin sets it
+// (guard_eboard_changes) — and neither is "Add clubs", which a club never holds.
+let _ocEbOpen = null;   // membership id whose editor is open
+
+function ocEboardEditorHTML(m) {
+  const org = _orgCtx?.orgs.get(_ocOrgId);
+  const joining = m.role !== 'officer';
+  // Someone joining starts on the first free one-per-club seat below President, or Secretary.
+  const held = new Set((_ocMembers?.rows || []).filter(r => r.role === 'officer' && r.status === 'active')
+                                               .map(r => (r.title || '').trim().toLowerCase()));
+  const title = joining ? (held.has('vice president') ? 'Secretary' : 'Vice President') : m.title;
+  const has = joining ? eboardDefaultPowers(org, title) : m;
+  const base = 'oc-eb-' + m.id;
+  const powers = EBOARD_POWERS.filter(([k]) => eboardPowerApplies(k, org)).map(([k, label, hint]) => `
+      <label class="eb-power">
+        <input type="checkbox" data-k="${k}"${has[k] ? ' checked' : ''}>
+        <span class="eb-power-text"><span class="eb-power-name">${esc(label)}</span><span class="eb-power-hint">${esc(hint)}</span></span>
+      </label>`).join('');
+  return `
+    <div class="eb-edit oc-eb-edit" id="${base}" role="group" aria-label="${joining ? 'Add to the E-board' : 'Position and powers'}">
+      <div class="eb-edit-pos">
+        <span class="eb-edit-label">Position</span>
+        ${eboardPickerHTML(base, title, 'org-input', ['President'])}
+      </div>
+      <div class="eb-edit-label">Powers</div>
+      <div class="eb-powers">${powers}</div>
+      <div class="eb-edit-actions">
+        <button class="org-btn" onclick="ocEboardOpen(null)">Cancel</button>
+        <button class="oc-btn-go" onclick="ocEboardSave(${m.id})">${joining ? 'Add to the E-board' : 'Save'}</button>
+      </div>
+    </div>`;
+}
+
+// Opens (or, given null or the open row, closes) the editor. Redraws from memory: nothing is saved yet.
+function ocEboardOpen(membershipId) {
+  _ocEbOpen = (membershipId == null || _ocEbOpen === membershipId) ? null : membershipId;
+  ocMembersPaint(true);
+  if (_ocEbOpen) document.getElementById(`oc-eb-${_ocEbOpen}-pos`)?.focus();
+}
+
+async function _ocAfterEboardChange() {
+  _ocEbOpen = null;
+  clearOrgContext();
+  await loadOrgContext();
+  renderOcMembers();
+  ocLoadClubs(true).then(ocPaintRail);
+}
+
+async function ocEboardSave(membershipId) {
+  const M = _ocMembers;
+  const m = M?.rows.find(r => r.id === membershipId);
+  if (!m) return;
+  const org = _orgCtx?.orgs.get(_ocOrgId);
+  const name = M.names[m.user_id] || 'This member';
+  const base = 'oc-eb-' + membershipId;
+
+  const title = eboardReadTitle(base);
+  if (!title) return;
+  if (title === 'President') { toast('Only a Nestrel admin can name a President'); return; }
+
+  const changes = { role: 'officer', title };
+  document.querySelectorAll(`#${base} input[data-k]`).forEach(cb => { changes[cb.dataset.k] = cb.checked; });
+  changes.can_create_child_orgs = false;
+
+  const before = {}, after = {};
+  Object.keys(changes).forEach(k => { if (changes[k] !== m[k]) { before[k] = m[k] ?? null; after[k] = changes[k]; } });
+  if (!Object.keys(after).length) { ocEboardOpen(null); return; }
+
+  if (await _eboardSeatTaken(_ocOrgId, title, membershipId)) { toast(_eboardSeatMessage(org, title)); return; }
+
+  // .select() so a write the database quietly refuses is not announced as done.
+  const { data, error } = await supabaseClient.from('org_memberships')
+    .update(changes).eq('id', membershipId).select('id');
+  if (error) { toast(_eboardErrorText(error, org, title)); console.error('[ocEboardSave]', error); return; }
+  if (!data?.length) { toast("You don't have authority to change this E-board"); return; }
+
+  const joined = m.role !== 'officer';
+  logEvent(joined ? 'org_officer_added' : 'org_eboard_changed',
+    { targetType: 'membership', targetId: membershipId, targetLabel: name, school: org?.school, before, after });
+  toast(joined ? `${name} is now ${title}` : 'Saved');
+  _ocAfterEboardChange();
+}
+
+// Off the E-board, still in the club: no position and no powers. The row is kept, so they can be
+// put back on, and the activity log records what they held.
+async function ocEboardRemove(membershipId) {
+  const m = _ocMembers?.rows.find(r => r.id === membershipId);
+  if (!m) return;
+  const org = _orgCtx?.orgs.get(_ocOrgId);
+  const name = _ocMembers.names[m.user_id] || 'this person';
+  if (!confirm(`Take ${name} off the E-board?\n\nThey stay in the club as a member, without a position or any powers. You can add them back at any time.`)) return;
+
+  const changes = { role: 'member', title: null };
+  EBOARD_POWERS.forEach(([k]) => { changes[k] = false; });
+  const { data, error } = await supabaseClient.from('org_memberships')
+    .update(changes).eq('id', membershipId).select('id');
+  if (error) { toast('Could not change the E-board: ' + error.message); console.error('[ocEboardRemove]', error); return; }
+  if (!data?.length) { toast("You don't have authority to change this E-board"); return; }
+
+  logEvent('org_eboard_removed', { targetType: 'membership', targetId: membershipId, targetLabel: name, school: org?.school,
+                                   before: { role: 'officer', title: m.title }, after: { role: 'member', title: null } });
+  toast(`${name} is off the E-board, and still a member`);
+  _ocAfterEboardChange();
 }
 
 // Soft, matching orgRemoveMember() on the admin page. Changed 2026-09-05 in the same pass,

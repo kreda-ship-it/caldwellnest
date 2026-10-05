@@ -2345,6 +2345,10 @@ select.ao-input { cursor: pointer; }
 .oc-member-who  { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; font-weight: 600;
                   color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .oc-member-sub  { font-size: 12px; font-weight: 400; color: var(--text-muted); text-transform: capitalize; }
+/* The E-board editor (classes .eb-*, defined with the admin Organizations tab) opened inside the
+   roster card: flush with the rows instead of a card of its own. */
+.oc-member-list .oc-eb-edit { margin: 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--bg); }
+.oc-member .oc-more { flex: none; }
 
 
 .oc-entry { margin-top: 16px; background: var(--brand-pale, #eef3ff); color: var(--brand, #3B5BA5); border: 1px solid var(--brand, #3B5BA5); }
@@ -4667,6 +4671,12 @@ button.oc-check-i:hover > span:nth-child(2) { color: var(--brand); }
 .dir-follow.op-follow:not(.is-following):hover { border-color: var(--brand-mid); background: var(--brand-mid); }
 .op-follow.is-preview { display: flex; align-items: center; justify-content: center; }
 .op-acts .op-manage { height: 42px; }
+/* Ask to join (2026-10-05): beside Follow, the same size, outlined so Follow stays the one filled
+   button. Requested and Member reuse Follow's pale state and its hover swap (.df-is / .df-do). */
+.op-acts .op-join { flex: 1; height: 42px; font-size: 14px; }
+.op-join.is-preview { display: flex; align-items: center; justify-content: center; }
+.op-join-note { flex: 1; display: flex; align-items: center; justify-content: center; height: 42px;
+  font-size: 13px; color: var(--text-muted); }
 .op-desc { margin-top: 14px; }
 .op-desc-empty { font-style: italic; color: var(--text-faint); }
 .op-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
