@@ -27,6 +27,7 @@ function showPage(name) {
   // fills it, so a bare showPage() would restore a page that looks like a feed with nothing
   // in it. boot.js's page restore needs the same line for the same reason.
   if (name === 'events') renderEvents();
+  if (name === 'services') renderServices(); // js/services.js — same shape as events above
   if (name === 'search') renderSearch();
   fbOnPage(name); // draws the Feedback page, and hides the round Feedback button where it is in the way (js/feedback.js)
   updateMTabbar(name);
@@ -71,6 +72,7 @@ function updateMTabbar(name) {
   const tabId = (name === 'home' || name === 'feed') ? 'mtab-home'
     : name === 'listings' ? 'mtab-market'
     : name === 'events'   ? 'mtab-events'
+    : name === 'services' ? 'mtab-services'
     : name === 'profile'  ? 'mtab-you'
     : null; // search, messages, org pages: reached from the top bar, so no tab lights
   document.querySelectorAll('#mTabbar .m-tab').forEach(t => t.classList.toggle('active', t.id === tabId));
@@ -386,7 +388,7 @@ function renderDeepFilters() {
 
   const cat = _filters.category;
   // The price slider's top end: the dearest live listing in this category, rounded up.
-  const catListings = browseItems().filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
+  const catListings = marketItems().filter(l => isListingLive(l) && (cat === 'all' || l.category === cat));
   const prices = catListings.map(l => l.rent || 0).filter(p => p > 0);
   _pMax = prices.length ? Math.ceil(Math.max(...prices) / 50) * 50 : 2000;
   _pMax = Math.max(_pMax, 100);
@@ -455,7 +457,7 @@ function fxSet(key, val) {
 }
 
 function fxCategoryHTML() {
-  const live = browseItems().filter(isListingLive);
+  const live = marketItems().filter(isListingLive);
   const count = c => c === 'all' ? live.length : live.filter(l => l.category === c).length;
   const opts = [['all', 'All listings', count('all')],
     ...BROWSE_CATEGORIES.map(c => [c, CATEGORY_LABELS[c] || catShort(c), count(c), catIcon(c, 15)])];
@@ -650,7 +652,21 @@ const LISTING_SPECS = {
     { key: 'condition', label: 'Condition', filter: 'one', options: [['Good', 'Good'], ['Fair', 'Fair'], ['Worn', 'Worn']] },
     { key: 'pickup_info', label: 'Pickup' },
   ],
+  // The Services page's chips are drawn from these options (js/services.js), so a new kind of
+  // service is one line here. Keep the stored values: listings already saved carry them.
+  services: [
+    { key: 'service_type', label: 'Type', filter: 'one', options: [
+      ['tutoring', 'Tutoring'], ['hair_beauty', 'Hair & beauty'], ['photo_video', 'Photo & video'],
+      ['tech_help', 'Tech help'], ['moving_errands', 'Moving & errands'], ['other', 'Other']] },
+  ],
 };
+
+// A service's kind as a short label ("Tutoring"), for its card badge. Every card on the Services
+// page would otherwise just say "Services".
+function serviceTypeLabel(l) {
+  const v = l.details?.service_type;
+  return v ? specLabel(specOf('services', 'service_type'), v, false) : CATEGORY_LABELS.services;
+}
 
 // Housing amenities are the listing's TAGS (checkboxes when posting), not details.
 // [filter key, stored tag, chip label]. furnished/petOk keep their old keys so a filter a
@@ -717,7 +733,8 @@ function fillSpecSelects() {
     const [cat, key] = sel.dataset.spec.split('.');
     const spec = specOf(cat, key);
     if (!spec) return;
-    sel.innerHTML = `<option value="">Not specified</option>`
+    // data-placeholder for a required one ("Choose one…"); the optional details say "Not specified".
+    sel.innerHTML = `<option value="">${esc(sel.dataset.placeholder || 'Not specified')}</option>`
       + spec.options.map(([v, label]) => `<option value="${escAttr(v)}">${esc(label)}</option>`).join('')
       + (sel.dataset.other ? `<option value="__other">Other…</option>` : '');
   });
@@ -786,7 +803,16 @@ function matchItemKeyword(l, keyword) {
     || (l.isbn || '').replace(/[- ]/g, '').includes(k.replace(/[- ]/g, ''));
 }
 
+// What the Marketplace shows: everything browseItems() has except services, which have their own
+// page (js/services.js). Search still finds services — it asks browseItems() directly.
+function marketItems() {
+  return browseItems().filter(l => l.category !== 'services');
+}
+
 function renderListings() {
+  // Every change to the listings in memory ends here (first load, a new post, an admin approving
+  // one), so this is where the Services page hears about it and repaints if it is on screen.
+  if (typeof svListingsChanged === 'function') svListingsChanged();
   renderCategoryChips();
   // Saved HERE rather than in each setter, and that is the point: six functions change
   // _filters and every one of them ends by calling this. A save in each would be six places
@@ -798,7 +824,7 @@ function renderListings() {
   if (document.getElementById('page-listings').classList.contains('active')) updateMTabbar('listings');
   // Books mix into the one grid like any other category (separate table underneath,
   // same cards + filters up here). Newest-first across BOTH sources.
-  const approved = browseItems().filter(isListingLive)
+  const approved = marketItems().filter(isListingLive)
     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   const pinned   = approved.filter(l => l.pinned);
   const rest     = approved.filter(l => !l.pinned);
@@ -1141,8 +1167,19 @@ async function submitListingAppeal() {
   _appealListingId = null;
 }
 
+// How a service is charged (details.price_unit) → what follows the price. "fixed" adds nothing,
+// "varies" reads "From $80", "free" has no price. The labels live in the posting form (index.html).
+const SERVICE_PER = { hour: '/hr', session: '/session' };
+
 // Price line — category aware (Free for donations and $0 books, Event for org posts, /mo only for housing).
 function priceLabel(l) {
+  if (l.category === 'services') {
+    const unit = l.details?.price_unit;
+    if (unit === 'free') return `<span class="lc-soft">Free</span>`;
+    if (!(l.rent > 0)) return `<span class="lc-soft">Ask for price</span>`;
+    if (unit === 'varies') return `From $${l.rent}`;
+    return `$${l.rent}${SERVICE_PER[unit] ? `<span>${SERVICE_PER[unit]}</span>` : ''}`;
+  }
   if (l.category === 'organization_event') return `<span class="lc-soft">Event</span>`;
   if (l.category === 'donation') return `<span class="lc-soft">Free</span>`;
   if (l.category === 'books' && !(l.rent > 0)) return `<span class="lc-soft">Free</span>`;
@@ -1203,7 +1240,7 @@ function masonryInit() {
 }
 
 function listingCardHTML(l, isPinned) {
-  const catLabel  = catShort(l.category);
+  const catLabel  = l.category === 'services' ? serviceTypeLabel(l) : catShort(l.category);
   const photoCount = l.photo_urls?.length || 0;
   // Books route to their own detail + contact path — ids are per-table sequences.
   const openFn = l.isBook ? 'openBookDetail' : 'openDetail';
@@ -1713,6 +1750,7 @@ const PM_CATS = [
   ['technology', 'Technology', 'Laptops, monitors, cables'],
   ['donation',   'Free items', 'Give something away'],
   ['books',      'Books',      'Textbooks and course books'],
+  ['services',   'Service',    'Tutoring, braiding, photos, help'],
   ['other',      'Other',      'Anything else students need'],
 ];
 const PM_HINTS = {
@@ -1720,6 +1758,7 @@ const PM_HINTS = {
   clothing:   ['e.g. North Face puffer jacket, size M', 'Fit, fabric, any wear or flaws…'],
   technology: ['e.g. Dell 27" monitor with HDMI cable', "Specs, battery health, what's in the box, any issues…"],
   donation:   ['e.g. Desk lamp, works fine', 'What it is, its condition, when it can be picked up…'],
+  services:   ['e.g. Calculus I tutoring, or knotless braids', "What you offer, your experience, how long it takes, when you're free…"],
   other:      ['e.g. Mini fridge', "What it is, its condition, why you're letting it go…"],
 };
 
@@ -1731,11 +1770,11 @@ function pmPaintCats() {
       <span class="pm-cat-icon">${catIcon(cat, 24)}</span>
       <span class="pm-cat-text"><b>${label}</b><span>${sub}</span></span>
       <span class="pm-cat-go">${icon('chevRight', 18)}</span>
-    </button>`).join('') + `
+    </button>`).join('') + (EVENTS_VISIBLE ? `
     <button class="pm-cat pm-cat-locked" onclick="pmEventTap()">
       <span class="pm-cat-icon">${icon('lock', 22)}</span>
       <span class="pm-cat-text"><b>Event</b><span>Only club officers can post events. Follow a club to see theirs — or, if you run one, tap to open your club console.</span></span>
-    </button>`;
+    </button>` : ''); // Events is switched off for now — see EVENTS_VISIBLE in js/config.js
 }
 pmPaintCats();
 
@@ -1890,6 +1929,18 @@ async function submitListing() {
   } else if (cat === 'other') {
     const p = parseInt(document.getElementById('pOT_price').value);
     if (!isNaN(p)) price = p;
+  } else if (cat === 'services') {
+    // The kind is required: it is what the Services page's chips sort by.
+    const kind = document.getElementById('pSV_type').value;
+    if (!kind) { toast('Please choose what kind of service it is'); return; }
+    details.service_type = kind;
+    const unit = document.getElementById('pSV_unit').value;
+    details.price_unit = unit;
+    const p = parseInt(document.getElementById('pSV_price').value);
+    if (unit !== 'free' && p > 0) price = p;
+    // Per hour, per session and flat price need a number; "depends" and "free" do not.
+    if (['hour', 'session', 'fixed'].includes(unit) && !price) { toast('Please enter a price'); return; }
+    location = document.getElementById('pSV_where').value.trim();
   }
 
   // Soft photo nudge: for categories where a photo really helps, gently warn if there's none.

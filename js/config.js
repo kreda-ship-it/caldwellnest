@@ -13,14 +13,14 @@
 // of '2026-09-01' means "this person accepted the documents as they read on that date".
 // Without it, a stored timestamp would only prove SOMEONE agreed to SOMETHING.
 // Old profiles keep the version they accepted — never rewrite them to match this.
-const TERMS_VERSION = '2026-09-28a';
+const TERMS_VERSION = '2026-10-12a';
 // The day consent recording went live. Accounts older than this have no consent record
 // because none was ever captured — which is different from an account that SHOULD have one
 // and doesn't. The admin student view uses this to tell those two apart instead of flagging
 // every early student as a problem.
 const CONSENT_LOGGING_SINCE = '2026-09-01';
 
-const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;' };
+const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'&#128187;', donation:'&#127873;', organization_event:'&#128227;', other:'&#127991;', books:'&#128218;', services:'&#128188;' };
 // ---- THE ICON SET ---------------------------------------------------------
 // One registry for the whole app. Values are the SVG children of a 24x24
 // viewBox, so an icon can use <circle>, <rect> or <polyline> and not only
@@ -33,6 +33,7 @@ const CATEGORY_EMOJI = { housing:'&#127968;', clothing:'&#128085;', technology:'
 const ICON = {
   alert:        '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4.5"/><path d="M12 17h.01"/>',
   bell:         '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  briefcase:    '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   book:         '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   calendar:     '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   check:        '<path d="M20 6 9 17l-5-5"/>',
@@ -85,7 +86,7 @@ function icon(name, size = 16, filled = false) {
 // colour tokens so the category vocabulary stays in one place.
 const CATEGORY_ICON = {
   housing:'home', clothing:'shirt', technology:'monitor', donation:'gift',
-  organization_event:'calendar', books:'book', other:'tag'
+  organization_event:'calendar', books:'book', services:'briefcase', other:'tag'
 };
 function catIcon(category, size = 18) { return icon(CATEGORY_ICON[category] || 'tag', size); }
 
@@ -96,9 +97,12 @@ function catIcon(category, size = 18) { return icon(CATEGORY_ICON[category] || '
 // organization_event is NOT here. Events have their own tab, their own page and their own
 // table; leaving the chip in made Events a destination and a filter at once. Legacy rows
 // with that category still appear under All.
+//
+// services is not here either, for the same reason: it is posted from the same picker but
+// lives on its own Services page (js/services.js), and the Marketplace leaves it out.
 const BROWSE_CATEGORIES = ['housing', 'clothing', 'technology', 'donation', 'books', 'other'];
 
-const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books' };
+const CATEGORY_LABELS = { housing:'Housing', clothing:'Clothing', technology:'Technology', donation:'Free items', organization_event:'Org / Event', other:'Other', books:'Books', services:'Services' };
 // Short forms, for the one place where width is the binding constraint: the Marketplace's
 // single scrolling pill row. CATEGORY_LABELS stays the real vocabulary and is what filter
 // tags, card badges and the post flow say — a pill that has to fit six siblings on a 390px
@@ -124,8 +128,15 @@ const CATEGORY_COLORS = {
   donation:           catColor('donation'),            // warm sand
   organization_event: catColor('organization_event'),  // muted lavender
   books:              catColor('books'),               // moss / olive
+  services:           catColor('services'),            // muted teal
   other:              catColor('other')                // warm greige
 };
+
+// Events is switched off for now (2026-10-12, Kal): it has no tab, and the Post picker has no
+// "Event" tile. Nothing was deleted — the Events page, js/events.js, club events in the officer
+// console and #/event/:id links (QR posters) all still work. To bring Events back: set this to
+// true AND swap the commented-out Events buttons back in index.html (desktop nav + phone tab bar).
+const EVENTS_VISIBLE = false;
 let _postCategory = null;
 
 const SUPABASE_URL = 'https://jcbohweepdgqqntherzo.supabase.co';

@@ -966,7 +966,7 @@ function renderAListings() {
   }
 
   // Sync chip active states
-  ['all','housing','clothing','technology','donation','organization_event','other'].forEach(v =>
+  ['all','housing','clothing','technology','donation','organization_event','services','other'].forEach(v =>
     document.getElementById(`aTypeChip-${v}`)?.classList.toggle('active', _listingTypeFilter === v));
   ['all','approved','pending','rejected','pinned'].forEach(v =>
     document.getElementById(`aStatusChip-${v}`)?.classList.toggle('active', _listingStatusFilter === v));

@@ -44,6 +44,7 @@
   --cat-donation-bg:#F7EFE1;           --cat-donation-text:#7A5B2E;            /* warm sand     */
   --cat-organization_event-bg:#EDE7F3; --cat-organization_event-text:#4A3D6E;  /* muted lavender*/
   --cat-books-bg:#EEF1E2;              --cat-books-text:#4F5C28;               /* moss/olive    */
+  --cat-services-bg:#DFEEEF;           --cat-services-text:#2B5B63;            /* muted teal    */
   --cat-other-bg:#EEEBE4;              --cat-other-text:#4A423B;               /* warm greige   */
 
   /* Book-TYPE colours (textbook vs other book). Same deal: js/books.js BOOK_COLORS and the
@@ -478,6 +479,7 @@ select.ap-input{cursor:pointer;}
 [data-cat="donation"]  {--cat-tint:var(--cat-donation-bg);         --cat-deep:var(--cat-donation-text);}
 [data-cat="books"]     {--cat-tint:var(--cat-books-bg);            --cat-deep:var(--cat-books-text);}
 [data-cat="other"]     {--cat-tint:var(--cat-other-bg);            --cat-deep:var(--cat-other-text);}
+[data-cat="services"]  {--cat-tint:var(--cat-services-bg);         --cat-deep:var(--cat-services-text);}
 /* Legacy rows only — this category can no longer be posted, but old listings still carry it. */
 [data-cat="organization_event"]{--cat-tint:var(--cat-organization_event-bg);--cat-deep:var(--cat-organization_event-text);}
 .cat-pill[data-cat="all"]{padding:0 15px;}
@@ -1689,6 +1691,7 @@ button.ld-seller:hover{border-color:var(--brand-light);}
 .cat-donation{background:var(--cat-donation-bg);color:var(--cat-donation-text);}
 .cat-books{background:var(--cat-books-bg);color:var(--cat-books-text);}
 .cat-other{background:var(--cat-other-bg);color:var(--cat-other-text);}
+.cat-services{background:var(--cat-services-bg);color:var(--cat-services-text);}
 
 /* Book-type colours — mirror BOOK_COLORS in js/books.js. */
 .btype-course{background:var(--btype-course-bg);color:var(--btype-course-text);}
@@ -5345,3 +5348,22 @@ body.offline-page{min-height:100vh;margin:0;display:grid;place-items:center;padd
 .offline-card h1{margin:16px 0 8px;font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:28px;color:var(--brand);}
 .offline-card p{margin:0 0 20px;color:var(--text-muted);line-height:1.55;}
 .offline-card button{height:44px;padding:0 24px;border:0;border-radius:999px;background:var(--brand);color:#fff;font:600 14.5px 'DM Sans',system-ui,sans-serif;cursor:pointer;}
+
+/* SERVICES PAGE (js/services.js, 2026-10-12). The header, the chip row and the card grid are the
+   Marketplace's own classes (.mk-head, .cat-row, .listings-grid); only the search box, the post
+   button and the ground-rules note in the posting form are new. */
+.sv-search{flex:1;min-width:0;height:50px;display:flex;align-items:center;gap:var(--sp-3);padding:0 18px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);color:var(--text-faint);
+  transition:border-color var(--dur) var(--ease);}
+.sv-search:focus-within{border-color:var(--brand-light);}
+/* 16px, or iPhone Safari zooms the page in when the box is tapped. */
+.sv-search input{flex:1;min-width:0;height:100%;padding:0;border:0;outline:0;background:transparent;
+  font-family:inherit;font-size:16px;color:var(--text);}
+/* Unlike the Marketplace's .mk-post, this one stays on phones: the + tab opens the general
+   picker, and this is the one-tap way to offer a service from the page that lists them. */
+.sv-post{flex:none;height:50px;padding:0 18px;border-radius:var(--radius-pill);font-weight:600;}
+@media(max-width:768px){ .sv-post{padding:0 14px;} }
+/* Calmer than the Fair Housing box (.pm-fair): a reminder of the rules, not a legal warning. */
+.pm-note{margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--cat-services-bg);
+  font-size:12.5px;line-height:1.5;color:var(--cat-services-text);}
+.pm-note a{color:inherit;font-weight:600;}

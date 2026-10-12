@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Nestrel">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-12u">
+<link rel="stylesheet" href="styles.css?v=2026-10-12v">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -66,7 +66,11 @@
            page you are on. Same buttons, same handlers and badges in every layout. -->
       <button class="nav-ghost nav-btn nav-link" data-page="feed" onclick="goHome()" title="Home"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nav-lbl">Home</span></button>
       <button class="nav-ghost nav-btn nav-link" data-page="listings" onclick="showPage('listings')" title="Market"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/></svg><span class="nav-lbl">Market</span></button>
+      <!-- Events is switched off for now (2026-10-12) and Services has its slot. To bring Events back,
+           put this button back (and the phone tab below) and set EVENTS_VISIBLE in js/config.js:
       <button class="nav-ghost nav-btn nav-link" data-page="events" onclick="showPage('events')" title="Events"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="nav-lbl">Events</span></button>
+      -->
+      <button class="nav-ghost nav-btn nav-link" data-page="services" onclick="if(requireAuth())showPage('services')" title="Services"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span class="nav-lbl">Services</span></button>
       <button class="nav-post nav-btn" onclick="requireAuth('postListing')" title="Post"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Post</span></button>
       <button id="backToAdminBtn" class="switch-interface" onclick="switchBackToAdmin()" style="display:none">Admin &#8599;</button>
       <button class="nav-bell nav-i-search" data-page="search" onclick="goSearch()" aria-label="Search" title="Search"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg><span class="nav-lbl">Search</span></button>
@@ -341,6 +345,29 @@
     </div>
   </div>
 
+  <!-- SERVICES — its own page since 2026-10-12, in the tab Events had. Drawn by js/services.js.
+       A service is an ordinary listing with category 'services', so the cards, the detail view,
+       messaging and saving are the Marketplace's own. -->
+  <div id="page-services" class="page">
+    <div class="page-wrap">
+      <div class="mk-head">
+        <h1 class="mk-title">Services</h1>
+        <p class="mk-sub">What students offer each other — tutoring, braiding, photos and more.</p>
+      </div>
+      <div class="mk-tools">
+        <label class="sv-search">
+          <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg>
+          <input id="svSearch" type="search" autocomplete="off" placeholder="Search services" aria-label="Search services" oninput="svSearch(this.value)">
+        </label>
+        <button class="btn-sm-s btn-green sv-post" onclick="svPost()">+ Offer a service</button>
+      </div>
+      <div class="cat-row-wrap">
+        <div class="cat-row" id="svChips"></div>
+      </div>
+      <div id="svSections"></div>
+    </div>
+  </div>
+
   <div id="page-listings" class="page">
     <div class="page-wrap">
       <!-- The title and subtitle are admin-editable (Site Editor -> Content), so they keep
@@ -561,9 +588,16 @@
     <button class="m-tab-plus" onclick="requireAuth('postListing')" aria-label="Create a post">
       <span class="m-tab-plus-circle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
     </button>
+    <!-- Events is switched off for now (2026-10-12); Services has its tab. To bring Events back, see
+         EVENTS_VISIBLE in js/config.js and put this button back in place of mtab-services:
     <button class="m-tab" id="mtab-events" onclick="if(requireAuth())showPage('events')" aria-label="Events">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span>Events</span>
+    </button>
+    -->
+    <button class="m-tab" id="mtab-services" onclick="if(requireAuth())showPage('services')" aria-label="Services">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+      <span>Services</span>
     </button>
     <button class="m-tab" id="mtab-you" onclick="if(requireAuth())showPage('profile')" aria-label="Your profile">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -714,6 +748,7 @@
                 <button class="filter-chip"        id="aTypeChip-technology"         onclick="setAListFilter('type','technology')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="12" rx="2"/><path d="M8.5 21h7M12 16.5V21"/></svg> Technology</button>
                 <button class="filter-chip"        id="aTypeChip-donation"           onclick="setAListFilter('type','donation')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M2 9h20v4H2zM12 9v12"/><path d="M12 9S9.8 4.5 7.9 4.5a2.3 2.3 0 0 0 0 4.5"/><path d="M12 9s2.2-4.5 4.1-4.5a2.3 2.3 0 0 1 0 4.5"/></svg> Free items</button>
                 <button class="filter-chip"        id="aTypeChip-organization_event" onclick="setAListFilter('type','organization_event')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> Events</button>
+                <button class="filter-chip"        id="aTypeChip-services"           onclick="setAListFilter('type','services')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Services</button>
                 <button class="filter-chip"        id="aTypeChip-other"              onclick="setAListFilter('type','other')"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 4.8H4.8V12l8.6 8.6a1.5 1.5 0 0 0 2.1 0l5.1-5.1a1.5 1.5 0 0 0 0-2.1z"/><line x1="8.4" y1="8.4" x2="8.41" y2="8.4"/></svg> Other</button>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1641,6 +1676,15 @@
         <div id="catFields-donation" style="display:none">
           <div class="form-group"><label class="form-label" for="pDN_cond">Condition</label><select class="form-select" id="pDN_cond"><option>Good</option><option>Fair</option><option>Worn</option></select></div>
         </div>
+        <!-- SERVICES (js/services.js draws the page; the kinds come from LISTING_SPECS.services) -->
+        <div id="catFields-services" style="display:none">
+          <div class="form-group"><label class="form-label" for="pSV_type">What kind of service?</label><select class="form-select" id="pSV_type" data-spec="services.service_type" data-placeholder="Choose one…"></select></div>
+          <div class="form-row-2">
+            <div class="form-group"><label class="form-label" for="pSV_unit">How you charge</label><select class="form-select" id="pSV_unit" onchange="svUnitChange(this)"><option value="hour">Per hour</option><option value="session">Per session</option><option value="fixed">Flat price</option><option value="varies">Depends on the job</option><option value="free">Free</option></select></div>
+            <div class="form-group"><label class="form-label" for="pSV_price">Price ($)</label><input class="form-input" id="pSV_price" type="number" inputmode="numeric" min="0" placeholder="20"></div>
+          </div>
+          <div class="form-group"><label class="form-label" for="pSV_where">Where <span class="label-hint">(optional)</span></label><input class="form-input" id="pSV_where" autocomplete="off" placeholder="e.g. Library, my dorm, online, or I come to you"></div>
+        </div>
         <!-- OTHER -->
         <div id="catFields-other" style="display:none">
           <div class="form-group"><label class="form-label" for="pOT_price">Price ($) <span class="label-hint">(optional)</span></label><input class="form-input" id="pOT_price" type="number" inputmode="numeric" min="0" placeholder="Leave blank if free or ask for a price"></div>
@@ -1704,6 +1748,8 @@
       </section>
 
       <div class="pm-only" data-cat="housing"><div class="pm-fair"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M6 21h12"/><path d="M3 8l9-3 9 3"/><path d="M6.5 8 3 15h7z"/><path d="M17.5 8 14 15h7z"/></svg> <strong>Fair Housing reminder:</strong> Listings may not express preferences based on race, color, religion, sex, national origin, disability, or familial status. <a href="https://www.hud.gov/program_offices/fair_housing_equal_opp" target="_blank">Learn more at HUD.gov</a></div></div>
+
+      <div class="pm-only" data-cat="services"><div class="pm-note"><strong>Keep it honest.</strong> Tutoring means helping someone learn — never doing their homework, papers or exams for them. Offer only what you're qualified and allowed to do, and arrange meeting and payment yourselves: Nestrel doesn't handle payments. <a href="terms.html#marketplace" target="_blank">The rules</a></div></div>
 
       <div class="pm-submit">
         <p class="pm-review">Reviewed by an admin before it goes live.</p>
@@ -2010,19 +2056,20 @@
 <!-- App code, split by feature (2026-07-11). Plain scripts, not modules, so all
      functions stay global for the inline onclick="..." handlers. Order matters:
      config.js defines the shared state; boot.js runs the app and must stay LAST. -->
-<script src="js/config.js?v=2026-09-28a"></script>
+<script src="js/config.js?v=2026-10-12a"></script>
 <script src="js/utils.js?v=2026-09-27a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-10-01b"></script>
 <script src="js/auth.js?v=2026-10-12a"></script>
 <script src="js/profile.js?v=2026-10-12a"></script>
-<script src="js/listings.js?v=2026-10-05b"></script>
+<script src="js/listings.js?v=2026-10-12a"></script>
 <script src="js/books.js?v=2026-10-05a"></script>
 <script src="js/media.js?v=2026-09-30a"></script>
 <script src="js/messages.js?v=2026-10-01a"></script>
-<script src="js/admin.js?v=2026-10-05d"></script>
+<script src="js/admin.js?v=2026-10-12a"></script>
 <script src="js/orgs.js?v=2026-10-05d"></script>
 <script src="js/events.js?v=2026-10-05a"></script>
+<script src="js/services.js?v=2026-10-12a"></script>
 <script src="js/search.js?v=2026-09-25a"></script>
 <script src="js/orgdir.js?v=2026-10-05c"></script>
 <script src="js/feed.js?v=2026-10-12q"></script>
