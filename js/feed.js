@@ -22,11 +22,15 @@
 // onclick handlers depend on that. boot.js must stay last.
 // ============================================================
 
-// Local time, not UTC — "Good evening" has to agree with the window the student is
-// looking out of.
-function feedGreeting() {
+// The time of day for the Home banner — ONE answer for both the greeting and the photo, so they can
+// never disagree. Local time, not UTC: "Good evening" has to agree with the window the student is
+// looking out of. Morning 5:00–11:59, afternoon 12:00–17:59, night 18:00–4:59.
+function feedDaypart() {
   const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 18 ? 'afternoon' : 'night';
+}
+function feedGreeting(part = feedDaypart()) {
+  return { morning: 'Good morning', afternoon: 'Good afternoon', night: 'Good evening' }[part];
 }
 
 // The feed's own event card, and deliberately NOT evCardHTML.
@@ -101,76 +105,17 @@ function feedSection(title, moreLabel, moreFn, bodyHtml) {
     </section>`;
 }
 
-// The time of day decides the greeting AND the sky over the campus illustration.
-function feedDaypart() {
-  const h = new Date().getHours();
-  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
-}
 
-// The campus in the greeting banner. It is drawn to sit IN the page, not on it:
-//  - the front lawn is painted in the page's own colour (.hc-ground), so the buildings rise out
-//    of the page itself and there is no bottom edge to hide;
-//  - the sky is not a box but soft glows behind it (.home-hero::before), which fade to nothing
-//    on their own — no rectangle, so no rectangle to blur;
-//  - distance is shown the way a landscape shows it: pale, low rooftops behind the campus, and
-//    they thin out into the page towards both ends (#hcFarFade) — so the skyline dissolves
-//    instead of stopping at the banner's edge;
-//  - at dusk a few stars come out (.hc-stars, shown only in the evening).
-// Inline SVG, not an image: sharp at every size, weightless, and every colour is a CSS variable,
-// so the time-of-day classes on .home-hero repaint the scene (lit windows and a moon at dusk).
-// 1200 x 240, main buildings on the right so the greeting has open sky; phones crop to the right
-// half (preserveAspectRatio slice). Decorative, so hidden from screen readers.
-function feedCampusSVG() {
-  const wins = (x0, y, n, gap, w = 8, h = 13) =>
-    Array.from({ length: n }, (_, i) => `<rect x="${x0 + i * gap}" y="${y}" width="${w}" height="${h}" rx="${w / 2}"/>`).join('');
-  const tree = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}"/><circle cx="${x + r * .8}" cy="${y + r * .35}" r="${r * .75}"/>`
-    + `<circle cx="${x - r * .75}" cy="${y + r * .4}" r="${r * .7}"/><rect x="${x - 2.5}" y="${y + r * .6}" width="5" height="${r * .9}"/>`;
-  return `
-  <svg class="home-campus" viewBox="0 0 1200 240" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false">
-    <defs>
-      <linearGradient id="hcFarFade" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1200" y2="0">
-        <stop offset="0" class="hc-fs" stop-opacity="0"/><stop offset=".28" class="hc-fs" stop-opacity=".4"/>
-        <stop offset=".52" class="hc-fs" stop-opacity="1"/><stop offset=".92" class="hc-fs" stop-opacity="1"/>
-        <stop offset="1" class="hc-fs" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <g class="hc-stars">
-      <circle cx="742" cy="30" r="1.6"/><circle cx="806" cy="58" r="1.2"/><circle cx="958" cy="24" r="1.8"/>
-      <circle cx="1010" cy="70" r="1.2"/><circle cx="1066" cy="36" r="1.4"/><circle cx="1168" cy="22" r="1.6"/>
-      <circle cx="1182" cy="96" r="1.1"/><circle cx="696" cy="84" r="1.1"/>
-    </g>
-    <circle class="hc-sun" cx="1112" cy="62" r="19"/>
-    <g class="hc-far">
-      ${tree(166, 214, 12)}${tree(338, 212, 13)}${tree(492, 208, 15)}
-      <rect x="18" y="196" width="58" height="40"/><rect x="84" y="182" width="40" height="54"/><path d="M80 184 L104 166 L128 184Z"/>
-      <rect x="140" y="200" width="70" height="36"/><rect x="228" y="188" width="48" height="48"/>
-      <rect x="296" y="198" width="84" height="38"/><rect x="404" y="174" width="42" height="62"/><rect x="421" y="156" width="8" height="20"/>
-      <rect x="470" y="192" width="72" height="44"/><rect x="560" y="180" width="58" height="56"/><path d="M556 182 L589 162 L622 182Z"/>
-      <rect x="700" y="150" width="38" height="86"/><path d="M696 152 L719 128 L742 152Z"/>
-      <rect x="1100" y="170" width="60" height="66"/><rect x="1160" y="188" width="40" height="48"/>
-    </g>
-    <g class="hc-mid">
-      <rect x="640" y="180" width="104" height="56"/><path d="M634 182 L692 160 L750 182Z"/>
-      <rect x="770" y="150" width="200" height="86"/><path d="M760 152 L870 108 L980 152Z"/>
-      <rect x="848" y="70" width="44" height="86"/><path d="M842 72 L870 34 L898 72Z"/>
-      <rect x="990" y="162" width="92" height="74"/><path d="M997 163 A38 38 0 0 1 1073 163Z"/>
-      <rect x="1030" y="112" width="10" height="14"/>
-    </g>
-    <g class="hc-win">
-      ${wins(652, 196, 5, 17)}
-      ${wins(784, 166, 11, 16)}${wins(784, 198, 5, 16)}${wins(900, 198, 4, 16)}
-      ${wins(1004, 180, 5, 15)}
-      <circle cx="870" cy="94" r="10"/>
-      <path d="M862 236 L862 212 A8 8 0 0 1 878 212 L878 236Z"/>
-    </g>
-    <path class="hc-hands" d="M870 94 L870 87 M870 94 L876 96.5"/>
-    <g class="hc-tree">
-      ${tree(606, 204, 18)}${tree(752, 206, 15)}${tree(986, 208, 14)}${tree(1108, 206, 17)}${tree(1176, 210, 14)}
-      <rect x="724" y="196" width="3" height="34"/><circle cx="725.5" cy="195" r="4"/>
-      <rect x="1090" y="198" width="3" height="32"/><circle cx="1091.5" cy="197" r="4"/>
-    </g>
-    <path class="hc-ground" d="M0 226 C180 216 360 230 560 222 S900 212 1060 220 S1170 224 1200 222 L1200 240 L0 240Z"/>
-  </svg>`;
+// The photo behind the Home banner (2026-10-12): Caldwell's Rosary + Aquinas Hall and the Motherhouse
+// across the lawn, in the light of the time of day — images/hero-{morning,afternoon,night}.jpg, three
+// lights of the SAME scene (cut from Kal's "Campus Through Morning, Afternoon, and Night" sheet, with
+// its painted labels removed). Only the one for now is in the page, so only it downloads (~100–145 KB).
+// Fixed width/height plus a banner whose size never depends on the photo = no layout jump on load.
+// If it fails to load it removes itself and the banner shows its own colour behind the text.
+// Decorative, so alt="". Replacing a photo: give the file a new name, or browsers keep the old one.
+function feedCampusPhoto(part) {
+  return `<img class="home-photo" src="images/hero-${part}.jpg" width="1671" height="306" alt=""
+    decoding="async" fetchpriority="high" onerror="this.remove()">`;
 }
 
 // At-a-glance chips: what is waiting for you, each one a doorway. Only chips with something to
@@ -191,7 +136,7 @@ function feedChipsHTML() {
   const dayAgo = Date.now() - 864e5;
   const fresh = browseItems().filter(isListingLive).filter(l => new Date(l.created_at || 0).getTime() > dayAgo).length;
   if (fresh) chips.push([`${fresh} new listing${fresh === 1 ? '' : 's'} today`, "showPage('listings')", 'grid']);
-  return chips.map(([label, fn, ic]) => `<button class="home-chip" onclick="${fn}">${icon(ic, 14)}<span>${esc(label)}</span></button>`).join('');
+  return chips.map(([label, fn, ic]) => `<button class="home-chip" onclick="${fn}">${icon(ic, 14)}<span>${esc(label)}</span><span class="home-chip-go" aria-hidden="true">${icon('chevRight', 12)}</span></button>`).join('');
 }
 
 // "N events today" opens Events already narrowed to today.
@@ -665,15 +610,20 @@ async function renderFeed() {
   const first = (u.display_name || u.first || u.name || '').split(' ')[0];
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const schoolName = (_schoolsList || []).find(s => s.slug === u.school)?.name || '';
+  // "Your Caldwell day": the school's short name ("Caldwell University" -> "Caldwell"), so the line
+  // stays true for a student of any school; "campus" if the school is not known yet.
+  const place = schoolName.replace(/\s+(University|College)$/i, '') || 'campus';
+  const part = feedDaypart();
   const hero = `
-    <section class="home-hero is-${feedDaypart()}">
+    <section class="home-hero is-${part}">
+      ${feedCampusPhoto(part)}
       <div class="home-hero-text">
-        <p class="home-date">${esc([today, schoolName].filter(Boolean).join(' · '))}</p>
-        <h1 class="home-greet">${feedGreeting()}${first ? ', ' + esc(first) : ''}</h1>
-        <div class="home-chips" id="homeChips">${feedChipsHTML()}</div>
+        <p class="home-date">${esc(today)}</p>
+        <h1 class="home-greet">${feedGreeting(part)}${first ? ', ' + esc(first) : ''}.</h1>
+        <p class="home-tagline">Your ${esc(place)} day, all in one place.</p>
         ${feedBetaHTML()}
+        <div class="home-chips" id="homeChips">${feedChipsHTML()}</div>
       </div>
-      ${feedCampusSVG()}
     </section>`;
 
   // A short row, not the whole Marketplace: ten of the newest, then a doorway to the rest.
