@@ -2,7 +2,8 @@
 // FEEDBACK — the admin page (Admin → Feedback)
 // Overview cards, four small charts, patterns ("students mentioning this"), the inbox with filters and
 // search, one response in the side drawer (status, tags, internal notes), product changes and
-// "You asked, we built", CSV export, and checking a completion ID a professor was shown.
+// "You asked, we built", CSV export, checking a completion ID a professor was shown, and the Questions tab:
+// the question builder behind the student evaluation (sql/changes/2026-10-05_feedback_questions.sql).
 // The student side is js/feedback.js, which this file borrows its labels from.
 // Added 2026-10-05. Loaded as a plain script (not a module) so every function stays global — the
 // HTML's onclick="..." handlers depend on that. Load order is set in index.html; boot.js must stay last.
@@ -46,7 +47,8 @@ const FA_RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90
 let _fa = {
   rows: [], changes: [], links: [], counts: null, loaded: false, error: '', missing: false,
   range: 'all', from: '', to: '',
-  f: { source: '', rating: '', feature: '', miss: '', contact: '', status: '', tag: '', kind: '', change: '' },
+  f: { source: '', rating: '', feature: '', miss: '', contact: '', status: '', tag: '', kind: '', change: '', answered: '' },
+  qs: null, qVersions: {}, qCounts: null, qEditId: null,
   q: '', tab: 'inbox', shown: FA_PAGE, sel: new Set(), openId: null, linkIds: null,
 };
 let _faCountsSeq = 0;
@@ -83,9 +85,22 @@ async function faLoad() {
     if (!data || data.length < 1000) break;
   }
   _fa.rows = rows;
-  await faLoadChanges();
+  await Promise.all([faLoadChanges(), faLoadQuestions()]);
   _fa.loaded = true;
   _fa.sel = new Set([..._fa.sel].filter(id => rows.some(r => r.id === id)));
+}
+
+// The questions (active and retired) and every wording each has had. null: the builder is not set up yet
+// (its database file has not run), and the Questions tab says so.
+async function faLoadQuestions() {
+  const [qr, vr] = await Promise.all([
+    supabaseClient.from('feedback_questions').select('*').order('position', { ascending: true }).order('id', { ascending: true }),
+    supabaseClient.from('feedback_question_versions').select('question_id, version, title, created_at').order('version', { ascending: true }),
+  ]);
+  _fa.qs = qr.error ? null : (qr.data || []);
+  _fa.qCounts = null;
+  _fa.qVersions = {};
+  (vr.data || []).forEach(v => { (_fa.qVersions[v.question_id] = _fa.qVersions[v.question_id] || []).push(v); });
 }
 
 async function faLoadChanges() {
@@ -149,8 +164,9 @@ async function renderFeedbackAdmin(reload = true) {
     ${faRangeBarHTML()}
     <div id="faOverview"></div>
     <div class="fa-tabs" role="tablist">
-      <button type="button" role="tab" class="fa-tab ${_fa.tab === 'inbox' ? 'is-on' : ''}" aria-selected="${_fa.tab === 'inbox'}" onclick="faSetTab('inbox')">Responses <span class="fa-tab-n">${_fa.rows.length}</span></button>
-      <button type="button" role="tab" class="fa-tab ${_fa.tab === 'changes' ? 'is-on' : ''}" aria-selected="${_fa.tab === 'changes'}" onclick="faSetTab('changes')">You asked, we built <span class="fa-tab-n">${_fa.changes.length}</span></button>
+      <button type="button" role="tab" class="fa-tab ${_fa.tab === 'inbox' ? 'is-on' : ''}" data-tab="inbox" aria-selected="${_fa.tab === 'inbox'}" onclick="faSetTab('inbox')">Responses <span class="fa-tab-n">${_fa.rows.length}</span></button>
+      <button type="button" role="tab" class="fa-tab ${_fa.tab === 'questions' ? 'is-on' : ''}" data-tab="questions" aria-selected="${_fa.tab === 'questions'}" onclick="faSetTab('questions')">Questions <span class="fa-tab-n">${(_fa.qs || []).filter(q => q.status === 'active').length || ''}</span></button>
+      <button type="button" role="tab" class="fa-tab ${_fa.tab === 'changes' ? 'is-on' : ''}" data-tab="changes" aria-selected="${_fa.tab === 'changes'}" onclick="faSetTab('changes')">You asked, we built <span class="fa-tab-n">${_fa.changes.length}</span></button>
     </div>
     <div id="faTabBody"></div>
   </div>`;
@@ -162,7 +178,7 @@ async function renderFeedbackAdmin(reload = true) {
 function faRangeBarHTML() {
   const btns = FA_RANGES.map(([k, l]) =>
     `<button type="button" class="btn-sm-a btn-a-neutral ${_fa.range === k ? 'active' : ''}" onclick="faSetRange('${k}')">${l}</button>`).join('');
-  return `<div class="fa-col">
+  return `<div class="fa-bar">
     <div class="fa-range" role="group" aria-label="Date range">${btns}
       <span class="fa-custom">
         <label class="fa-sr" for="faFrom">From</label><input type="date" id="faFrom" class="fa-input" value="${escAttr(_fa.from)}">
@@ -188,8 +204,8 @@ function faApplyCustom() {
 }
 function faSetTab(t) {
   _fa.tab = t;
-  document.querySelectorAll('#asec-feedback .fa-tab').forEach((b, i) => {
-    const on = (i === 0 && t === 'inbox') || (i === 1 && t === 'changes');
+  document.querySelectorAll('#asec-feedback .fa-tab').forEach(b => {
+    const on = b.dataset.tab === t;
     b.classList.toggle('is-on', on);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
   });
@@ -433,20 +449,24 @@ function faFiltered() {
     (!f.tag     || (r.tags || []).includes(f.tag)) &&
     (!f.kind    || r.kind === f.kind) &&
     (!f.change  || (r.change_ids || []).map(Number).includes(Number(f.change))) &&
+    (!f.answered || faHasAnswer(faQById(f.answered), r)) &&
     (!q || faText(r).includes(q)));
 }
 const faText = r => [r.liked, r.confusing_or_missing, r.one_thing_to_change, r.message, r.admin_notes,
+  ...Object.values(r.answers || {}).filter(v => typeof v === 'string'),
   ...(r.tags || []), ...(r.features_used || []).map(k => FB_FEATURE_LABEL[k] || k)].filter(Boolean).join('\n').toLowerCase();
 
 function faPaintTab() {
   const el = document.getElementById('faTabBody');
   if (!el) return;
   if (_fa.tab === 'changes') { el.innerHTML = '<div id="faChanges"></div>'; faPaintChanges(); return; }
+  if (_fa.tab === 'questions') { el.innerHTML = '<div id="faQuestions"></div>'; faPaintQuestions(); return; }
   const sel = (id, label, cur, opts) => `<label class="fa-filter"><span>${label}</span><select class="fa-input" id="${id}" onchange="faSetFilter('${id.slice(3).toLowerCase()}', this.value)">
       <option value="">Any</option>${opts.map(([v, l]) => `<option value="${escAttr(String(v))}" ${String(cur) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
   const tags = [...new Set([...FA_TAGS, ..._fa.rows.flatMap(r => r.tags || [])])].sort((a, b) => a.localeCompare(b));
   const f = _fa.f;
   const linked = f.change ? _fa.changes.find(c => c.id === Number(f.change)) : null;
+  const answeredQ = f.answered ? faQById(f.answered) : null;
   el.innerHTML = `<div class="tcard fa-inbox">
     <div class="fa-filters">
       <label class="fa-filter fa-filter-q"><span>Search feedback</span>
@@ -462,6 +482,7 @@ function faPaintTab() {
       <button type="button" class="btn-sm-a btn-a-neutral fa-clear" onclick="faClearFilters()">Clear</button>
     </div>
     ${linked ? `<div class="fa-chip-row"><span class="fa-chip-on">Linked to “${esc(linked.title)}” <button type="button" aria-label="Stop showing only this change" onclick="faSetFilter('change','')">&times;</button></span></div>` : ''}
+    ${answeredQ ? `<div class="fa-chip-row"><span class="fa-chip-on">Answered “${esc(faClip(answeredQ.title, 60))}” <button type="button" aria-label="Stop showing only these answers" onclick="faSetFilter('answered','')">&times;</button></span></div>` : ''}
     <div class="fa-summary" id="faSummary"></div>
     <div id="faSelBar"></div>
     <div id="faInbox"></div>
@@ -472,7 +493,7 @@ function faPaintTab() {
 function faSetFilter(key, value) {
   _fa.f[key] = value;
   _fa.shown = FA_PAGE;
-  if (key === 'change') { faPaintTab(); } else { faPaintInbox(); }
+  if (key === 'change' || key === 'answered') { faPaintTab(); } else { faPaintInbox(); }
   faRefreshCounts();
 }
 function faClearFilters() {
@@ -539,7 +560,8 @@ function faItemHTML(r) {
     ? `${r.kind ? `<div class="fa-kind">${esc(FA_KIND_LABEL[r.kind] || r.kind)}</div>` : ''}${ans('Note', r.message) || '<div class="fa-muted">No words, just the choice.</div>'}`
     : `${(r.features_used || []).length ? `<div class="fa-meta-line"><b>Features used:</b> ${esc(r.features_used.map(k => FB_FEATURE_LABEL[k] || k).join(', '))}</div>` : ''}
        ${ans('What did you like?', r.liked)}${ans('What was confusing or missing?', r.confusing_or_missing)}${ans('One thing to change', r.one_thing_to_change)}
-       ${miss ? `<div class="fa-meta-line"><b>Nestrel value:</b> ${miss.emoji} ${esc(miss.label)}</div>` : ''}`;
+       ${miss ? `<div class="fa-meta-line"><b>Nestrel value:</b> ${miss.emoji} ${esc(miss.label)}</div>` : ''}
+       ${faExtraQs(r).map(q => ans(esc(faClip(q.title, 80)), faAnswerText(q, r))).join('')}`;
   return `<article class="fa-item ${_fa.sel.has(r.id) ? 'is-sel' : ''}" onclick="faOpen(${Number(r.id)})">
     <div class="fa-item-head">
       ${manage ? `<input type="checkbox" class="fa-item-sel" aria-label="Select response ${Number(r.id)}" ${_fa.sel.has(r.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="faSelect(${Number(r.id)}, this.checked)">` : ''}
@@ -620,10 +642,12 @@ function faDetailHTML(r) {
          <div><div class="fa-d-label">Rating</div><div class="fa-d-big">${r.overall_rating ? `&#9733; ${r.overall_rating} / 5` : '—'}</div></div>
          <div><div class="fa-d-label">Would miss Nestrel</div><div class="fa-d-big">${miss ? `${miss.emoji} ${esc(miss.label)}` : '—'}</div></div>
        </div>
-       ${block('Features used', (r.features_used || []).map(k => FB_FEATURE_LABEL[k] || k).join(', '))}
-       ${block('What did you like?', r.liked)}
-       ${block('Was anything confusing, difficult, or missing?', r.confusing_or_missing)}
-       ${block('If you could change ONE thing…', r.one_thing_to_change)}`;
+       ${block(esc(faQTitle('features_used', 'Features used')), (r.features_used || []).map(k => FB_FEATURE_LABEL[k] || k).join(', '))}
+       ${block(esc(faQTitle('liked', 'What did you like?')), r.liked)}
+       ${block(esc(faQTitle('confusing_or_missing', 'Was anything confusing, difficult, or missing?')), r.confusing_or_missing)}
+       ${block(esc(faQTitle('one_thing_to_change', 'If you could change ONE thing…')), r.one_thing_to_change)}
+       ${faExtraQs(r).map(q => `<div class="fa-d-block"><div class="fa-d-label">${esc(q.title)}${faEarlierWording(q, r)}</div>
+          <div class="fa-d-text">${esc(faAnswerText(q, r))}</div></div>`).join('')}`;
   const allTags = [...new Set([...FA_TAGS, ...(r.tags || [])])];
   const tagsUI = manage
     ? `<div class="fa-tagpick">${allTags.map(t => `<button type="button" class="fa-tagbtn ${(r.tags || []).includes(t) ? 'is-on' : ''}" aria-pressed="${(r.tags || []).includes(t)}" data-tag="${escAttr(t)}" onclick="faToggleTag(${Number(r.id)}, this.dataset.tag)">${esc(t)}</button>`).join('')}</div>
@@ -942,6 +966,8 @@ function faExport() {
   const head = ['ID', 'Submitted', 'Source', 'Quick note', 'Rating', 'Features used', 'Liked', 'Confusing or missing',
                 'One thing to change', 'Note', 'Would miss Nestrel', 'Can contact', 'Student name', 'Student email',
                 'Page', 'Device', 'Browser', 'App version', 'Seconds to complete', 'Status', 'Tags', 'Internal notes', 'Product changes'];
+  const extra = (_fa.qs || []).filter(q => !FA_BUILTIN_KEYS.has(q.key) && rows.some(r => faHasAnswer(q, r)));
+  head.push(...extra.map(q => q.title + (q.status === 'retired' ? ' (retired)' : '')));
   const lines = rows.map(r => [
     r.id, new Date(r.created_at).toISOString(), FA_SOURCES[r.feedback_source] || r.feedback_source, FA_KIND_LABEL[r.kind] || '',
     r.overall_rating ?? '', (r.features_used || []).map(k => FB_FEATURE_LABEL[k] || k).join('; '), r.liked || '',
@@ -951,6 +977,7 @@ function faExport() {
     r.browser || '', r.app_version || '', r.completion_seconds ?? '', FA_STATUS_LABEL[r.status] || r.status,
     (r.tags || []).join('; '), r.admin_notes || '',
     (r.change_ids || []).map(cid => _fa.changes.find(c => c.id === Number(cid))?.title || `#${cid}`).join('; '),
+    ...extra.map(q => faHasAnswer(q, r) ? faAnswerText(q, r) : ''),
   ].map(csvCell).join(','));
   const csv = [head.map(csvCell).join(','), ...lines].join('\n');
   const a = document.createElement('a');
@@ -959,4 +986,293 @@ function faExport() {
   a.click();
   logAdminAction('export', { targetType: 'feedback', targetLabel: 'Feedback CSV', meta: { rows: rows.length } });
   toast(`Exported ${rows.length} response${rows.length === 1 ? '' : 's'}`);
+}
+
+// ---------------------------------------------------------------- the Questions tab (the question builder)
+// What the database enforces, whatever this page does (feedback_questions_guard): core questions stay,
+// stay required and keep their type; "would you miss Nestrel" keeps its words; a question with answers keeps
+// its type and choices; every change of words is a new version. This page only mirrors those rules.
+//
+// The six questions asked before the builder answer into their own columns; every question added since
+// answers into app_feedback.answers, by question id.
+const FA_BUILTIN_KEYS = new Set(['overall_rating', 'features_used', 'liked', 'confusing_or_missing', 'one_thing_to_change', 'would_miss_nestrel']);
+const FA_QKIND = { rating: 'Rating 1–5', single: 'Pick one', multi: 'Pick several', text: 'Short text', yesno: 'Yes / no' };
+const faQById = id => (_fa.qs || []).find(q => q.id === Number(id)) || null;
+const faQTitle = (key, fallback) => (_fa.qs || []).find(q => q.key === key)?.title || fallback;
+
+function faAnswerOf(q, r) {
+  if (!q || !r) return null;
+  switch (q.key) {
+    case 'overall_rating':       return r.overall_rating;
+    case 'features_used':        return (r.features_used || []).length ? r.features_used : null;
+    case 'would_miss_nestrel':   return r.would_miss_nestrel;
+    case 'liked':                return r.liked;
+    case 'confusing_or_missing': return r.confusing_or_missing;
+    case 'one_thing_to_change':  return r.one_thing_to_change;
+    default:                     return r.answers ? r.answers[q.id] : null;
+  }
+}
+const faHasAnswer = (q, r) => { const v = faAnswerOf(q, r); return v != null && v !== '' && !(Array.isArray(v) && !v.length); };
+function faAnswerText(q, r) {
+  const v = faAnswerOf(q, r);
+  if (v == null) return '';
+  const label = k => (q.options || []).find(o => o.key === k)?.label || String(k);
+  if (q.kind === 'rating') return `${v} / 5`;
+  if (q.kind === 'yesno') return v ? 'Yes' : 'No';
+  if (q.kind === 'single') return label(v);
+  if (q.kind === 'multi') return (Array.isArray(v) ? v : []).map(label).join(', ');
+  return String(v);
+}
+// The builder's questions this response answered, in survey order.
+const faExtraQs = r => (_fa.qs || []).filter(q => !FA_BUILTIN_KEYS.has(q.key) && faHasAnswer(q, r));
+// When the student was shown different words from the question's current ones.
+function faEarlierWording(q, r) {
+  const seen = Number((r.question_versions || {})[q.id]);
+  if (!seen || seen === q.version) return '';
+  const old = (_fa.qVersions[q.id] || []).find(v => v.version === seen);
+  return old ? ` <span class="fa-muted">· answered an earlier wording: “${esc(old.title)}”</span>` : '';
+}
+
+async function faLoadQCounts() {
+  const { data, error } = await supabaseClient.rpc('admin_feedback_question_counts');
+  if (!error) _fa.qCounts = data || {};
+  return _fa.qCounts;
+}
+
+async function faPaintQuestions() {
+  const el = document.getElementById('faQuestions');
+  if (!el) return;
+  if (!_fa.qs) {
+    el.innerHTML = '<div class="fa-empty"><b>The question builder isn’t set up in the database yet.</b><br>Run <code>sql/changes/2026-10-05_feedback_questions.sql</code> (PART 1) in the Supabase SQL Editor, then reload. Until then students get the original six questions.</div>';
+    return;
+  }
+  const manage = aCan('manage_feedback');
+  const active = _fa.qs.filter(q => q.status === 'active');
+  const retired = _fa.qs.filter(q => q.status === 'retired');
+  const mins = fbMinutes(active);
+  el.innerHTML = `<div class="tcard fa-inbox">
+    <div class="fa-ch-head"><div>
+      <div class="tcard-title">The student feedback · ${active.length} question${active.length === 1 ? '' : 's'} · about ${mins} minute${mins === 1 ? '' : 's'}</div>
+      <p class="fa-muted">Students see one question per screen, in this order. A change reaches the next student who starts; anyone already answering finishes the version they began.</p></div>
+      ${manage ? `<button type="button" class="btn-sm-a btn-a-brand" onclick="faEditQuestion(0)" ${active.length >= 15 ? 'disabled title="15 questions is the most"' : ''}>Add a question</button>` : ''}</div>
+    ${mins > 3 ? '<p class="fa-caution fa-caution-row">Longer than 3 minutes. Every extra question means fewer students finish.</p>' : ''}
+    <div>${active.map((q, i) => faQuestionRowHTML(q, i, active.length, manage)).join('')}</div>
+    ${retired.length ? `<details class="fa-retired"><summary>Retired questions (${retired.length})</summary>
+       ${retired.map(q => faQuestionRowHTML(q, -1, 0, manage)).join('')}</details>` : ''}
+  </div>`;
+  if (!_fa.qCounts && await faLoadQCounts()) {
+    document.querySelectorAll('#faQuestions [data-fa-qcount]').forEach(n => {
+      const c = _fa.qCounts[n.dataset.faQcount];
+      if (c != null) n.textContent = `Answered by ${c}`;
+    });
+  }
+}
+
+function faQuestionRowHTML(q, i, n, manage) {
+  const retired = q.status === 'retired';
+  const badges = [FA_QKIND[q.kind] || q.kind, q.required ? 'Required' : 'Optional',
+    ...(q.core ? ['Core'] : []), ...(q.locked_wording ? ['Words fixed'] : []),
+    ...(q.version > 1 ? [`Reworded ${q.version - 1}×`] : [])];
+  const count = _fa.qCounts && _fa.qCounts[q.id] != null ? `Answered by ${_fa.qCounts[q.id]}` : 'Answered by …';
+  const actions = !manage
+    ? `<button type="button" class="btn-sm-a btn-a-neutral" onclick="faEditQuestion(${Number(q.id)})">View</button>`
+    : retired
+      ? `<button type="button" class="btn-sm-a btn-a-neutral" onclick="faRestoreQuestion(${Number(q.id)})">Bring back</button>`
+      : `<button type="button" class="btn-sm-a btn-a-neutral fa-icon-btn" aria-label="Move up" ${i === 0 ? 'disabled' : ''} onclick="faMoveQuestion(${Number(q.id)}, -1)">&#8593;</button>
+         <button type="button" class="btn-sm-a btn-a-neutral fa-icon-btn" aria-label="Move down" ${i === n - 1 ? 'disabled' : ''} onclick="faMoveQuestion(${Number(q.id)}, 1)">&#8595;</button>
+         <button type="button" class="btn-sm-a btn-a-neutral" onclick="faEditQuestion(${Number(q.id)})">Edit</button>
+         ${q.core ? '' : `<button type="button" class="btn-sm-a btn-a-danger" onclick="faRetireQuestion(${Number(q.id)})">Retire</button>`}`;
+  return `<article class="fa-q ${retired ? 'is-retired' : ''}">
+    <div class="fa-q-num">${retired ? '–' : i + 1}</div>
+    <div class="fa-q-main">
+      <div class="fa-q-title">${esc(q.title)}</div>
+      <div class="fa-q-meta">${badges.map(b => `<span class="fa-pill">${esc(b)}</span>`).join('')}<span class="fa-muted" data-fa-qcount="${Number(q.id)}">${count}</span></div>
+      ${retired ? '' : `<div class="fa-q-results">${faQuestionResultsHTML(q)}</div>`}
+    </div>
+    <div class="fa-q-actions">${actions}</div>
+  </article>`;
+}
+
+// Each question's own results, from the responses loaded for the date range above.
+function faQuestionResultsHTML(q) {
+  const answered = _fa.rows.filter(r => r.feedback_source !== 'general' && faHasAnswer(q, r));
+  const n = answered.length;
+  const span = _fa.range === 'all' ? '' : ' in this period';
+  if (!n) return `<span class="fa-muted">No answers yet${span}.</span>`;
+  if (q.kind === 'rating') {
+    const avg = answered.reduce((t, r) => t + Number(faAnswerOf(q, r)), 0) / n;
+    return `<b>${avg.toFixed(1)} / 5</b> <span class="fa-muted">average of ${n} answer${n === 1 ? '' : 's'}${span}</span>`;
+  }
+  if (q.kind === 'text') {
+    return `<b>${n}</b> written answer${n === 1 ? '' : 's'}${span} <button type="button" class="fa-linkbtn" onclick="faShowAnswers(${Number(q.id)})">Read them</button>`;
+  }
+  const opts = q.kind === 'yesno' ? [{ key: true, label: 'Yes' }, { key: false, label: 'No' }] : (q.options || []);
+  const rows = opts.map(o => {
+    const c = answered.filter(r => { const v = faAnswerOf(q, r); return Array.isArray(v) ? v.includes(o.key) : v === o.key; }).length;
+    const pct = Math.round(100 * c / n);
+    return `<div class="fa-q-bar"><span class="fa-q-bar-l">${esc(o.label)}</span>
+      <svg class="fa-q-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="fa-q-track" width="100" height="8" rx="2"/>${c ? `<rect class="fa-col" width="${pct}" height="8" rx="2"/>` : ''}</svg>
+      <span class="fa-q-bar-n">${c} <span class="fa-muted">(${pct}%)</span></span></div>`;
+  }).join('');
+  return `<div class="fa-q-bars">${rows}</div><span class="fa-muted">${n} answer${n === 1 ? '' : 's'}${span}${q.kind === 'multi' ? ' · students could pick several' : ''}</span>
+    <button type="button" class="fa-linkbtn" onclick="faShowAnswers(${Number(q.id)})">See the responses</button>`;
+}
+
+function faShowAnswers(id) {
+  Object.keys(_fa.f).forEach(k => { _fa.f[k] = ''; });
+  _fa.q = '';
+  _fa.f.answered = String(id);
+  faSetTab('inbox');
+  faRefreshCounts();
+}
+
+// The form, in the side drawer, for a new question (id 0) or an existing one. A view-only role sees it
+// with everything switched off. The preview is drawn by the student page's own fbQuestionHTML().
+async function faEditQuestion(id) {
+  const q = id ? faQById(id) : { kind: 'single', title: '', help: '', placeholder: '', options: [],
+                                 scale_labels: { 1: 'Not great', 3: 'Okay', 5: 'Great' }, required: false, version: 1 };
+  if (!q) return;
+  if (id && !_fa.qCounts) await faLoadQCounts();
+  _fa.qEditId = id || null;
+  const manage = aCan('manage_feedback');
+  const answers = id ? (_fa.qCounts?.[id] ?? null) : 0;
+  const lockShape = !manage || q.core || answers == null || answers > 0;   // unknown count: treat as answered
+  const lockWords = !manage || q.locked_wording;
+  const notes = [];
+  if (q.core) notes.push('Core question: the overview cards and charts are built on it, so it can’t be retired, made optional, or change type.');
+  if (q.locked_wording) notes.push('Its words are fixed, so its answers stay comparable with the 40% benchmark.');
+  else if (!q.core && answers > 0) notes.push(`Answered by ${answers}: you can reword it, but its type and choices are locked. To change those, retire it and add a new question.`);
+  const history = id ? (_fa.qVersions[id] || []).filter(v => v.version < q.version).reverse() : [];
+  const sl = q.scale_labels || {};
+  openHDrawer(!id ? 'Add a question' : manage ? 'Edit question' : 'Question', `<form class="fa-form" onsubmit="return false" autocomplete="off" oninput="if (!event.target.closest('.fa-q-preview')) faQPreview()">
+    ${notes.map(t => `<p class="fa-note">${esc(t)}</p>`).join('')}
+    <label class="fa-form-row" for="faQKind"><span class="fa-d-label">Type</span>
+      <select class="fa-input" id="faQKind" ${lockShape ? 'disabled' : ''} onchange="faQKindChanged()">${Object.entries(FA_QKIND).map(([k, l]) => `<option value="${k}" ${q.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="fa-form-row" for="faQTitle"><span class="fa-d-label">Question</span>
+      <input type="text" class="fa-input" id="faQTitle" maxlength="200" value="${escAttr(q.title)}" ${lockWords ? 'disabled' : ''} placeholder="e.g. What should we add to Nestrel next?"></label>
+    <label class="fa-form-row" for="faQHelp"><span class="fa-d-label">Small print under it <span class="fa-muted">· optional</span></span>
+      <input type="text" class="fa-input" id="faQHelp" maxlength="200" value="${escAttr(q.help || '')}" ${lockWords ? 'disabled' : ''} placeholder="e.g. Choose all that apply."></label>
+    <div class="fa-q-only" data-for="text"><label class="fa-form-row" for="faQPh"><span class="fa-d-label">Example text inside the box <span class="fa-muted">· optional</span></span>
+      <input type="text" class="fa-input" id="faQPh" maxlength="120" value="${escAttr(q.placeholder || '')}" ${lockWords ? 'disabled' : ''}></label></div>
+    <div class="fa-q-only" data-for="single multi"><label class="fa-form-row" for="faQOpts"><span class="fa-d-label">Choices <span class="fa-muted">· one per line, 2 to 12</span></span>
+      <textarea class="fa-input" id="faQOpts" rows="5" ${lockShape ? 'disabled' : ''}>${esc((q.options || []).map(o => o.label).join('\n'))}</textarea></label></div>
+    <div class="fa-q-only" data-for="rating"><div class="fa-d-label">Words under the numbers <span class="fa-muted">· optional</span></div>
+      <div class="fa-q-scale">${[1, 3, 5].map(n => `<label class="fa-form-row"><span class="fa-muted">Under ${n}</span><input type="text" class="fa-input" id="faQS${n}" maxlength="30" value="${escAttr(sl[n] || '')}" ${lockWords ? 'disabled' : ''}></label>`).join('')}</div></div>
+    <label class="fa-check-row"><input type="checkbox" id="faQReq" ${q.required ? 'checked' : ''} ${!manage || q.core ? 'disabled' : ''}> Students must answer it</label>
+    <div class="fa-d-label">Preview</div>
+    <div class="fa-q-preview" id="faQPrevBox"></div>
+    ${history.length ? `<div class="fa-d-label">Earlier wordings</div><ul class="fa-q-hist">${history.map(v => `<li><span class="fa-muted">Version ${Number(v.version)} · ${esc(new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))}</span><br>“${esc(v.title)}”</li>`).join('')}</ul>` : ''}
+    ${manage ? `<div class="fa-d-actions"><button type="button" class="btn-sm-a btn-a-brand" onclick="faSaveQuestion()">${id ? 'Save' : 'Add question'}</button>
+      <button type="button" class="btn-sm-a btn-a-neutral" onclick="closeHDrawer()">Cancel</button></div>` : ''}
+  </form>`);
+  faQKindChanged();
+}
+
+function faQKindChanged() {
+  const kind = document.getElementById('faQKind')?.value;
+  document.querySelectorAll('#hDrawerBody .fa-q-only').forEach(b => { b.hidden = !b.dataset.for.split(' ').includes(kind); });
+  faQPreview();
+}
+
+// The question as the form describes it. Choices get fresh keys (o1, o2, …) unless they are locked, in
+// which case the question's own choices — with their real keys — are kept untouched.
+function faQFromForm() {
+  const v = id => document.getElementById(id);
+  const q = _fa.qEditId ? faQById(_fa.qEditId) : null;
+  const kind = v('faQKind')?.value || 'single';
+  const optsLocked = !!v('faQOpts')?.disabled && q && q.kind === kind;
+  const lines = (v('faQOpts')?.value || '').split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const options = kind === 'single' || kind === 'multi'
+    ? (optsLocked ? q.options : lines.map((label, i) => ({ key: 'o' + (i + 1), label: label.slice(0, 80) })))
+    : [];
+  const scale = {};
+  if (kind === 'rating') [1, 3, 5].forEach(n => { const t = (v('faQS' + n)?.value || '').trim(); if (t) scale[n] = t.slice(0, 30); });
+  return { kind, title: (v('faQTitle')?.value || '').trim(), help: (v('faQHelp')?.value || '').trim(),
+           placeholder: (v('faQPh')?.value || '').trim(), options, scale_labels: scale, required: !!v('faQReq')?.checked };
+}
+
+function faQPreview() {
+  const box = document.getElementById('faQPrevBox');
+  if (!box) return;
+  const q = faQFromForm();
+  box.innerHTML = q.title.length >= 3 ? fbQuestionHTML(q, null, false)
+    : '<p class="fa-muted">Type the question to see it the way students will.</p>';
+}
+
+async function faSaveQuestion() {
+  const id = _fa.qEditId;
+  const q = id ? faQById(id) : null;
+  const f = faQFromForm();
+  if (f.title.length < 3) { toast('Write the question (3 characters or more)'); return; }
+  if ((f.kind === 'single' || f.kind === 'multi') && (f.options.length < 2 || f.options.length > 12)) {
+    toast('A choice question needs 2 to 12 choices, one per line'); return;
+  }
+  const lockShape = !!q && (q.core || (_fa.qCounts?.[id] ?? 1) > 0);
+  const kind = lockShape ? q.kind : f.kind;
+  const rec = {};
+  if (!q || !q.locked_wording) {
+    rec.title = f.title;
+    rec.help = f.help || null;
+    rec.placeholder = kind === 'text' ? (f.placeholder || null) : null;
+    rec.scale_labels = kind === 'rating' ? f.scale_labels : {};
+  }
+  if (!q || !q.core) rec.required = f.required;
+  if (!lockShape) { rec.kind = f.kind; rec.options = f.options; }
+  if (!Object.keys(rec).length) { toast('Nothing on this question can change'); closeHDrawer(); return; }
+  let data = null, error = null;
+  if (q) {
+    ({ error } = await supabaseClient.from('feedback_questions').update(rec).eq('id', id));
+  } else {
+    const position = Math.max(0, ...(_fa.qs || []).map(x => x.position || 0)) + 1;
+    ({ data, error } = await supabaseClient.from('feedback_questions').insert({ ...rec, position }).select('id').single());
+  }
+  if (error) { toast(error.message); return; }
+  logAdminAction(q ? 'feedback_question_edited' : 'feedback_question_added',
+                 { targetType: 'feedback_question', targetId: q ? id : data?.id, targetLabel: f.title.slice(0, 120) });
+  closeHDrawer();
+  toast(q ? 'Question saved. Students see it from their next start.' : 'Question added');
+  await faAfterQuestions();
+}
+
+async function faMoveQuestion(id, dir) {
+  const active = (_fa.qs || []).filter(q => q.status === 'active');
+  const i = active.findIndex(q => q.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= active.length) return;
+  [active[i], active[j]] = [active[j], active[i]];
+  for (const [k, q] of active.entries()) {
+    if (q.position === k + 1) continue;
+    const { error } = await supabaseClient.from('feedback_questions').update({ position: k + 1 }).eq('id', q.id);
+    if (error) { toast('Could not reorder: ' + error.message); break; }
+  }
+  logAdminAction('feedback_questions_reordered', { targetType: 'feedback_question', targetId: id,
+                                                   targetLabel: (faQById(id)?.title || '').slice(0, 120) });
+  await faAfterQuestions();
+}
+
+async function faRetireQuestion(id) {
+  const q = faQById(id);
+  if (!q || !confirm(`Retire “${q.title}”? Students stop seeing it. Its answers stay, and you can bring it back.`)) return;
+  const { error } = await supabaseClient.from('feedback_questions').update({ status: 'retired' }).eq('id', id);
+  if (error) { toast(error.message); return; }
+  logAdminAction('feedback_question_retired', { targetType: 'feedback_question', targetId: id, targetLabel: q.title.slice(0, 120) });
+  toast('Question retired');
+  await faAfterQuestions();
+}
+
+async function faRestoreQuestion(id) {
+  const q = faQById(id);
+  if (!q) return;
+  const position = Math.max(0, ...(_fa.qs || []).map(x => x.position || 0)) + 1;
+  const { error } = await supabaseClient.from('feedback_questions').update({ status: 'active', position }).eq('id', id);
+  if (error) { toast(error.message); return; }
+  logAdminAction('feedback_question_restored', { targetType: 'feedback_question', targetId: id, targetLabel: q.title.slice(0, 120) });
+  toast('Question brought back, at the end');
+  await faAfterQuestions();
+}
+
+async function faAfterQuestions() {
+  await faLoadQuestions();
+  const n = document.querySelector('#asec-feedback .fa-tab[data-tab="questions"] .fa-tab-n');
+  if (n) n.textContent = (_fa.qs || []).filter(q => q.status === 'active').length || '';
+  if (_fa.tab === 'questions') faPaintQuestions();
 }

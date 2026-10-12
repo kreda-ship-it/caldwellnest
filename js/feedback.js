@@ -10,6 +10,10 @@
 // (sql/changes/2026-10-05_student_feedback.sql). It decides status, tags and the time itself, limits
 // how often, and refuses a suspended account — so nothing here is security. The student cannot read
 // the feedback table at all; they can read only their own completion codes.
+//
+// The evaluation's questions come from the database (feedback_questions, edited in Admin → Feedback →
+// Questions; sql/changes/2026-10-05_feedback_questions.sql), one question per screen. If they cannot be
+// read, the page falls back to FB_DEFAULT_QUESTIONS — the original six — and sends them the old way.
 // ============================================================
 
 // What the student tried (question 2). `key` must match the list in app_feedback_features_known.
@@ -52,9 +56,29 @@ const FB_KINDS = {
   praise:    { label: 'I like something',      prompt: 'What’s working for you?' },
 };
 
-const FB_STEPS = 5;
+// The original six questions, word for word as seeded in the database. Used only when the live questions
+// cannot be read: they have no id, so fbSubmitEval sends them in the old fixed-field shape.
+const FB_DEFAULT_QUESTIONS = [
+  { key: 'overall_rating', kind: 'rating', title: 'How would you rate your experience with Nestrel?',
+    scale_labels: FB_RATING_WORDS, required: true },
+  { key: 'features_used', kind: 'multi', title: 'What did you try on Nestrel?', help: 'Choose all that apply.',
+    options: FB_FEATURES, required: true },
+  { key: 'liked', kind: 'text', title: 'What did you like about Nestrel?', help: 'Optional. A few words is plenty.',
+    placeholder: 'Tell us what worked well for you.' },
+  { key: 'confusing_or_missing', kind: 'text', title: 'Was anything confusing, difficult, or missing?',
+    help: 'Optional. A few words is plenty.', placeholder: 'Tell us what could be better.' },
+  { key: 'one_thing_to_change', kind: 'text', title: 'If you could change ONE thing about Nestrel, what would it be?',
+    help: 'Optional, but this is the answer we learn the most from.', placeholder: 'What’s the one thing you would improve?' },
+  { key: 'would_miss_nestrel', kind: 'single', title: 'If Nestrel were no longer available, how would you feel?',
+    options: FB_MISS, required: true },
+];
+// Roughly how long each kind of question takes, for "about N minutes". Text is the slow one.
+const FB_SECONDS = { rating: 8, single: 8, yesno: 6, multi: 12, text: 25 };
+
 const FB_TEXT_MAX = 1000;          // the database allows 2,000; the box stops at 1,000
-const FB_STATE_KEY = 'cn_fb_state';
+// "2": answers are kept by question since the question builder; a half-finished answer in the old shape
+// is simply not picked up.
+const FB_STATE_KEY = 'cn_fb_state2';
 const FB_FAB_KEY = 'cn_fb_fab';
 const FB_INTENT_KEY = 'cn_pending_feedback';
 
@@ -67,16 +91,16 @@ const FB_APP_VERSION = (() => {
 let _fb = null;              // the page's state, kept in sessionStorage so a reload loses nothing
 let _fbSending = false;      // a submit is in flight: the button stays off until it answers
 let _fbLast = null;          // the student's latest completion, read from the database for the start page
+let _fbLive = null;          // the live questions, as last read (null: not read yet)
 
 // ---------------------------------------------------------------- state
-function fbBlankAnswers() {
-  return { overall_rating: null, features_used: [], liked: '', confusing_or_missing: '',
-           one_thing_to_change: '', would_miss_nestrel: null, contact_allowed: false };
-}
+// s.qs is the list of questions THIS run is answering, copied when it starts, so an admin editing the
+// survey meanwhile never reshuffles a student's screens. s.a holds the answers by fbQKey().
 function fbFresh() {
-  return { ownerId: getEffectiveUser()?.id || null, mode: 'home', step: 1, a: fbBlankAnswers(),
+  return { ownerId: getEffectiveUser()?.id || null, mode: 'home', step: 1, qs: null, a: {}, contact: false,
            startedAt: null, kind: null, note: '', noteContact: false, from: 'feed', completion: null };
 }
+const fbQKey = q => q.id != null ? String(q.id) : q.key;
 function fbLoadState() {
   try {
     const s = JSON.parse(sessionStorage.getItem(FB_STATE_KEY));
@@ -93,7 +117,8 @@ function fbState() {
   if (!_fb || _fb.ownerId !== uid) _fb = fbLoadState();
   return _fb;
 }
-const fbInProgress = s => s.mode === 'eval' || !!(s.a.overall_rating || s.a.features_used.length);
+const fbInProgress = s => !!s.qs && (s.mode === 'eval' || Object.keys(s.a).length > 0);
+const fbStepCount = s => (s.qs || _fbLive || FB_DEFAULT_QUESTIONS).length;
 
 // ---------------------------------------------------------------- entry points
 // Every way in: the round button, the sidebar item, the profile page, and the #/feedback link.
@@ -108,8 +133,8 @@ function openFeedback(mode) {
   const s = fbState();
   const here = sessionStorage.getItem('cn_last_page');
   if (here && here !== 'feedback') s.from = here;
-  if (mode === 'eval') fbStartEval(false);
-  else if (mode && FB_KINDS[mode]) fbStartQuick(mode, false);
+  if (mode === 'eval') { fbStartEval(false).then(() => showPage('feedback')); return; }
+  if (mode && FB_KINDS[mode]) fbStartQuick(mode, false);
   else if (s.mode === 'done' || s.mode === 'quickdone' || s.mode === 'quick') s.mode = 'home';
   fbSaveState();
   showPage('feedback');
@@ -140,13 +165,36 @@ function fbHome() {
   renderFeedbackPage();
 }
 
-function fbStartEval(draw = true) {
+// The live questions, in order. Falls back to the original six if they cannot be read (the database file
+// not run yet, or no connection) — the evaluation must never be the thing that is broken.
+async function fbLoadQuestions() {
+  try {
+    const { data, error } = await supabaseClient.from('feedback_questions')
+      .select('id, key, kind, title, help, placeholder, options, scale_labels, required, version')
+      .eq('status', 'active').order('position', { ascending: true }).order('id', { ascending: true });
+    _fbLive = !error && data && data.length ? data : FB_DEFAULT_QUESTIONS;
+  } catch (e) { _fbLive = FB_DEFAULT_QUESTIONS; }
+  return _fbLive;
+}
+
+// "About N minutes" for a list of questions, never less than 1.
+function fbMinutes(qs) {
+  const secs = (qs || []).reduce((t, q) => t + (FB_SECONDS[q.kind] || 10), 0);
+  return Math.max(1, Math.round(secs / 60));
+}
+
+async function fbStartEval(draw = true) {
   const s = fbState();
-  if (s.mode !== 'eval') {
-    if (!fbInProgress(s)) { s.a = fbBlankAnswers(); s.step = 1; }
-    if (!s.startedAt) s.startedAt = Date.now();
-    s.mode = 'eval';
+  if (!fbInProgress(s)) {
+    const qs = await fbLoadQuestions();
+    s.qs = qs.map(q => ({ ...q }));
+    s.a = {};
+    s.contact = false;
+    s.step = 1;
+    s.startedAt = Date.now();
   }
+  if (!s.startedAt) s.startedAt = Date.now();
+  s.mode = 'eval';
   fbSaveState();
   if (draw) { renderFeedbackPage(); fbFocusHeading(); }
 }
@@ -174,13 +222,21 @@ function renderFeedbackPage() {
     return;
   }
   const s = fbState();
+  if (s.mode === 'eval' && !(s.qs && s.qs.length)) s.mode = 'home';
   el.innerHTML = s.mode === 'eval' ? fbEvalHTML(s)
     : s.mode === 'quick' ? fbQuickHTML(s)
     : s.mode === 'done' && s.completion ? fbDoneHTML(s.completion)
     : s.mode === 'quickdone' ? fbQuickDoneHTML()
     : fbHomeHTML(s);
   fbSyncNav();
-  if (s.mode === 'home' || (s.mode === 'done' && !s.completion)) fbLoadLastCompletion();
+  if (s.mode === 'home' || (s.mode === 'done' && !s.completion)) { fbLoadLastCompletion(); fbPaintEstimate(); }
+}
+
+// The start card says how many questions and how long, from the live list.
+async function fbPaintEstimate() {
+  const qs = _fbLive || await fbLoadQuestions();
+  const el = document.getElementById('fbKicker');
+  if (el) el.textContent = `About ${fbMinutes(qs)} minute${fbMinutes(qs) === 1 ? '' : 's'} · ${qs.length} short questions`;
 }
 
 function fbFocusHeading() {
@@ -201,11 +257,11 @@ function fbHomeHTML(s) {
       <p class="fb-sub">Tell us what works and what doesn’t. We read every response.</p>
     </header>
     <section class="fb-card fb-card-main" aria-labelledby="fbEvalTitle">
-      <p class="fb-kicker">About 2–3 minutes &#183; 5 short steps</p>
+      <p class="fb-kicker" id="fbKicker">About 2–3 minutes</p>
       <h2 class="fb-card-title" id="fbEvalTitle">Share your experience</h2>
       <p class="fb-card-text">Rate Nestrel, tell us what you tried, and what you would change. You get a confirmation at the end.</p>
       <div id="fbEvalAction">
-        <button type="button" class="fb-btn fb-btn-primary" onclick="fbStartEval()">${going ? `Continue (step ${s.step} of ${FB_STEPS})` : 'Start'}</button>
+        <button type="button" class="fb-btn fb-btn-primary" onclick="fbStartEval()">${going ? `Continue (question ${s.step} of ${fbStepCount(s)})` : 'Start'}</button>
       </div>
       <p class="fb-last" id="fbLastDone" hidden></p>
     </section>
@@ -218,59 +274,70 @@ function fbHomeHTML(s) {
 
 // The small header every evaluation step shares: what this is, how long, and where you are.
 function fbStepTop(s) {
-  const bars = Array.from({ length: FB_STEPS }, (_, i) => `<span class="${i < s.step ? 'is-on' : ''}"></span>`).join('');
+  const n = fbStepCount(s);
+  const bars = Array.from({ length: n }, (_, i) => `<span class="${i < s.step ? 'is-on' : ''}"></span>`).join('');
+  const mins = fbMinutes(s.qs);
   return `<div class="fb-topline">
       <button type="button" class="fb-back" onclick="fbBack()">&#8249; Back</button>
-      <span class="fb-count">${s.step} of ${FB_STEPS}</span>
+      <span class="fb-count">${s.step} of ${n}</span>
     </div>
     <div class="fb-progress" aria-hidden="true">${bars}</div>
     ${s.step === 1 ? `<header class="fb-head fb-head-tight"><p class="fb-title-sm">Help us improve Nestrel</p>
-      <p class="fb-sub">This will only take about 2–3 minutes.</p></header>` : ''}`;
+      <p class="fb-sub">This will only take about ${mins} minute${mins === 1 ? '' : 's'}.</p></header>` : ''}`;
+}
+
+// One question, drawn from its row. The student's page and the admin's preview both use this: `live`
+// false draws the same thing with no handlers. Handlers pass only numbers (the option's place), never
+// text from the database — question and choice wording reach the page through esc() alone.
+function fbQuestionHTML(q, value, live = true) {
+  const on = h => live ? h : '';
+  const name = live ? 'fbAns' : 'fbPrev';
+  const hid = live ? 'fbFocus' : 'fbPrevQ';
+  const title = esc(q.title);
+  const help = q.help ? `<p class="fb-hint" id="${name}Help">${esc(q.help)}</p>` : '';
+  const desc = q.help ? ` aria-describedby="${name}Help"` : '';
+  const opts = Array.isArray(q.options) ? q.options : [];
+  if (q.kind === 'rating') {
+    const words = q.scale_labels || {};
+    const tiles = [1, 2, 3, 4, 5].map(n => `<label class="fb-scale-opt">
+        <input class="fb-sr" type="radio" name="${name}" value="${n}" ${value === n ? 'checked' : ''} ${on(`onchange="fbAnswerNum(${n})"`)}>
+        <span class="fb-opt-box"><span class="fb-scale-num">${n}</span><span class="fb-scale-lbl">${words[n] ? esc(words[n]) : '&nbsp;'}</span></span></label>`).join('');
+    return `<h1 class="fb-q" id="${hid}" tabindex="-1">${title}</h1>${help}
+      <div class="fb-scale" role="radiogroup" aria-labelledby="${hid}"${desc}>${tiles}</div>`;
+  }
+  if (q.kind === 'multi') {
+    const chosen = Array.isArray(value) ? value : [];
+    const chips = opts.map((o, i) => `<label class="fb-chip">
+        <input class="fb-sr" type="checkbox" ${chosen.includes(o.key) ? 'checked' : ''} ${on(`onchange="fbToggleOpt(${i}, this.checked)"`)}>
+        <span class="fb-opt-box">${o.emoji ? `<span aria-hidden="true">${esc(o.emoji)}</span>` : ''}${esc(o.label)}</span></label>`).join('');
+    return `<h1 class="fb-q" id="${hid}" tabindex="-1">${title}</h1>${help}
+      <div class="fb-chips" role="group" aria-labelledby="${hid}"${desc}>${chips}</div>`;
+  }
+  if (q.kind === 'single' || q.kind === 'yesno') {
+    const list = q.kind === 'yesno' ? [{ key: true, label: 'Yes' }, { key: false, label: 'No' }] : opts;
+    const cards = list.map((o, i) => `<label class="fb-miss-opt">
+        <input class="fb-sr" type="radio" name="${name}" ${value === o.key ? 'checked' : ''} ${on(`onchange="fbAnswerOpt(${i})"`)}>
+        <span class="fb-opt-box">${o.emoji ? `<span class="fb-miss-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}<span>${esc(o.label)}</span></span></label>`).join('');
+    return `<h1 class="fb-q" id="${hid}" tabindex="-1">${title}</h1>${help}
+      <div class="fb-miss ${q.kind === 'yesno' ? 'fb-yesno' : ''}" role="radiogroup" aria-labelledby="${hid}"${desc}>${cards}</div>`;
+  }
+  // text
+  return `<h1 class="fb-q" id="${hid}" tabindex="-1"><label for="${name}Text">${title}</label></h1>
+    <textarea class="fb-text" id="${name}Text" rows="4" maxlength="${FB_TEXT_MAX}" placeholder="${escAttr(q.placeholder || '')}"${desc}
+      ${on(`oninput="fbAnswerText(this.value)"`)}>${esc(typeof value === 'string' ? value : '')}</textarea>${help}`;
 }
 
 function fbEvalHTML(s) {
-  const a = s.a;
-  let body = '';
-  if (s.step === 1) {
-    const opts = [1, 2, 3, 4, 5].map(n => `<label class="fb-scale-opt">
-        <input class="fb-sr" type="radio" name="fbRating" value="${n}" ${a.overall_rating === n ? 'checked' : ''} onchange="fbPick('overall_rating', ${n})">
-        <span class="fb-opt-box"><span class="fb-scale-num">${n}</span><span class="fb-scale-lbl">${FB_RATING_WORDS[n] || '&nbsp;'}</span></span></label>`).join('');
-    body = `<h1 class="fb-q" id="fbFocus" tabindex="-1">How would you rate your experience with Nestrel?</h1>
-      <div class="fb-scale" role="radiogroup" aria-labelledby="fbFocus">${opts}</div>`;
-  } else if (s.step === 2) {
-    const chips = FB_FEATURES.map(f => `<label class="fb-chip">
-        <input class="fb-sr" type="checkbox" value="${f.key}" ${a.features_used.includes(f.key) ? 'checked' : ''} onchange="fbToggleFeature('${f.key}', this.checked)">
-        <span class="fb-opt-box">${f.label}</span></label>`).join('');
-    body = `<h1 class="fb-q" id="fbFocus" tabindex="-1">What did you try on Nestrel?</h1>
-      <p class="fb-hint" id="fbFeatHint">Choose all that apply.</p>
-      <div class="fb-chips" role="group" aria-labelledby="fbFocus" aria-describedby="fbFeatHint">${chips}</div>`;
-  } else if (s.step === 3) {
-    body = `<h1 class="fb-q" id="fbFocus" tabindex="-1"><label for="fbLiked">What did you like about Nestrel?</label></h1>
-      <textarea class="fb-text" id="fbLiked" rows="3" maxlength="${FB_TEXT_MAX}" placeholder="Tell us what worked well for you."
-        oninput="fbType('liked', this.value)">${esc(a.liked)}</textarea>
-      <h2 class="fb-q fb-q-next"><label for="fbConfusing">Was anything confusing, difficult, or missing?</label></h2>
-      <textarea class="fb-text" id="fbConfusing" rows="3" maxlength="${FB_TEXT_MAX}" placeholder="Tell us what could be better."
-        oninput="fbType('confusing_or_missing', this.value)">${esc(a.confusing_or_missing)}</textarea>
-      <p class="fb-hint">Both are optional. A few words is plenty.</p>`;
-  } else if (s.step === 4) {
-    body = `<h1 class="fb-q" id="fbFocus" tabindex="-1"><label for="fbOne">If you could change ONE thing about Nestrel, what would it be?</label></h1>
-      <textarea class="fb-text" id="fbOne" rows="3" maxlength="${FB_TEXT_MAX}" placeholder="What’s the one thing you would improve?"
-        oninput="fbType('one_thing_to_change', this.value)">${esc(a.one_thing_to_change)}</textarea>
-      <p class="fb-hint">Optional, but this is the answer we learn the most from.</p>`;
-  } else {
-    const opts = FB_MISS.map(m => `<label class="fb-miss-opt">
-        <input class="fb-sr" type="radio" name="fbMiss" value="${m.key}" ${a.would_miss_nestrel === m.key ? 'checked' : ''} onchange="fbPick('would_miss_nestrel', '${m.key}')">
-        <span class="fb-opt-box"><span class="fb-miss-emoji" aria-hidden="true">${m.emoji}</span><span>${m.label}</span></span></label>`).join('');
-    body = `<h1 class="fb-q" id="fbFocus" tabindex="-1">If Nestrel were no longer available, how would you feel?</h1>
-      <div class="fb-miss" role="radiogroup" aria-labelledby="fbFocus">${opts}</div>
-      <h2 class="fb-q fb-q-next fb-q-small">Can we contact you about your feedback?</h2>
-      <label class="fb-check"><input type="checkbox" ${a.contact_allowed ? 'checked' : ''} onchange="fbPick('contact_allowed', this.checked)">
+  const q = s.qs[s.step - 1];
+  const last = s.step === s.qs.length;
+  const contact = last ? `<h2 class="fb-q fb-q-next fb-q-small">Can we contact you about your feedback?</h2>
+      <label class="fb-check"><input type="checkbox" ${s.contact ? 'checked' : ''} onchange="fbSetContact(this.checked)">
         <span>You can message me about this.</span></label>
-      <p class="fb-hint">If you leave this unticked, your name is not shown to the Nestrel team.</p>`;
-  }
+      <p class="fb-hint">If you leave this unticked, your name is not shown to the Nestrel team.</p>` : '';
   return `<div class="fb-wrap">${fbStepTop(s)}
     <form class="form-shell" onsubmit="return false" autocomplete="off">
-      ${body}
+      ${fbQuestionHTML(q, s.a[fbQKey(q)])}
+      ${contact}
       <p class="fb-error" id="fbErr" role="alert" hidden></p>
       <div class="fb-nav">
         <button type="button" class="fb-btn fb-btn-primary" id="fbGo" onclick="fbNext()">Next</button>
@@ -392,30 +459,42 @@ function fbShowLast() {
 }
 
 // ---------------------------------------------------------------- answering
-function fbPick(field, value) {
-  const s = fbState();
-  s.a[field] = value;
+const fbCurrentQ = () => { const s = fbState(); return s.qs ? s.qs[s.step - 1] : null; };
+function fbSetAnswer(value) {
+  const s = fbState(), q = fbCurrentQ();
+  if (!q) return;
+  if (value == null || value === '' || (Array.isArray(value) && !value.length)) delete s.a[fbQKey(q)];
+  else s.a[fbQKey(q)] = value;
   fbSaveState();
   fbShowErr('');
   fbSyncNav();
 }
-
-function fbToggleFeature(key, on) {
-  const s = fbState();
-  const set = new Set(s.a.features_used);
-  if (on) set.add(key); else set.delete(key);
-  s.a.features_used = FB_FEATURES.map(f => f.key).filter(k => set.has(k));
-  fbSaveState();
-  fbSyncNav();
+function fbAnswerNum(n) { fbSetAnswer(Number(n)); }
+function fbAnswerOpt(i) {
+  const q = fbCurrentQ();
+  if (!q) return;
+  if (q.kind === 'yesno') fbSetAnswer(i === 0);
+  else if (q.options && q.options[i]) fbSetAnswer(q.options[i].key);
 }
-
+function fbToggleOpt(i, on) {
+  const s = fbState(), q = fbCurrentQ();
+  if (!q || !q.options || !q.options[i]) return;
+  const set = new Set(s.a[fbQKey(q)] || []);
+  if (on) set.add(q.options[i].key); else set.delete(q.options[i].key);
+  fbSetAnswer(q.options.map(o => o.key).filter(k => set.has(k)));   // kept in the question's own order
+}
 // Typing does not redraw anything (a redraw would take the cursor out of the box); it only saves.
-function fbType(field, value) {
-  const s = fbState();
-  s.a[field] = String(value || '').slice(0, FB_TEXT_MAX);
+function fbAnswerText(value) {
+  const s = fbState(), q = fbCurrentQ();
+  if (!q) return;
+  const v = String(value || '').slice(0, FB_TEXT_MAX);
+  if (v.trim()) s.a[fbQKey(q)] = v; else delete s.a[fbQKey(q)];
   fbSaveState();
   fbSyncNav();
 }
+function fbSetContact(on) { const s = fbState(); s.contact = !!on; fbSaveState(); }
+const fbAnswered = (q, v) => v != null && v !== '' && !(Array.isArray(v) && !v.length)
+  && !(typeof v === 'string' && !v.trim());
 function fbTypeNote(value) { const s = fbState(); s.note = String(value || '').slice(0, FB_TEXT_MAX); fbSaveState(); }
 function fbNoteContact(on) { const s = fbState(); s.noteContact = !!on; fbSaveState(); }
 
@@ -428,16 +507,16 @@ function fbSyncNav() {
   let label = 'Next', ready = true, why = '';
   if (s.mode === 'quick') {
     label = 'Send';
-  } else if (s.step === 1) {
-    ready = !!s.a.overall_rating; why = 'Tap a number to continue.';
-  } else if (s.step === 2) {
-    ready = s.a.features_used.length > 0; why = 'Choose at least one. “Other” is fine.';
-  } else if (s.step === 3) {
-    label = (s.a.liked.trim() || s.a.confusing_or_missing.trim()) ? 'Next' : 'Skip';
-  } else if (s.step === 4) {
-    label = s.a.one_thing_to_change.trim() ? 'Next' : 'Skip';
-  } else {
-    label = 'Submit Feedback'; ready = !!s.a.would_miss_nestrel; why = 'Choose one answer to submit.';
+  } else if (s.qs) {
+    const q = s.qs[s.step - 1];
+    const has = fbAnswered(q, s.a[fbQKey(q)]);
+    const last = s.step === s.qs.length;
+    ready = !q.required || has;
+    label = last ? 'Submit Feedback' : (!q.required && !has ? 'Skip' : 'Next');
+    why = q.kind === 'rating' ? 'Tap a number to continue.'
+      : q.kind === 'multi' ? 'Choose at least one to continue.'
+      : q.kind === 'text' ? 'Please write a few words to continue.'
+      : 'Choose one to continue.';
   }
   if (_fbSending) { label = s.mode === 'quick' ? 'Sending…' : 'Submitting…'; }
   btn.innerHTML = _fbSending ? `<span class="fb-spin" aria-hidden="true"></span>${label}` : label;
@@ -456,7 +535,7 @@ function fbShowErr(msg) {
 function fbNext() {
   const s = fbState();
   if (_fbSending) return;
-  if (s.step < FB_STEPS) {
+  if (s.qs && s.step < s.qs.length) {
     s.step += 1;
     fbSaveState();
     renderFeedbackPage();
@@ -514,26 +593,35 @@ function fbErrText(error) {
 async function fbSubmitEval() {
   const s = fbState();
   if (_fbSending) return;
-  const a = s.a;
-  if (!a.overall_rating || !a.features_used.length || !a.would_miss_nestrel) {
-    fbShowErr('Please answer the rating (step 1), what you tried (step 2), and the last question.');
+  if (!s.qs) return;
+  const missing = s.qs.findIndex(q => q.required && !fbAnswered(q, s.a[fbQKey(q)]));
+  if (missing >= 0) {
+    fbShowErr(`Please answer question ${missing + 1}: “${s.qs[missing].title}”.`);
     return;
   }
   _fbSending = true;
   fbShowErr('');
   fbSyncNav();
+  const clean = v => typeof v === 'string' ? v.trim() : v;
   const payload = {
     feedback_source: 'student_evaluation',
-    overall_rating: a.overall_rating,
-    features_used: a.features_used,
-    liked: a.liked.trim(),
-    confusing_or_missing: a.confusing_or_missing.trim(),
-    one_thing_to_change: a.one_thing_to_change.trim(),
-    would_miss_nestrel: a.would_miss_nestrel,
-    contact_allowed: !!a.contact_allowed,
+    contact_allowed: !!s.contact,
     completion_seconds: s.startedAt ? Math.round((Date.now() - s.startedAt) / 1000) : null,
     ...fbContext(),
   };
+  if (s.qs.every(q => q.id != null)) {
+    // The live questions: answers by question id, and the version of each question the student was shown.
+    payload.answers = {};
+    payload.question_versions = {};
+    s.qs.forEach(q => {
+      payload.question_versions[q.id] = q.version || 1;
+      const v = s.a[fbQKey(q)];
+      if (fbAnswered(q, v)) payload.answers[q.id] = clean(v);
+    });
+  } else {
+    // The fallback six: the old fixed fields, which the database still accepts.
+    s.qs.forEach(q => { const v = s.a[fbQKey(q)]; if (fbAnswered(q, v)) payload[q.key] = clean(v); });
+  }
   let data = null, error = null;
   try { ({ data, error } = await supabaseClient.rpc('submit_app_feedback', { p: payload })); }
   catch (e) { error = e; }
@@ -546,7 +634,9 @@ async function fbSubmitEval() {
   }
   s.completion = { code: data.code, completed_on: data.completed_on, first: data.first_name, last: data.last_name,
                    email: data.email, already: !!data.already };
-  s.a = fbBlankAnswers();
+  s.a = {};
+  s.qs = null;
+  s.contact = false;
   s.step = 1;
   s.startedAt = null;
   s.mode = 'done';

@@ -427,13 +427,18 @@ const ACTION_META = {
   product_change_deleted:  { label: 'Product change deleted',  color: '#c0392b' },
   students_told_of_change: { label: 'Students told of a change', color: '#1a7a45' },
   completion_verified:     { label: 'Completion ID checked',   color: '#3B5BA5' },
+  feedback_question_added:    { label: 'Feedback question added',    color: '#1a7a45' },
+  feedback_question_edited:   { label: 'Feedback question edited',   color: '#3B5BA5' },
+  feedback_question_retired:  { label: 'Feedback question retired',  color: '#c0392b' },
+  feedback_question_restored: { label: 'Feedback question brought back', color: '#1a7a45' },
+  feedback_questions_reordered: { label: 'Feedback questions reordered', color: '#3B5BA5' },
 };
 
 const ACTIVITY_FILTER_GROUPS = {
   approvals:  ['approve_listing','reject_listing','restore_listing','edit_listing','approve_book','reject_book','restore_book'],
   moderation: ['remove_listing','listing_permanently_deleted','suspend_student','reinstate_student','resolve_report','dismiss_report','remove_book','remove_listing_photo','remove_book_photo','remove_avatar','clear_bio','conversation_opened','account_deleted'],
   appeals:    ['appeal_upheld','appeal_reinstated','edit_appeal_decision'],
-  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','orphan_photos_deleted','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted','feedback_status_changed','feedback_tags_changed','feedback_note_edited','feedback_linked','feedback_unlinked','product_change_created','product_change_updated','product_change_deleted','students_told_of_change','completion_verified'],
+  system:     ['broadcast_sent','broadcast_drafted','broadcast_scheduled','broadcast_updated','broadcast_deleted','broadcast_restored','broadcast_permanently_deleted','content_edit','color_edit','setting_change','export','orphan_photos_deleted','admin_added','admin_removed','admin_role_changed','role_permission_changed','role_created','role_deleted','feedback_status_changed','feedback_tags_changed','feedback_note_edited','feedback_linked','feedback_unlinked','product_change_created','product_change_updated','product_change_deleted','students_told_of_change','completion_verified','feedback_question_added','feedback_question_edited','feedback_question_retired','feedback_question_restored','feedback_questions_reordered'],
   students:   ['student_signup','listing_submitted','book_submitted','report_submitted','appeal_submitted','listing_sold','listing_pending_sale','listing_withdrawn','listing_relisted','listing_renewed','listing_deadline_set','book_sold','book_pending_sale','book_relisted'],
 };
 

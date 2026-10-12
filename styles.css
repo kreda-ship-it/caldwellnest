@@ -5254,6 +5254,39 @@ textarea.fa-input{height:auto;padding:8px 10px;line-height:1.5;resize:vertical;w
 @media (max-width:640px){.fa-ctx,.fa-d-row{grid-template-columns:1fr;}.fa-when{margin-left:0;width:100%;}}
 
 /* ============================================================
+   FEEDBACK — QUESTION BUILDER (2026-10-05) · js/feedback.js, js/feedback-admin.js
+   Yes/no on the student page; the Questions tab and its form in Admin → Feedback.
+============================================================ */
+.fb-yesno{grid-template-columns:1fr 1fr;}
+.fa-q{display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:12px;padding:14px 16px;border-top:1px solid var(--border);}
+.fa-q.is-retired{opacity:.75;}
+.fa-q-num{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brand-pale);color:var(--brand);font-size:12px;font-weight:700;}
+.fa-q-title{font-size:14px;font-weight:700;line-height:1.4;color:var(--text);}
+.fa-q-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:5px;}
+.fa-q-results{margin-top:8px;font-size:12.5px;color:var(--text);}
+.fa-q-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;}
+.fa-icon-btn{min-width:30px;padding:6px 8px;}
+.fa-icon-btn:disabled{opacity:.35;cursor:default;}
+.fa-q-bars{display:flex;flex-direction:column;gap:4px;max-width:520px;margin-bottom:4px;}
+.fa-q-bar{display:grid;grid-template-columns:minmax(90px,170px) 1fr 76px;align-items:center;gap:8px;font-size:12px;}
+.fa-q-bar-l{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--text-muted);}
+.fa-q-svg{display:block;width:100%;height:8px;}
+.fa-q-track{fill:var(--bg-alt);}
+.fa-q-bar-n{font-weight:700;}
+.fa-retired{border-top:1px solid var(--border);}
+.fa-retired summary{padding:12px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;}
+.fa-caution-row{margin:0 16px 12px;font-size:12px;}
+.fa-q-only[hidden]{display:none;}
+.fa-q-scale{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.fa-check-row{display:flex;align-items:center;gap:8px;margin:6px 0 4px;font-size:13px;}
+.fa-check-row input{width:16px;height:16px;accent-color:var(--brand);}
+.fa-q-preview{padding:14px 16px;border:1px dashed var(--border);border-radius:12px;background:var(--bg);}
+.fa-q-preview .fb-q{margin-top:0;font-size:20px;}
+.fa-q-hist{margin:0;padding-left:18px;font-size:12.5px;line-height:1.5;}
+.fa-q-hist li{margin-bottom:6px;}
+@media (max-width:640px){.fa-q{grid-template-columns:24px 1fr;}.fa-q-actions{grid-column:1/-1;justify-content:flex-start;}}
+
+/* ============================================================
    KEEP NESTREL CLOSE (2026-10-12, js/pwa.js) — the once-only screen after signup, the return
    reminder card, and the offline page sw.js shows when there is no connection.
    ============================================================ */
