@@ -5293,6 +5293,18 @@ textarea.fa-input{height:auto;padding:8px 10px;line-height:1.5;resize:vertical;w
   .kc-modal{padding:28px 20px 18px;}
 }
 
+/* Push notifications (js/push.js). The offer card reuses .pwa-reminder above; this is the
+   Notifications block at the bottom of Edit profile. Its switches are .ev-switch (events.js). */
+.push-set{margin-top:22px;padding-top:18px;border-top:1px solid var(--border);}
+.push-set[hidden]{display:none;}
+.push-head{margin-bottom:4px;font-size:13px;font-weight:700;color:var(--text);}
+.push-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;cursor:pointer;}
+.push-row b{display:block;font-size:14.5px;font-weight:600;color:var(--text);}
+.push-row small{display:block;margin-top:2px;font-size:12.5px;color:var(--text-muted);}
+.push-kinds{margin-left:14px;padding-left:14px;border-left:2px solid var(--border);}
+.push-note{margin:6px 0 0;font-size:12.5px;line-height:1.45;color:var(--text-muted);}
+.push-link{margin-top:8px;padding:0;border:0;background:none;color:var(--brand);font:600 13.5px 'DM Sans',sans-serif;cursor:pointer;}
+
 /* offline.html */
 body.offline-page{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:var(--bg);font-family:'DM Sans',system-ui,sans-serif;}
 .offline-card{max-width:360px;text-align:center;}

@@ -179,6 +179,7 @@ function openEditProfile() {
   document.getElementById('epAvatarRemoveBtn').style.display = u.avatar_url ? 'inline' : 'none';
   const err = document.getElementById('editProfileErr');
   err.textContent = ''; err.style.display = 'none';
+  pushRenderSettings();   // the Notifications block at the bottom — see js/push.js
   openModal('editProfileModal');
 }
 

@@ -55,7 +55,8 @@ begin
   foreach t in array array[
     'listings', 'book_listings', 'messages', 'reports', 'profiles', 'favorites', 'notifications',
     'activity_state', 'poll_votes', 'poll_options', 'org_posts', 'org_follows', 'org_memberships',
-    'organizations', 'events', 'event_media', 'event_feedback'
+    'organizations', 'events', 'event_media', 'event_feedback',
+    'push_subscriptions'   -- added 2026-10-12; 2026-10-12_push_notifications.sql creates the same three itself
   ] loop
     foreach c in array array['insert', 'update', 'delete'] loop
       execute format('drop policy if exists %I on public.%I', 'no_' || c || '_while_suspended', t);

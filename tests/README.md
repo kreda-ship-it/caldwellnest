@@ -50,6 +50,17 @@ have found that until a student noticed.
 
 ---
 
+## `push-crypto.js` — do push alerts encrypt and sign correctly?
+```bash
+node tests/push-crypto.js
+```
+No server needed. Checks the encryption and VAPID signing in `supabase/functions/dynamic-action/index.ts`
+(it reads that file, so it tests what is deployed): the official example from RFC 8291 must come
+out byte for byte; a random alert must decrypt with a second, independent implementation; the
+signature must verify and say the right push service, a real https subject and under 24 hours.
+Run it after touching the crypto section. When this is wrong nothing visibly breaks — the push
+service just refuses, and no phone shows anything.
+
 ## `load-order.js` — does the app still boot?
 
 ```bash

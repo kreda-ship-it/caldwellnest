@@ -17,7 +17,8 @@
 // this browser (localStorage), one key per account: nestrel_pwa_<user id> = { onboard, days, last,
 // dismissed, dismissedAt }. Only on/off flags and dates — nothing personal. On another device the
 // student simply starts fresh, which is right: installing is per device anyway.
-// Not done on purpose: notifications, permission requests, streaks, forced redirects.
+// Not done here: notifications — they live in js/push.js (2026-10-12). Not done at all, on purpose:
+// streaks, forced redirects.
 // ============================================================
 
 const PWA_URL = 'https://nestrel.org';
