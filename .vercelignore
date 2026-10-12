@@ -13,3 +13,7 @@
 !vercel.json
 # The Home banner pictures (feedCampusPhoto, 2026-10-12).
 !images
+# The installable app (2026-10-12, js/pwa.js).
+!manifest.webmanifest
+!sw.js
+!offline.html

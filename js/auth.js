@@ -537,6 +537,7 @@ async function finishSetup() {
   hideGoogleFinishScreen();
   _gfUser = null;
   await enterStudentSession(profile, profile.id, 'Welcome to Nestrel, ' + (profile.display_name || profile.first_name) + '!');
+  pwaShowKeepClose();   // first signup only: "Keep Nestrel close" (js/pwa.js). Never blocks — one tap closes it.
 }
 
 // Only reachable from step 2. The account already exists (Google created it), but without a

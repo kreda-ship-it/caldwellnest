@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a3a2a">
+<title>Nestrel · Offline</title>
+<!-- Shown by sw.js when a page cannot load because there is no connection. Self-contained on purpose:
+     with no network, it can rely on nothing but itself and the cached icon. -->
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="offline-page">
+  <main class="offline-card">
+    <img src="/images/icons/icon-192.png" width="72" height="72" alt="">
+    <h1>You're offline</h1>
+    <p>Nestrel needs a connection to show what's happening at Caldwell. Check your Wi-Fi or data, then try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

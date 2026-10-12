@@ -4,8 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nestrel</title>
+<!-- Installable app (2026-10-12, js/pwa.js): the manifest names Nestrel and its icons; theme-color tints
+     the phone's status bar forest green. The apple-* tags are what iPhone reads instead of the manifest. -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1a3a2a">
+<link rel="icon" type="image/png" href="/images/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="/images/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nestrel">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2026-10-12r">
+<link rel="stylesheet" href="styles.css?v=2026-10-12t">
 <!-- Supabase, pinned to one exact version with an integrity fingerprint (2026-09-25).
      This script holds every visitor's login, so it must not change without us knowing. `@2` meant
      "whatever the newest 2.x is" — a hijacked release would have reached every visitor on its
@@ -1460,6 +1470,32 @@
 </div>
 
 <!-- PUBLIC STUDENT PROFILE -->
+<!-- KEEP NESTREL CLOSE (js/pwa.js): shown once after a first signup, and from the reminder's
+     "Show me how". kcSteps is filled with the instructions for this device. -->
+<div class="modal-overlay" id="keepCloseModal">
+  <div class="modal kc-modal" role="dialog" aria-modal="true" aria-labelledby="kcTitle">
+    <button class="kc-x" onclick="pwaCloseKeepClose('dismissed')" aria-label="Close">&times;</button>
+    <img class="kc-icon" src="/images/icons/icon-192.png" width="64" height="64" alt="">
+    <h2 class="kc-title" id="kcTitle">Keep Nestrel close</h2>
+    <p class="kc-lead">Put Nestrel on your home screen and it opens like an app: one tap to the market, events and your messages.</p>
+    <button class="kc-install" data-pwa-install hidden onclick="pwaInstall()">Install Nestrel</button>
+    <div id="kcSteps"></div>
+    <div class="kc-actions">
+      <button class="kc-primary" onclick="pwaCloseKeepClose('done')">Explore Nestrel</button>
+      <button class="kc-secondary" onclick="pwaShare()">Share Nestrel</button>
+      <button class="kc-later" onclick="pwaCloseKeepClose('later')">Maybe later</button>
+    </div>
+  </div>
+</div>
+
+<!-- The return reminder (js/pwa.js pwaMaybeRemind): a small card, never more than twice. -->
+<div class="pwa-reminder" id="pwaReminder" hidden role="region" aria-label="Install Nestrel">
+  <img src="/images/icons/icon-192.png" width="36" height="36" alt="">
+  <p id="pwaRemindText"></p>
+  <button class="pwa-r-how" onclick="pwaReminderHow()">Show me how</button>
+  <button class="pwa-r-x" onclick="pwaDismissReminder()" aria-label="Dismiss">&times;</button>
+</div>
+
 <div class="modal-overlay" id="pubProfileModal">
   <!-- Another student's profile (profile.js viewStudentProfile): a page on a phone, a sheet on a
        desktop — the same .pm-modal shell the posting forms use. -->
@@ -1966,7 +2002,7 @@
 <script src="js/utils.js?v=2026-09-27a"></script>
 <script src="js/favorites.js?v=2026-09-11a"></script>
 <script src="js/data.js?v=2026-10-01b"></script>
-<script src="js/auth.js?v=2026-10-05b"></script>
+<script src="js/auth.js?v=2026-10-12a"></script>
 <script src="js/profile.js?v=2026-09-25c"></script>
 <script src="js/listings.js?v=2026-10-05b"></script>
 <script src="js/books.js?v=2026-10-05a"></script>
@@ -1981,7 +2017,8 @@
 <script src="js/inbox.js?v=2026-10-05b"></script>
 <script src="js/feedback.js?v=2026-10-05a"></script>
 <script src="js/feedback-admin.js?v=2026-10-05a"></script>
-  <script src="js/boot.js?v=2026-10-05a"></script>
+<script src="js/pwa.js?v=2026-10-12a"></script>
+  <script src="js/boot.js?v=2026-10-12a"></script>
 
 <!-- DETAIL DRAWER -->
 <div class="hdrawer-overlay" id="hDrawerOverlay" onclick="closeHDrawer()"></div>

@@ -9,6 +9,7 @@
 currentRole = 'student';
 masonryInit(); // desktop listing grids pack like Pinterest — see js/listings.js
 fbInitFab();   // the small round Feedback button: its saved place, and dragging it — see js/feedback.js
+pwaInit();     // installable app: the service worker, the install offer, the return reminder — see js/pwa.js
 const _settingsReady = loadPlatformSettings();
 // Wait for Supabase to finish restoring the saved login BEFORE the first data load.
 // initStudent() used to fire immediately and race the session restore: when its

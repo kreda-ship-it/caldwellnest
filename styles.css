@@ -5252,3 +5252,51 @@ textarea.fa-input{height:auto;padding:8px 10px;line-height:1.5;resize:vertical;w
 .fa-ch-dl q{font-style:italic;color:var(--text-muted);}
 .fa-linkbtn{margin-left:6px;padding:0;border:0;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--brand);text-decoration:underline;cursor:pointer;}
 @media (max-width:640px){.fa-ctx,.fa-d-row{grid-template-columns:1fr;}.fa-when{margin-left:0;width:100%;}}
+
+/* ============================================================
+   KEEP NESTREL CLOSE (2026-10-12, js/pwa.js) — the once-only screen after signup, the return
+   reminder card, and the offline page sw.js shows when there is no connection.
+   ============================================================ */
+.kc-modal{position:relative;max-width:420px;padding:32px 28px 24px;text-align:center;border-radius:24px;background:var(--bg);}
+.kc-x{position:absolute;top:12px;right:14px;width:36px;height:36px;border:0;border-radius:50%;background:transparent;font-size:26px;line-height:1;color:var(--text-muted);cursor:pointer;}
+.kc-x:hover{background:var(--bg-alt);}
+.kc-icon{display:block;margin:0 auto 14px;border-radius:16px;box-shadow:0 6px 18px rgba(26,58,42,.25);}
+.kc-title{margin:0 0 8px;font-family:'DM Serif Display',serif;font-weight:400;font-size:28px;line-height:1.1;color:var(--brand);}
+.kc-lead{margin:0 auto 18px;max-width:34ch;font-size:14.5px;line-height:1.55;color:var(--text-muted);}
+.kc-install{display:block;width:100%;height:46px;margin:0 0 14px;border:0;border-radius:var(--radius-pill);background:var(--brand);color:#fff;font:600 15px 'DM Sans',sans-serif;cursor:pointer;}
+/* Only where the browser really offers an install (Chrome, Edge, Android): js/pwa.js un-hides it. */
+.kc-install[hidden]{display:none;}
+.kc-steps{margin:0 0 20px;padding:14px 16px 14px 34px;border-radius:16px;background:var(--surface);border:1px solid var(--border);text-align:left;font-size:14px;line-height:1.5;color:var(--text);}
+.kc-steps li{padding:4px 0;}
+.kc-steps li::marker{color:var(--brand-mid);font-weight:700;}
+.kc-ico{vertical-align:-2px;color:var(--brand-mid);}
+.kc-actions{display:grid;gap:8px;}
+.kc-primary,.kc-secondary{height:44px;border-radius:var(--radius-pill);font:600 14.5px 'DM Sans',sans-serif;cursor:pointer;}
+.kc-primary{border:0;background:var(--brand);color:#fff;}
+.kc-secondary{border:1px solid var(--border);background:var(--surface);color:var(--brand);}
+.kc-later{height:36px;border:0;background:none;color:var(--text-muted);font:500 13.5px 'DM Sans',sans-serif;cursor:pointer;}
+.kc-later:hover{color:var(--text);}
+.kc-modal button:focus-visible,.pwa-reminder button:focus-visible{outline:2px solid var(--brand-mid);outline-offset:2px;}
+/* With an install button, the brand-green Explore steps back so there is one main action. */
+.kc-install:not([hidden]) ~ .kc-actions .kc-primary{background:var(--surface);color:var(--brand);border:1px solid var(--border);}
+
+/* The reminder: a small card bottom-right on a desktop, above the tab bar on a phone. */
+.pwa-reminder{position:fixed;right:20px;bottom:20px;z-index:450;display:flex;align-items:center;gap:12px;max-width:380px;
+  padding:12px 12px 12px 14px;border-radius:18px;background:var(--surface);border:1px solid var(--border);box-shadow:0 10px 30px rgba(36,31,26,.16);}
+.pwa-reminder[hidden]{display:none;}
+.pwa-reminder img{flex:none;border-radius:9px;}
+.pwa-reminder p{margin:0;flex:1;font-size:13.5px;line-height:1.4;color:var(--text);}
+.pwa-r-how{flex:none;height:34px;padding:0 14px;border:0;border-radius:var(--radius-pill);background:var(--brand);color:#fff;font:600 13px 'DM Sans',sans-serif;cursor:pointer;}
+.pwa-r-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;font-size:20px;color:var(--text-muted);cursor:pointer;}
+@media(max-width:768px){
+  .pwa-reminder{left:12px;right:12px;max-width:none;bottom:calc(84px + env(safe-area-inset-bottom,0px));}
+  .kc-modal{padding:28px 20px 18px;}
+}
+
+/* offline.html */
+body.offline-page{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:var(--bg);font-family:'DM Sans',system-ui,sans-serif;}
+.offline-card{max-width:360px;text-align:center;}
+.offline-card img{border-radius:18px;}
+.offline-card h1{margin:16px 0 8px;font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:28px;color:var(--brand);}
+.offline-card p{margin:0 0 20px;color:var(--text-muted);line-height:1.55;}
+.offline-card button{height:44px;padding:0 24px;border:0;border-radius:999px;background:var(--brand);color:#fff;font:600 14.5px 'DM Sans',system-ui,sans-serif;cursor:pointer;}
