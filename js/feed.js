@@ -94,6 +94,33 @@ function feedNewest(limit = 10) {
     .slice(0, limit);
 }
 
+// A short row, not the whole Marketplace: ten of the newest, then a doorway to the rest.
+function feedMarketHTML() {
+  const listings = feedNewest();
+  return listings.length
+    ? feedSection('Fresh on the Market', 'Browse all', "showPage('listings')", `
+        <div class="home-row home-market">
+          ${listings.map(l => listingCardHTML(l, false)).join('')}
+          <button class="home-more-tile" onclick="showPage('listings')">${icon('grid', 22)}<span>Browse the Market</span></button>
+        </div>`)
+    : '';
+}
+
+// Home is drawn the moment the app opens, which is almost always BEFORE the listings arrive
+// (initStudent loads them at the same time). Without this, Fresh on the Market, Featured and the
+// "new listings today" chip stayed missing until the student left Home and came back.
+// renderListings() (js/listings.js) calls this after every change to the listings in memory, and it
+// redraws only those three parts: redrawing all of Home would re-run its queries and flash.
+function feedListingsChanged() {
+  if (!document.getElementById('page-feed')?.classList.contains('active')) return;
+  const market = document.getElementById('homeMarket');
+  if (market) market.innerHTML = feedMarketHTML();
+  const featured = document.getElementById('homeFeatured');
+  if (featured) featured.innerHTML = feedFeaturedHTML();
+  const chips = document.getElementById('homeChips');
+  if (chips) chips.innerHTML = feedChipsHTML();
+}
+
 function feedSection(title, moreLabel, moreFn, bodyHtml) {
   return `
     <section class="feed-sec">
@@ -172,8 +199,12 @@ function feedUpNextHTML() {
 // Clubs this student does not follow yet, most-followed first — the ones their classmates
 // already found worth following. The Follow button is the directory's own (orgDirToggleFollow),
 // so following here repaints every Follow button for that club, everywhere.
+//
+// Clubs only (type 'club'), Kal 2026-10-12. The directory also holds the school itself (the top of
+// the tree — students were being offered "Follow Caldwell University"), its departments and its
+// offices. Those stay findable in the club directory; they are just not "your people".
 function feedClubsHTML(followsNone) {
-  const suggest = (_dirOrgs || []).filter(o => !_dirFollows.has(o.id))
+  const suggest = (_dirOrgs || []).filter(o => o.type === 'club' && !_dirFollows.has(o.id))
     .sort((a, b) => (b.follower_count || 0) - (a.follower_count || 0)).slice(0, 8);
   if (!suggest.length) return '';
   const cards = suggest.map(o => {
@@ -626,16 +657,6 @@ async function renderFeed() {
       </div>
     </section>`;
 
-  // A short row, not the whole Marketplace: ten of the newest, then a doorway to the rest.
-  const listings = feedNewest();
-  const market = listings.length
-    ? feedSection('Fresh on the Market', 'Browse all', "showPage('listings')", `
-        <div class="home-row home-market">
-          ${listings.map(l => listingCardHTML(l, false)).join('')}
-          <button class="home-more-tile" onclick="showPage('listings')">${icon('grid', 22)}<span>Browse the Market</span></button>
-        </div>`)
-    : '';
-
   // Painted in passes: everything already in memory first, then what needs a query (events,
   // then clubs, then Campus news). Holding the page back for the slowest part would make all of
   // it feel slow. Two club slots, because where the section goes depends on how many clubs you
@@ -648,7 +669,7 @@ async function renderFeed() {
     + '<div class="home-top"><div id="homeNews"></div>'
     + '<aside class="home-aside"><div id="homeUpNext"></div><div id="feedEvents"></div></aside></div>'
     + `<div id="homeFeatured">${feedFeaturedHTML()}</div><div id="homeRecaps"></div>`
-    + `<div id="homeMarket">${market}</div><div id="homeClubsBottom"></div>`;
+    + `<div id="homeMarket">${feedMarketHTML()}</div><div id="homeClubsBottom"></div>`;
   feedPaintNews();   // anything already loaded from a previous visit, straight away
 
   const res = await loadEvents();

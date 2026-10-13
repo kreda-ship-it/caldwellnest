@@ -811,8 +811,9 @@ function marketItems() {
 
 function renderListings() {
   // Every change to the listings in memory ends here (first load, a new post, an admin approving
-  // one), so this is where the Services page hears about it and repaints if it is on screen.
+  // one), so this is where the Services page and Home hear about it and repaint if on screen.
   if (typeof svListingsChanged === 'function') svListingsChanged();
+  if (typeof feedListingsChanged === 'function') feedListingsChanged();
   renderCategoryChips();
   // Saved HERE rather than in each setter, and that is the point: six functions change
   // _filters and every one of them ends by calling this. A save in each would be six places
