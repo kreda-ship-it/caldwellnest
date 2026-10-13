@@ -651,8 +651,9 @@ select.ap-input{cursor:pointer;}
   .listings-grid .lc-body{padding:7px 9px 9px;gap:4px;}
   /* Bigger cards, still two across: the Marketplace grid reaches to 10px from the screen edges
      (the page keeps 24px for its title, search and chips), and the caption steps up a size. */
-  #page-listings #mkSections{margin-inline:-14px;}
-  #page-listings #mkSections .mk-sec-head,#page-listings #mkSections .stream-end{padding-inline:14px;}
+  #page-listings #mkSections,#page-services #svSections{margin-inline:-14px;}
+  #page-listings #mkSections .mk-sec-head,#page-listings #mkSections .stream-end,
+  #page-services #svSections .mk-sec-head,#page-services #svSections .stream-end{padding-inline:14px;}
   .listings-grid .lc-title{font-size:14.5px;}
   .listings-grid .lc-loc{font-size:12px;}
   .listings-grid .lc-price{font-size:17px;}
@@ -696,6 +697,7 @@ select.ap-input{cursor:pointer;}
      980px reading column: the Marketplace, Search and your profile. (Not Events: one post at a
      time in a single column, like Instagram. Not Home: a page of short rows, not a grid.) */
   #page-listings > .page-wrap,
+  #page-services > .page-wrap,
   #page-search > .page-wrap{max-width:none;padding:28px 28px 40px;}
 
   /* Masonry for search results — same mechanics as .listings-grid above.
@@ -4099,6 +4101,7 @@ select.ao-input { cursor: pointer; }
 
 #page-feed > .page-wrap,
 #page-listings > .page-wrap,
+#page-services > .page-wrap,
 #page-search > .page-wrap,
 #page-events > .page-wrap,
 #page-profile > .profile-wrap { padding: var(--page-top) var(--page-gutter) 40px; }
